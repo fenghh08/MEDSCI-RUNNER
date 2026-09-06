@@ -17,20 +17,29 @@
    SHAPE OVERVIEW
    ---------------
    COURSES        — real university courses (e.g. MEDS3002), each broken into
-                     Classes (individual lectures, e.g. "L14").
-   TOPICS         — the fixed topic taxonomy (genetics, immunology, ...).
-   THEMES         — Theme (e.g. "cancer") → Topic → study-guide Item. Each
-                     item can point at a COURSES entry via `course` + `class`,
-                     and carries its own `questions` array — the MCQs players
-                     get asked about that item. A question only needs its own
-                     `course`/`class` (or, rarely, a literal `relatedCourse`
-                     string) if it genuinely differs from its item's — most
-                     just inherit the item's.
-   STAGES         — Theme → ordered list of Runner-mode stages.
-   RUNNABLE_THEMES— which theme ids have a STAGES entry (playable in Runner
+                     Classes/lectures (individual lectures, e.g. "L14"). This
+                     is ALSO the top level of THEMES below now -- a course
+                     code like 'MEDS3002' is both a playable top-level group
+                     AND (via `course`/`class` on an item/question) a lecture
+                     citation, which is why an item's own course usually
+                     matches its top-level THEMES key but doesn't have to
+                     (e.g. a MEDS3002 item citing a MEDS3001 lecture too).
+   THEMES         — Course (e.g. "MEDS3002") → Topic → study-guide Item.
+                     Topics are specific to their course now -- each one
+                     carries its own `label`/`icon`/`color` inline instead of
+                     pointing at a shared taxonomy. Each item can point at a
+                     COURSES entry via `course` + `class`, and carries its
+                     own `questions` array — the MCQs players get asked about
+                     that item (each with its own `difficulty`, one of
+                     'easy'/'medium'/'hard', optional). A question only needs
+                     its own `course`/`class` (or, rarely, a literal
+                     `relatedCourse` string) if it genuinely differs from its
+                     item's — most just inherit the item's.
+   STAGES         — Course → ordered list of Runner-mode stages.
+   RUNNABLE_THEMES— which course ids have a STAGES entry (playable in Runner
                      mode vs. Study & Practice-only).
    GAME_CONFIG    — every tunable gameplay number.
-   LIFE_CONFIG    — per-theme label/icon for the "life" resource.
+   LIFE_CONFIG    — per-course label/icon for the "life" resource.
    COMPLETE_SCENARIO — text shown after the last stage.
    ============================================================================ */
 (function(){
@@ -165,115 +174,157 @@
       'code': 'MEDS2003',
       'label': 'Biochemistry',
       'classes': {
-        'L1': { 'label': 'Introduction to Metabolism' },
-        'L2': { 'label': 'Glycolysis vs FA Oxidation' },
-        'L3': { 'label': 'Glycolysis, FA Oxidation, Krebs Cycle' },
-        'L4': { 'label': 'Electron Transport Chain and Oxidative Phosphorylation' },
-        'L5': { 'label': 'Early Starvation, Glycogenolysis' },
-        'L6': { 'label': 'Gluconeogenesis, Proteolysis, Ketone Body Synthesis' },
-        'L7': { 'label': 'Regulation of Enzymes, Rate-Limiting Steps' },
-        'L8': { 'label': 'Gluconeogenesis In Depth' },
-        'L9': { 'label': 'Glycemic Responses, Glycogenesis' },
-        'L10': { 'label': 'Lipogenesis, Pentose Phosphate Pathway' },
-        'L11': { 'label': 'Lipoprotein and Cholesterol Metabolism' },
-        'L12': { 'label': 'Nitrogen Metabolism' },
-        'L13': { 'label': 'Integration of Metabolism' },
-        'L14': { 'label': 'Revision Session 1 (L1-4)' },
-        'L15': { 'label': 'ELMA Design, with Examples' },
-        'L16': { 'label': 'Revision Session 2' },
-        'L17': { 'label': 'Revision Session 3' },
-        'L18': { 'label': 'Molecular Biology Intro' },
-        'L19': { 'label': 'Nucleic Acid Structure' },
-        'L20': { 'label': 'Prokaryotic Replication' },
-        'L21': { 'label': 'Eukaryotic Replication' },
-        'L22': { 'label': 'DNA Synthesis in the Lab' },
-        'L23': { 'label': 'The Eukaryotic Genome' },
-        'L24': { 'label': 'Prokaryotic Transcription' },
-        'L25': { 'label': 'Eukaryotic Transcription' },
-        'L26': { 'label': 'Post-transcriptional Processing' },
-        'L27-28': { 'label': 'Prokaryotic and Eukaryotic Translation' },
-        'L29': { 'label': 'Translational Regulation' },
-        'L30': { 'label': 'CS - Molecular Techniques I' },
-        'L31': { 'label': 'CS - Molecular Techniques II' },
-        'L32': { 'label': 'CS - Molecular Techniques III' },
-        'L33': { 'label': 'Revision Questions Only (L18-L23)' },
-        'L34': { 'label': 'Molecular Techniques Revision' },
-        'L35': { 'label': 'Revision Lecture (Giselle)' },
-        'L36': { 'label': 'Theory of Practical Revision Lecture' },
+        'L1': {
+          'label': 'Intro to Metabolism',
+        },
+        'L2': {
+          'label': 'Glycolysis vs FA Oxidation',
+        },
+        'L3': {
+          'label': 'Glycolysis, FA Oxidation, Krebs Cycle',
+        },
+        'L4': {
+          'label': 'Electron Transport Chain and Ox Phos',
+        },
+        'L5': {
+          'label': 'Early Starvation, Glycogenolysis',
+        },
+        'L6': {
+          'label': 'Gluconeogenesis, Proteolysis and Ketone Body Synthesis',
+        },
+        'L7': {
+          'label': 'Regulation, Enzymes, RLS',
+        },
+        'L8': {
+          'label': 'Gluconeogenesis In Depth',
+        },
+        'L9': {
+          'label': 'Glycemic Responses, Glycogenesis',
+        },
+        'L10': {
+          'label': 'Lipogenesis, Pentose P Pathway',
+        },
+        'L11': {
+          'label': 'Lipoprotein and Cholesterol Metabolism',
+        },
+        'L12': {
+          'label': 'Nitrogen Metabolism',
+        },
+        'L13': {
+          'label': 'Integration of Metabolism',
+        },
+        'L14': {
+          'label': 'Revision Session 1 – L1–L4',
+        },
+        'L15': {
+          'label': 'ELMA Design with Examples',
+        },
+        'L16': {
+          'label': 'Revision Session 2',
+        },
+        'L17': {
+          'label': 'Revision Session 3',
+        },
+        'L18': {
+          'label': 'Molecular Biology Intro',
+        },
+        'L19': {
+          'label': 'Nucleic Acid Structure',
+        },
+        'L20': {
+          'label': 'Prokaryotic Replication',
+        },
+        'L21': {
+          'label': 'Eukaryotic Replication',
+        },
+        'L22': {
+          'label': 'DNA Synthesis in the Lab',
+        },
+        'L23': {
+          'label': 'The Eukaryotic Genome',
+        },
+        'L24': {
+          'label': 'Prokaryotic Transcription',
+        },
+        'L25': {
+          'label': 'Eukaryotic Transcription',
+        },
+        'L26': {
+          'label': 'Post-transcriptional Processing',
+        },
+        'L27-28': {
+          'label': 'Prokaryotic and Eukaryotic Translation',
+        },
+        'L29': {
+          'label': 'Translational Regulation',
+        },
+        'L30': {
+          'label': 'CS – Molecular Techniques I',
+        },
+        'L31': {
+          'label': 'CS – Molecular Techniques II',
+        },
+        'L32': {
+          'label': 'CS – Molecular Techniques III',
+        },
+        'L33': {
+          'label': 'L18–L23 Revision Questions',
+        },
+        'L34': {
+          'label': 'Molecular Techniques Revision',
+        },
+        'L35': {
+          'label': 'Revision Lecture – Giselle',
+        },
+        'L36': {
+          'label': 'Theory of Practical Revision Lecture',
+        },
       },
     },
   };
 
 /* ======================================================================
-   TOPICS — the fixed taxonomy every question/item is filed under.
+   TOPICS is no longer authored here -- each course's topics now carry
+   their own label/icon/color inline (see THEMES below), since topics are
+   specific to the course they belong to rather than a shared taxonomy.
+   medsci-runner.html and developer-tool.html each build a flat TOPICS
+   lookup at load time by walking every course's topics, purely so the
+   rest of those files (which look things up by topic id) didn't need to
+   change -- that derived index is NOT authored here.
    ====================================================================== */
-            const TOPICS = {
-    'genetics': {
-      'label': 'Genetics',
-      'icon': '🧬',
-      'color': '#c58bff',
-    },
-    'immunology': {
-      'label': 'Immunology',
-      'icon': '🛡️',
-      'color': '#3ec6e0',
-    },
-    'pharmacology': {
-      'label': 'Pharmacology',
-      'icon': '💊',
-      'color': '#ff4d6d',
-    },
-    'oncology': {
-      'label': 'Oncology',
-      'icon': '🎗️',
-      'color': '#ffab4d',
-    },
-    'metabolism': {
-      'label': 'Metabolism',
-      'icon': '🔥',
-      'color': '#ffd23f',
-    },
-    'molecularBiology': {
-      'label': 'Molecular Biology',
-      'icon': '🔬',
-      'color': '#7cff6b',
-    },
-    'cellBiology': {
-      'label': 'Cell Biology',
-      'icon': '🧫',
-      'color': '#2dd4bf',
-    },
-    'pharmacologyHistory': {
-      'label': 'Pharmacology History',
-      'icon': '📜',
-      'color': '#f472b6',
-    },
-  };
 
 /* ======================================================================
    GAME_CONFIG — every tunable number lives here in one place.
    ====================================================================== */
   const GAME_CONFIG = {
-    baseSpeed: 750,            // px/s at Stage I
-    speedRampPerStage: 20,     // added per stage index (0-based) — one-time bump on stage change
+    baseSpeed: 600,            // px/s at Stage I
+    speedRampPerStage: 40,     // added per stage index (0-based) — one-time bump on stage change
     speedRampPerSecond: 10,    // added continuously for every second survived — this is what makes it feel gradual
     maxSpeed: 1000,             // speed never exceeds this
     startingGlucose: 100,
     glucosePickupValue: 5,     // gained per life pickup collected
     wrongAnswerPenalty: 40,    // life lost per wrong MCQ answer
-    obstacleSpawnBaseMs: 650,  // topic-block spawn interval = base + random(0..rand)
-    obstacleSpawnRandMs: 300,
+    postAnswerPauseMs: 2000,   // brief freeze after clicking Continue, before the run resumes -- gives a beat to
+                               // get oriented instead of getting dropped straight back next to whatever piled up
+    obstacleSpawnBaseMs: 250,  // topic-block spawn interval = base + random(0..rand)
+    obstacleSpawnRandMs: 450,
     glucoseSpawnBaseMs: 550,   // life-pickup spawn interval = base + random(0..rand)
     glucoseSpawnRandMs: 300,
     initialObstacleDelayMs: 1200, // delay before the very first topic block spawns
     initialGlucoseDelayMs: 500,   // delay before the very first life pickup spawns
     bombDamage: 40,               // life lost when a bomb is hit (instant, no question)
-    bombSpawnBaseMs: 1000,        // bomb spawn interval — base + random(0..rand)
-    bombSpawnRandMs: 1000,
+    bombIcon: '💣',                // swap for 'icons/bomb.png' (or any path/URL -- see the ICONS comment
+                                   // in medsci-runner.html) to use your own image instead of the emoji
+    bombSpawnBaseMs: 500,        // bomb spawn interval — base + random(0..rand)
+    bombSpawnRandMs: 1300,
     scoreCorrectWeight: 50,    // Group Race ranking score = correct*this - incorrect*this + life*this + stageIndex*stageWeight
     scoreIncorrectWeight: 35,
     scoreLifeWeight: 1,
     stageWeight: 300,          // added per stage reached (stageIndex is 0-based, so Stage I contributes 0)
+    streakBonusEvery: 3,       // award a bonus every Nth correct answer IN A ROW (resets to 0 on any wrong answer)
+    streakBonusAmount: 10,     // life gained when a streak bonus triggers
+    streakBonusAppliesToLife: true, // set false to stop the streak bonus from also topping up life -- the life-award code below stays intact either way, this just gates it
+    streakBonusScoreAmount: 150, // flat score points awarded when a streak bonus triggers (on top of the usual correct/incorrect/life/stage weights)
   };
 
 /* ======================================================================
@@ -282,8 +333,8 @@
    penalties, the bomb warning) reads from this automatically.
    ====================================================================== */
   const LIFE_CONFIG = {
-    cancer:       { label:'Glucose', icon:'🩸' },
-    biochemistry: { label:'ATP',     icon:'⚡' },
+    'MEDS3002':   { label:'Glucose', icon:'🩸' },
+    'MEDS2003': { label:'ATP',     icon:'⚡' },
   };
 
 /* ======================================================================
@@ -297,12 +348,15 @@
    questions just inherit the item's.
    ====================================================================== */
             const THEMES = {
-    'cancer': {
-      'label': 'Cancer',
+    'MEDS3002': {
+      'label': 'MEDS3002',
       'icon': '🎗️',
       'blurb': 'Genetics, immunology, pharmacology and oncology across cancer types — MEDS3002.',
       'topics': {
         'genetics': {
+          'label': 'Genetics',
+          'icon': '🧬',
+          'color': '#c58bff',
           'items': {
             'bcrabl': {
               'label': 'BCR-ABL fusion / Philadelphia chromosome',
@@ -407,6 +461,9 @@
           },
         },
         'immunology': {
+          'label': 'Immunology',
+          'icon': '🛡️',
+          'color': '#3ec6e0',
           'items': {
             'pdl1checkpoint': {
               'label': 'PD-1 / PD-L1 checkpoint',
@@ -678,6 +735,9 @@
           },
         },
         'pharmacology': {
+          'label': 'Pharmacology',
+          'icon': '💊',
+          'color': '#ff4d6d',
           'items': {
             'imatinib': {
               'label': 'Imatinib',
@@ -951,6 +1011,9 @@
           },
         },
         'oncology': {
+          'label': 'Oncology',
+          'icon': '🎗️',
+          'color': '#ffab4d',
           'items': {
             'blastcrisis': {
               'label': 'Blast crisis',
@@ -1162,6 +1225,9 @@
           },
         },
         'cellBiology': {
+          'label': 'Cell Biology',
+          'icon': '🧫',
+          'color': '#2dd4bf',
           'items': {
             'cellCycleCheckpoints': {
               'label': 'Cell cycle checkpoints & CDK regulation',
@@ -1322,6 +1388,9 @@
           },
         },
         'pharmacologyHistory': {
+          'label': 'Pharmacology History',
+          'icon': '📜',
+          'color': '#f472b6',
           'items': {
             'historyOfPharmacology': {
               'label': 'History of pharmacology & pharmacognosy',
@@ -1603,12 +1672,15 @@
         },
       },
     },
-    'biochemistry': {
-      'label': 'Biochemistry',
+    'MEDS2003': {
+      'label': 'MEDS2003',
       'icon': '🧪',
       'blurb': 'Metabolism and molecular biology — MEDS2003. Starter content only; expand freely.',
       'topics': {
         'metabolism': {
+          'label': 'Metabolism',
+          'icon': '🔥',
+          'color': '#ffd23f',
           'items': {
             'warburgeffect': {
               'label': 'The Warburg effect',
@@ -1655,6 +1727,9 @@
           },
         },
         'molecularBiology': {
+          'label': 'Molecular Biology',
+          'icon': '🔬',
+          'color': '#7cff6b',
           'items': {
             'transcriptionbasics': {
               'label': 'Transcription (overview)',
@@ -1689,10 +1764,10 @@
    stage begins.
    ====================================================================== */
   const STAGES = {
-    cancer: [
+    'MEDS3002': [
       /* "scenario" is patient-facing narrative — this is also where a real
          case study can be dropped in later (per stage). */
-      { n:1, roman:'I', requirements:{ genetics:10 },
+      { n:1, roman:'I', requirements:{ genetics:3, immunology:3, pharmacology:3, oncology:3 },
         scenario:"Patient presents with fatigue and unexplained bruising. Bloodwork shows an abnormal white cell count — the care team orders genetic testing to find out exactly what's driving it." },
       { n:2, roman:'II', requirements:{ genetics:5, immunology:10 },
         scenario:"The genetic picture is in. Now the patient's own immune system is in the fight — how well it can recognise and respond to the disease will shape what comes next." },
@@ -1704,7 +1779,7 @@
     // Deliberately short right now — biochemistry only has a handful of
     // seed questions so far. Expand requirements as you add more content
     // (see the contributor tool or dev notes).
-    biochemistry: [
+    'MEDS2003': [
       { n:1, roman:'I', requirements:{ metabolism:2 },
         scenario:"You're tracing how a cell fuels itself — starting with how it handles glucose and energy production." },
       { n:2, roman:'II', requirements:{ metabolism:1, molecularBiology:1 },
@@ -1713,11 +1788,11 @@
   };
   const COMPLETE_SCENARIO = "You've worked through the full case — review your answers below, or start again to reinforce what you've learned. (Real case studies coming soon.)";
 
-  const RUNNABLE_THEMES = ['cancer', 'biochemistry']; // themes with a matching STAGES config, playable in Runner mode
+  const RUNNABLE_THEMES = ['MEDS3002', 'MEDS2003']; // course ids with a matching STAGES config, playable in Runner mode
 
 
   window.RUNNER_DATA = {
-    COURSES, TOPICS, GAME_CONFIG, LIFE_CONFIG, THEMES,
+    COURSES, GAME_CONFIG, LIFE_CONFIG, THEMES,
     STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES,
   };
 
