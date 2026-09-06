@@ -755,7 +755,7 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
      to game-data.js, this form picks it up automatically the next time it's
      opened; nothing here needs to be kept in sync by hand.
      ====================================================================== */
-  const TOOL_VERSION = '2026-09-03-stale-template-fix'; // bump this string whenever you send teammates a new copy of this file
+  const TOOL_VERSION = '2026-09-06-tolerate-zero-padded-lecture-numbers'; // bump this string whenever you send teammates a new copy of this file
   console.log('[Developer Tool] version', TOOL_VERSION);
 
   // This file can't actually read medsci-runner.html's local content — a
@@ -1699,8 +1699,9 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
         if(!KNOWN_COURSES[courseCode]){ errors.push(`Row ${rowNum}: course "${courseCode}" doesn't match any existing course, skipped.`); continue; }
         course = courseCode;
         if(classKey){
-          if(!KNOWN_COURSES[courseCode].classes[classKey]){ errors.push(`Row ${rowNum}: class "${classKey}" doesn't exist under course ${courseCode}, skipped.`); continue; }
-          cls = classKey;
+          const resolvedClass = resolveLectureKey(courseCode, classKey);
+          if(!resolvedClass){ errors.push(`Row ${rowNum}: class "${classKey}" doesn't exist under course ${courseCode}, skipped.`); continue; }
+          cls = resolvedClass;
         }
       } else if(classKey){
         errors.push(`Row ${rowNum}: class given without a course, skipped.`); continue;
@@ -1983,6 +1984,21 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
   // resolve to the same placeholder), not across calls -- actually creating
   // the placeholder items happens once, for real, only when "Parse & add all"
   // is clicked, never during the live preview that re-parses on every keystroke.
+  // Matches a typed lecture value against a course's real class keys,
+  // tolerating the zero-padding people naturally type (or paste from a
+  // spreadsheet) even though keys are stored without it, e.g. 'L01' / 'l1'
+  // / ' L1 ' all resolve to the real key 'L1'. Combined keys like
+  // 'L27-28' still match as-is via the exact-match check first.
+  function resolveLectureKey(courseId, input){
+    const classes = KNOWN_COURSES[courseId] && KNOWN_COURSES[courseId].classes;
+    if(!classes) return null;
+    const trimmed = (input||'').trim();
+    if(classes[trimmed]) return trimmed; // exact match, most common case
+    const normalized = trimmed.toUpperCase().replace(/^([A-Z]+)0*(\d)/, '$1$2');
+    if(classes[normalized]) return normalized;
+    const caseInsensitiveHit = Object.keys(classes).find(k=>k.toUpperCase()===trimmed.toUpperCase());
+    return caseInsensitiveHit || null;
+  }
   function parseLectureQuestions(){
     const rows = parseCSV(lec_textarea.value);
     if(rows.length < 2) return { valid:[], newItems:[], errors:['Paste a header row plus at least one question row.'] };
@@ -2035,10 +2051,11 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
       // existing "spans several classes" override afterward, in edit mode.
       let itemCourse = '', itemClass = '';
       if(lectureInput){
-        if(!KNOWN_COURSES[theme.id] || !KNOWN_COURSES[theme.id].classes[lectureInput]){
+        const resolvedLecture = resolveLectureKey(theme.id, lectureInput);
+        if(!resolvedLecture){
           errors.push(`Row ${rowNum}: lecture "${lectureInput}" doesn't exist under course ${theme.id}, skipped.`); continue;
         }
-        itemCourse = theme.id; itemClass = lectureInput;
+        itemCourse = theme.id; itemClass = resolvedLecture;
       } else if(lecCourseDefault){
         itemCourse = lecCourseDefault; itemClass = lecClassDefault;
       }
