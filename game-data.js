@@ -17,28 +17,20 @@
    SHAPE OVERVIEW
    ---------------
    COURSES        — real university courses (e.g. MEDS3002), each broken into
-                     Classes/lectures (individual lectures, e.g. "L14"). This
-                     is ALSO the top level of THEMES below now -- a course
-                     code like 'MEDS3002' is both a playable top-level group
-                     AND (via `course`/`class` on an item/question) a lecture
-                     citation, which is why an item's own course usually
-                     matches its top-level THEMES key but doesn't have to.
-   THEMES         — Course (e.g. "MEDS3002") → Topic → study-guide Item.
-                     Topics are specific to their course now -- each one
-                     carries its own `label`/`icon`/`color` inline instead of
-                     pointing at a shared taxonomy. Each item can point at a
-                     COURSES entry via `course` + `class`, and carries its own
-                     `questions` array — the MCQs players get asked about
-                     that item (each with its own `difficulty`, one of
-                     'easy'/'medium'/'hard', optional). A question only needs
-                     its own `course`/`class` (or, rarely, a literal
-                     `relatedCourse` string) if it genuinely differs from its
-                     item's — most just inherit the item's.
-   STAGES         — Course → ordered list of Runner-mode stages.
-   RUNNABLE_THEMES— which course ids have a STAGES entry (playable in Runner
+                     Classes (individual lectures, e.g. "L14").
+   TOPICS         — the fixed topic taxonomy (genetics, immunology, ...).
+   THEMES         — Theme (e.g. "cancer") → Topic → study-guide Item. Each
+                     item can point at a COURSES entry via `course` + `class`,
+                     and carries its own `questions` array — the MCQs players
+                     get asked about that item. A question only needs its own
+                     `course`/`class` (or, rarely, a literal `relatedCourse`
+                     string) if it genuinely differs from its item's — most
+                     just inherit the item's.
+   STAGES         — Theme → ordered list of Runner-mode stages.
+   RUNNABLE_THEMES— which theme ids have a STAGES entry (playable in Runner
                      mode vs. Study & Practice-only).
    GAME_CONFIG    — every tunable gameplay number.
-   LIFE_CONFIG    — per-course label/icon for the "life" resource.
+   LIFE_CONFIG    — per-theme label/icon for the "life" resource.
    COMPLETE_SCENARIO — text shown after the last stage.
    ============================================================================ */
 (function(){
@@ -51,7 +43,7 @@
    ("MEDS3002 · L14 · Cancer Hallmarks") is generated automatically — see
    courseDisplayString() in cancer-runner-group.html.
    ====================================================================== */
-              const COURSES = {
+            const COURSES = {
     'MEDS3002': {
       'code': 'MEDS3002',
       'label': 'Cancer / Medical Science',
@@ -173,16 +165,88 @@
       'code': 'MEDS2003',
       'label': 'Biochemistry',
       'classes': {
-        'L1': {
-          'label': 'Intro to Metabolism',
-        },
-        'L6': {
-          'label': 'Gluconeogenesis, Proteolysis and Ketone Body Synthesis',
-        },
-        'L25': {
-          'label': 'Eukaryotic Transcription',
-        },
+        'L1': { 'label': 'Introduction to Metabolism' },
+        'L2': { 'label': 'Glycolysis vs FA Oxidation' },
+        'L3': { 'label': 'Glycolysis, FA Oxidation, Krebs Cycle' },
+        'L4': { 'label': 'Electron Transport Chain and Oxidative Phosphorylation' },
+        'L5': { 'label': 'Early Starvation, Glycogenolysis' },
+        'L6': { 'label': 'Gluconeogenesis, Proteolysis, Ketone Body Synthesis' },
+        'L7': { 'label': 'Regulation of Enzymes, Rate-Limiting Steps' },
+        'L8': { 'label': 'Gluconeogenesis In Depth' },
+        'L9': { 'label': 'Glycemic Responses, Glycogenesis' },
+        'L10': { 'label': 'Lipogenesis, Pentose Phosphate Pathway' },
+        'L11': { 'label': 'Lipoprotein and Cholesterol Metabolism' },
+        'L12': { 'label': 'Nitrogen Metabolism' },
+        'L13': { 'label': 'Integration of Metabolism' },
+        'L14': { 'label': 'Revision Session 1 (L1-4)' },
+        'L15': { 'label': 'ELMA Design, with Examples' },
+        'L16': { 'label': 'Revision Session 2' },
+        'L17': { 'label': 'Revision Session 3' },
+        'L18': { 'label': 'Molecular Biology Intro' },
+        'L19': { 'label': 'Nucleic Acid Structure' },
+        'L20': { 'label': 'Prokaryotic Replication' },
+        'L21': { 'label': 'Eukaryotic Replication' },
+        'L22': { 'label': 'DNA Synthesis in the Lab' },
+        'L23': { 'label': 'The Eukaryotic Genome' },
+        'L24': { 'label': 'Prokaryotic Transcription' },
+        'L25': { 'label': 'Eukaryotic Transcription' },
+        'L26': { 'label': 'Post-transcriptional Processing' },
+        'L27-28': { 'label': 'Prokaryotic and Eukaryotic Translation' },
+        'L29': { 'label': 'Translational Regulation' },
+        'L30': { 'label': 'CS - Molecular Techniques I' },
+        'L31': { 'label': 'CS - Molecular Techniques II' },
+        'L32': { 'label': 'CS - Molecular Techniques III' },
+        'L33': { 'label': 'Revision Questions Only (L18-L23)' },
+        'L34': { 'label': 'Molecular Techniques Revision' },
+        'L35': { 'label': 'Revision Lecture (Giselle)' },
+        'L36': { 'label': 'Theory of Practical Revision Lecture' },
       },
+    },
+  };
+
+/* ======================================================================
+   TOPICS — the fixed taxonomy every question/item is filed under.
+   ====================================================================== */
+            const TOPICS = {
+    'genetics': {
+      'label': 'Genetics',
+      'icon': '🧬',
+      'color': '#c58bff',
+    },
+    'immunology': {
+      'label': 'Immunology',
+      'icon': '🛡️',
+      'color': '#3ec6e0',
+    },
+    'pharmacology': {
+      'label': 'Pharmacology',
+      'icon': '💊',
+      'color': '#ff4d6d',
+    },
+    'oncology': {
+      'label': 'Oncology',
+      'icon': '🎗️',
+      'color': '#ffab4d',
+    },
+    'metabolism': {
+      'label': 'Metabolism',
+      'icon': '🔥',
+      'color': '#ffd23f',
+    },
+    'molecularBiology': {
+      'label': 'Molecular Biology',
+      'icon': '🔬',
+      'color': '#7cff6b',
+    },
+    'cellBiology': {
+      'label': 'Cell Biology',
+      'icon': '🧫',
+      'color': '#2dd4bf',
+    },
+    'pharmacologyHistory': {
+      'label': 'Pharmacology History',
+      'icon': '📜',
+      'color': '#f472b6',
     },
   };
 
@@ -190,48 +254,40 @@
    GAME_CONFIG — every tunable number lives here in one place.
    ====================================================================== */
   const GAME_CONFIG = {
-    baseSpeed: 600,            // px/s at Stage I
-    speedRampPerStage: 40,     // added per stage index (0-based) — one-time bump on stage change
+    baseSpeed: 750,            // px/s at Stage I
+    speedRampPerStage: 20,     // added per stage index (0-based) — one-time bump on stage change
     speedRampPerSecond: 10,    // added continuously for every second survived — this is what makes it feel gradual
     maxSpeed: 1000,             // speed never exceeds this
     startingGlucose: 100,
     glucosePickupValue: 5,     // gained per life pickup collected
     wrongAnswerPenalty: 40,    // life lost per wrong MCQ answer
-    postAnswerPauseMs: 2000,   // brief freeze after clicking Continue, before the run resumes -- gives a beat to
-                               // get oriented instead of getting dropped straight back next to whatever piled up
-    obstacleSpawnBaseMs: 250,  // topic-block spawn interval = base + random(0..rand)
-    obstacleSpawnRandMs: 450,
+    obstacleSpawnBaseMs: 650,  // topic-block spawn interval = base + random(0..rand)
+    obstacleSpawnRandMs: 300,
     glucoseSpawnBaseMs: 550,   // life-pickup spawn interval = base + random(0..rand)
     glucoseSpawnRandMs: 300,
     initialObstacleDelayMs: 1200, // delay before the very first topic block spawns
     initialGlucoseDelayMs: 500,   // delay before the very first life pickup spawns
     bombDamage: 40,               // life lost when a bomb is hit (instant, no question)
-    bombIcon: '💣',                // swap for 'icons/bomb.png' (or any path/URL -- see the ICONS comment
-                                   // in medsci-runner.html) to use your own image instead of the emoji
-    bombSpawnBaseMs: 500,        // bomb spawn interval — base + random(0..rand)
-    bombSpawnRandMs: 1300,
+    bombSpawnBaseMs: 1000,        // bomb spawn interval — base + random(0..rand)
+    bombSpawnRandMs: 1000,
     scoreCorrectWeight: 50,    // Group Race ranking score = correct*this - incorrect*this + life*this + stageIndex*stageWeight
     scoreIncorrectWeight: 35,
     scoreLifeWeight: 1,
     stageWeight: 300,          // added per stage reached (stageIndex is 0-based, so Stage I contributes 0)
-    streakBonusEvery: 3,       // award a bonus every Nth correct answer IN A ROW (resets to 0 on any wrong answer)
-    streakBonusAmount: 10,     // life gained when a streak bonus triggers
-    streakBonusAppliesToLife: true, // set false to stop the streak bonus from also topping up life -- the life-award code below stays intact either way, this just gates it
-    streakBonusScoreAmount: 150, // flat score points awarded when a streak bonus triggers (on top of the usual correct/incorrect/life/stage weights)
   };
 
 /* ======================================================================
-   LIFE — the "health" resource is themed per Runner-playable course. Change
+   LIFE — the "health" resource is themed per Runner-playable theme. Change
    the label/icon here any time — every place it's shown (HUD, pickups,
    penalties, the bomb warning) reads from this automatically.
    ====================================================================== */
   const LIFE_CONFIG = {
-    'MEDS3002': { label:'Glucose', icon:'🩸' },
-    'MEDS2003': { label:'ATP',     icon:'⚡' },
+    cancer:       { label:'Glucose', icon:'🩸' },
+    biochemistry: { label:'ATP',     icon:'⚡' },
   };
 
 /* ======================================================================
-   THEMES — Course -> Topic -> Item. Each item can carry "hashtags" (which
+   THEMES — Theme -> Topic -> Item. Each item can carry "hashtags" (which
    cancer type / sub-area it belongs to, e.g. ['Leukemia']), course + class
    fields pointing into COURSES above (e.g. course:'MEDS3002', class:'L14'),
    and its own "questions" array — the MCQs players get asked when they hit
@@ -240,16 +296,13 @@
    its item's (e.g. a question spanning several classes at once) — most
    questions just inherit the item's.
    ====================================================================== */
-              const THEMES = {
-    'MEDS3002': {
-      'label': 'MEDS3002',
+            const THEMES = {
+    'cancer': {
+      'label': 'Cancer',
       'icon': '🎗️',
       'blurb': 'Genetics, immunology, pharmacology and oncology across cancer types — MEDS3002.',
       'topics': {
         'genetics': {
-          'label': 'Genetics',
-          'icon': '🧬',
-          'color': '#c58bff',
           'items': {
             'bcrabl': {
               'label': 'BCR-ABL fusion / Philadelphia chromosome',
@@ -354,9 +407,6 @@
           },
         },
         'immunology': {
-          'label': 'Immunology',
-          'icon': '🛡️',
-          'color': '#3ec6e0',
           'items': {
             'pdl1checkpoint': {
               'label': 'PD-1 / PD-L1 checkpoint',
@@ -628,9 +678,6 @@
           },
         },
         'pharmacology': {
-          'label': 'Pharmacology',
-          'icon': '💊',
-          'color': '#ff4d6d',
           'items': {
             'imatinib': {
               'label': 'Imatinib',
@@ -904,9 +951,6 @@
           },
         },
         'oncology': {
-          'label': 'Oncology',
-          'icon': '🎗️',
-          'color': '#ffab4d',
           'items': {
             'blastcrisis': {
               'label': 'Blast crisis',
@@ -1118,9 +1162,6 @@
           },
         },
         'cellBiology': {
-          'label': 'Cell Biology',
-          'icon': '🧫',
-          'color': '#2dd4bf',
           'items': {
             'cellCycleCheckpoints': {
               'label': 'Cell cycle checkpoints & CDK regulation',
@@ -1281,9 +1322,6 @@
           },
         },
         'pharmacologyHistory': {
-          'label': 'Pharmacology History',
-          'icon': '📜',
-          'color': '#f472b6',
           'items': {
             'historyOfPharmacology': {
               'label': 'History of pharmacology & pharmacognosy',
@@ -1565,15 +1603,12 @@
         },
       },
     },
-    'MEDS2003': {
-      'label': 'MEDS2003',
+    'biochemistry': {
+      'label': 'Biochemistry',
       'icon': '🧪',
       'blurb': 'Metabolism and molecular biology — MEDS2003. Starter content only; expand freely.',
       'topics': {
         'metabolism': {
-          'label': 'Metabolism',
-          'icon': '🔥',
-          'color': '#ffd23f',
           'items': {
             'warburgeffect': {
               'label': 'The Warburg effect',
@@ -1617,311 +1652,9 @@
                 },
               ],
             },
-            'catabolism_vkt2': {
-              'label': 'Catabolism',
-              'images': [],
-              'description': '',
-              'funFacts': [],
-              'refs': [],
-              'hashtags': [],
-              'course': 'MEDS2003',
-              'class': 'L1',
-              'questions': [
-                {
-                  'id': 'q-metabolism-1ko4',
-                  'prompt': 'A cell breaks down a large fuel molecule and releases energy. Which type of pathway is involved?',
-                  'options': ['Anabolic pathway', 'Catabolic pathway', 'Synthetic pathway', 'Transport pathway'],
-                  'correctIndex': 1,
-                  'explanation': 'Catabolic pathways break larger molecules into smaller ones while releasing energy and extracting H/e⁻.',
-                  'difficulty': 'easy',
-                  'hashtags': ['Metabolism', 'Catabolism'],
-                },
-                {
-                  'id': 'q-metabolism-nxgl',
-                  'prompt': 'A cell breaks down a large fuel molecule and releases energy. Which type of pathway is involved?',
-                  'options': ['Anabolic pathway', 'Catabolic pathway', 'Synthetic pathway', 'Transport pathway'],
-                  'correctIndex': 1,
-                  'explanation': 'Catabolic pathways break larger molecules into smaller ones while releasing energy and extracting H/e⁻.',
-                  'difficulty': 'easy',
-                  'hashtags': ['Metabolism', 'Catabolism'],
-                },
-                {
-                  'id': 'q-metabolism-8u27',
-                  'prompt': 'What metabolic response is expected when cellular energy charge becomes low?',
-                  'options': ['Anabolism increases', 'Catabolism decreases', 'Catabolism increases', 'ATP use stops'],
-                  'correctIndex': 2,
-                  'explanation': 'Low energy charge activates ATP-generating catabolic pathways and inhibits ATP-consuming anabolic pathways.',
-                  'hashtags': ['Energy Charge', 'Catabolism'],
-                },
-              ],
-            },
-            'acetylcoa_b968': {
-              'label': 'Acetyl coA',
-              'images': [],
-              'description': '',
-              'funFacts': [],
-              'refs': [],
-              'hashtags': [],
-              'course': 'MEDS2003',
-              'class': 'L1',
-              'questions': [
-                {
-                  'id': 'q-metabolism-v95e',
-                  'prompt': 'Why is acetyl-CoA considered a central metabolic intermediate?',
-                  'options': ['It stores cellular ATP', 'It directly forms oxygen', 'Multiple fuels can produce it', 'Only glucose produces it'],
-                  'correctIndex': 2,
-                  'explanation': 'Carbohydrates, fats and proteins can all feed carbon into acetyl-CoA and subsequent metabolism.',
-                  'hashtags': ['Metabolism', 'Acetyl-CoA'],
-                },
-                {
-                  'id': 'q-metabolism-qe78',
-                  'prompt': 'Why is acetyl-CoA considered a central metabolic intermediate?',
-                  'options': ['It stores cellular ATP', 'It directly forms oxygen', 'Multiple fuels can produce it', 'Only glucose produces it'],
-                  'correctIndex': 2,
-                  'explanation': 'Carbohydrates, fats and proteins can all feed carbon into acetyl-CoA and subsequent metabolism.',
-                  'hashtags': ['Metabolism', 'Acetyl-CoA'],
-                },
-              ],
-            },
-            'krebscycle_xsd4': {
-              'label': 'Krebs cycle',
-              'images': [],
-              'description': '',
-              'funFacts': [],
-              'refs': [],
-              'hashtags': [],
-              'course': 'MEDS2003',
-              'class': 'L1',
-              'questions': [
-                {
-                  'id': 'q-metabolism-eosl',
-                  'prompt': 'Glucose and fatty acids begin with different pathways. Where can their metabolism converge?',
-                  'options': ['Krebs cycle metabolism', 'Glycogen synthesis', 'Protein synthesis', 'Urea formation'],
-                  'correctIndex': 0,
-                  'explanation': 'Glycolysis and beta-oxidation follow different routes, but both can ultimately supply acetyl-CoA to the Krebs cycle.',
-                  'hashtags': ['Metabolism', 'Krebs Cycle'],
-                },
-                {
-                  'id': 'q-metabolism-bmpy',
-                  'prompt': 'Glucose and fatty acids begin with different pathways. Where can their metabolism converge?',
-                  'options': ['Krebs cycle metabolism', 'Glycogen synthesis', 'Protein synthesis', 'Urea formation'],
-                  'correctIndex': 0,
-                  'explanation': 'Glycolysis and beta-oxidation follow different routes, but both can ultimately supply acetyl-CoA to the Krebs cycle.',
-                  'hashtags': ['Metabolism', 'Krebs Cycle'],
-                },
-                {
-                  'id': 'q-metabolism-aa3w',
-                  'prompt': 'After the Krebs cycle, where is much of the fuel\'s captured energy stored?',
-                  'options': ['Carbon dioxide and water', 'ATP and ADP', 'Pyruvate and citrate', 'NADH and FADH₂'],
-                  'correctIndex': 3,
-                  'explanation': 'The Krebs cycle makes little ATP directly; much of the captured energy is held in NADH and FADH₂.',
-                  'hashtags': ['Krebs Cycle', 'NADH', 'FADH2'],
-                },
-              ],
-            },
-            'metabolicenzymes_gfgy': {
-              'label': 'Metabolic enzymes',
-              'images': [],
-              'description': '',
-              'funFacts': [],
-              'refs': [],
-              'hashtags': [],
-              'course': 'MEDS2003',
-              'class': 'L1',
-              'questions': [
-                {
-                  'id': 'q-metabolism-pnfl',
-                  'prompt': 'How do enzymes increase the rate of metabolic reactions?',
-                  'options': ['Increase product energy', 'Change reaction equilibrium', 'Increase substrate energy', 'Lower activation energy'],
-                  'correctIndex': 3,
-                  'explanation': 'Enzymes lower the activation energy needed to reach the transition state without changing the final equilibrium.',
-                  'difficulty': 'easy',
-                  'hashtags': ['Enzymes', 'Activation Energy'],
-                },
-                {
-                  'id': 'q-metabolism-kjwa',
-                  'prompt': 'An enzyme transfers a phosphate from ATP onto a substrate. What type of enzyme is it?',
-                  'options': ['Phosphatase', 'Kinase', 'Phosphorylase', 'Dehydrogenase'],
-                  'correctIndex': 1,
-                  'explanation': 'A kinase catalyses phosphorylation by transferring a phosphate group, commonly from ATP, onto a substrate.',
-                  'difficulty': 'easy',
-                  'hashtags': ['Enzymes', 'Kinase'],
-                },
-                {
-                  'id': 'q-metabolism-c26n',
-                  'prompt': 'Glycogen is cleaved using inorganic phosphate rather than water. Which enzyme class performs this reaction?',
-                  'options': ['Phosphorylase', 'Phosphatase', 'Synthetase', 'Dehydrogenase'],
-                  'correctIndex': 0,
-                  'explanation': 'A phosphorylase performs phosphorolysis, using inorganic phosphate to cleave a bond rather than water.',
-                  'hashtags': ['Enzymes', 'Phosphorylase'],
-                },
-              ],
-            },
-            'amp_yk97': {
-              'label': 'AMP',
-              'images': [],
-              'description': '',
-              'funFacts': [],
-              'refs': [],
-              'hashtags': [],
-              'course': 'MEDS2003',
-              'class': 'L1',
-              'questions': [
-                {
-                  'id': 'q-metabolism-4ive',
-                  'prompt': 'Why is a rise in AMP a sensitive indicator of low cellular energy?',
-                  'options': ['It rapidly consumes NADH', 'It directly inhibits enzymes', 'It increases ATP stability', 'It strongly lowers energy charge'],
-                  'correctIndex': 3,
-                  'explanation': 'AMP appears only in the denominator of the energy-charge equation, so a small increase can markedly lower energy charge.',
-                  'hashtags': ['AMP', 'Energy Charge'],
-                },
-              ],
-            },
-            'atp_jscc': {
-              'label': 'ATP',
-              'images': [],
-              'description': '',
-              'funFacts': [],
-              'refs': [],
-              'hashtags': [],
-              'course': 'MEDS2003',
-              'class': 'L1',
-              'questions': [
-                {
-                  'id': 'q-metabolism-x4ho',
-                  'prompt': 'A muscle cell consumes more ATP during work. What change helps increase ATP synthesis?',
-                  'options': ['ADP concentration rises', 'NADH concentration disappears', 'Oxygen production rises', 'AMP concentration disappears'],
-                  'correctIndex': 0,
-                  'explanation': 'ATP consumption produces ADP. Increased ADP availability allows ATP synthase to make more ATP.',
-                  'hashtags': ['ATP', 'ADP', 'Regulation'],
-                },
-                {
-                  'id': 'q-metabolism-uh0z',
-                  'prompt': 'What directly provides the energy used by ATP synthase to produce ATP?',
-                  'options': ['Carbon dioxide release', 'Proton flow into the matrix', 'Acetyl-CoA breakdown', 'NAD⁺ formation'],
-                  'correctIndex': 1,
-                  'explanation': 'The ETC creates a proton gradient. Protons flowing back through ATP synthase provide the energy for ATP formation.',
-                  'hashtags': ['ATP Synthase', 'Electron Transport Chain'],
-                },
-              ],
-            },
-            'electroncarriers_2th4': {
-              'label': 'Electron carriers',
-              'images': [],
-              'description': '',
-              'funFacts': [],
-              'refs': [],
-              'hashtags': [],
-              'course': 'MEDS2003',
-              'class': 'L1',
-              'questions': [
-                {
-                  'id': 'q-metabolism-soz4',
-                  'prompt': 'Why must NADH and FADH₂ be re-oxidised during continued fuel oxidation?',
-                  'options': ['To generate acetyl-CoA', 'To release carbon dioxide', 'To regenerate electron acceptors', 'To activate fatty acids'],
-                  'correctIndex': 2,
-                  'explanation': 'NAD⁺ and FAD are limited. Re-oxidising their reduced forms regenerates carriers that can accept more H/e⁻ from fuels.',
-                  'hashtags': ['NADH', 'FADH2', 'Catabolism'],
-                },
-                {
-                  'id': 'q-metabolism-wqk4',
-                  'prompt': 'What happens if reduced H/e⁻ carriers cannot donate electrons to the electron transport chain?',
-                  'options': ['Fuel oxidation slows', 'Glycolysis accelerates', 'Anabolism accelerates', 'ATP stores increase'],
-                  'correctIndex': 0,
-                  'explanation': 'Without carrier re-oxidation, NAD⁺ and FAD become unavailable, so further fuel oxidation eventually stalls.',
-                  'difficulty': 'hard',
-                  'hashtags': ['Electron Carriers', 'Catabolism'],
-                },
-              ],
-            },
-            'fattyacids_e3k9': {
-              'label': 'Fatty acids',
-              'images': [],
-              'description': '',
-              'funFacts': [],
-              'refs': [],
-              'hashtags': [],
-              'course': 'MEDS2003',
-              'class': 'L1',
-              'questions': [
-                {
-                  'id': 'q-metabolism-1r8m',
-                  'prompt': 'Why is fat well suited for long-term energy storage?',
-                  'options': ['It is highly hydrophilic', 'It crosses the brain barrier', 'It requires no mitochondria', 'It is highly energy dense'],
-                  'correctIndex': 3,
-                  'explanation': 'Fat is hydrophobic and stored largely without associated water, giving it a high energy density of about 37 kJ/g.',
-                  'hashtags': ['Fatty Acids', 'Metabolic Fuels'],
-                },
-              ],
-            },
-            'glucose_zumq': {
-              'label': 'Glucose',
-              'images': [],
-              'description': '',
-              'funFacts': [],
-              'refs': [],
-              'hashtags': [],
-              'course': 'MEDS2003',
-              'class': 'L1',
-              'questions': [
-                {
-                  'id': 'q-metabolism-ld6e',
-                  'prompt': 'Why does the brain normally require glucose rather than fatty acids directly?',
-                  'options': ['Glucose stores more energy', 'Fatty acids cannot cross the blood-brain barrier', 'Glucose requires beta-oxidation', 'Fatty acids lack carbon'],
-                  'correctIndex': 1,
-                  'explanation': 'Fatty acids cannot cross the blood-brain barrier, whereas glucose can be used by the brain under normal conditions.',
-                  'difficulty': 'easy',
-                  'hashtags': ['Glucose', 'Fatty Acids'],
-                },
-              ],
-            },
-            'protein_5lxb': {
-              'label': 'Protein',
-              'images': [],
-              'description': '',
-              'funFacts': [],
-              'refs': [],
-              'hashtags': [],
-              'course': 'MEDS2003',
-              'class': 'L1',
-              'questions': [
-                {
-                  'id': 'q-metabolism-i2mn',
-                  'prompt': 'Why is body protein considered a last-resort metabolic fuel?',
-                  'options': ['Proteins contain little energy', 'Amino acids cannot oxidise', 'Body proteins have functional roles', 'Protein cannot form pyruvate'],
-                  'correctIndex': 2,
-                  'explanation': 'There is no dedicated protein fuel store; body proteins perform structural and functional roles and are energetically costly to replace.',
-                  'hashtags': ['Protein', 'Metabolic Fuels'],
-                },
-              ],
-            },
-            'fueloxidation_ym8y': {
-              'label': 'Fuel oxidation',
-              'images': [],
-              'description': '',
-              'funFacts': [],
-              'refs': [],
-              'hashtags': [],
-              'course': 'MEDS2003',
-              'class': 'L1',
-              'questions': [
-                {
-                  'id': 'q-metabolism-osup',
-                  'prompt': 'During the first stage of fuel oxidation, carbohydrates, fats and proteins are mainly processed toward what common intermediate?',
-                  'options': ['Acetyl-CoA', 'Oxaloacetate', 'ATP synthase', 'Molecular oxygen'],
-                  'correctIndex': 0,
-                  'explanation': 'Stage 1 breaks different fuels down toward acetyl-CoA while extracting H/e⁻ along the way.',
-                  'difficulty': 'easy',
-                  'hashtags': ['Fuel Oxidation', 'Acetyl-CoA'],
-                },
-              ],
-            },
           },
         },
         'molecularBiology': {
-          'label': 'Molecular Biology',
-          'icon': '🔬',
-          'color': '#7cff6b',
           'items': {
             'transcriptionbasics': {
               'label': 'Transcription (overview)',
@@ -1951,15 +1684,15 @@
   };
 
 /* ======================================================================
-   STAGES — per course. Each stage has correct-answer requirements (reset
+   STAGES — per theme. Each stage has correct-answer requirements (reset
    each stage) and a narrative shown on the transition screen before that
    stage begins.
    ====================================================================== */
   const STAGES = {
-    'MEDS3002': [
+    cancer: [
       /* "scenario" is patient-facing narrative — this is also where a real
          case study can be dropped in later (per stage). */
-      { n:1, roman:'I', requirements:{ genetics:3, immunology:3, pharmacology:3, oncology:3 },
+      { n:1, roman:'I', requirements:{ genetics:10 },
         scenario:"Patient presents with fatigue and unexplained bruising. Bloodwork shows an abnormal white cell count — the care team orders genetic testing to find out exactly what's driving it." },
       { n:2, roman:'II', requirements:{ genetics:5, immunology:10 },
         scenario:"The genetic picture is in. Now the patient's own immune system is in the fight — how well it can recognise and respond to the disease will shape what comes next." },
@@ -1968,10 +1701,10 @@
       { n:4, roman:'IV', requirements:{ genetics:3, immunology:5, pharmacology:7, oncology:10 },
         scenario:"The patient is now deep into treatment. Staging, complications, and what happens next define the road ahead." },
     ],
-    // Deliberately short right now — MEDS2003 only has a handful of
+    // Deliberately short right now — biochemistry only has a handful of
     // seed questions so far. Expand requirements as you add more content
     // (see the contributor tool or dev notes).
-    'MEDS2003': [
+    biochemistry: [
       { n:1, roman:'I', requirements:{ metabolism:2 },
         scenario:"You're tracing how a cell fuels itself — starting with how it handles glucose and energy production." },
       { n:2, roman:'II', requirements:{ metabolism:1, molecularBiology:1 },
@@ -1980,11 +1713,11 @@
   };
   const COMPLETE_SCENARIO = "You've worked through the full case — review your answers below, or start again to reinforce what you've learned. (Real case studies coming soon.)";
 
-  const RUNNABLE_THEMES = ['MEDS3002', 'MEDS2003']; // course ids with a matching STAGES config, playable in Runner mode
+  const RUNNABLE_THEMES = ['cancer', 'biochemistry']; // themes with a matching STAGES config, playable in Runner mode
 
 
   window.RUNNER_DATA = {
-    COURSES, GAME_CONFIG, LIFE_CONFIG, THEMES,
+    COURSES, TOPICS, GAME_CONFIG, LIFE_CONFIG, THEMES,
     STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES,
   };
 
