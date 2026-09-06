@@ -22,14 +22,13 @@
                      code like 'MEDS3002' is both a playable top-level group
                      AND (via `course`/`class` on an item/question) a lecture
                      citation, which is why an item's own course usually
-                     matches its top-level THEMES key but doesn't have to
-                     (e.g. a MEDS3002 item citing a MEDS3001 lecture too).
+                     matches its top-level THEMES key but doesn't have to.
    THEMES         — Course (e.g. "MEDS3002") → Topic → study-guide Item.
                      Topics are specific to their course now -- each one
                      carries its own `label`/`icon`/`color` inline instead of
                      pointing at a shared taxonomy. Each item can point at a
-                     COURSES entry via `course` + `class`, and carries its
-                     own `questions` array — the MCQs players get asked about
+                     COURSES entry via `course` + `class`, and carries its own
+                     `questions` array — the MCQs players get asked about
                      that item (each with its own `difficulty`, one of
                      'easy'/'medium'/'hard', optional). A question only needs
                      its own `course`/`class` (or, rarely, a literal
@@ -52,7 +51,7 @@
    ("MEDS3002 · L14 · Cancer Hallmarks") is generated automatically — see
    courseDisplayString() in cancer-runner-group.html.
    ====================================================================== */
-            const COURSES = {
+              const COURSES = {
     'MEDS3002': {
       'code': 'MEDS3002',
       'label': 'Cancer / Medical Science',
@@ -284,16 +283,6 @@
   };
 
 /* ======================================================================
-   TOPICS is no longer authored here -- each course's topics now carry
-   their own label/icon/color inline (see THEMES below), since topics are
-   specific to the course they belong to rather than a shared taxonomy.
-   medsci-runner.html and developer-tool.html each build a flat TOPICS
-   lookup at load time by walking every course's topics, purely so the
-   rest of those files (which look things up by topic id) didn't need to
-   change -- that derived index is NOT authored here.
-   ====================================================================== */
-
-/* ======================================================================
    GAME_CONFIG — every tunable number lives here in one place.
    ====================================================================== */
   const GAME_CONFIG = {
@@ -328,17 +317,17 @@
   };
 
 /* ======================================================================
-   LIFE — the "health" resource is themed per Runner-playable theme. Change
+   LIFE — the "health" resource is themed per Runner-playable course. Change
    the label/icon here any time — every place it's shown (HUD, pickups,
    penalties, the bomb warning) reads from this automatically.
    ====================================================================== */
   const LIFE_CONFIG = {
-    'MEDS3002':   { label:'Glucose', icon:'🩸' },
+    'MEDS3002': { label:'Glucose', icon:'🩸' },
     'MEDS2003': { label:'ATP',     icon:'⚡' },
   };
 
 /* ======================================================================
-   THEMES — Theme -> Topic -> Item. Each item can carry "hashtags" (which
+   THEMES — Course -> Topic -> Item. Each item can carry "hashtags" (which
    cancer type / sub-area it belongs to, e.g. ['Leukemia']), course + class
    fields pointing into COURSES above (e.g. course:'MEDS3002', class:'L14'),
    and its own "questions" array — the MCQs players get asked when they hit
@@ -347,7 +336,7 @@
    its item's (e.g. a question spanning several classes at once) — most
    questions just inherit the item's.
    ====================================================================== */
-            const THEMES = {
+              const THEMES = {
     'MEDS3002': {
       'label': 'MEDS3002',
       'icon': '🎗️',
@@ -457,6 +446,23 @@
               'hashtags': ['Senescence'],
               'relatedCourse': 'MEDS3002 L3 RNA splicing\nMEDS3002 L8 Cellular senescence',
               'questions': [],
+            },
+            'craig_itu2': {
+              'label': 'Craig',
+              'images': [
+                {
+                  'caption': 'Craig',
+                  'filename': 'craig-2.png',
+                  'url': 'images/craig-2.png',
+                },
+              ],
+              'description': 'this is Craig',
+              'mechanism': 'jdawd',
+              'funFacts': ['awda'],
+              'refs': [],
+              'hashtags': [],
+              'course': 'MEDS3002',
+              'class': 'L3',
             },
           },
         },
@@ -1759,7 +1765,7 @@
   };
 
 /* ======================================================================
-   STAGES — per theme. Each stage has correct-answer requirements (reset
+   STAGES — per course. Each stage has correct-answer requirements (reset
    each stage) and a narrative shown on the transition screen before that
    stage begins.
    ====================================================================== */
@@ -1776,7 +1782,7 @@
       { n:4, roman:'IV', requirements:{ genetics:3, immunology:5, pharmacology:7, oncology:10 },
         scenario:"The patient is now deep into treatment. Staging, complications, and what happens next define the road ahead." },
     ],
-    // Deliberately short right now — biochemistry only has a handful of
+    // Deliberately short right now — MEDS2003 only has a handful of
     // seed questions so far. Expand requirements as you add more content
     // (see the contributor tool or dev notes).
     'MEDS2003': [
