@@ -6,12 +6,30 @@
 <title>Run Morris Run!</title>
 <style>
   :root{
+    color-scheme: dark;
     --bg-0:#0d0308; --bg-1:#1c0710; --vessel-wall:#3a0d1c; --plasma:#5c1029;
     --membrane:#ff5d8f; --nucleus:#ffd93f; --glucose:#ffd23f;
     --hud-ink:#ffe9ef; --hud-dim:#c98a9c; --danger:#ff3b5c; --good:#3ee6b8;
     --panel:#150409; --panel-line:rgba(255,93,143,.22);
+    --hairline-strong:rgba(255,255,255,.25); --hairline-soft:rgba(255,255,255,.2); --chip-bg:rgba(255,255,255,.08);
     --mono:'SF Mono','JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
     --display:'Georgia','Iowan Old Style',serif;
+  }
+  /* Light mode only re-themes the surrounding UI chrome (menus, HUD, modals,
+     buttons) via these variable overrides -- the in-game canvas keeps its
+     dark "vessel" look in both themes. The canvas's own draw calls use
+     literal hex colors tuned for a dark backdrop (glowing cells read best
+     against darkness), not these CSS variables, so it's unaffected either
+     way; retheming it would mean redesigning contrast for every entity with
+     no way to verify it live. Brand accents (membrane/danger/good) are
+     deepened here rather than reused as-is, since the dark-mode values are
+     tuned for glow-on-black and read as low-contrast text on a light page. */
+  :root[data-theme="light"]{
+    color-scheme: light;
+    --bg-0:#ffe3ea; --bg-1:#fffbfc;
+    --membrane:#d6106a; --hud-ink:#3a0d1c; --hud-dim:#8a5568; --danger:#c81a3f; --good:#0f9e78;
+    --panel:#ffffff; --panel-line:rgba(214,16,106,.22);
+    --hairline-strong:rgba(58,13,28,.25); --hairline-soft:rgba(58,13,28,.18); --chip-bg:rgba(58,13,28,.06);
   }
   *{box-sizing:border-box;}
   html,body{ margin:0;height:100%; background:radial-gradient(ellipse at 50% 0%, var(--bg-1), var(--bg-0) 70%);
@@ -87,9 +105,9 @@
     color:#1a0508; font-weight:700; border:none; padding:11px 26px; border-radius:30px; font-size:14px;
     cursor:pointer; box-shadow:0 8px 20px -6px rgba(255,93,143,.6); }
   button.secondary{ font-family:var(--mono); background:transparent; color:var(--hud-ink);
-    border:1px solid rgba(255,255,255,.25); padding:10px 22px; border-radius:30px; font-size:13px; cursor:pointer; }
+    border:1px solid var(--hairline-strong); padding:10px 22px; border-radius:30px; font-size:13px; cursor:pointer; }
   button.secondary.flagged{ border-color:#ffd54d; color:#ffd54d; background:rgba(255,213,77,.12); }
-  .kbd{ color:var(--hud-ink); background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.2);
+  .kbd{ color:var(--hud-ink); background:var(--chip-bg); border:1px solid var(--hairline-soft);
     border-radius:5px; padding:1px 6px; font-size:12px; }
 
   .cancer-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; width:100%; max-width:460px; margin:0 auto 6px; }
@@ -336,6 +354,7 @@
           <button class="secondary" id="studyGuideBtnMenu">📚 Study guide</button>
           <button class="secondary" id="courseListBtnMenu">🎓 Browse by lecture</button>
           <button class="secondary" id="customizeBtnMenu">🎨 Customise</button>
+          <button class="secondary" id="themeToggleBtn">🌙 Dark</button>
         </div>
         <div class="cancer-grid" id="cancerGrid"></div>
         <button class="pick-card" id="practiceModeCard" style="margin:10px auto 0;max-width:460px;display:block;text-align:center;">
@@ -723,6 +742,22 @@
   function savePlayerCustomization(c){
     playerCustomization = c;
     try { localStorage.setItem('playerCustomization', JSON.stringify(c)); } catch(e){ /* fine — just won't persist across a reload in browsers that block file:// storage */ }
+  }
+
+  // ---------- light/dark theme ----------
+  // Defaults to dark (the tuned, tested look) rather than following the
+  // OS's color-scheme preference — this app has a deliberate dark "vessel"
+  // art style rather than a neutral light-by-default utility UI, so a
+  // silent default flip for light-mode-OS users would be a surprise, not
+  // a convenience. Explicit toggle only.
+  let currentTheme = (function(){
+    try { const saved = localStorage.getItem('theme'); return saved === 'light' ? 'light' : 'dark'; } catch(e){ return 'dark'; }
+  })();
+  function applyTheme(theme){
+    currentTheme = theme;
+    document.documentElement.dataset.theme = theme;
+    if(themeToggleBtn) themeToggleBtn.textContent = theme==='light' ? '☀️ Light' : '🌙 Dark';
+    try { localStorage.setItem('theme', theme); } catch(e){ /* fine — just won't persist */ }
   }
   // Browsers block audio until a real user gesture happens on the page —
   // creating the AudioContext eagerly at load time would just leave it
@@ -1139,6 +1174,7 @@
   const studyGuideBtnMenu = document.getElementById('studyGuideBtnMenu');
   const courseListBtnMenu = document.getElementById('courseListBtnMenu');
   const customizeBtnMenu = document.getElementById('customizeBtnMenu');
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
   const customizeView = document.getElementById('customizeView');
   const customizePreviewCanvas = document.getElementById('customizePreviewCanvas');
   const customizeColorRow = document.getElementById('customizeColorRow');
@@ -2870,6 +2906,8 @@
   studyGuideFromPauseBtn.addEventListener('click', ()=> openStudyGuide(null, null, null));
 
   // ---------- manual / dev guide ----------
+  applyTheme(currentTheme);
+  themeToggleBtn.addEventListener('click', ()=> applyTheme(currentTheme==='light' ? 'dark' : 'light'));
   manualBtn.addEventListener('click', ()=> manualModal.classList.add('active'));
   manualClose.addEventListener('click', ()=> manualModal.classList.remove('active'));
   manualFromPauseBtn.addEventListener('click', ()=> manualModal.classList.add('active'));
