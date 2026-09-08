@@ -23,6 +23,10 @@
                      AND (via `course`/`class` on an item/question) a lecture
                      citation, which is why an item's own course usually
                      matches its top-level THEMES key but doesn't have to.
+                     A class/lecture can optionally carry `outcomes` (an
+                     array of learning-outcome strings) and `intro` (a short
+                     content blurb) — set these to make that lecture playable
+                     in the "Learning Path" mode (see LEARNING_PATH_CONFIG).
    THEMES         — Course (e.g. "MEDS3002") → Topic → study-guide Item.
                      Topics are specific to their course now -- each one
                      carries its own `label`/`icon`/`color` inline instead of
@@ -30,8 +34,11 @@
                      COURSES entry via `course` + `class`, and carries its own
                      `questions` array — the MCQs players get asked about
                      that item (each with its own `difficulty`, one of
-                     'easy'/'medium'/'hard', optional). A question only needs
-                     its own `course`/`class` (or, rarely, a literal
+                     'easy'/'medium'/'hard', optional, and its own `level`,
+                     one of 'identify'/'understand'/'apply'/'case', optional
+                     — cognitive level used by the "Learning Path" mode;
+                     untagged questions count as 'identify'). A question only
+                     needs its own `course`/`class` (or, rarely, a literal
                      `relatedCourse` string) if it genuinely differs from its
                      item's — most just inherit the item's.
    STAGES         — Course → ordered list of Runner-mode stages.
@@ -39,6 +46,9 @@
                      mode vs. Study & Practice-only).
    GAME_CONFIG    — every tunable gameplay number.
    LIFE_CONFIG    — per-course label/icon for the "life" resource.
+   LEARNING_PATH_CONFIG — cognitive levels/quotas for the lecture-scoped
+                     "Learning Path" mode (identify → understand → apply →
+                     case study).
    COMPLETE_SCENARIO — text shown after the last stage.
    ============================================================================ */
 (function(){
@@ -97,6 +107,11 @@
         },
         'L14': {
           'label': 'Cancer Hallmarks',
+          'outcomes': [
+            'Identify the BCR-ABL fusion (Philadelphia chromosome) as a molecular hallmark of chronic myeloid leukemia.',
+            'Explain how loss of TP53 tumor-suppressor function contributes to genomic instability and treatment resistance.',
+          ],
+          'intro': 'This lecture covers two classic cancer hallmarks seen in leukemia: an activating fusion event (BCR-ABL) that drives unregulated proliferation, and a loss-of-function event (TP53) that lets damaged cells survive and divide instead of being stopped or destroyed.',
         },
         'L15': {
           'label': 'Combination therapies in Cancer',
@@ -280,6 +295,13 @@
         },
       },
     },
+    'MEDS3003': {
+      'code': 'MEDS3003',
+      'label': 'Advanced Therapeutics',
+      'classes': {
+        'L7-8': { 'label': 'Nanoparticle Drug Delivery Systems' },
+      },
+    },
   };
 
 /* ======================================================================
@@ -295,8 +317,9 @@
     wrongAnswerPenalty: 40,    // life lost per wrong MCQ answer
     postAnswerPauseMs: 2000,   // brief freeze after clicking Continue, before the run resumes -- gives a beat to
                                // get oriented instead of getting dropped straight back next to whatever piled up
-    obstacleSpawnBaseMs: 250,  // topic-block spawn interval = base + random(0..rand)
-    obstacleSpawnRandMs: 450,
+    obstacleSpawnBaseMs: 500,  // topic-block spawn interval = base + random(0..rand) -- widened per playtester
+                               // feedback that questions/obstacles were coming at the player too frequently
+    obstacleSpawnRandMs: 700,
     glucoseSpawnBaseMs: 550,   // life-pickup spawn interval = base + random(0..rand)
     glucoseSpawnRandMs: 300,
     initialObstacleDelayMs: 1200, // delay before the very first topic block spawns
@@ -304,8 +327,8 @@
     bombDamage: 40,               // life lost when a bomb is hit (instant, no question)
     bombIcon: '💣',                // swap for 'icons/bomb.png' (or any path/URL -- see the ICONS comment
                                    // in medsci-runner.html) to use your own image instead of the emoji
-    bombSpawnBaseMs: 500,        // bomb spawn interval — base + random(0..rand)
-    bombSpawnRandMs: 1300,
+    bombSpawnBaseMs: 800,        // bomb spawn interval — base + random(0..rand) -- widened alongside obstacleSpawn* above
+    bombSpawnRandMs: 1600,
     scoreCorrectWeight: 50,    // Group Race ranking score = correct*this - incorrect*this + life*this + stageIndex*stageWeight
     scoreIncorrectWeight: 35,
     scoreLifeWeight: 1,
@@ -327,6 +350,27 @@
   };
 
 /* ======================================================================
+   LEARNING_PATH_CONFIG — tunables for the lecture-scoped "Learning Path"
+   mode. That mode picks a single lecture (a COURSES[course].classes[class]
+   entry) and runs its questions through these cognitive levels in order,
+   gated by perLevelQuota correct answers each. A lecture only shows up in
+   the Learning Path picker once it has an `outcomes` array (see COURSES
+   above) AND at least one question tagged with a matching `level` (see the
+   THEMES/questions comment below) — levels with zero matching questions for
+   that lecture are skipped rather than shown empty.
+   ====================================================================== */
+  const LEARNING_PATH_CONFIG = {
+    levels: ['identify', 'understand', 'apply', 'case'],
+    perLevelQuota: 3, // correct answers needed within a level before advancing to the next
+    levelLabels: { identify:'Identify', understand:'Understand', apply:'Apply', case:'Case Study' },
+    levelBlurbs: {
+      understand: "You've identified the basics — now let's understand the mechanism behind them.",
+      apply:      "Time to apply that understanding to a scenario.",
+      case:       "Bring it all together with a case study.",
+    },
+  };
+
+/* ======================================================================
    THEMES — Course -> Topic -> Item. Each item can carry "hashtags" (which
    cancer type / sub-area it belongs to, e.g. ['Leukemia']), course + class
    fields pointing into COURSES above (e.g. course:'MEDS3002', class:'L14'),
@@ -340,7 +384,7 @@
     'MEDS3002': {
       'label': 'MEDS3002',
       'icon': '🎗️',
-      'blurb': 'Genetics, immunology, pharmacology and oncology across cancer types — MEDS3002.',
+      'blurb': 'Cancer / Medical Science',
       'topics': {
         'genetics': {
           'label': 'Genetics',
@@ -365,6 +409,7 @@
                   'correctIndex': 0,
                   'explanation': 't(9;22)(q34;q11) creates the BCR-ABL1 fusion gene, the Philadelphia chromosome, diagnostic for CML.',
                   'hashtags': ['Leukemia'],
+                  'level': 'identify',
                 },
                 {
                   'id': 'g2',
@@ -373,6 +418,7 @@
                   'correctIndex': 0,
                   'explanation': 'BCR-ABL encodes a fusion protein with unregulated tyrosine kinase activity, driving proliferation.',
                   'hashtags': ['Leukemia'],
+                  'level': 'understand',
                 },
                 {
                   'id': 'g9',
@@ -381,6 +427,7 @@
                   'correctIndex': 0,
                   'explanation': 'The reciprocal translocation shortens chromosome 22, producing the visibly abnormal "Philadelphia chromosome."',
                   'hashtags': ['Leukemia'],
+                  'level': 'identify',
                 },
               ],
             },
@@ -402,6 +449,7 @@
                   'correctIndex': 0,
                   'explanation': 'TP53-mutated leukemias tend to be high-risk, often resistant to standard chemotherapy regimens.',
                   'hashtags': ['Leukemia'],
+                  'level': 'apply',
                 },
               ],
             },
@@ -1396,7 +1444,9 @@
         'pharmacologyHistory': {
           'label': 'Pharmacology History',
           'icon': '📜',
-          'color': '#f472b6',
+          'color': '#818cf8', // was a magenta close enough to 'pharmacology's red-pink to be
+                               // hard to tell apart for red-green colorblind players -- moved
+                               // to indigo, clearly distinct from every other MEDS3002 topic color
           'items': {
             'historyOfPharmacology': {
               'label': 'History of pharmacology & pharmacognosy',
@@ -1681,7 +1731,7 @@
     'MEDS2003': {
       'label': 'MEDS2003',
       'icon': '🧪',
-      'blurb': 'Metabolism and molecular biology — MEDS2003. Starter content only; expand freely.',
+      'blurb': 'Biochemistry',
       'topics': {
         'metabolism': {
           'label': 'Metabolism',
@@ -1762,6 +1812,520 @@
         },
       },
     },
+    'MEDS3003': {
+      'label': 'MEDS3003',
+      'icon': '🧫',
+      'blurb': 'Nanomedicine & Drug Delivery',
+      'topics': {
+        'nanoparticleDelivery': {
+          'label': 'Nanoparticle Delivery',
+          'icon': '🔬',
+          'color': '#e879f9',
+          'items': {
+            'ddsRequirements': {
+              'label': 'Ideal drug delivery system (DDS) design goals',
+              'images': [],
+              'description': 'An ideal DDS should deliver its therapeutic cargo specifically to the target site, evade the immune system long enough to get there, and release its cargo only when triggered by the right stimulus.',
+              'mechanism': 'Three linked properties: site-specific delivery (targeting), escape from recognition and premature degradation by immune defences (stealth), and controlled release of cargo upon selective stimuli (triggered release).',
+              'funFacts': [],
+              'refs': [],
+              'hashtags': ['Nanomedicine', 'Drug Delivery'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'np-dds-1',
+                  'prompt': 'Which set of properties describes what an ideal drug delivery system (DDS) is meant to achieve?',
+                  'options': ['Site-specific delivery, immune evasion, and stimuli-triggered release', 'Maximum particle size, rapid immune clearance, and continuous passive release', 'Broad biodistribution, strong immune activation, and irreversible cargo binding', 'Renal filtration, protein denaturation, and pH-independent release'],
+                  'correctIndex': 0,
+                  'explanation': 'A DDS is designed to reach its target, avoid being cleared or degraded by the immune system before it gets there, and only release its drug once triggered by a selective stimulus (e.g. pH, temperature, enzymes).',
+                  'hashtags': ['Nanomedicine'],
+                },
+                {
+                  'id': 'np-dds-2',
+                  'prompt': "Why does a drug delivery system need to 'escape recognition' by the body's immune defences?",
+                  'options': ["So it isn't prematurely degraded before it reaches its target", 'So it can trigger a stronger inflammatory response at the target site', 'So it binds irreversibly to circulating immune cells', 'So it increases its own molecular weight during circulation'],
+                  'correctIndex': 0,
+                  'explanation': "If immune defences recognise and degrade the carrier too early, the therapeutic cargo never reaches its intended site — stealth from immune recognition is what keeps it circulating long enough to work.",
+                  'hashtags': ['Nanomedicine'],
+                },
+              ],
+            },
+            'endocytosisPathways': {
+              'label': 'Nanoparticle cellular uptake routes',
+              'images': [],
+              'description': 'Cells take up nanoparticles through several distinct endocytosis pathways, each using different membrane machinery.',
+              'mechanism': 'Caveolin-mediated endocytosis uses caveolin-coated pits (caveolae); clathrin-mediated endocytosis uses clathrin-coated pits that form clathrin-coated vesicles; (receptor-)independent endocytosis and pinocytosis take up material without these specific coat proteins.',
+              'funFacts': [],
+              'refs': [],
+              'hashtags': ['Nanomedicine', 'Cell Biology'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'np-endo-1',
+                  'prompt': 'Which two named coat proteins form the pits that mediate two of the main nanoparticle endocytosis routes?',
+                  'options': ['Caveolin and clathrin', 'Actin and myosin', 'Collagen and elastin', 'Tubulin and dynein'],
+                  'correctIndex': 0,
+                  'explanation': 'Caveolin-mediated and clathrin-mediated endocytosis are named for the coat proteins (caveolin, clathrin) that form the membrane pits used to internalise the particle.',
+                  'hashtags': ['Nanomedicine'],
+                },
+                {
+                  'id': 'np-endo-2',
+                  'prompt': 'Pinocytosis, as a route of nanoparticle cellular uptake, is best described as:',
+                  'options': ['Non-specific fluid-phase uptake without a distinct receptor or coat protein', 'A process that only occurs in the nucleus', 'Uptake that requires the particle to first bind a caveolin receptor', 'A route exclusive to particles larger than 1 micron'],
+                  'correctIndex': 0,
+                  'explanation': "Pinocytosis is essentially 'cell drinking' — non-specific fluid uptake into small vesicles, without the receptor-specific or coat-protein machinery that clathrin/caveolin routes use.",
+                  'hashtags': ['Nanomedicine'],
+                },
+              ],
+            },
+            'protonSpongeEffect': {
+              'label': 'Endosomal escape via the proton sponge effect',
+              'images': [],
+              'description': 'Ionizable nanoparticles can escape the endosome before being degraded in the lysosome, by exploiting the endosome\'s own acidification process.',
+              'mechanism': "As an early endosome matures into a late endosome, it acidifies. An ionizable nanoparticle buffers this acidification, drawing in extra protons and counter-ions, which causes osmotic swelling and eventual rupture of the endosomal membrane — releasing the nanoparticle into the cytoplasm. A non-responsive nanoparticle lacks this buffering capacity and instead proceeds to the lysosome, where enzymes degrade it.",
+              'funFacts': [],
+              'refs': [],
+              'hashtags': ['Nanomedicine', 'Cell Biology'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'np-sponge-1',
+                  'prompt': 'What ultimately allows an ionizable nanoparticle to escape the endosome instead of being degraded in the lysosome?',
+                  'options': ['Its buffering causes osmotic swelling that ruptures the endosomal membrane', 'It actively binds and destroys lysosomal enzymes', 'It is too large to be enclosed by the endosomal membrane in the first place', 'It reverses the direction of vesicle trafficking back to the cell surface'],
+                  'correctIndex': 0,
+                  'explanation': "This is the 'proton sponge effect' — the ionizable particle absorbs protons (and water, osmotically) as the endosome acidifies, swelling it until the membrane ruptures and releases the cargo into the cytoplasm.",
+                  'hashtags': ['Nanomedicine'],
+                },
+                {
+                  'id': 'np-sponge-2',
+                  'prompt': 'What is the eventual fate of a NON-responsive nanoparticle that lacks the proton sponge effect?',
+                  'options': ['It proceeds through the late endosome into the lysosome, where it is degraded', 'It immediately escapes into the nucleus', 'It is exocytosed back into the extracellular fluid unchanged', 'It triggers osmotic swelling identical to an ionizable particle'],
+                  'correctIndex': 0,
+                  'explanation': 'Without buffering capacity to trigger osmotic swelling, a non-responsive nanoparticle simply follows the default endocytic route — early endosome to late endosome to lysosome, where enzymes degrade it.',
+                  'hashtags': ['Nanomedicine'],
+                },
+              ],
+            },
+            'npPhysicochemicalFactors': {
+              'label': 'Nanoparticle physicochemical properties and biological fate',
+              'images': [],
+              'description': "A nanoparticle's size, shape, surface charge, and coating all influence how it behaves in the body — from crossing blood vessel walls to penetrating mucus.",
+              'mechanism': 'Size and shape affect extravasation out of leaky tumour vasculature and clearance by immune cells; surface charge affects clearance and interaction with negatively-charged mucus; coating (e.g. a stealth layer) and active targeting ligands can reduce clearance and improve accumulation at the target tissue.',
+              'funFacts': [],
+              'refs': [],
+              'hashtags': ['Nanomedicine'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'np-phys-1',
+                  'prompt': 'A neutral, small (roughly 20-150 nm) nanoparticle is generally favoured for tumour delivery mainly because:',
+                  'options': ['That size range balances escaping rapid clearance while still being small enough to extravasate through leaky tumour vessels', 'It guarantees complete immune invisibility regardless of coating', 'Particles in this range cannot be taken up by any cell type', 'It is the only size range capable of crossing mucus layers'],
+                  'correctIndex': 0,
+                  'explanation': 'Very large particles (>150 nm) tend to be cleared or fail to extravasate well, while very small particles (<5 nm) may be rapidly filtered out; the ~20-150 nm range is generally the sweet spot for exploiting leaky tumour vasculature.',
+                  'hashtags': ['Nanomedicine'],
+                },
+                {
+                  'id': 'np-phys-2',
+                  'prompt': 'Why might a positively charged nanoparticle be cleared from circulation faster than a neutral one?',
+                  'options': ['Positive charge favours non-specific interactions with negatively charged serum proteins and cell surfaces, promoting clearance', 'Positive charge makes particles invisible to macrophages', 'Positive charge prevents any interaction with blood vessel walls', 'Positive charge is required for mucus penetration and therefore extends circulation time'],
+                  'correctIndex': 0,
+                  'explanation': 'Charged (particularly positively charged) surfaces tend to non-specifically bind serum proteins and cell membranes, which promotes opsonisation and clearance — neutral, coated particles tend to circulate longer.',
+                  'hashtags': ['Nanomedicine'],
+                },
+              ],
+            },
+            'npTypesComparison': {
+              'label': 'Polymeric, inorganic, and lipid-based nanoparticles',
+              'images': [],
+              'description': 'The three broad nanoparticle material classes each trade off differently between control, versatility, and safety.',
+              'mechanism': 'Polymeric carriers (e.g. polymersomes, dendrimers, micelles) allow precise control of particle characteristics and easy surface modification but can aggregate or be toxic. Inorganic carriers (e.g. gold, iron oxide, silica, quantum dots) have unique electrical/magnetic/optical properties well suited to theranostics, but can raise toxicity and solubility concerns. Lipid-based carriers (e.g. liposomes, lipid nanoparticles, emulsions) are simple to formulate with high bioavailability, but can have low encapsulation efficiency.',
+              'funFacts': [],
+              'refs': [],
+              'hashtags': ['Nanomedicine'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'np-types-1',
+                  'prompt': 'Inorganic nanoparticles such as gold or iron oxide particles are particularly well suited to theranostic applications mainly because of their:',
+                  'options': ['Unique electrical, magnetic, and optical properties', 'Complete absence of any toxicity concerns', 'Inherent biodegradability into harmless metabolites', 'High encapsulation efficiency for hydrophilic drugs'],
+                  'correctIndex': 0,
+                  'explanation': "Inorganic nanoparticles' distinctive electrical, magnetic and optical properties (e.g. plasmon resonance in gold, magnetism in iron oxide) are exactly what makes them useful for both imaging and therapy — their main limitations are toxicity and solubility, not lack of these properties.",
+                  'hashtags': ['Nanomedicine'],
+                },
+                {
+                  'id': 'np-types-2',
+                  'prompt': 'A key practical limitation commonly associated with lipid-based nanoparticles (e.g. liposomes, emulsions) is:',
+                  'options': ['Low encapsulation efficiency', 'Complete inability to carry hydrophobic cargo', 'A requirement for gold-based cores', 'Poor bioavailability compared to other classes'],
+                  'correctIndex': 0,
+                  'explanation': 'Lipid-based systems are praised for formulation simplicity, payload flexibility, and high bioavailability — but they are noted for relatively low encapsulation efficiency compared to some other carrier types.',
+                  'hashtags': ['Nanomedicine'],
+                },
+              ],
+            },
+            'tripleHitNanorod': {
+              'label': '"Triple hit" gold nanorod theranostic system',
+              'images': [],
+              'description': 'A gold nanorod core coated with mesoporous silica and a thermo-responsive polymer, loaded with doxorubicin (DOX), combines three functions in one particle: chemotherapy, photothermal therapy, and CT imaging.',
+              'mechanism': 'Near-infrared LED light heats the gold nanorod core via plasmon resonance. This heat (1) triggers the thermo-responsive polymer coating to release DOX (chemotherapy), (2) directly damages tumour cells via hyperthermia (photothermal therapy), while (3) the gold core also acts as a contrast agent for X-ray CT imaging.',
+              'funFacts': [],
+              'refs': [],
+              'hashtags': ['Nanomedicine', 'Theranostics'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'np-triple-1',
+                  'prompt': "In the 'triple hit' gold nanorod/mesoporous silica/DOX system, what triggers drug release from the thermo-responsive polymer coating?",
+                  'options': ['Near-infrared (NIR) light heating the gold nanorod core', 'A drop in extracellular pH alone, independent of light', 'Mechanical agitation of the particle by blood flow', 'UV light directly degrading the DOX molecule'],
+                  'correctIndex': 0,
+                  'explanation': 'NIR-LED light is absorbed by the gold nanorod core and converted to heat; that heat causes the thermo-responsive polymer coating to change conformation and release the loaded DOX — the switch is optical, not pH alone.',
+                  'hashtags': ['Nanomedicine', 'Theranostics'],
+                },
+                {
+                  'id': 'np-triple-2',
+                  'prompt': "Which three functions does the gold nanorod core provide in this 'triple hit' system?",
+                  'options': ['A heat source for both drug release and photothermal therapy, plus a CT contrast agent', 'A pH sensor, an oxygen carrier, and a fluorescent tag', 'An antibody scaffold, a vaccine adjuvant, and a pH buffer', 'A magnetic core for MRI, a radiotracer, and an enzyme mimic'],
+                  'correctIndex': 0,
+                  'explanation': "The gold core's job is thermal: it converts NIR light into heat for both triggering drug release and directly killing cells (photothermal therapy), while its high X-ray attenuation also makes it visible on CT scans.",
+                  'hashtags': ['Nanomedicine', 'Theranostics'],
+                },
+              ],
+            },
+            'goldNanorodLSPR': {
+              'label': 'Localized surface plasmon resonance (LSPR) in gold nanoparticles',
+              'images': [],
+              'description': 'Gold nanoparticles convert light into heat through localized surface plasmon resonance, and also strongly attenuate X-rays — giving them both a therapeutic (hyperthermia) and a diagnostic (CT contrast) role.',
+              'mechanism': "LSPR is the collective oscillation of free electrons in the gold nanoparticle in response to light of a matching wavelength; this oscillation dissipates as heat, raising local temperature (hyperthermia, ~40-43°C). Separately, gold's high X-ray attenuation coefficient makes it useful as a contrast agent for X-ray CT imaging.",
+              'funFacts': [],
+              'refs': [],
+              'hashtags': ['Nanomedicine', 'Theranostics'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'np-lspr-1',
+                  'prompt': 'Localized surface plasmon resonance (LSPR) in a gold nanoparticle refers to:',
+                  'options': ['The collective oscillation of free electrons in the particle upon exposure to light, which is dissipated as heat', "The particle's rate of renal clearance from the bloodstream", 'A chemical reaction between gold and doxorubicin', 'The binding of gold nanoparticles to plasma membrane receptors'],
+                  'correctIndex': 0,
+                  'explanation': 'LSPR describes the free electrons in the gold nanostructure oscillating together when hit by light of the right wavelength — that oscillation\'s energy is released as heat, which is the basis of gold-nanoparticle hyperthermia.',
+                  'hashtags': ['Nanomedicine'],
+                },
+                {
+                  'id': 'np-lspr-2',
+                  'prompt': 'Besides generating heat, why is a gold nanoparticle also useful as an imaging agent for X-ray CT?',
+                  'options': ['It has a high X-ray attenuation coefficient', 'It emits its own X-rays spontaneously', 'It becomes radioactive upon light exposure', 'It fluoresces under standard CT scanner illumination'],
+                  'correctIndex': 0,
+                  'explanation': 'Gold strongly attenuates (blocks) X-rays, which is exactly what a CT contrast agent needs to do — areas containing gold nanoparticles show up with different attenuation than surrounding tissue.',
+                  'hashtags': ['Nanomedicine'],
+                },
+              ],
+            },
+            'thermoresponsivePolymer': {
+              'label': 'Thermo-responsive polymer phase transition',
+              'images': [],
+              'description': 'The polymer coating used in the gold nanorod system undergoes a sharp phase transition around body-relevant temperatures, switching from a swollen, hydrophilic state to a collapsed, hydrophobic state.',
+              'mechanism': 'Below its lower critical solution temperature (LCST, roughly around 36-37°C in this system), the polymer is hydrated and swollen, keeping the coating relatively open. Above the LCST, the polymer rapidly collapses into a hydrophobic, compact state, expelling water — this collapse is what drives cargo (e.g. DOX) release when heat is applied (e.g. by NIR-triggered gold-core heating).',
+              'funFacts': [],
+              'refs': [],
+              'hashtags': ['Nanomedicine', 'Theranostics'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'np-thermo-1',
+                  'prompt': 'What happens to the thermo-responsive polymer coating once the temperature rises above its transition point?',
+                  'options': ['It rapidly collapses into a hydrophobic, compact state, driving cargo release', 'It becomes permanently covalently cross-linked to the drug', 'It dissolves completely, destroying the underlying gold core', 'It becomes more hydrated and swells further, trapping the cargo'],
+                  'correctIndex': 0,
+                  'explanation': 'Below its transition temperature the polymer is swollen and hydrophilic; heating past that point flips it to a collapsed hydrophobic state, which is the physical change that squeezes the loaded drug out.',
+                  'hashtags': ['Nanomedicine'],
+                },
+                {
+                  'id': 'np-thermo-2',
+                  'prompt': 'Why does this thermo-responsive behaviour matter for controlling drug release in the body?',
+                  'options': ['It lets heat (e.g. from NIR-triggered gold heating) act as an external ON/OFF switch for release', 'It ensures the drug is released continuously regardless of temperature', 'It prevents the nanoparticle from ever reaching body temperature', 'It makes the polymer coating permanently impermeable to the drug'],
+                  'correctIndex': 0,
+                  'explanation': "Because the polymer's physical state flips sharply around a specific temperature, applying (or withholding) heat becomes a controllable trigger — exactly the ON/OFF switching behaviour used to control when DOX is released.",
+                  'hashtags': ['Nanomedicine'],
+                },
+              ],
+            },
+            'dualResponsiveRelease': {
+              'label': 'pH- and temperature-dual-responsive drug release',
+              'images': [],
+              'description': 'Doxorubicin release from the nanoparticle system is fastest under conditions mimicking a heated, acidic tumour microenvironment, and slowest under normal physiological conditions.',
+              'mechanism': 'Release testing across 25°C/pH7.4 (slowest), 25°C/pH5.0, 41°C/pH7.4, and 41°C/pH5.0 (fastest) shows both lower pH and higher temperature independently increase release rate, and their combination (warm + acidic, resembling a tumour or an externally heated tumour) produces the greatest and fastest cumulative release.',
+              'funFacts': [],
+              'refs': [],
+              'hashtags': ['Nanomedicine', 'Theranostics'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'np-dual-1',
+                  'prompt': 'Under which combination of conditions was doxorubicin release from the nanoparticle fastest?',
+                  'options': ['41°C and pH 5.0', '25°C and pH 7.4', '25°C and pH 5.0', '41°C and pH 7.4, identical to 25°C/pH7.4'],
+                  'correctIndex': 0,
+                  'explanation': 'The combination of elevated temperature and acidic pH — resembling a heated, acidic tumour microenvironment — produced the fastest and greatest cumulative drug release, faster than either condition alone.',
+                  'hashtags': ['Nanomedicine'],
+                },
+                {
+                  'id': 'np-dual-2',
+                  'prompt': 'This pattern of drug release (both pH and temperature affecting release rate) is best described as:',
+                  'options': ['Dual-stimuli-responsive release', 'Purely passive, stimulus-independent diffusion', 'A single-use, non-repeatable burst release', 'Release that is unaffected by either pH or temperature'],
+                  'correctIndex': 0,
+                  'explanation': 'Because release rate changes with both pH and temperature independently (and combines when both are present), this is a dual-responsive system — not a simple passive-diffusion or single-trigger design.',
+                  'hashtags': ['Nanomedicine'],
+                },
+              ],
+            },
+            'ultrasoundNPMechanisms': {
+              'label': 'Ultrasound-triggered nanoparticle disruption',
+              'images': [],
+              'description': "Ultrasound can release a nanoparticle's cargo through two distinct mechanisms — a thermal effect and a physical (mechanical) effect — and also plays several other roles in nanoparticle-based therapy.",
+              'mechanism': 'The thermal effect from ultrasound energy can cause a nanoparticle to deform/release its cargo through localized heating; the physical effect mechanically shatters/disrupts the particle structure directly. Beyond triggering release, ultrasound is also used for: (1) targeting/guiding accumulation at the tumour, (2) enhancing nanoparticle penetration into tissue, (3) directly disrupting the nanoparticle, and (4) sonoporation — transiently permeabilising the cell membrane to let cargo in.',
+              'funFacts': [],
+              'refs': [],
+              'hashtags': ['Nanomedicine', 'Ultrasound'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'np-us-1',
+                  'prompt': "Ultrasound can release a nanoparticle's cargo via two distinct effects. What are they?",
+                  'options': ['A thermal effect and a physical (mechanical disruption) effect', 'An electrical effect and a magnetic effect', 'An enzymatic effect and a pH effect', 'A chemical effect and a radioactive effect'],
+                  'correctIndex': 0,
+                  'explanation': 'Ultrasound energy can release cargo either by heating the particle (thermal effect) or by mechanically disrupting/shattering its structure (physical effect) — two separate physical mechanisms, not a chemical or enzymatic one.',
+                  'hashtags': ['Nanomedicine', 'Ultrasound'],
+                },
+                {
+                  'id': 'np-us-2',
+                  'prompt': "'Sonoporation', as one of the roles ultrasound plays in nanoparticle-based therapy, refers to:",
+                  'options': ['Transiently making the cell membrane more permeable so cargo can enter', 'Permanently destroying the target cell membrane', 'Guiding nanoparticles using a magnetic field', 'Converting the nanoparticle into an inert byproduct'],
+                  'correctIndex': 0,
+                  'explanation': "Sonoporation is the transient permeabilisation of the cell membrane caused by ultrasound, which helps cargo (drugs, genes) get into the cell — it's temporary, not a permanent destructive effect.",
+                  'hashtags': ['Nanomedicine', 'Ultrasound'],
+                },
+              ],
+            },
+            'hifuNPlusStrategy': {
+              'label': 'HIFU-nanoparticle synergy (HIFUⁿ⁺ strategy)',
+              'images': [],
+              'description': 'Combining nanoparticles with high-intensity focused ultrasound (HIFU) substantially increases how deep thermal ablation can reach into tissue, and can be organised into a staged treatment strategy.',
+              'mechanism': 'A three-stage HIFUⁿ⁺ strategy: Stage 1 uses low-intensity ultrasound to enhance nanoparticle accumulation and penetration; Stage 2 uses HIFU to disrupt the nanoparticles, causing in situ drug synthesis together with localized thermal ablation; Stage 3 removes residual cancer cells and activates a systemic anti-tumour immune response. In a liver tissue test, adding nanoparticles increased HIFU ablation depth from 2.53 mm (without nanoparticles) to 7.4 mm (with nanoparticles).',
+              'funFacts': [],
+              'refs': [],
+              'hashtags': ['Nanomedicine', 'Ultrasound'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'np-hifu-1',
+                  'prompt': 'In the three-stage HIFUⁿ⁺ strategy, what happens in Stage 2?',
+                  'options': ['HIFU disrupts the nanoparticles, causing in situ drug synthesis together with localized thermal ablation', 'Low-intensity ultrasound alone enhances nanoparticle accumulation, with no ablation', 'Residual cancer cells are removed and systemic immunity is activated', 'Nanoparticles are cleared from the body via the kidneys'],
+                  'correctIndex': 0,
+                  'explanation': 'Stage 1 is accumulation/penetration (low-intensity ultrasound), Stage 2 is HIFU-driven nanoparticle disruption with in situ drug synthesis plus thermal ablation, and Stage 3 is residual-cell clearance plus immune activation.',
+                  'hashtags': ['Nanomedicine', 'Ultrasound'],
+                },
+                {
+                  'id': 'np-hifu-2',
+                  'prompt': 'In a liver ablation test comparing HIFU with and without nanoparticles present, what was the effect on ablation depth?',
+                  'options': ['Ablation depth was substantially greater with nanoparticles present (7.4 mm) than without (2.53 mm)', 'Ablation depth was identical whether or not nanoparticles were present', 'Nanoparticles reduced ablation depth compared to HIFU alone', 'Ablation only occurred when nanoparticles were absent'],
+                  'correctIndex': 0,
+                  'explanation': 'The measured ablation depth was roughly three times greater with nanoparticles present (7.4 mm) than without them (2.53 mm), demonstrating that nanoparticles substantially enhance HIFU\'s thermal ablation effect.',
+                  'hashtags': ['Nanomedicine', 'Ultrasound'],
+                },
+              ],
+            },
+            'twoComponentProdrug': {
+              'label': 'Two-component, site-activated prodrug system',
+              'images': [],
+              'description': 'Splitting a drug into two inert components that only react to form the active drug at the target tissue reduces toxicity to healthy, non-target tissue.',
+              'mechanism': 'Components A and B are separately inert (prodrugs). Delivered systemically, they only combine into the active drug (A+B) where localized ultrasound triggers their reaction at the target tissue. In non-target tissue, no activation occurs, so no reaction takes place and the inert components are simply excreted rather than causing off-target toxicity.',
+              'funFacts': [],
+              'refs': [],
+              'hashtags': ['Nanomedicine', 'Drug Delivery'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'np-prodrug-1',
+                  'prompt': 'In the two-component (A+B) prodrug system, what happens to components A and B when they reach NON-target tissue?',
+                  'options': ['They remain inert, do not react, and are excreted', 'They spontaneously combine into the active drug anyway', 'They become more toxic than the active drug itself', 'They are permanently trapped in non-target tissue'],
+                  'correctIndex': 0,
+                  'explanation': "Without the localized ultrasound trigger present at non-target tissue, components A and B never react — they stay inert and are cleared from the body rather than forming active drug where it isn't wanted.",
+                  'hashtags': ['Nanomedicine'],
+                },
+                {
+                  'id': 'np-prodrug-2',
+                  'prompt': 'What is the main advantage of splitting a drug into two separately-inert components (A and B) that only combine at the target site?',
+                  'options': ['It reduces the chance of the active drug causing toxicity in non-target tissue', 'It doubles the total dose delivered everywhere in the body', 'It removes the need for any targeting mechanism at all', 'It makes both components individually more potent than the combined drug'],
+                  'correctIndex': 0,
+                  'explanation': "Because the active drug only forms where the trigger (localized ultrasound) is applied, tissue elsewhere in the body is only ever exposed to the inert precursors — this is what limits off-target toxicity.",
+                  'hashtags': ['Nanomedicine'],
+                },
+              ],
+            },
+          },
+        },
+        'extracellularVesicles': {
+          'label': 'Extracellular Vesicles',
+          'icon': '🫧',
+          'color': '#38bdf8',
+          'items': {
+            'evsVsCells': {
+              'label': 'Extracellular vesicles (EVs) vs whole-cell therapies',
+              'images': [],
+              'description': 'EVs are increasingly used instead of transplanting whole cells, because they offer several safety and practical advantages while still carrying therapeutic cargo.',
+              'mechanism': 'Unlike whole cells, EVs cannot self-replicate (removing any risk of forming a tumour from the therapy itself), tend to be less immunogenic, are more resistant to hostile environments, and have better stability during storage. All cell types secrete EVs.',
+              'funFacts': [],
+              'refs': [],
+              'hashtags': ['Extracellular Vesicles'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'ev-vs-1',
+                  'prompt': 'Which of the following is a key safety advantage of extracellular vesicles (EVs) over whole-cell therapies?',
+                  'options': ['EVs cannot self-replicate, removing the risk of the therapy itself forming a tumour', 'EVs are larger than the cells that produce them', 'EVs are exclusively produced by cancer cells', 'EVs require live cell division to function therapeutically'],
+                  'correctIndex': 0,
+                  'explanation': "Because EVs are non-replicating vesicles rather than living cells, there's no possibility of the therapeutic material itself dividing uncontrollably — unlike a transplanted living cell, which in principle could.",
+                  'hashtags': ['Extracellular Vesicles'],
+                },
+                {
+                  'id': 'ev-vs-2',
+                  'prompt': 'Compared with whole cells, EVs are generally described as being:',
+                  'options': ['Less immunogenic and more resistant to hostile environments', 'More immunogenic and less stable in storage', 'Incapable of being produced by most cell types', 'Only producible under laboratory culture conditions, never in vivo'],
+                  'correctIndex': 0,
+                  'explanation': 'EVs tend to trigger less of an immune response than whole cells, and hold up better under storage and hostile conditions — practical advantages that make them attractive as a cell-free alternative.',
+                  'hashtags': ['Extracellular Vesicles'],
+                },
+              ],
+            },
+            'evSubtypesSizes': {
+              'label': 'Extracellular vesicle subtypes and size ranges',
+              'images': [],
+              'description': 'Extracellular vesicles come in several distinct subtypes with very different characteristic size ranges, from the smallest exosomes to the largest blebbisomes.',
+              'mechanism': 'Roughly increasing in size: exosomes (30-150 nm), microvesicles (100-1000 nm), migrasomes (500-3000 nm), apoptotic bodies (1000-5000 nm), oncosomes (1000-10000 nm), exophers (3500-4000 nm), and blebbisomes (10-20 μm) — the largest category, roughly 1000x larger than the smallest exosomes.',
+              'funFacts': [],
+              'refs': [],
+              'hashtags': ['Extracellular Vesicles'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'ev-size-1',
+                  'prompt': 'Which extracellular vesicle subtype is the smallest, at roughly 30-150 nm?',
+                  'options': ['Exosomes', 'Blebbisomes', 'Apoptotic bodies', 'Exophers'],
+                  'correctIndex': 0,
+                  'explanation': 'Exosomes are the smallest of the listed EV subtypes (roughly 30-150 nm) — blebbisomes, apoptotic bodies, and exophers are all substantially larger, up to the micron scale.',
+                  'hashtags': ['Extracellular Vesicles'],
+                },
+                {
+                  'id': 'ev-size-2',
+                  'prompt': 'Roughly how does the size of a blebbisome compare to that of an exosome?',
+                  'options': ['A blebbisome (10-20 μm) is on the order of 1000 times larger than an exosome (30-150 nm)', 'They are approximately the same size', 'A blebbisome is smaller than an exosome', 'Blebbisomes and exosomes are simply two names for the same structure'],
+                  'correctIndex': 0,
+                  'explanation': 'Exosomes are tens to ~150 nanometres, while blebbisomes span 10-20 micrometres — a difference of roughly three orders of magnitude, making blebbisomes far larger than exosomes.',
+                  'hashtags': ['Extracellular Vesicles'],
+                },
+              ],
+            },
+            'evBindingModes': {
+              'label': 'EV-target cell interaction modes',
+              'images': [],
+              'description': 'When an extracellular vesicle binds a target cell, it can interact in one of three distinct ways, trading off efficiency against how many cells are affected.',
+              'mechanism': '"Bind-and-leave" is high efficiency, affecting multiple cells via broad/transient signaling. "Bind-and-stay" is medium efficiency, affecting one cell via localized/stable surface signaling. "Bind-and-internalize" is low efficiency, affecting one cell but also risking lysosomal degradation, with downstream signaling through the endosome.',
+              'funFacts': [],
+              'refs': [],
+              'hashtags': ['Extracellular Vesicles'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'ev-bind-1',
+                  'prompt': 'Which EV-target cell interaction mode is described as high-efficiency and capable of affecting multiple cells via broad, transient signaling?',
+                  'options': ['Bind-and-leave', 'Bind-and-stay', 'Bind-and-internalize', 'None of these modes affect more than one cell'],
+                  'correctIndex': 0,
+                  'explanation': "'Bind-and-leave' briefly engages a receptor and then detaches, allowing the same EV (or its signal) to potentially affect multiple cells — this is the high-efficiency, broad-but-transient mode.",
+                  'hashtags': ['Extracellular Vesicles'],
+                },
+                {
+                  'id': 'ev-bind-2',
+                  'prompt': 'Which EV-target cell interaction mode carries a risk of the vesicle undergoing lysosomal degradation after internalization?',
+                  'options': ['Bind-and-internalize', 'Bind-and-leave', 'Bind-and-stay', 'All three modes carry an identical risk of lysosomal degradation'],
+                  'correctIndex': 0,
+                  'explanation': "Only 'bind-and-internalize' brings the EV inside the cell (via endocytosis), which is what exposes it to the endosome-to-lysosome degradation pathway — the other two modes act at the cell surface.",
+                  'hashtags': ['Extracellular Vesicles'],
+                },
+              ],
+            },
+            'evDamageSignaling': {
+              'label': 'Damaged-cell signaling via extracellular vesicles',
+              'images': [],
+              'description': 'A damaged cell can send an EV-mediated distress signal that prompts a stem cell to send back genetic repair instructions.',
+              'mechanism': 'A damaged cell releases nanoparticles/EVs as a distress signal; a stem cell receives and responds to this signal; the stem cell sends back a small package of DNA/RNA instructions; the damaged cell follows these instructions to repair itself.',
+              'funFacts': [],
+              'refs': [],
+              'hashtags': ['Extracellular Vesicles'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'ev-damage-1',
+                  'prompt': "In this damaged-cell signaling model, what does the stem cell send back to the damaged cell after receiving its distress signal?",
+                  'options': ['A small package of DNA/RNA instructions', 'A fully differentiated replacement cell', 'A dose of chemotherapy', 'Nothing — the stem cell only observes without responding'],
+                  'correctIndex': 0,
+                  'explanation': "After receiving the damaged cell's EV-carried distress signal, the stem cell responds by sending back genetic material (DNA/RNA) — instructions the damaged cell then follows to repair itself, rather than being physically replaced.",
+                  'hashtags': ['Extracellular Vesicles'],
+                },
+                {
+                  'id': 'ev-damage-2',
+                  'prompt': 'What is the overall sequence of this damaged-cell repair signaling process?',
+                  'options': ['Damaged cell signals → stem cell receives and responds → stem cell sends genetic instructions → damaged cell repairs itself', 'Stem cell signals → damaged cell ignores it → damaged cell degrades further', 'Damaged cell instantly self-destructs without any signaling', 'Damaged cell sends genetic instructions to the stem cell, which then repairs itself instead'],
+                  'correctIndex': 0,
+                  'explanation': 'The sequence runs from the damaged cell outward: it signals distress, a stem cell picks up and responds to that signal, sends back repair instructions, and the original damaged cell is the one that uses them to heal — not the reverse.',
+                  'hashtags': ['Extracellular Vesicles'],
+                },
+              ],
+            },
+            'longevityEVs': {
+              'label': 'Young serum EVs and rejuvenation of aged tissue',
+              'images': [],
+              'description': 'Injecting extracellular vesicles from young serum (young sEVs) into aged mice measurably improved multiple markers of ageing, from survival to cognition to cellular senescence.',
+              'mechanism': 'Compared with aged mice given a control (PBS), aged mice given young sEVs showed: increased survival (12.42% improvement), restored fertility markers, improved metabolic health, improved cardiac performance (LV mass and ejection fraction closer to young levels), reduced bone loss, improved cognition and endurance (47.6% increase in running time to exhaustion), and reduced senescent-cell staining alongside restored mitochondrial ATP synthesis.',
+              'funFacts': ['Young sEV treatment restored aged mice sperm concentration and motility to near-young levels.'],
+              'refs': [],
+              'hashtags': ['Extracellular Vesicles', 'Longevity'],
+              'course': 'MEDS3003',
+              'class': 'L7-8',
+              'questions': [
+                {
+                  'id': 'ev-longevity-1',
+                  'prompt': 'In aged mice, treatment with young serum-derived EVs (young sEVs) was associated with approximately what change in survival compared to control?',
+                  'options': ['A 12.42% increase in survival', 'No measurable change in survival', 'A 12.42% decrease in survival', 'Complete elimination of mortality'],
+                  'correctIndex': 0,
+                  'explanation': 'The Kaplan-Meier survival comparison showed aged mice treated with young sEVs survived about 12.42% longer than aged mice given the PBS control, a statistically significant difference.',
+                  'hashtags': ['Extracellular Vesicles', 'Longevity'],
+                },
+                {
+                  'id': 'ev-longevity-2',
+                  'prompt': 'Besides survival, which of the following was also reported to improve in aged mice after young sEV treatment?',
+                  'options': ['Running endurance, cardiac performance, and reduced markers of cellular senescence', 'Only tumour growth rate, with no effect on any other system', 'Hearing acuity exclusively, with no other measurable changes', 'A permanent reversal of chronological age'],
+                  'correctIndex': 0,
+                  'explanation': 'Reported improvements spanned endurance (a 47.6% increase in running time), cardiac performance (LV mass/ejection fraction shifting toward young-mouse values), and reduced senescent-cell staining/improved mitochondrial function — a broad, multi-system effect, not just one measure, and not literal reversal of chronological age.',
+                  'hashtags': ['Extracellular Vesicles', 'Longevity'],
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
   };
 
 /* ======================================================================
@@ -1799,7 +2363,7 @@
 
   window.RUNNER_DATA = {
     COURSES, GAME_CONFIG, LIFE_CONFIG, THEMES,
-    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES,
+    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES, LEARNING_PATH_CONFIG,
   };
 
 })();
