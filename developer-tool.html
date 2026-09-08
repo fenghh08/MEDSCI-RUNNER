@@ -74,6 +74,11 @@
   .list-editor .list-row.ref-row input.ref-url{ flex:2; }
   .list-editor .list-row.img-row input.img-cap{ flex:2; }
   .list-editor .list-row.img-row input.img-file{ flex:2; }
+  .list-editor .list-row.img-row .img-pick{ flex:none; width:34px; height:34px; border:1px dashed var(--panel-line);
+    border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; }
+  .list-editor .list-row.img-row .img-pick:hover{ border-color:var(--membrane); }
+  .list-editor .list-row.img-row .img-thumb{ width:100%; height:100%; object-fit:cover; }
+  .list-editor .list-row.img-row .img-pick-icon{ font-size:15px; opacity:.6; }
   .list-editor .list-row.opt-row{ align-items:center; }
   .list-editor .list-row.opt-row input[type=radio]{ flex:none; }
   .list-remove, .list-add{ font-family:var(--mono); font-size:12px; border-radius:6px; cursor:pointer; }
@@ -432,22 +437,16 @@
     </div>
 
     <div class="card" style="margin-top:16px;">
-      <h2>📄 Bulk-add items from CSV — for one course + topic at a time (COMING SOON...)</h2>
-      <p class="card-sub">Pick the course and topic these items belong to, then paste CSV text (with a header row) covering just the item fields. Columns, any order, matched by name: <b>label, description</b> (required), <b>mechanism, funFacts, hashtags</b> (optional; funFacts/hashtags separate multiple with a semicolon), <b>course, class</b> (optional — must exactly match an existing course code and class key, e.g. <code>MEDS3002</code> / <code>L14</code>; a row with a course or class that doesn't match a real one is rejected rather than silently creating an untagged mismatch). References and images aren't supported here — add those afterward via edit mode if needed. Each valid row becomes its own entry in the queue, exactly as if added one at a time.</p>
-      <div class="row2">
-        <label class="field">
-          <span class="fl-label">Course <span class="req">*</span></span>
-          <select id="csvitem_theme"></select>
-        </label>
-        <label class="field">
-          <span class="fl-label">Topic <span class="req">*</span></span>
-          <select id="csvitem_topic"></select>
-        </label>
+      <h2>📄 Bulk edit items via spreadsheet</h2>
+      <p class="card-sub">Export every item to a spreadsheet, edit it there (or add new rows), then paste it back in. <b>Rows with an <code>itemId</code> that matches an existing item update that item</b> — everything else about it (including its questions) is left alone. <b>Rows with a blank <code>itemId</code> create a new item</b> (needs <code>theme</code> + <code>topic</code> to know where it goes — existing items ignore these two columns, so you can't accidentally move one to a different topic this way). <b>Nothing is ever deleted by this import</b>, even if you remove a row — deleting stays a deliberate action elsewhere in this tool. Every row still lands in the shared queue below for review before anything touches the real file, exactly like adding one at a time.</p>
+      <p class="card-sub">Columns, any order, matched by name: <b>label, description</b> (required for new rows), <b>itemId</b> (leave blank for new items — never hand-type one, only use what the export gave you), <b>theme, topic</b> (required for new rows only), <b>mechanism, funFacts, hashtags</b> (optional; separate multiple with a semicolon), <b>course, class</b> (optional, must match an existing course code + class key), <b>images</b> (optional, <code>caption|filename;caption2|filename2</code>), <b>refs</b> (optional, <code>label|url;label2|url2</code>).</p>
+      <div class="btn-row">
+        <button class="secondary" id="itemsExportBtn">⬇️ Export all items as CSV</button>
       </div>
       <label class="field">
         <span class="fl-label">Paste CSV text</span>
-        <textarea id="csvitem_textarea" rows="8" placeholder="label,description,mechanism,funFacts,hashtags,course,class
-Ibrutinib,&quot;A BTK inhibitor used in CLL.&quot;,&quot;Irreversibly binds BTK.&quot;,&quot;First oral targeted therapy in CLL&quot;,Leukemia,MEDS3002,L15"></textarea>
+        <textarea id="csvitem_textarea" rows="8" placeholder="itemId,theme,topic,label,description,mechanism,funFacts,hashtags,course,class,images,refs
+,MEDS3002,pharmacology,Ibrutinib,&quot;A BTK inhibitor used in CLL.&quot;,&quot;Irreversibly binds BTK.&quot;,&quot;First oral targeted therapy in CLL&quot;,Leukemia,MEDS3002,L15,,"></textarea>
       </label>
       <div id="csvitem_preview" style="margin:10px 0;font-size:12px;color:var(--hud-dim);"></div>
       <div class="btn-row">
@@ -503,6 +502,17 @@ Ibrutinib,&quot;A BTK inhibitor used in CLL.&quot;,&quot;Irreversibly binds BTK.
             <option value="easy">🟢 Easy</option>
             <option value="medium" selected>🟡 Medium</option>
             <option value="hard">🔴 Hard</option>
+          </select>
+        </label>
+        <label class="field" style="max-width:220px;">
+          <span class="fl-label">Cognitive level</span>
+          <span class="fl-help">Used by the "Learning Path" mode's identify → understand → apply → case study progression. Leave unset if you're not sure — it just won't be offered in that mode yet.</span>
+          <select id="q_level">
+            <option value="" selected>— Not set —</option>
+            <option value="identify">🔍 Identify</option>
+            <option value="understand">💡 Understand</option>
+            <option value="apply">🛠️ Apply</option>
+            <option value="case">🩺 Case Study</option>
           </select>
         </label>
         <label class="field">
@@ -588,9 +598,9 @@ Ibrutinib,&quot;A BTK inhibitor used in CLL.&quot;,&quot;Irreversibly binds BTK.
     </div>
 
     <div class="card" style="margin-top:16px;">
-      <h2>📄 Add questions by lecture — mixed courses/topics/items in one paste</h2>
-      <p class="card-sub">For a whole lecture's worth of questions at once, even when they land on different items, topics, or courses — course/topic/item are given per row instead of picked once. <b>If a row's item doesn't already exist, it's created automatically as a placeholder</b> (just the label — no description yet) so the question has somewhere to attach; it'll show up flagged as incomplete until someone fills the rest in later. A row's <code>lecture</code> column (e.g. <code>L12</code>) sets that specific lecture as the citation for any new item it creates — leave it blank to fall back to the Course &amp; class default below instead.</p>
-      <p class="card-sub">Prefer a spreadsheet? The <a href="https://docs.google.com/spreadsheets/d/1BlL64j0qI--hMyGCwRw3hcRho6tvo_-CfkiIAf01ZG4/edit?usp=sharing" target="_blank" rel="noopener" style="color:var(--membrane);">question-adding template sheet</a> works here too — just add four columns at the start (<code>course</code>, <code>lecture</code>, <code>topic</code>, <code>item</code>) before the existing ones, fill those in per row, then export and paste as usual.</p>
+      <h2>📄 Add or edit questions by lecture — mixed courses/topics/items in one paste</h2>
+      <p class="card-sub">For a whole lecture's worth of questions at once, even when they land on different items, topics, or courses — course/topic/item are given per row instead of picked once. <b>If a row's <code>questionId</code> matches a question exported below, that question is updated in place</b> (its course/lecture/topic/item columns are ignored — it stays exactly where it already lives, so a stray edit can't accidentally move it). <b>A blank <code>questionId</code> creates a new question</b>, and <b>if its item doesn't already exist, the item is created automatically</b> too. Add optional <code>description</code>, <code>mechanism</code>, and <code>funfacts</code> (semicolon-separated) columns to fill a new item in fully instead of leaving it as a bare label — only the first row for a given item needs them. A row's <code>lecture</code> column (e.g. <code>L12</code>) sets that specific lecture as the citation for any new item it creates — leave it blank to fall back to the Course &amp; class default below instead. <b>Nothing is ever deleted by this import</b>, even if a row is removed — deleting stays a deliberate action elsewhere in this tool.</p>
+      <p class="card-sub">Prefer a spreadsheet? The <a href="https://docs.google.com/spreadsheets/d/1BlL64j0qI--hMyGCwRw3hcRho6tvo_-CfkiIAf01ZG4/edit?usp=sharing" target="_blank" rel="noopener" style="color:var(--membrane);">question-adding template sheet</a> works here too — just add the same columns as the export below before the existing ones, fill those in per row, then export and paste as usual.</p>
       <label class="field">
         <span class="fl-label">Course &amp; class default for any new items (optional)</span>
         <span class="fl-help">Only used for a row whose own <code>lecture</code> column is blank.</span>
@@ -604,13 +614,16 @@ Ibrutinib,&quot;A BTK inhibitor used in CLL.&quot;,&quot;Irreversibly binds BTK.
       </div>
       <label class="field">
         <span class="fl-label">Paste CSV text</span>
-        <textarea id="lec_textarea" rows="10" placeholder="course,lecture,topic,item,prompt,optionA,optionB,optionC,optionD,correct,explanation,hashtags,difficulty
-MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;,BTK,JAK2,mTOR,PI3K,A,&quot;Ibrutinib irreversibly binds BTK.&quot;,Leukemia,medium"></textarea>
+        <textarea id="lec_textarea" rows="10" placeholder="questionId,course,lecture,topic,item,prompt,optionA,optionB,optionC,optionD,correct,explanation,hashtags,difficulty,level,description,mechanism,funfacts
+,MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;,BTK,JAK2,mTOR,PI3K,A,&quot;Ibrutinib irreversibly binds BTK.&quot;,Leukemia,medium,identify,&quot;A BTK inhibitor used in CLL and mantle cell lymphoma.&quot;,&quot;Irreversibly binds BTK, blocking B-cell receptor signalling.&quot;,&quot;First-in-class BTK inhibitor;Taken orally once daily&quot;"></textarea>
+        <span class="fl-help">Leave <code>questionId</code> blank for a new question — never hand-type one, only use what the export below gave you. "level" is optional -- one of identify/understand/apply/case, used by the Learning Path mode. "description"/"mechanism"/"funfacts" are optional too -- fill them in on an item's first row to fully author it instead of leaving a bare label; "funfacts" can hold several, separated by semicolons. Leave any of these columns out (or the cell blank) to skip them.</span>
       </label>
       <div id="lec_preview" style="margin:10px 0;font-size:12px;color:var(--hud-dim);"></div>
       <div class="btn-row">
         <button class="primary" id="lec_parseBtn">Parse &amp; add all to queue</button>
+        <button class="secondary" id="lec_exportBtn">⬇️ Export all existing questions as CSV</button>
       </div>
+      <p class="card-sub" style="margin-top:8px;">Exports every question currently in the game in this exact column format, including its <code>questionId</code> — paste it into a spreadsheet, edit it there, and paste it back in above to update those exact questions in place (see the note above).</p>
     </div>
   </div>
 
@@ -647,6 +660,43 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
           <div class="btn-row">
             <button class="primary" id="c_addBatch">+ Add to batch</button>
             <button class="secondary" id="c_copyOne">Copy this snippet</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="layout" style="margin-top:16px;">
+      <div class="card">
+        <h2>🧭 Lecture learning outcomes</h2>
+        <p class="card-sub">Pick an existing course and lecture, then add the learning outcome(s) it should show before "Learning Path" mode starts, plus an optional short intro blurb. This only affects lectures that already have questions tagged with a cognitive level (identify/understand/apply/case, set in the "New question" tab) — a lecture won't show up in Learning Path mode until both are in place.</p>
+        <label class="field">
+          <span class="fl-label">Course <span class="req">*</span></span>
+          <select id="lo_course"></select>
+        </label>
+        <label class="field">
+          <span class="fl-label">Lecture <span class="req">*</span></span>
+          <select id="lo_class" disabled></select>
+        </label>
+        <label class="field">
+          <span class="fl-label">Learning outcome(s) <span class="req">*</span></span>
+          <span class="fl-help">One per line — shown to the player before they start this lecture in Learning Path mode.</span>
+          <div class="list-editor" id="lo_outcomes"></div>
+        </label>
+        <label class="field">
+          <span class="fl-label">Intro / content blurb</span>
+          <span class="fl-help">Optional — a sentence or two of context shown alongside the outcome(s).</span>
+          <textarea id="lo_intro" placeholder="e.g. This lecture covers two classic cancer hallmarks seen in leukemia..."></textarea>
+        </label>
+      </div>
+
+      <div>
+        <div class="card">
+          <h2>Generated code</h2>
+          <p class="card-sub">Copy this, or add it to your batch. The maintainer merge tool below also applies this directly (merged into the existing lecture entry, not replacing it).</p>
+          <pre class="code-out" id="lo_codeOut"></pre>
+          <div class="btn-row">
+            <button class="primary" id="lo_addBatch">+ Add to batch</button>
+            <button class="secondary" id="lo_copyOne">Copy this snippet</button>
           </div>
         </div>
       </div>
@@ -1066,15 +1116,62 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
       n++;
       const row = document.createElement('div');
       row.className = 'list-row img-row';
-      row.innerHTML = `<input type="text" class="img-cap" placeholder="Caption, e.g. H&E stain, bone marrow">
+      // The file input/thumbnail are purely a local authoring aid -- picking
+      // a file never uploads anywhere (this tool has no backend to upload
+      // to). It just: (1) shows a live preview so you can confirm you
+      // picked the right image, (2) suggests a matching filename from the
+      // item's slug + the file's own extension, and (3) lets you download a
+      // renamed copy with one click so you're not manually renaming the
+      // file yourself before dragging it into the shared image folder.
+      row.innerHTML = `<label class="img-pick" title="Pick an image file (preview + auto-fill only -- doesn't upload anywhere)">
+          <input type="file" class="img-file-input" accept="image/*" style="display:none;">
+          <img class="img-thumb" style="display:none;">
+          <span class="img-pick-icon">🖼</span>
+        </label>
+        <input type="text" class="img-cap" placeholder="Caption, e.g. H&E stain, bone marrow">
         <input type="text" class="img-file" placeholder="filename, e.g. bcrabl-x1.png">
+        <button class="secondary img-download" type="button" title="Save a copy of the picked file under this exact filename" style="display:none;padding:4px 8px;font-size:11px;">⬇</button>
         <button class="list-remove" type="button">✕</button>`;
       row.dataset.n = n;
       row.dataset.userEdited = filename ? 'true' : 'false';
+      row.dataset.ext = '.png';
       row.querySelector('.img-cap').value = caption||'';
       row.querySelector('.img-file').value = filename||'';
       row.querySelector('.img-file').addEventListener('input', ()=>{ row.dataset.userEdited = 'true'; onChange(); });
       row.querySelector('.img-cap').addEventListener('input', onChange);
+      const fileInputEl = row.querySelector('.img-file-input');
+      const thumbEl = row.querySelector('.img-thumb');
+      const pickIconEl = row.querySelector('.img-pick-icon');
+      const downloadBtn = row.querySelector('.img-download');
+      fileInputEl.addEventListener('change', ()=>{
+        const file = fileInputEl.files[0];
+        if(!file) return;
+        row._pickedFile = file;
+        thumbEl.src = URL.createObjectURL(file);
+        thumbEl.style.display = 'block';
+        pickIconEl.style.display = 'none';
+        downloadBtn.style.display = 'inline-block';
+        const extMatch = file.name.match(/\.[a-z0-9]+$/i);
+        row.dataset.ext = extMatch ? extMatch[0].toLowerCase() : '.png';
+        // Only auto-fill the caption/filename if they're still empty --
+        // never clobber something the contributor already typed.
+        const capEl = row.querySelector('.img-cap');
+        if(!capEl.value.trim()) capEl.value = file.name.replace(/\.[a-z0-9]+$/i, '').replace(/[_-]+/g,' ');
+        if(row.dataset.userEdited!=='true'){
+          // Leave the actual value to be filled in at _getValues(itemSlug)
+          // time (same deferred pattern as before) -- just mark that we now
+          // have a real extension to use instead of the .png fallback.
+        }
+        onChange();
+      });
+      downloadBtn.addEventListener('click', ()=>{
+        if(!row._pickedFile) return;
+        const filename = row.querySelector('.img-file').value.trim() || row._pickedFile.name;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(row._pickedFile);
+        a.download = filename;
+        a.click();
+      });
       row.querySelector('.list-remove').addEventListener('click', ()=>{ row.remove(); onChange(); });
       container.insertBefore(row, addBtn);
     }
@@ -1090,7 +1187,7 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
       const cap = r.querySelector('.img-cap').value.trim();
       const fileInput = r.querySelector('.img-file');
       if(r.dataset.userEdited!=='true' && itemSlug){
-        fileInput.value = `${itemSlug}-${r.dataset.n}.png`;
+        fileInput.value = `${itemSlug}-${r.dataset.n}${r.dataset.ext||'.png'}`;
       }
       const filename = fileInput.value.trim();
       return (cap && filename) ? { url:`images/${filename}`, caption:cap, filename } : null;
@@ -1619,7 +1716,7 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
     renderItemPreview(o);
     if(o.images.length){
       i_filesNeeded.classList.add('show');
-      i_filesNeeded.innerHTML = `📎 Save your image file(s) as: ${o.images.map(im=>`<b>${im.filename}</b>`).join(', ')} (or edit those filenames above to whatever you prefer), then upload them to <a href="https://drive.google.com/drive/folders/1Wofvby0aQ6a169mr50jU0sYIEk-6BaG2?usp=drive_link" target="_blank" rel="noopener" style="color:var(--membrane);">the shared Drive folder</a> with that exact name.`;
+      i_filesNeeded.innerHTML = `📎 Files needed: ${o.images.map(im=>`<b>${im.filename}</b>`).join(', ')}. Click the 🖼 picker next to each image above to pick the file and preview it, then use the ⬇ button to save a copy already renamed correctly (or just rename it yourself) — then upload it to <a href="https://drive.google.com/drive/folders/1Wofvby0aQ6a169mr50jU0sYIEk-6BaG2?usp=drive_link" target="_blank" rel="noopener" style="color:var(--membrane);">the shared Drive folder</a> with that exact name.`;
     } else {
       i_filesNeeded.classList.remove('show');
     }
@@ -1642,7 +1739,6 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
     refreshQuestionItemSelect();
     refreshEditItemSelect();
     refreshCsvItemSelect();
-    refreshCsvItemFormSelects();
     renderStructureList();
     i_coursePicker.refresh();
     refreshCourseSelects();
@@ -1650,34 +1746,67 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
     resetItemFormToNew();
   });
 
-  // ================= CSV IMPORT (items, one theme + topic at a time) =================
-  const csvitem_theme = document.getElementById('csvitem_theme');
-  const csvitem_topic = document.getElementById('csvitem_topic');
+  // ================= BULK EDIT ITEMS (export + add-or-update import) =================
   const csvitem_textarea = document.getElementById('csvitem_textarea');
   const csvitem_preview = document.getElementById('csvitem_preview');
-  function refreshCsvItemFormSelects(){
-    const currentTheme = csvitem_theme.value;
-    csvitem_theme.innerHTML = KNOWN_THEMES.map(t=>`<option value="${t.id}">${t.label}</option>`).join('');
-    if([...csvitem_theme.options].some(o=>o.value===currentTheme)) csvitem_theme.value = currentTheme;
-    fillTopicSelect(csvitem_topic, csvitem_theme.value);
+
+  // "field1|field2" pair-list encoding for the two nested-array fields
+  // (images, refs) so they still fit in one flat CSV cell -- consistent
+  // with how funFacts/hashtags already use plain semicolon lists for their
+  // single-value arrays.
+  function encodePairList(arr, keyA, keyB){
+    return (arr||[]).map(o=>`${(o[keyA]||'').replace(/[|;]/g,' ')}|${(o[keyB]||'').replace(/[|;]/g,' ')}`).join(';');
   }
-  csvitem_theme.addEventListener('change', ()=>{ fillTopicSelect(csvitem_topic, csvitem_theme.value); renderCsvItemPreview(); });
-  refreshCsvItemFormSelects();
+  function decodePairList(str, keyA, keyB){
+    return (str||'').split(';').map(s=>s.trim()).filter(Boolean).map(pair=>{
+      const [a,b] = pair.split('|').map(s=>(s||'').trim());
+      return { [keyA]: a||'', [keyB]: b||'' };
+    }).filter(o=>o[keyA]);
+  }
+
+  document.getElementById('itemsExportBtn').addEventListener('click', ()=>{
+    const header = ['itemId','theme','topic','label','description','mechanism','funFacts','hashtags','course','class','images','refs'];
+    const rows = [header];
+    Object.entries(RD.THEMES).forEach(([themeId, theme])=>{
+      Object.entries(theme.topics).forEach(([topicId, topic])=>{
+        Object.entries(topic.items).forEach(([itemId, item])=>{
+          rows.push([
+            itemId, themeId, topicId, item.label, item.description||'', item.mechanism||'',
+            (item.funFacts||[]).join(';'), (item.hashtags||[]).join(';'), item.course||'', item.class||'',
+            encodePairList(item.images, 'caption', 'filename'),
+            encodePairList((item.refs||[]).map(r=>({label:r.label, url:r.url||''})), 'label', 'url'),
+          ].map(csvField));
+        });
+      });
+    });
+    const csvText = rows.map(r=>r.join(',')).join('\n');
+    const blob = new Blob([csvText], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `runner-items-export-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    toast(`Exported ${rows.length-1} items`);
+  });
 
   // Parses without touching the queue -- used for both the live preview and
   // the actual add-all action, so what you're told matches what happens.
-  // Course/class are validated against the REAL course structure here too,
-  // same principle as the "spans several classes" picker: a typo'd course
-  // code is a rejected row with a clear reason, never a silently-created
-  // mismatch that fails to group with anything.
+  // Course/class/theme/topic are all validated against the REAL structure,
+  // same principle as the "spans several classes" picker: a typo'd value is
+  // a rejected row with a clear reason, never a silently-created mismatch.
+  //
+  // The add-vs-update decision hinges ENTIRELY on the itemId column: blank
+  // (or unrecognised) -> new item; matches a real, existing item -> that
+  // item is updated (as an 'edit-item' queue entry, same shape the one-at-a-
+  // time edit form produces, existing questions carried through unchanged).
+  // An update row's own theme/topic columns are read but IGNORED -- the
+  // item stays exactly where it already lives, so there's no way to
+  // accidentally move or fork an item into a second location via a typo.
   function parseCsvItems(){
-    const theme = csvitem_theme.value, topicId = csvitem_topic.value;
-    if(!theme || !topicId) return { valid:[], errors:['Pick a course and topic first.'] };
     const rows = parseCSV(csvitem_textarea.value);
     if(rows.length < 2) return { valid:[], errors:['Paste a header row plus at least one item row.'] };
     const header = rows[0].map(h=>h.trim().toLowerCase());
     const col = name => header.indexOf(name);
-    const idx = { label:col('label'), description:col('description'), mechanism:col('mechanism'), funfacts:col('funfacts'), hashtags:col('hashtags'), course:col('course'), class:col('class') };
+    const idx = { itemid:col('itemid'), theme:col('theme'), topic:col('topic'), label:col('label'), description:col('description'), mechanism:col('mechanism'), funfacts:col('funfacts'), hashtags:col('hashtags'), course:col('course'), class:col('class'), images:col('images'), refs:col('refs') };
     const missingCols = ['label','description'].filter(k=>idx[k]<0);
     if(missingCols.length) return { valid:[], errors:[`Missing required column(s): ${missingCols.join(', ')}.`] };
     const valid = [], errors = [];
@@ -1685,6 +1814,7 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
       const row = rows[r];
       if(row.every(f=>(f||'').trim()==='')) continue; // silently skip fully-blank rows
       const rowNum = r+1; // 1-indexed, matches what a person sees in a spreadsheet
+      const rawItemId = idx.itemid>=0 ? (row[idx.itemid]||'').trim() : '';
       const label = (row[idx.label]||'').trim();
       const description = (row[idx.description]||'').trim();
       const mechanism = idx.mechanism>=0 ? (row[idx.mechanism]||'').trim() : '';
@@ -1692,6 +1822,8 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
       const hashtags = idx.hashtags>=0 ? (row[idx.hashtags]||'').split(';').map(s=>s.trim()).filter(Boolean) : [];
       const courseCode = idx.course>=0 ? (row[idx.course]||'').trim() : '';
       const classKey = idx.class>=0 ? (row[idx.class]||'').trim() : '';
+      const images = idx.images>=0 ? decodePairList(row[idx.images], 'caption', 'filename').map(im=>({...im, url:`images/${im.filename}`})) : [];
+      const refs = idx.refs>=0 ? decodePairList(row[idx.refs], 'label', 'url') : [];
       if(!label){ errors.push(`Row ${rowNum}: missing label, skipped.`); continue; }
       if(!description){ errors.push(`Row ${rowNum}: missing description, skipped.`); continue; }
       let course = '', cls = '';
@@ -1706,10 +1838,36 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
       } else if(classKey){
         errors.push(`Row ${rowNum}: class given without a course, skipped.`); continue;
       }
+      const existing = rawItemId ? KNOWN_ITEMS.find(it=>it.id===rawItemId) : null;
+      if(rawItemId && !existing){
+        errors.push(`Row ${rowNum}: itemId "${rawItemId}" doesn't match any existing item — added as a NEW item instead. If you meant to edit an existing one, check the itemId column.`);
+      }
+      if(existing){
+        const full = RD.THEMES[existing.theme]?.topics?.[existing.topic]?.items?.[existing.id];
+        valid.push({
+          isEdit: true,
+          theme: existing.theme, topicId: existing.topic, usingNewTopic: false,
+          itemId: existing.id, editingItemId: existing.id,
+          label, description, mechanism, funFacts, hashtags,
+          course, class: cls, relatedCourseOverride: full?.relatedCourse||'',
+          courseInfo: { addCourseSnippet:'', addClassSnippet:'', newCourseData:null, newClassData:null },
+          addCourseSnippet: '', addClassSnippet: '',
+          refs, images: images.length ? images : (full?.images||[]),
+          existingQuestions: full?.questions || [],
+        });
+        continue;
+      }
+      const theme = idx.theme>=0 ? (row[idx.theme]||'').trim() : '';
+      const topicId = idx.topic>=0 ? (row[idx.topic]||'').trim() : '';
+      if(!theme){ errors.push(`Row ${rowNum}: new item needs a theme (course), skipped.`); continue; }
+      if(!KNOWN_THEMES.some(t=>t.id===theme)){ errors.push(`Row ${rowNum}: theme "${theme}" doesn't match any existing course, skipped.`); continue; }
+      if(!topicId){ errors.push(`Row ${rowNum}: new item needs a topic, skipped.`); continue; }
+      if(!RD.THEMES[theme]?.topics?.[topicId]){ errors.push(`Row ${rowNum}: topic "${topicId}" doesn't exist under ${theme}, skipped.`); continue; }
       const itemId = slugify(label) + '_' + randSuffix();
       valid.push({
+        isEdit: false,
         theme, topicId, itemId, label, description, mechanism, funFacts, hashtags,
-        refs: [], images: [], course, class: cls, relatedCourseOverride: '',
+        refs, images, course, class: cls, relatedCourseOverride: '',
         usingNewTopic: false, addCourseSnippet: '', addClassSnippet: '',
         courseInfo: { addCourseSnippet:'', addClassSnippet:'', newCourseData:null, newClassData:null },
       });
@@ -1719,25 +1877,26 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
   function renderCsvItemPreview(){
     if(!csvitem_textarea.value.trim()){ csvitem_preview.textContent = ''; return; }
     const { valid, errors } = parseCsvItems();
-    let msg = valid.length ? `✅ ${valid.length} item${valid.length===1?'':'s'} ready to add.` : '';
+    const newCount = valid.filter(o=>!o.isEdit).length, editCount = valid.filter(o=>o.isEdit).length;
+    let msg = valid.length ? `✅ ${newCount} new, ${editCount} update${editCount===1?'':'s'} ready.` : '';
     if(errors.length) msg += (msg?' ':'') + `⚠️ ${errors.join(' ')}`;
     csvitem_preview.textContent = msg;
   }
   csvitem_textarea.addEventListener('input', renderCsvItemPreview);
-  csvitem_topic.addEventListener('change', renderCsvItemPreview);
   document.getElementById('csvitem_parseBtn').addEventListener('click', ()=>{
     const { valid, errors } = parseCsvItems();
     if(!valid.length){ toast(errors[0] || 'Nothing to add'); return; }
-    const themeLabel = (KNOWN_THEMES.find(t=>t.id===csvitem_theme.value)||{}).label || csvitem_theme.value;
     valid.forEach(o=>{
-      KNOWN_ITEMS.push({ id:o.itemId, theme:o.theme, topic:o.topicId, label:o.label, course:o.course, class:o.class });
-      pushToQueue({ type:'item', title:o.label, code:itemCodeString(o), note:`${themeLabel} · ${o.topicId} · via CSV`, data:o });
+      const themeLabel = (KNOWN_THEMES.find(t=>t.id===o.theme)||{}).label || o.theme;
+      if(!o.isEdit) KNOWN_ITEMS.push({ id:o.itemId, theme:o.theme, topic:o.topicId, label:o.label, course:o.course, class:o.class });
+      pushToQueue({ type: o.isEdit?'edit-item':'item', title:o.label, code:itemCodeString(o), note:`${o.isEdit?'✏️ Edit':'🆕 New'} · ${themeLabel} · ${o.topicId} · via CSV`, data:o });
     });
     refreshQuestionItemSelect();
     refreshEditItemSelect();
     refreshCsvItemSelect();
     renderStructureList();
-    toast(`Added ${valid.length} item${valid.length===1?'':'s'} to queue`);
+    const newCount = valid.filter(o=>!o.isEdit).length, editCount = valid.filter(o=>o.isEdit).length;
+    toast(`Added ${newCount} new item${newCount===1?'':'s'} and ${editCount} update${editCount===1?'':'s'} to queue`);
     csvitem_textarea.value = '';
     csvitem_preview.textContent = '';
   });
@@ -1753,6 +1912,7 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
   const q_optionsEl = document.getElementById('q_options');
   const q_explanation = document.getElementById('q_explanation');
   const q_difficulty = document.getElementById('q_difficulty');
+  const q_level = document.getElementById('q_level');
   const q_hashtagsEl = document.getElementById('q_hashtags');
   const q_codeOut = document.getElementById('q_codeOut');
   const q_previewCard = document.getElementById('q_previewCard');
@@ -1792,6 +1952,7 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
       correctIndex,
       explanation: q_explanation.value.trim() || '(add an explanation)',
       difficulty: q_difficulty.value,
+      level: q_level.value,
       hashtags: q_hashtagsEl._getValues(),
       course: courseInfo.course, class: courseInfo.class, relatedCourseOverride: courseInfo.relatedCourseOverride, courseInfo,
       addCourseSnippet: courseInfo.addCourseSnippet, addClassSnippet: courseInfo.addClassSnippet,
@@ -1806,6 +1967,7 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
     const optsStr = o.options.map(op=>`'${esc(op)}'`).join(', ');
     const hashtagsStr = o.hashtags.length ? `, hashtags:[${o.hashtags.map(h=>`'${esc(h)}'`).join(', ')}]` : '';
     const difficultyStr = o.difficulty && o.difficulty!=='medium' ? `, difficulty:'${o.difficulty}'` : '';
+    const levelStr = o.level ? `, level:'${o.level}'` : '';
     // Questions live nested under their item now, in an item.questions
     // array, and inherit the item's course/class automatically — only
     // spell course/class out on the question itself if it genuinely
@@ -1815,7 +1977,7 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
     let tail = '';
     if(o.relatedCourseOverride) tail = `,\n  relatedCourse:'${escMultiline(o.relatedCourseOverride)}'`;
     else if(differsFromItem) tail = `,\n  course:'${o.course}'${o.class?`,\n  class:'${o.class}'`:''}`;
-    return `${pre}// -> THEMES.${o.theme}.topics.${o.topic}.items.${o.itemId}.questions in game-data.js\n{ id:'${o.qId}', prompt:'${esc(o.prompt)}',\n  options:[${optsStr}], correctIndex:${o.correctIndex},\n  explanation:'${esc(o.explanation)}'${difficultyStr}${hashtagsStr}${tail} },`;
+    return `${pre}// -> THEMES.${o.theme}.topics.${o.topic}.items.${o.itemId}.questions in game-data.js\n{ id:'${o.qId}', prompt:'${esc(o.prompt)}',\n  options:[${optsStr}], correctIndex:${o.correctIndex},\n  explanation:'${esc(o.explanation)}'${difficultyStr}${levelStr}${hashtagsStr}${tail} },`;
   }
   // Mirrors the real MCQ modal's styling — correct option highlighted, same
   // as a player would see it after answering.
@@ -1904,7 +2066,7 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
     const col = name => header.indexOf(name);
     const idx = {
       prompt: col('prompt'), a: col('optiona'), b: col('optionb'), c: col('optionc'), d: col('optiond'),
-      correct: col('correct'), explanation: col('explanation'), hashtags: col('hashtags'), difficulty: col('difficulty'),
+      correct: col('correct'), explanation: col('explanation'), hashtags: col('hashtags'), difficulty: col('difficulty'), level: col('level'),
     };
     const missingCols = ['prompt','a','b','c','d','correct','explanation'].filter(k=>idx[k]<0);
     if(missingCols.length) return { valid:[], errors:[`Missing required column(s): ${missingCols.map(k=>({a:'optionA',b:'optionB',c:'optionC',d:'optionD'}[k]||k)).join(', ')}.`] };
@@ -1919,6 +2081,8 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
       const hashtags = idx.hashtags>=0 ? (row[idx.hashtags]||'').split(';').map(s=>s.trim()).filter(Boolean) : [];
       const difficultyRaw = idx.difficulty>=0 ? (row[idx.difficulty]||'').trim().toLowerCase() : '';
       const difficulty = ['easy','medium','hard'].includes(difficultyRaw) ? difficultyRaw : 'medium';
+      const levelRaw = idx.level>=0 ? (row[idx.level]||'').trim().toLowerCase() : '';
+      const level = ['identify','understand','apply','case'].includes(levelRaw) ? levelRaw : '';
       const rowNum = r+1; // 1-indexed, matches what a person sees in a spreadsheet
       if(!prompt){ errors.push(`Row ${rowNum}: missing prompt, skipped.`); continue; }
       if(options.some(o=>!o)){ errors.push(`Row ${rowNum}: needs all four options, skipped.`); continue; }
@@ -1928,7 +2092,7 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
       valid.push({
         theme: known.theme, topic: known.topic, itemId: known.id,
         qId: 'q-' + known.topic + '-' + randSuffix(),
-        prompt, options, correctIndex, explanation, difficulty, hashtags,
+        prompt, options, correctIndex, explanation, difficulty, level, hashtags,
         course: '', class: '', relatedCourseOverride: '',
         addCourseSnippet: '', addClassSnippet: '',
         courseInfo: { addCourseSnippet:'', addClassSnippet:'', newCourseData:null, newClassData:null },
@@ -1999,12 +2163,27 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
     const caseInsensitiveHit = Object.keys(classes).find(k=>k.toUpperCase()===trimmed.toUpperCase());
     return caseInsensitiveHit || null;
   }
+  // Searches every item's nested questions array for a matching id --
+  // there's no flat question index kept anywhere else, so this walks the
+  // whole tree. Only called per-row on parse (not in a hot loop), so the
+  // cost is fine.
+  function findQuestionLocation(qId){
+    for(const [themeId, theme] of Object.entries(RD.THEMES)){
+      for(const [topicId, topic] of Object.entries(theme.topics)){
+        for(const [itemId, item] of Object.entries(topic.items)){
+          const q = (item.questions||[]).find(q=>q.id===qId);
+          if(q) return { theme:themeId, topic:topicId, itemId, question:q };
+        }
+      }
+    }
+    return null;
+  }
   function parseLectureQuestions(){
     const rows = parseCSV(lec_textarea.value);
     if(rows.length < 2) return { valid:[], newItems:[], errors:['Paste a header row plus at least one question row.'] };
     const header = rows[0].map(h=>h.trim().toLowerCase());
     const col = name => header.indexOf(name);
-    const idx = { course:col('course'), lecture:col('lecture'), topic:col('topic'), item:col('item'), prompt:col('prompt'), a:col('optiona'), b:col('optionb'), c:col('optionc'), d:col('optiond'), correct:col('correct'), explanation:col('explanation'), hashtags:col('hashtags'), difficulty:col('difficulty') };
+    const idx = { questionid:col('questionid'), course:col('course'), lecture:col('lecture'), topic:col('topic'), item:col('item'), prompt:col('prompt'), a:col('optiona'), b:col('optionb'), c:col('optionc'), d:col('optiond'), correct:col('correct'), explanation:col('explanation'), hashtags:col('hashtags'), difficulty:col('difficulty'), level:col('level'), description:col('description'), mechanism:col('mechanism'), funfacts:col('funfacts') };
     const missingCols = ['course','topic','item','prompt','a','b','c','d','correct','explanation'].filter(k=>idx[k]<0);
     if(missingCols.length) return { valid:[], newItems:[], errors:[`Missing required column(s): ${missingCols.map(k=>({a:'optionA',b:'optionB',c:'optionC',d:'optionD'}[k]||k)).join(', ')}.`] };
     // Per-row "lecture" is optional and, when given, takes priority over
@@ -2021,6 +2200,9 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
       const lectureInput = idx.lecture>=0 ? (row[idx.lecture]||'').trim() : '';
       const topicInput = (row[idx.topic]||'').trim();
       const itemLabel = (row[idx.item]||'').trim();
+      const itemDescription = idx.description>=0 ? (row[idx.description]||'').trim() : '';
+      const itemMechanism = idx.mechanism>=0 ? (row[idx.mechanism]||'').trim() : '';
+      const itemFunFacts = idx.funfacts>=0 ? (row[idx.funfacts]||'').split(';').map(s=>s.trim()).filter(Boolean) : [];
       const prompt = (row[idx.prompt]||'').trim();
       const options = [row[idx.a], row[idx.b], row[idx.c], row[idx.d]].map(v=>(v||'').trim());
       const correctLetter = (row[idx.correct]||'').trim().toUpperCase();
@@ -2028,14 +2210,37 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
       const hashtags = idx.hashtags>=0 ? (row[idx.hashtags]||'').split(';').map(s=>s.trim()).filter(Boolean) : [];
       const difficultyRaw = idx.difficulty>=0 ? (row[idx.difficulty]||'').trim().toLowerCase() : '';
       const difficulty = ['easy','medium','hard'].includes(difficultyRaw) ? difficultyRaw : 'medium';
-      if(!courseInput){ errors.push(`Row ${rowNum}: missing course, skipped.`); continue; }
-      if(!topicInput){ errors.push(`Row ${rowNum}: missing topic, skipped.`); continue; }
-      if(!itemLabel){ errors.push(`Row ${rowNum}: missing item, skipped.`); continue; }
+      const levelRaw = idx.level>=0 ? (row[idx.level]||'').trim().toLowerCase() : '';
+      const level = ['identify','understand','apply','case'].includes(levelRaw) ? levelRaw : '';
       if(!prompt){ errors.push(`Row ${rowNum}: missing prompt, skipped.`); continue; }
       if(options.some(o=>!o)){ errors.push(`Row ${rowNum}: needs all four options, skipped.`); continue; }
       const correctIndex = 'ABCD'.indexOf(correctLetter);
       if(correctIndex<0){ errors.push(`Row ${rowNum}: Correct must be A, B, C, or D (got "${correctLetter}"), skipped.`); continue; }
       if(!explanation){ errors.push(`Row ${rowNum}: missing explanation, skipped.`); continue; }
+      // Edit branch: a recognised questionId means this row updates that
+      // exact question, IN PLACE, wherever it already lives -- the row's
+      // own course/lecture/topic/item columns are read but ignored here
+      // (same "can't accidentally move it" principle as bulk-editing
+      // items), so a stray typo in those columns can't fork or relocate it.
+      const rawQuestionId = idx.questionid>=0 ? (row[idx.questionid]||'').trim() : '';
+      if(rawQuestionId){
+        const loc = findQuestionLocation(rawQuestionId);
+        if(loc){
+          valid.push({
+            isEdit: true,
+            theme: loc.theme, topic: loc.topic, itemId: loc.itemId, qId: rawQuestionId,
+            prompt, options, correctIndex, explanation, difficulty, level, hashtags,
+            course: '', class: '', relatedCourseOverride: loc.question.relatedCourse||'',
+            addCourseSnippet: '', addClassSnippet: '',
+            courseInfo: { addCourseSnippet:'', addClassSnippet:'', newCourseData:null, newClassData:null },
+          });
+          continue;
+        }
+        errors.push(`Row ${rowNum}: questionId "${rawQuestionId}" doesn't match any existing question — added as a NEW question instead. If you meant to edit an existing one, check the questionId column.`);
+      }
+      if(!courseInput){ errors.push(`Row ${rowNum}: missing course, skipped.`); continue; }
+      if(!topicInput){ errors.push(`Row ${rowNum}: missing topic, skipped.`); continue; }
+      if(!itemLabel){ errors.push(`Row ${rowNum}: missing item, skipped.`); continue; }
       const theme = KNOWN_THEMES.find(t=>t.id.toLowerCase()===courseInput.toLowerCase() || t.label.toLowerCase()===courseInput.toLowerCase());
       if(!theme){ errors.push(`Row ${rowNum}: course "${courseInput}" doesn't match any existing course, skipped.`); continue; }
       // Topics are specific to their course now, so this only matches
@@ -2070,16 +2275,17 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
         itemId = slugify(itemLabel) + '_' + randSuffix();
         decidedThisBatch[dedupeKey] = itemId;
         newItems.push({
-          theme: theme.id, topicId, itemId, label: itemLabel, description: '', mechanism: '',
-          funFacts: [], hashtags: [], refs: [], images: [], course: itemCourse, class: itemClass, relatedCourseOverride: '',
+          theme: theme.id, topicId, itemId, label: itemLabel, description: itemDescription, mechanism: itemMechanism,
+          funFacts: itemFunFacts, hashtags: [], refs: [], images: [], course: itemCourse, class: itemClass, relatedCourseOverride: '',
           usingNewTopic: false, addCourseSnippet: '', addClassSnippet: '',
           courseInfo: { addCourseSnippet:'', addClassSnippet:'', newCourseData:null, newClassData:null },
         });
       }
       valid.push({
+        isEdit: false,
         theme: theme.id, topic: topicId, itemId,
         qId: 'q-' + topicId + '-' + randSuffix(),
-        prompt, options, correctIndex, explanation, difficulty, hashtags,
+        prompt, options, correctIndex, explanation, difficulty, level, hashtags,
         course: '', class: '', relatedCourseOverride: '',
         addCourseSnippet: '', addClassSnippet: '',
         courseInfo: { addCourseSnippet:'', addClassSnippet:'', newCourseData:null, newClassData:null },
@@ -2097,7 +2303,8 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
     const { valid, newItems, errors } = parseLectureQuestions();
     let html = '';
     if(valid.length){
-      html += `<div style="color:var(--good);margin-bottom:6px;">✅ ${valid.length} question${valid.length===1?'':'s'} ready to add.</div>`;
+      const editCount = valid.filter(v=>v.isEdit).length, newCount = valid.length - editCount;
+      html += `<div style="color:var(--good);margin-bottom:6px;">✅ ${newCount} new question${newCount===1?'':'s'}, ${editCount} update${editCount===1?'':'s'} ready.</div>`;
       if(newItems.length){
         const themeLabel = id => (KNOWN_THEMES.find(t=>t.id===id)||{}).label || id;
         const topicLabel = id => (KNOWN_TOPICS[id]||{}).label || id;
@@ -2123,16 +2330,46 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
     });
     valid.forEach(o=>{
       const themeLabel = (KNOWN_THEMES.find(t=>t.id===o.theme)||{}).label || o.theme;
-      pushToQueue({ type:'question', title:o.prompt.slice(0,50), code:questionCodeString(o), note:`${themeLabel} · ${o.topic} · via lecture import`, data:o });
+      pushToQueue({ type: o.isEdit?'edit-question':'question', title:o.prompt.slice(0,50), code:questionCodeString(o), note:`${o.isEdit?'✏️ Edit':'🆕 New'} · ${themeLabel} · ${o.topic} · via lecture import`, data:o });
     });
     refreshQuestionItemSelect();
     refreshEditItemSelect();
     refreshCsvItemSelect();
-    refreshCsvItemFormSelects();
     renderStructureList();
-    toast(`Added ${valid.length} question${valid.length===1?'':'s'}${newItems.length?` and ${newItems.length} new item${newItems.length===1?'':'s'}`:''} to queue`);
+    const editCount = valid.filter(v=>v.isEdit).length, newCount = valid.length - editCount;
+    toast(`Added ${newCount} new question${newCount===1?'':'s'}, ${editCount} update${editCount===1?'':'s'}${newItems.length?`, and ${newItems.length} new item${newItems.length===1?'':'s'}`:''} to queue`);
     lec_textarea.value = '';
     lec_preview.textContent = '';
+  });
+  function csvField(v){
+    v = (v==null ? '' : String(v));
+    return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
+  }
+  document.getElementById('lec_exportBtn').addEventListener('click', ()=>{
+    const header = ['questionId','course','lecture','topic','item','prompt','optionA','optionB','optionC','optionD','correct','explanation','hashtags','difficulty','level','description','mechanism','funfacts'];
+    const rows = [header];
+    Object.entries(RD.THEMES).forEach(([themeId, theme])=>{
+      Object.entries(theme.topics).forEach(([topicId, topic])=>{
+        Object.values(topic.items).forEach(item=>{
+          (item.questions||[]).forEach(q=>{
+            const correctLetter = 'ABCD'[q.correctIndex] || 'A';
+            rows.push([
+              q.id, item.course||'', item.class||'', topicId, item.label,
+              q.prompt, q.options[0]||'', q.options[1]||'', q.options[2]||'', q.options[3]||'',
+              correctLetter, q.explanation, (item.hashtags||[]).join(';'), q.difficulty||'', q.level||'',
+              item.description||'', item.mechanism||'', (item.funFacts||[]).join(';'),
+            ].map(csvField));
+          });
+        });
+      });
+    });
+    const csvText = rows.map(r=>r.join(',')).join('\n');
+    const blob = new Blob([csvText], {type:'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `runner-questions-export-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    toast(`Exported ${rows.length-1} questions`);
   });
   document.getElementById('jumpToLectureImportBtn').addEventListener('click', ()=>{
     showTab('question');
@@ -2172,13 +2409,64 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
     const o = buildCourseObject();
     KNOWN_THEMES.push({ id:o.id, label:o.label });
     pushToQueue({ type:'course', title:o.label, code:courseCodeString(o), note:'new course', data:o });
-    [i_theme, q_theme, csvitem_theme].forEach(sel=>fillThemeSelect(sel));
-    refreshCsvItemFormSelects();
+    [i_theme, q_theme].forEach(sel=>fillThemeSelect(sel));
     renderStructureList();
     toast('Added to queue');
     c_label.value=''; c_blurb.value=''; c_icon.value='📘';
     renderCourse();
   });
+
+  // ================= LECTURE LEARNING OUTCOMES =================
+  const lo_course = document.getElementById('lo_course');
+  const lo_class = document.getElementById('lo_class');
+  const lo_outcomesEl = document.getElementById('lo_outcomes');
+  const lo_intro = document.getElementById('lo_intro');
+  const lo_codeOut = document.getElementById('lo_codeOut');
+  function fillLoCourseSelect(){
+    const current = lo_course.value;
+    lo_course.innerHTML = `<option value="">— pick a course —</option>` + Object.values(KNOWN_COURSES).map(c=>`<option value="${c.code}">${c.code} — ${c.label}</option>`).join('');
+    if([...lo_course.options].some(o=>o.value===current)) lo_course.value = current;
+    fillLoClassSelect();
+  }
+  function fillLoClassSelect(){
+    const c = KNOWN_COURSES[lo_course.value];
+    lo_class.disabled = !c;
+    lo_class.innerHTML = `<option value="">— pick a lecture —</option>` + (c ? Object.entries(c.classes).map(([k,v])=>`<option value="${k}">${k} — ${v.label}</option>`).join('') : '');
+  }
+  lo_course.addEventListener('change', ()=>{ fillLoClassSelect(); renderLectureOutcomes(); });
+  lo_class.addEventListener('change', renderLectureOutcomes);
+  lo_intro.addEventListener('input', renderLectureOutcomes);
+  makeTextList(lo_outcomesEl, 'e.g. Identify the BCR-ABL fusion as a hallmark of CML', renderLectureOutcomes, null, null);
+  fillLoCourseSelect();
+
+  function buildLectureOutcomesObject(){
+    return {
+      course: lo_course.value,
+      classKey: lo_class.value,
+      outcomes: lo_outcomesEl._getValues(),
+      intro: lo_intro.value.trim(),
+    };
+  }
+  function lectureOutcomesCodeString(o){
+    const outcomesStr = o.outcomes.map(s=>`'${escMultiline(s)}'`).join(',\n    ');
+    const introStr = o.intro ? `,\n  intro: '${escMultiline(o.intro)}'` : '';
+    return `// -> COURSES.${o.course||'<course>'}.classes.${o.classKey||'<lecture>'} in game-data.js -- merge these fields into the existing entry\noutcomes: [\n    ${outcomesStr}\n  ]${introStr},`;
+  }
+  function renderLectureOutcomes(){
+    lo_codeOut.textContent = lectureOutcomesCodeString(buildLectureOutcomesObject());
+  }
+  document.getElementById('lo_copyOne').addEventListener('click', ()=>{
+    copyText(lectureOutcomesCodeString(buildLectureOutcomesObject()));
+  });
+  document.getElementById('lo_addBatch').addEventListener('click', ()=>{
+    const o = buildLectureOutcomesObject();
+    if(!o.course || !o.classKey){ toast('Pick a course and lecture first'); return; }
+    if(!o.outcomes.length){ toast('Add at least one learning outcome'); return; }
+    const classLabel = KNOWN_COURSES[o.course]?.classes[o.classKey]?.label || o.classKey;
+    pushToQueue({ type:'lectureOutcomes', title:`${o.course} ${o.classKey}`, code:lectureOutcomesCodeString(o), note:`${classLabel} · learning outcomes`, data:o });
+    toast('Added to queue');
+  });
+  renderLectureOutcomes();
 
   // ================= TABS =================
   const tabStructure = document.getElementById('tabStructure');
@@ -2443,7 +2731,7 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
     renderStructureList();
     // Refresh every topic dropdown that's currently showing this theme, so
     // the new topic is immediately pickable without a page reload.
-    [[i_theme,i_topic],[q_theme,q_topic],[csvitem_theme,csvitem_topic]].forEach(([themeSel,topicSel])=>{
+    [[i_theme,i_topic],[q_theme,q_topic]].forEach(([themeSel,topicSel])=>{
       if(themeSel.value===theme) fillTopicSelect(topicSel, theme);
     });
   });
@@ -2631,7 +2919,7 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
       return;
     }
     batchList.innerHTML = '';
-    const icons = { item:'📄', question:'❓', course:'📚', topic:'🗂️', 'edit-item':'✏️', 'delete-item':'🗑', 'delete-question':'🗑' };
+    const icons = { item:'📄', question:'❓', course:'📚', topic:'🗂️', 'edit-item':'✏️', 'delete-item':'🗑', 'delete-question':'🗑', lectureOutcomes:'🧭' };
     entries.forEach(([key, entry])=>{
       const row = document.createElement('div');
       row.className = 'queue-item';
@@ -2667,9 +2955,8 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
         refreshQuestionItemSelect();
         refreshEditItemSelect();
         refreshCsvItemSelect();
-        refreshCsvItemFormSelects();
         refreshCourseSelects();
-        [i_theme, q_theme, csvitem_theme].forEach(sel=>fillThemeSelect(sel));
+        [i_theme, q_theme].forEach(sel=>fillThemeSelect(sel));
       });
       batchList.appendChild(row);
     });
@@ -2683,8 +2970,10 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
     const deleteQuestions = entries.filter(b=>b.type==='delete-question');
     const questions = entries.filter(b=>b.type==='question');
     const courses = entries.filter(b=>b.type==='course');
+    const lectureOutcomes = entries.filter(b=>b.type==='lectureOutcomes');
     let out = header;
     if(courses.length){ out += `// ---- New courses ----\n` + courses.map(c=>`// by ${c.contributorName}\n${c.code}`).join('\n\n') + '\n\n'; }
+    if(lectureOutcomes.length){ out += `// ---- Lecture learning outcomes ----\n` + lectureOutcomes.map(l=>`// by ${l.contributorName}\n${l.code}`).join('\n\n') + '\n\n'; }
     if(items.length){ out += `// ---- New study guide items ----\n` + items.map(i=>`// by ${i.contributorName}\n${i.code}`).join('\n\n') + '\n\n'; }
     if(editItems.length){ out += `// ---- Edits to existing items ----\n` + editItems.map(i=>`// by ${i.contributorName}\n${i.code}`).join('\n\n') + '\n\n'; }
     if(deleteItems.length){ out += `// ---- DELETIONS (items) ----\n` + deleteItems.map(i=>`// by ${i.contributorName}\n${i.code}`).join('\n\n') + '\n\n'; }
@@ -2957,6 +3246,7 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
   function questionDataObject(o){
     const out = { id:o.qId, prompt:o.prompt, options:o.options, correctIndex:o.correctIndex, explanation:o.explanation };
     if(o.difficulty && o.difficulty!=='medium') out.difficulty = o.difficulty;
+    if(o.level) out.level = o.level;
     if(o.hashtags && o.hashtags.length) out.hashtags = o.hashtags;
     if(o.relatedCourseOverride) out.relatedCourse = o.relatedCourseOverride;
     else if(o.course){ out.course = o.course; if(o.class) out.class = o.class; }
@@ -3026,6 +3316,29 @@ MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;
       if(!item) return; // question for an item that isn't in the tree (typo'd id, or its own "item" queue entry got deleted before merging) -- skip, doesn't corrupt anything
       item.questions = item.questions || [];
       item.questions.push(questionDataObject(o));
+      return;
+    }
+    if(entry.type === 'edit-question'){
+      // Same "stays exactly where it already lives" principle as edit-item:
+      // o.theme/o.topic/o.itemId are the question's EXISTING location (never
+      // taken from the edit row itself), so a bulk-edit CSV can't move a
+      // question to a different item/topic by accident. Replaces the
+      // matching question IN PLACE (by id) rather than pushing a duplicate.
+      const th = themes[o.theme];
+      const item = th && th.topics[o.topic] && th.topics[o.topic].items[o.itemId];
+      if(!item || !item.questions) return; // the item (or its questions) vanished since this was queued -- skip, doesn't corrupt anything
+      const i = item.questions.findIndex(q=>q.id===o.qId);
+      if(i<0) return; // the question itself is gone (e.g. deleted after this edit was queued) -- skip rather than re-add it
+      item.questions[i] = questionDataObject(o);
+      return;
+    }
+    if(entry.type === 'lectureOutcomes'){
+      // Merges onto an existing class entry rather than replacing it, so it
+      // doesn't clobber a `label` (or anyone else's queued outcomes/intro
+      // for the same lecture) already sitting in COURSES.
+      const course = courses[o.course];
+      if(!course) return; // references a course that doesn't exist even after applying earlier entries -- leave it for manual review
+      course.classes[o.classKey] = { ...(course.classes[o.classKey]||{ label:o.classKey }), outcomes:o.outcomes, intro:o.intro };
       return;
     }
   }
