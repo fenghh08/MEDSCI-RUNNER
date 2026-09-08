@@ -1,0 +1,34 @@
+{
+  "name": "medsci-runner",
+  "version": "1.0.0",
+  "description": "A browser-based, study-guide trivia runner built for our own med school content (MEDS3002, MEDS2003, and whatever we add next). Hit a topic block, answer a multiple-choice question, push through the stages without running out of life — or skip the running entirely and use Study & Practice for untimed, filterable revision.",
+  "main": "game-data.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "copy-web": "node scripts/copy-web-assets.js",
+    "sync": "npm run copy-web && cap sync",
+    "open:ios": "cap open ios",
+    "open:android": "cap open android"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fenghh08/MEDSCI-RUNNER.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/fenghh08/MEDSCI-RUNNER/issues"
+  },
+  "homepage": "https://github.com/fenghh08/MEDSCI-RUNNER#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/cli": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/ios": "^8.5.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
