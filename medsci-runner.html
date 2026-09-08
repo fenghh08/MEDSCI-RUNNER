@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Runner Game — Study Guide Trivia</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Run Morris Run!</title>
 <style>
   :root{
     --bg-0:#0d0308; --bg-1:#1c0710; --vessel-wall:#3a0d1c; --plasma:#5c1029;
@@ -17,18 +17,41 @@
   html,body{ margin:0;height:100%; background:radial-gradient(ellipse at 50% 0%, var(--bg-1), var(--bg-0) 70%);
     color:var(--hud-ink); font-family:var(--mono); display:flex;align-items:center;justify-content:center;
     overflow:hidden; -webkit-tap-highlight-color:transparent;
-    -webkit-user-select:none; user-select:none; }
+    -webkit-user-select:none; user-select:none;
+    /* In a browser tab, the address bar/toolbar already eats the space a
+       notch/status bar or home-indicator would otherwise cover. Wrapped as a
+       native app (Capacitor), this page runs truly edge-to-edge with no
+       chrome of its own, so without this the status bar/notch overlaps the
+       title and the home-indicator area overlaps the bottom controls. A
+       plain browser tab has all four insets at 0, so this is a no-op there. */
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
   /* Question/answer text (and everything else) is unselectable by default so it
      can't just be block-selected and pasted into a search box or another AI --
      re-enable selection only on the handful of elements people actually need
      to copy or type into (name/code inputs, the room-code readout). */
   input, textarea, #mpRoomCodeDisplay{ -webkit-user-select:text; user-select:text; }
-  #wrap{ width:97vw; max-width:1700px; height:96vh; padding:12px; display:flex; flex-direction:column; }
-  h1{ font-family:var(--display); font-weight:400; font-style:italic; font-size:24px; margin:0 0 1px 2px; flex-shrink:0; }
-  .subtitle{ margin:0 0 8px 3px; color:var(--hud-dim); font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; flex-shrink:0; }
+  #wrap{ width:min(97vw, calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right)));
+    max-width:1700px;
+    height:min(96vh, calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+    padding:12px; display:flex; flex-direction:column;
+    /* Establishes a containing block for the full-bleed modals below
+       (#infoModal, #mcqModal, #scenarioOverlay, etc, all `inset:0`) so they
+       cover #wrap's own safe-area-aware box instead of the true viewport --
+       otherwise their `inset:0` ignores the insets above entirely and a
+       modal's close button can end up under the status bar. */
+    position:relative; }
+  h1{ font-family:var(--display); font-weight:400; font-style:italic; font-size:24px; margin:0 0 8px 2px; flex-shrink:0; }
+  /* Hidden while actually playing (see syncHudVisibility, which toggles
+     this alongside the HUD/lane buttons) -- frees up the title's vertical
+     space for #stageEl (its flex:1 sibling) to grow into, which matters
+     most on a portrait phone, and reads as a fuller-screen game view
+     instead of a bordered box sitting under a header the player already
+     saw once on the menu. */
+  body.in-run h1{ display:none; }
   #stageEl{ position:relative; width:100%; flex:1; min-height:0; aspect-ratio:2/1; max-height:100%; margin:0 auto;
     border-radius:14px; overflow:hidden;
     box-shadow:0 0 0 1px rgba(255,93,143,.18), 0 30px 60px -20px rgba(0,0,0,.7); }
+  body.in-run #stageEl{ border-radius:0; box-shadow:none; }
   #stageEl.bomb-flash::after{ content:''; position:absolute; inset:0; pointer-events:none; z-index:40;
     border:10px solid var(--danger); box-shadow:inset 0 0 60px 10px rgba(255,59,92,.5);
     animation:bombFlash .35s ease-out; }
@@ -43,12 +66,15 @@
     border-radius:10px; padding:8px 12px; pointer-events:auto; }
   .hud-label{ font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--hud-dim); margin-bottom:2px; }
   .hud-value{ font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .hud-value.low-life{ color:var(--danger); animation:lowLifePulse 1s ease-in-out infinite; }
+  @keyframes lowLifePulse{ 0%,100%{ opacity:1; } 50%{ opacity:.55; } }
   .hud-stage-line{ font-size:11px; color:var(--hud-ink); margin-top:4px; font-weight:700; }
   .topic-chips{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; max-width:340px; }
   .topic-chip{ font-size:10px; padding:3px 8px; border-radius:12px; border:1px solid; white-space:nowrap; }
   #hudRight{ display:flex;flex-direction:column;align-items:flex-end;gap:6px; pointer-events:auto; }
   .icon-btn{ background:rgba(13,3,8,.55); border:1px solid rgba(255,93,143,.3); color:var(--hud-ink);
     border-radius:8px; width:34px;height:34px; font-size:15px; cursor:pointer; }
+  .icon-btn.inactive{ opacity:.35; pointer-events:none; }
 
   .screen{ position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:safe center;
     background:var(--bg-0); text-align:center; padding:22px; z-index:10; overflow-y:auto; }
@@ -62,12 +88,21 @@
     cursor:pointer; box-shadow:0 8px 20px -6px rgba(255,93,143,.6); }
   button.secondary{ font-family:var(--mono); background:transparent; color:var(--hud-ink);
     border:1px solid rgba(255,255,255,.25); padding:10px 22px; border-radius:30px; font-size:13px; cursor:pointer; }
+  button.secondary.flagged{ border-color:#ffd54d; color:#ffd54d; background:rgba(255,213,77,.12); }
   .kbd{ color:var(--hud-ink); background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.2);
     border-radius:5px; padding:1px 6px; font-size:12px; }
 
   .cancer-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; width:100%; max-width:460px; margin:0 auto 6px; }
+  /* width:100%/box-sizing/display are explicit here rather than relying on
+     a plain <button>'s width:auto to stretch to fill its container -- that
+     technically should happen per spec once display:block is set (as the
+     mode-card buttons below do inline), but rendered inconsistently in the
+     native app's WebView, leaving the course-grid cards (grid items, which
+     stretch by a different mechanism) and the mode-card buttons visibly
+     different widths. */
   .pick-card{ background:var(--panel); border:1px solid var(--panel-line); border-radius:12px; padding:16px 10px;
-    color:var(--hud-ink); font-family:var(--mono); cursor:pointer; text-align:left; }
+    color:var(--hud-ink); font-family:var(--mono); cursor:pointer; text-align:left;
+    display:block; width:100%; box-sizing:border-box; }
   .pick-card:hover{ border-color:var(--membrane); }
   .pick-card .cc-icon{ font-size:26px; display:block; margin-bottom:6px; }
   .pick-card .cc-name{ font-weight:700; font-size:14px; display:block; margin-bottom:4px; }
@@ -109,14 +144,21 @@
   .item-card .ic-hint{ font-size:9.5px; color:var(--hud-dim); }
 
   #infoModal, #manualModal, #mcqModal, #scenarioOverlay, #summaryModal, #scoreInfoModal{
-    position:absolute; inset:0; display:none; align-items:center; justify-content:safe center;
-    background:rgba(4,1,3,.9); z-index:20; padding:18px; }
+    position:absolute; inset:0; display:none; align-items:flex-start; justify-content:safe center;
+    background:rgba(4,1,3,.9); z-index:20; padding:18px; padding-top:var(--hud-clearance, 20px); }
   #infoModal.active, #manualModal.active, #mcqModal.active, #scenarioOverlay.active, #summaryModal.active, #scoreInfoModal.active{ display:flex; }
-  /* Extra top padding so the question card clears the HUD (now floating
+  /* Extra top padding so EVERY one of these clears the HUD (now floating
      above the modal backdrop at z-index:22 -- see #hud) instead of the
-     glucose/score/leaderboard boxes overlapping its top edge. */
-  #mcqModal{ padding-top:104px; align-items:flex-start; }
-  #scoreInfoModal{ padding-top:104px; align-items:flex-start; }
+     glucose/score/leaderboard boxes overlapping its top edge, or its own
+     close button being unreachable underneath the HUD -- this used to only
+     apply to #mcqModal/#scoreInfoModal, but #infoModal (the in-run Study
+     Guide) needs it too, and there's no harm applying it to all six.
+     --hud-clearance is set by updateTopInset() in the script below, from
+     the HUD's actual measured height -- it varies (more topic chips wrap to
+     more rows, the score block shows/hides, portrait vs landscape), so a
+     fixed guess could never stay correct for all of those at once; 20px is
+     just the fallback for the brief moment before the first measurement
+     runs (updateTopInset() also runs once at load, so this rarely matters). */
   .panel-card{ background:var(--panel); border:1px solid var(--panel-line); border-radius:16px; max-width:520px;
     width:100%; max-height:92%; overflow-y:auto; padding:22px; text-align:left; position:relative; }
   .panel-close{ position:absolute; top:12px; right:12px; background:none; border:none; color:var(--hud-dim);
@@ -153,11 +195,18 @@
   .mcq-prompt{ font-size:16px; line-height:1.4; margin:0 0 16px; color:var(--hud-ink); }
   .mcq-option{ display:block; width:100%; text-align:left; font-family:var(--mono); font-size:13px;
     background:var(--bg-1); border:1px solid var(--panel-line); color:var(--hud-ink); border-radius:8px;
-    padding:10px 12px; margin-bottom:8px; cursor:pointer; }
+    padding:10px 34px 10px 12px; margin-bottom:8px; cursor:pointer; position:relative; }
   .mcq-option:hover{ border-color:var(--membrane); }
   .mcq-option .opt-key{ color:var(--hud-dim); margin-right:8px; }
+  /* Correct/wrong add a ✓/✗ glyph, not just a border/background color swap --
+     red vs. green (or teal, here) is one of the harder pairs for colorblind
+     players to tell apart at a glance, especially under this dark theme. */
   .mcq-option.correct{ border-color:var(--good); background:rgba(62,230,184,.14); }
+  .mcq-option.correct::after{ content:'✓'; position:absolute; right:12px; top:50%; transform:translateY(-50%);
+    color:var(--good); font-weight:700; font-size:16px; }
   .mcq-option.wrong{ border-color:var(--danger); background:rgba(255,59,92,.14); }
+  .mcq-option.wrong::after{ content:'✗'; position:absolute; right:12px; top:50%; transform:translateY(-50%);
+    color:var(--danger); font-weight:700; font-size:16px; }
   .mcq-option.disabled{ cursor:default; }
   .mcq-verdict{ font-family:var(--display); font-style:italic; font-size:19px; margin:4px 0 8px; }
   .verdict-good{ color:var(--good); } .verdict-bad{ color:var(--danger); }
@@ -186,12 +235,16 @@
   .lb-row.me{ border-color:var(--membrane); }
   .lb-row .lb-rank{ color:var(--hud-dim); width:24px; flex-shrink:0; }
   #mpLeaderboardPanel{ max-height:170px; overflow-y:auto; }
-  #mpEliminationToast{ position:absolute; top:60px; left:50%; transform:translateX(-50%); background:var(--danger);
+  /* top uses --hud-clearance (see the #mcqModal comment above) so this sits
+     just below the HUD however tall it actually is, rather than a fixed
+     guess that only fit the original landscape-only HUD sizing. */
+  #mpEliminationToast{ position:absolute; top:var(--hud-clearance, 60px); left:50%; transform:translateX(-50%); background:var(--danger);
     color:#fff; font-weight:700; font-size:13px; padding:8px 18px; border-radius:20px; opacity:0; pointer-events:none;
     transition:opacity .3s, top .3s; z-index:35; white-space:nowrap; }
-  #mpEliminationToast.show{ opacity:1; top:75px; }
+  #mpEliminationToast.show{ opacity:1; top:calc(var(--hud-clearance, 60px) + 15px); }
   .sum-row .sr-top{ display:flex; justify-content:space-between; gap:8px; margin-bottom:3px; }
   .sum-row .sr-verdict.verdict-good{ color:var(--good); } .sum-row .sr-verdict.verdict-bad{ color:var(--danger); }
+  .sum-row .sr-flag{ margin-right:4px; }
   .sum-row .sr-q{ color:var(--hud-ink); margin-bottom:3px; }
   .sum-row .sr-ans{ color:var(--hud-dim); font-size:11px; }
   .sum-row .sr-link{ color:var(--membrane); cursor:pointer; text-decoration:underline; font-size:11px; }
@@ -201,14 +254,29 @@
   #controls-mobile button{ flex:1; font-family:var(--mono); background:rgba(255,93,143,.12);
     border:1px solid rgba(255,93,143,.35); color:var(--hud-ink); padding:14px; border-radius:10px; font-size:18px; }
   footer{ margin-top:6px; font-size:10.5px; color:var(--hud-dim); text-align:center; flex-shrink:0; }
-  @media (max-width:640px){ #controls-mobile{display:flex;} .cancer-grid{grid-template-columns:1fr;} }
+  @media (max-width:640px){
+    /* Only during actual gameplay (see syncHudVisibility, which toggles the
+       .in-run class alongside the HUD) -- otherwise these lane buttons show
+       up on the menu, Study Guide, and every other screen too, where
+       there's no lane to switch and they just eat space at the bottom. */
+    #controls-mobile.in-run{display:flex;}
+    .cancer-grid{grid-template-columns:1fr;}
+  }
+  @media (orientation:portrait){
+    /* The fixed 2:1 shape above is landscape-tuned -- forcing it on a
+       narrow portrait phone squashes #stageEl's height down to roughly
+       half its width, which is far shorter than the HUD/MCQ modal were
+       ever sized for (see resizeCanvasForPortrait() in the script below,
+       which resizes the actual canvas drawing buffer to match whatever
+       box this now gives it). Landscape/desktop are untouched. */
+    #stageEl{ aspect-ratio:unset; }
+  }
 </style>
 </head>
 <body>
 <div id="wrap">
-  <h1>Runner Game</h1>
-  <p class="subtitle">study-guide trivia · lane-hop through the vessel · answer to progress the stage</p>
-  <p id="versionTag" style="margin:0 0 8px 3px;color:var(--hud-dim);font-size:10.5px;opacity:.6;">version —</p>
+  <h1>Run Morris Run!</h1>
+  <p id="versionTag" style="display:none;">version —</p>
 
   <div id="stageEl">
     <canvas id="game" width="960" height="480"></canvas>
@@ -245,15 +313,15 @@
         color:var(--membrane);text-shadow:0 0 40px rgba(255,93,143,.6);"></div>
       <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--hud-dim);">Resuming</div>
     </div>
-    <div id="stallWarning" style="display:none;position:absolute;top:70px;left:50%;transform:translateX(-50%);z-index:6;
+    <div id="stallWarning" style="display:none;position:absolute;top:var(--hud-clearance, 70px);left:50%;transform:translateX(-50%);z-index:6;
       background:rgba(13,3,8,.85);backdrop-filter:blur(4px);border:1px solid var(--danger);border-radius:10px;
-      padding:8px 16px;font-size:12px;color:var(--hud-ink);text-align:center;pointer-events:none;white-space:nowrap;"></div>
+      padding:8px 16px;font-size:12px;color:var(--hud-ink);text-align:center;pointer-events:none;
+      max-width:min(90vw, 420px);"></div>
 
     <!-- LANDING -->
     <div class="screen active" id="landingScreen">
       <div id="cancerPickView">
-        <h2>Runner Game</h2>
-        <p class="desc">A study-guide trivia runner. Hit a topic block, answer an MCQ, and push through all the stages without running out of life — or use Study &amp; Practice mode below for untimed, filterable practice.</p>
+        <p class="desc">Hit a block, answer, keep your life up.</p>
         <div class="btn-row" style="margin-bottom:16px;">
           <button class="secondary" id="manualBtn">📖 How to play</button>
           <button class="secondary" id="studyGuideBtnMenu">📚 Study guide</button>
@@ -262,15 +330,19 @@
         <div class="cancer-grid" id="cancerGrid"></div>
         <button class="pick-card" id="practiceModeCard" style="margin:10px auto 0;max-width:460px;display:block;text-align:center;">
           <span class="cc-icon">📝</span><span class="cc-name">Study &amp; Practice</span>
-          <span class="cc-blurb">Pick a theme, topic, and course — then browse the guide or run a practice quiz (untimed by default). Works for any theme, not just Cancer.</span>
+          <span class="cc-blurb">Untimed practice, any topic.</span>
         </button>
         <button class="pick-card" id="mpModeCard" style="margin:10px auto 0;max-width:460px;display:block;text-align:center;">
           <span class="cc-icon">🆚</span><span class="cc-name">Group Race</span>
-          <span class="cc-blurb">Race friends on separate devices — everyone plays the same stages, ranked by score at the end.</span>
+          <span class="cc-blurb">Race friends, same stages.</span>
         </button>
         <button class="pick-card" id="customModeCard" style="margin:10px auto 0;max-width:460px;display:block;text-align:center;">
           <span class="cc-icon">🎯</span><span class="cc-name">Custom run</span>
-          <span class="cc-blurb">Build your own run — pick any mix of Theme, Topic, and Course. Full Runner rules (bombs, life, stages), just with your own question pool.</span>
+          <span class="cc-blurb">Pick your own question mix.</span>
+        </button>
+        <button class="pick-card" id="learningPathModeCard" style="margin:10px auto 0;max-width:460px;display:block;text-align:center;">
+          <span class="cc-icon">🧭</span><span class="cc-name">Learning Path</span>
+          <span class="cc-blurb">One lecture, level by level.</span>
         </button>
       </div>
       <div id="briefView" style="display:none;">
@@ -337,24 +409,53 @@
           <button class="primary" id="customStartBtn">🎯 Start custom run</button>
         </div>
       </div>
+      <div id="learningPathCourseView" style="display:none;">
+        <h2>Learning Path</h2>
+        <p class="desc">Pick a course, then a lecture — you'll see its learning outcome(s) before you start, then work through identify → understand → apply → case study.</p>
+        <div class="cancer-grid" id="learningPathCourseGrid" style="max-width:400px;margin:0 auto 16px;"></div>
+        <div class="btn-row">
+          <button class="secondary" id="learningPathCourseBackBtn">← Back</button>
+        </div>
+      </div>
+      <div id="learningPathLectureView" style="display:none;">
+        <h2 id="learningPathLectureTitle">—</h2>
+        <p class="desc">Pick a lecture to see its learning outcome(s) and start.</p>
+        <div class="cancer-grid" id="learningPathLectureGrid" style="max-width:460px;margin:0 auto 16px;"></div>
+        <p class="desc" id="learningPathLectureEmpty" style="display:none;color:var(--hud-dim);">No learning outcomes added yet for this course — check back soon.</p>
+        <div class="btn-row">
+          <button class="secondary" id="learningPathLectureBackBtn">← Back</button>
+        </div>
+      </div>
       <div id="mpSetupView" style="display:none;">
         <h2>Group Race</h2>
         <p class="desc">Race friends through the same stages — same rules as solo Runner mode, ranked by score at the end.</p>
+        <div class="btn-row">
+          <button class="secondary" id="mpBackBtn">← Back</button>
+          <button class="primary" id="mpHostChooseBtn">Host a race</button>
+          <button class="primary" id="mpJoinBtn">Join with a code</button>
+        </div>
+      </div>
+      <div id="mpHostSetupView" style="display:none;">
+        <h2>Host a race</h2>
+        <p class="desc">Pick a course and a name racers will see you as.</p>
         <label class="field" style="max-width:300px;margin:0 auto 16px;">
           <span class="fl-label">Your name</span>
           <input type="text" id="mpNameInput" placeholder="e.g. Eason" style="width:100%;font-family:var(--mono);font-size:13px;background:var(--bg-1);color:var(--hud-ink);border:1px solid var(--panel-line);border-radius:8px;padding:8px 10px;">
         </label>
-        <div class="p-sub" style="margin-top:0;">Course (host's choice — only matters when hosting)</div>
+        <div class="p-sub" style="margin-top:0;">Course</div>
         <div class="cancer-grid" id="mpThemeGrid" style="max-width:400px;margin:0 auto 16px;"></div>
         <div class="btn-row">
-          <button class="secondary" id="mpBackBtn">← Back</button>
+          <button class="secondary" id="mpHostSetupBackBtn">← Back</button>
           <button class="primary" id="mpHostBtn">Host a race</button>
-          <button class="primary" id="mpJoinBtn">Join with a code</button>
         </div>
       </div>
       <div id="mpJoinEntryView" style="display:none;">
         <h2>Join a race</h2>
         <p class="desc">Ask your opponent for their 5-character room code.</p>
+        <label class="field" style="max-width:300px;margin:0 auto 16px;">
+          <span class="fl-label">Your name</span>
+          <input type="text" id="mpJoinNameInput" placeholder="e.g. Eason" style="width:100%;font-family:var(--mono);font-size:13px;background:var(--bg-1);color:var(--hud-ink);border:1px solid var(--panel-line);border-radius:8px;padding:8px 10px;">
+        </label>
         <input type="text" id="mpCodeInput" maxlength="5" placeholder="ABCDE" style="max-width:200px;display:block;margin:0 auto 16px;text-align:center;text-transform:uppercase;letter-spacing:.2em;font-size:22px;font-family:var(--mono);background:var(--bg-1);color:var(--hud-ink);border:1px solid var(--panel-line);border-radius:8px;padding:10px;">
         <div class="btn-row">
           <button class="secondary" id="mpJoinBackBtn">← Back</button>
@@ -440,7 +541,7 @@
 
     <!-- MCQ MODAL -->
     <div id="mcqModal">
-      <div class="panel-card" style="max-width:520px;">
+      <div class="panel-card" id="mcqPanelCard" style="max-width:520px;">
         <div id="mcqPracticeBar" style="display:none;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:11px;color:var(--hud-dim);">
           <span id="mcqPracticeProgress"></span>
           <button type="button" class="secondary" id="mcqEndPracticeBtn" style="font-size:11px;padding:4px 12px;">End practice</button>
@@ -457,6 +558,7 @@
           <div class="btn-row">
             <button class="primary" id="mcqContinueBtn">Continue (Enter)</button>
             <button class="secondary" id="mcqViewGuideBtn">📚 View in study guide</button>
+            <button class="secondary" id="mcqFlagBtn" title="Flag this question to find it again in the session summary">🚩 Flag for review</button>
           </div>
         </div>
       </div>
@@ -471,6 +573,7 @@
         <div class="sum-toggle">
           <button class="sum-tab active" id="sumTabOrder">In order answered</button>
           <button class="sum-tab" id="sumTabTopic">By topic</button>
+          <button class="sum-tab" id="sumTabFlagged">🚩 Flagged</button>
         </div>
         <div id="summaryBody" style="max-height:52vh;overflow-y:auto;"></div>
       </div>
@@ -691,7 +794,7 @@
    ====================================================================== */
   const {
     COURSES, GAME_CONFIG, LIFE_CONFIG, THEMES,
-    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES,
+    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES, LEARNING_PATH_CONFIG,
   } = window.RUNNER_DATA;
 
   // Topics are authored per-course now (each carries its own label/icon/
@@ -705,6 +808,22 @@
     Object.entries(course.topics).forEach(([topicId, t])=>{
       TOPICS[topicId] = { label:t.label, icon:t.icon, color:t.color };
     });
+  });
+
+  // The "Learning Path" mode reuses this same TOPICS lookup for its stage
+  // requirement chips, HUD, and topic-block rendering, but keyed by
+  // cognitive level ('identify'/'understand'/'apply'/'case') instead of a
+  // real topic id -- see buildLearningPathConfig() below. Registering them
+  // here means every existing TOPICS[...] call site keeps working with zero
+  // changes anywhere else.
+  const LEVEL_TOPIC_META = {
+    identify:   { icon:'🔍', color:'#7fd1ff' },
+    understand: { icon:'💡', color:'#ffd54d' },
+    apply:      { icon:'🛠️', color:'#8dffb0' },
+    case:       { icon:'🩺', color:'#ff9ecf' },
+  };
+  LEARNING_PATH_CONFIG.levels.forEach(level=>{
+    TOPICS[level] = { label:LEARNING_PATH_CONFIG.levelLabels[level], ...LEVEL_TOPIC_META[level] };
   });
 
   // Items/questions store a compact course:'MEDS3002', class:'L14' pair
@@ -785,6 +904,34 @@
     });
   });
 
+  // QUESTIONS_BY_COURSE_CLASS_LEVEL powers the "Learning Path" mode: every
+  // question, indexed by its resolved course + class (lecture) and its own
+  // `level` ('identify'/'understand'/'apply'/'case', untagged -> 'identify'
+  // -- see the game-data.js schema comment). Built once here from
+  // ALL_QUESTIONS' already-resolved course/class, alongside (not replacing)
+  // QUESTIONS_BY_THEME_TOPIC, so every existing mode keeps reading from that
+  // untouched.
+  const QUESTIONS_BY_COURSE_CLASS_LEVEL = {};
+  ALL_QUESTIONS.forEach(q=>{
+    if(!q.course || !q.class) return;
+    const level = LEARNING_PATH_CONFIG.levels.includes(q.level) ? q.level : 'identify';
+    const byClass = (QUESTIONS_BY_COURSE_CLASS_LEVEL[q.course] = QUESTIONS_BY_COURSE_CLASS_LEVEL[q.course] || {});
+    const byLevel = (byClass[q.class] = byClass[q.class] || {});
+    (byLevel[level] = byLevel[level] || []).push(q);
+  });
+
+  // Only lectures with BOTH an authored `outcomes` array AND at least one
+  // indexed question show up in the Learning Path picker -- everything else
+  // just hasn't been set up for this mode yet (see game-data.js COURSES).
+  function lecturesWithLearningPathContent(courseId){
+    const course = COURSES[courseId];
+    if(!course) return [];
+    const byClass = QUESTIONS_BY_COURSE_CLASS_LEVEL[courseId] || {};
+    return Object.entries(course.classes)
+      .filter(([classKey, cls])=> (cls.outcomes||[]).length && byClass[classKey] && Object.keys(byClass[classKey]).length)
+      .map(([classKey, cls])=> ({ classKey, ...cls }));
+  }
+
   function lifeCfg(){ return LIFE_CONFIG[currentCancerId] || { label:'Life', icon:'❤️' }; }
 
 /* ======================================================================
@@ -831,14 +978,84 @@
   const stageEl = document.getElementById('stageEl');
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
+  // W/H/laneH/PLAYER_X/SCALE are `let`, not `const` -- on a portrait phone
+  // resizeCanvasForPortrait() (below) resizes the canvas's actual drawing
+  // buffer to match #stageEl's real box (see the `aspect-ratio:unset` rule
+  // in the portrait media query above) instead of staying locked to this
+  // landscape-shaped 960x480 grid. laneY/drawVessel/etc. are closures over
+  // these bindings, so they pick up the new values automatically -- nothing
+  // else needs to change to make lanes/background reposition correctly.
+  let W = canvas.width, H = canvas.height;
   const LANES = 3;
-  const laneH = H / LANES;
-  const laneY = i => laneH * i + laneH / 2;
-  const PLAYER_X = 150;
+  // topInset is the HUD's actual measured height (see updateTopInset below),
+  // reserved at the top of the canvas's OWN coordinate system so lanes never
+  // render underneath it -- the HUD still visually floats over the canvas
+  // (unchanged CSS/z-index), but the game itself now treats that strip as a
+  // dead zone, the same way it already treats the area below H. This is what
+  // actually fixes the HUD covering the top lane/entities: previously lanes
+  // were spaced across the FULL H with no awareness the HUD existed at all.
+  let topInset = 0;
+  let laneH = H / LANES; // usable per-lane height, i.e. (H-topInset)/LANES once topInset is known
+  const laneY = i => topInset + laneH * i + laneH / 2;
+  let PLAYER_X = 150;
+  let SCALE = 1; // multiplies the fixed-pixel entity/player sizes below so they stay proportional when H changes
+
+  // Recomputes topInset from the HUD's real rendered height (0 when it's
+  // hidden), then re-derives laneH/laneY off the remaining space, and
+  // publishes the same clearance as a CSS var so the MCQ/score popups
+  // (`padding-top:var(--hud-clearance)`) sit just below the HUD too --
+  // replacing what used to be a fixed, landscape-tuned 104px guess. Called
+  // whenever the HUD's visibility OR content (chip count/wrapping) changes.
+  function updateTopInset(){
+    topInset = (hud.style.display==='flex') ? Math.ceil(hud.getBoundingClientRect().height) + 8 : 0;
+    laneH = (H - topInset) / LANES;
+    // 160 = the original landscape laneH (480/3) with no HUD carve-out at
+    // all -- SCALE lives here, not in resizeCanvasForPortrait, because
+    // topInset (and therefore laneH) can change independently of a resize,
+    // e.g. a stage transition changing the HUD's topic-chip count/wrapping.
+    // This is a real, correct behavior change versus before: entities now
+    // shrink very slightly to stay proportional to the space actually left
+    // once the HUD's carve-out is accounted for, in EVERY orientation, not
+    // just portrait -- previously a tall HUD (e.g. 4 wrapped topic chips)
+    // could cover the top lane in landscape too; this fixes that case too.
+    SCALE = laneH/160;
+    document.documentElement.style.setProperty('--hud-clearance', (topInset + 16) + 'px');
+  }
+  // Resizes the canvas's actual drawing buffer to match #stageEl's real
+  // on-screen box, but ONLY in portrait -- in landscape this always resets
+  // straight back to the original fixed 960x480 grid, so desktop/landscape
+  // behavior never changes. laneY() and drawVessel() already read W/H/laneH
+  // live every frame, so they reposition themselves correctly with no
+  // further changes; only the fixed-pixel entity/player sizes need SCALE
+  // applied at their own call sites (see spawnTopicBlock/drawPlayer/etc.).
+  function resizeCanvasForPortrait(){
+    const isPortrait = window.matchMedia('(orientation:portrait)').matches;
+    if(!isPortrait){
+      if(canvas.width===960 && canvas.height===480){ updateTopInset(); return; } // already the default landscape grid
+      canvas.width = 960; canvas.height = 480;
+      W = 960; H = 480; PLAYER_X = 150;
+      updateTopInset();
+      vesselGradTop = vesselGradBottom = null;
+      return;
+    }
+    const rect = stageEl.getBoundingClientRect();
+    const w = Math.max(1, Math.round(rect.width)), h = Math.max(1, Math.round(rect.height));
+    if(canvas.width===w && canvas.height===h){ updateTopInset(); return; } // no-op if unchanged
+    canvas.width = w; canvas.height = h;
+    W = w; H = h;
+    PLAYER_X = W*0.15625; // preserves the original 150/960 ratio
+    updateTopInset();
+    vesselGradTop = vesselGradBottom = null;
+  }
+  new ResizeObserver(resizeCanvasForPortrait).observe(stageEl);
+  // Belt-and-suspenders alongside ResizeObserver -- WKWebView's rotation
+  // timing can be a beat behind the resize itself, so this nudges a
+  // recompute shortly after the orientationchange event too.
+  window.addEventListener('orientationchange', ()=> setTimeout(resizeCanvasForPortrait, 50));
 
   // ---------- DOM refs ----------
   const hud = document.getElementById('hud');
+  const controlsMobile = document.getElementById('controls-mobile');
   const lifeLabel = document.getElementById('lifeLabel');
   const glucoseVal = document.getElementById('glucoseVal');
   const stageLine = document.getElementById('stageLine');
@@ -894,6 +1111,16 @@
   const customBackBtn = document.getElementById('customBackBtn');
   const customStartBtn = document.getElementById('customStartBtn');
 
+  const learningPathModeCard = document.getElementById('learningPathModeCard');
+  const learningPathCourseView = document.getElementById('learningPathCourseView');
+  const learningPathCourseGrid = document.getElementById('learningPathCourseGrid');
+  const learningPathCourseBackBtn = document.getElementById('learningPathCourseBackBtn');
+  const learningPathLectureView = document.getElementById('learningPathLectureView');
+  const learningPathLectureTitle = document.getElementById('learningPathLectureTitle');
+  const learningPathLectureGrid = document.getElementById('learningPathLectureGrid');
+  const learningPathLectureEmpty = document.getElementById('learningPathLectureEmpty');
+  const learningPathLectureBackBtn = document.getElementById('learningPathLectureBackBtn');
+
   const pauseScreen = document.getElementById('pauseScreen');
   const pauseStatus = document.getElementById('pauseStatus');
   const resumeBtn = document.getElementById('resumeBtn');
@@ -922,6 +1149,7 @@
   const scenarioContinueBtn = document.getElementById('scenarioContinueBtn');
 
   const mcqModal = document.getElementById('mcqModal');
+  const mcqPanelCard = document.getElementById('mcqPanelCard');
   const mcqCat = document.getElementById('mcqCat');
   const mcqCatLabel = document.getElementById('mcqCatLabel');
   const mcqDifficulty = document.getElementById('mcqDifficulty');
@@ -934,12 +1162,14 @@
   const mcqExplain = document.getElementById('mcqExplain');
   const mcqContinueBtn = document.getElementById('mcqContinueBtn');
   const mcqViewGuideBtn = document.getElementById('mcqViewGuideBtn');
+  const mcqFlagBtn = document.getElementById('mcqFlagBtn');
 
   const summaryModal = document.getElementById('summaryModal');
   const summaryClose = document.getElementById('summaryClose');
   const summaryStats = document.getElementById('summaryStats');
   const sumTabOrder = document.getElementById('sumTabOrder');
   const sumTabTopic = document.getElementById('sumTabTopic');
+  const sumTabFlagged = document.getElementById('sumTabFlagged');
   const summaryBody = document.getElementById('summaryBody');
 
   const infoModal = document.getElementById('infoModal');
@@ -1018,8 +1248,26 @@
   let customStages = null;       // generated array, same shape as STAGES.cancer
   let customPoolByTopic = null;  // { topicId: [question, ...] } — the filtered pool
   const CUSTOM_THEME_META = { label:'Custom run', icon:'🎯' };
-  function currentStages(){ return currentCancerId==='custom' ? customStages : STAGES[currentCancerId]; }
-  function currentThemeMeta(){ return currentCancerId==='custom' ? CUSTOM_THEME_META : THEMES[currentCancerId]; }
+
+  // ---------- Learning Path run state ----------
+  // Same trick as Custom run above, but the "topic" key fed into
+  // stages/requirements is a cognitive level ('identify'/'understand'/
+  // 'apply'/'case') instead of a real topic, scoped to one lecture's
+  // questions -- see buildLearningPathConfig(). currentCancerId is set to
+  // the literal string 'learningpath'.
+  let learningPathStages = null;         // generated array, same shape as STAGES.cancer
+  let learningPathPoolByLevel = null;    // { level: [question, ...] } — this lecture's pool
+  let learningPathThemeMeta = null;      // { label, icon } — set per-lecture when a run starts
+  function currentStages(){
+    if(currentCancerId==='custom') return customStages;
+    if(currentCancerId==='learningpath') return learningPathStages;
+    return STAGES[currentCancerId];
+  }
+  function currentThemeMeta(){
+    if(currentCancerId==='custom') return CUSTOM_THEME_META;
+    if(currentCancerId==='learningpath') return learningPathThemeMeta;
+    return THEMES[currentCancerId];
+  }
 
   const questionQueues = {}; // 'cancer|topic' -> shuffled array
   let pendingEntity = null;
@@ -1054,9 +1302,10 @@
   function nextQuestion(cancerId, topicId){
     const key = cancerId+'|'+topicId;
     if(!questionQueues[key] || questionQueues[key].length===0){
-      const source = (cancerId==='custom' && customPoolByTopic)
-        ? (customPoolByTopic[topicId] || [])
-        : (QUESTIONS_BY_THEME_TOPIC[cancerId]?.[topicId] || []);
+      let source;
+      if(cancerId==='custom' && customPoolByTopic) source = customPoolByTopic[topicId] || [];
+      else if(cancerId==='learningpath' && learningPathPoolByLevel) source = learningPathPoolByLevel[topicId] || [];
+      else source = QUESTIONS_BY_THEME_TOPIC[cancerId]?.[topicId] || [];
       questionQueues[key] = shuffle(source);
     }
     const q = questionQueues[key].shift();
@@ -1195,6 +1444,83 @@
   // just reuses the existing course-filter "no matches" pattern (an alert)
   // rather than introducing new UI.
   function toastCustom(msg){ alert(msg); }
+
+  // ---------- learning path (lecture-scoped, cognitive-level progression) ----------
+  // Same synthetic-stage trick as buildCustomRunConfig() above, but scoped to
+  // ONE lecture's questions and keyed by cognitive level instead of topic --
+  // see the LEVEL_TOPIC_META/TOPICS registration and the currentCancerId===
+  // 'learningpath' branches in currentStages()/currentThemeMeta()/
+  // nextQuestion(). Levels with zero matching questions for this lecture are
+  // skipped rather than shown as an empty stage.
+  const LEARNING_PATH_ROMAN = ['I','II','III','IV'];
+  function buildLearningPathConfig(courseId, classKey){
+    const byLevel = (QUESTIONS_BY_COURSE_CLASS_LEVEL[courseId] || {})[classKey] || {};
+    const cls = COURSES[courseId].classes[classKey];
+    const levelsWithContent = LEARNING_PATH_CONFIG.levels.filter(lv => (byLevel[lv]||[]).length > 0);
+    const stages = levelsWithContent.map((level, i)=>{
+      // The first stage carries the lecture's learning outcome(s) + intro
+      // blurb -- shown by the existing showStageScenario() screen before any
+      // questions, which is exactly the "outcome before questions" flow this
+      // mode exists for. Kept as a separate `learningOutcomes` array (rather
+      // than folded into `scenario` as plain text) so showStageScenario()
+      // can render them as a clearly-labeled bullet list instead of one
+      // run-on paragraph. Later stages get a short per-level transition
+      // line instead, same as before.
+      const learningOutcomes = i===0 ? (cls.outcomes||[]) : null;
+      const scenario = i===0 ? (cls.intro||'') : (LEARNING_PATH_CONFIG.levelBlurbs[level] || '');
+      return { n:i+1, roman: LEARNING_PATH_ROMAN[i] || String(i+1), requirements: { [level]: LEARNING_PATH_CONFIG.perLevelQuota }, scenario, learningOutcomes };
+    });
+    return { stages, byLevel };
+  }
+  function renderLearningPathCourseGrid(){
+    learningPathCourseGrid.innerHTML = Object.entries(THEMES).map(([id,t])=>
+      `<button class="pick-card" data-course="${id}"><span class="cc-icon">${iconHTML(t.icon,20)}</span><span class="cc-name">${t.label}</span></button>`
+    ).join('');
+    learningPathCourseGrid.querySelectorAll('[data-course]').forEach(btn=>{
+      btn.addEventListener('click', ()=> openLearningPathLectures(btn.dataset.course));
+    });
+  }
+  function openLearningPathLectures(courseId){
+    const lectures = lecturesWithLearningPathContent(courseId);
+    learningPathLectureTitle.innerHTML = `${iconHTML(THEMES[courseId].icon,20)} ${THEMES[courseId].label}`;
+    if(!lectures.length){
+      learningPathLectureGrid.innerHTML = '';
+      learningPathLectureEmpty.style.display = 'block';
+    } else {
+      learningPathLectureEmpty.style.display = 'none';
+      learningPathLectureGrid.innerHTML = lectures.map(l=>
+        `<button class="pick-card" data-class="${l.classKey}"><span class="cc-name">${l.classKey} · ${l.label}</span></button>`
+      ).join('');
+      learningPathLectureGrid.querySelectorAll('[data-class]').forEach(btn=>{
+        btn.addEventListener('click', ()=> startLearningPathRun(courseId, btn.dataset.class));
+      });
+    }
+    learningPathCourseView.style.display = 'none';
+    learningPathLectureView.style.display = 'block';
+  }
+  function startLearningPathRun(courseId, classKey){
+    const { stages, byLevel } = buildLearningPathConfig(courseId, classKey);
+    if(!stages.length){ toastCustom('No questions tagged for this lecture yet.'); return; }
+    currentCancerId = 'learningpath';
+    learningPathStages = stages;
+    learningPathPoolByLevel = byLevel;
+    learningPathThemeMeta = { label: `${THEMES[courseId].label} · ${classKey}`, icon: THEMES[courseId].icon };
+    learningPathLectureView.style.display = 'none';
+    startRun();
+  }
+  learningPathModeCard.addEventListener('click', ()=>{
+    cancerPickView.style.display = 'none';
+    learningPathCourseView.style.display = 'block';
+    renderLearningPathCourseGrid();
+  });
+  learningPathCourseBackBtn.addEventListener('click', ()=>{
+    learningPathCourseView.style.display = 'none';
+    cancerPickView.style.display = 'block';
+  });
+  learningPathLectureBackBtn.addEventListener('click', ()=>{
+    learningPathLectureView.style.display = 'none';
+    learningPathCourseView.style.display = 'block';
+  });
 
   // ---------- study & practice mode ----------
   let practiceSelectedTheme = null;
@@ -1358,6 +1684,23 @@
     const inRun = ['running','resuming'].includes(screenState)
       || (screenState==='mcq' && quizMode==='runner');
     hud.style.display = inRun ? 'flex' : 'none';
+    controlsMobile.classList.toggle('in-run', inRun);
+    document.body.classList.toggle('in-run', inRun);
+    // togglePause() only actually does anything in 'running'/'paused' --
+    // during the post-answer "resuming" countdown or a live question it's a
+    // no-op, but the button stayed fully lit either way, inviting a tap
+    // that does nothing. Dim it (and stop it intercepting taps) whenever
+    // it wouldn't do anything, so its state matches what it'll actually do.
+    pauseBtn.classList.toggle('inactive', inRun && screenState!=='running' && screenState!=='paused');
+    updateTopInset();
+    // The "how scoring works" popup (tap the SCORE box to open it) only had
+    // its own ✕ to close it -- easy to tap by accident (it sits right next
+    // to the pause button) and then it just sat there through resuming,
+    // stage transitions, even game over, blocking everything underneath
+    // until someone noticed and closed it by hand. syncHudVisibility() runs
+    // on every real state transition, so closing it here means it never
+    // outlives whatever moment it was opened during.
+    scoreInfoModal.classList.remove('active');
   }
   // Shared by the Stage I intro screen's one-time legend and the "tap the
   // score to see how it works" popup, so the two never drift out of sync.
@@ -1369,14 +1712,24 @@
       <span class="req-chip" style="color:var(--membrane);border-color:var(--membrane)77">🏁 Stage clear +${GAME_CONFIG.stageWeight}</span>`;
   }
   function updateScoreHUD(){
-    if(mp.active || quizMode!=='runner'){ scoreHudBlock.style.display = 'none'; return; }
+    // The shared choke point for HUD-height changes -- both updateHUD()
+    // (topic-chip count/wrapping) and updateGlucoseUI() call this, and the
+    // score block's own show/hide changes the HUD's height too, so
+    // recomputing topInset here (rather than separately in each caller)
+    // keeps the lane carve-out and MCQ/score-popup clearance correct
+    // however the HUD's actual rendered height got there.
+    if(mp.active || quizMode!=='runner'){ scoreHudBlock.style.display = 'none'; updateTopInset(); return; }
     scoreHudBlock.style.display = 'block';
     scoreVal.textContent = mpScore({ correctCount:myCorrectCount, incorrectCount:myIncorrectCount, glucose:Math.max(0,glucose), stageIndex, bonusScore:myBonusScore });
+    updateTopInset();
   }
   function updateGlucoseUI(){
     lifeLabel.textContent = lifeCfg().label;
     glucoseVal.innerHTML = `${iconHTML(lifeCfg().icon,20)} × ${Math.max(0, Math.round(glucose))}`;
-    glucoseVal.style.color = glucose < 20 ? 'var(--danger)' : 'var(--hud-ink)';
+    // A pulsing animation alongside the color change, not just the color
+    // change alone -- motion reads regardless of color vision, the same
+    // reasoning as the ✓/✗ glyphs on MCQ options above.
+    glucoseVal.classList.toggle('low-life', glucose < 20);
     updateScoreHUD();
     if(mp.active) mpSyncMyState();
   }
@@ -1402,6 +1755,11 @@
     landingScreen.classList.remove('active');
     showStageScenario(0, true);
   }
+  function escapeHtml(s){
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
   function showStageScenario(idx, isStart){
     screenState = 'scenario';
     syncHudVisibility();
@@ -1410,7 +1768,17 @@
     const c = currentThemeMeta();
     scenarioIcon.innerHTML = iconHTML(c.icon,40);
     scenarioStageLabel.textContent = `STAGE ${st.roman}`;
-    scenarioText.textContent = st.scenario;
+    // Learning Path's first stage carries real learning outcomes -- render
+    // them as a clearly-labeled bullet list instead of folding them into
+    // one run-on paragraph. Every other stage (Runner/Custom run/etc) has
+    // no `learningOutcomes` at all, so this is a no-op there.
+    if(st.learningOutcomes && st.learningOutcomes.length){
+      const items = st.learningOutcomes.map(o=>`<li>${escapeHtml(o)}</li>`).join('');
+      const introHtml = st.scenario ? `<p style="margin:10px 0 0;">${escapeHtml(st.scenario)}</p>` : '';
+      scenarioText.innerHTML = `<div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--hud-dim);margin-bottom:6px;">Learning Outcomes</div><ul style="margin:0;padding-left:20px;">${items}</ul>${introHtml}`;
+    } else {
+      scenarioText.textContent = st.scenario;
+    }
     scenarioReqs.innerHTML = Object.keys(st.requirements).map(t=>{
       const meta = TOPICS[t];
       return `<span class="req-chip" style="color:${meta.color};border-color:${meta.color}77">${iconHTML(meta.icon,14)} ${meta.label} × ${st.requirements[t]}</span>`;
@@ -1549,6 +1917,7 @@
     briefView.style.display = 'none';
     practiceSetupView.style.display = 'none';
     mpSetupView.style.display = 'none';
+    mpHostSetupView.style.display = 'none';
     mpJoinEntryView.style.display = 'none';
     mpWaitView.style.display = 'none';
     cancerPickView.style.display = 'block';
@@ -1598,17 +1967,38 @@
   });
 
   // ---------- spawning ----------
+  // Topic blocks, glucose pickups, and bombs each spawn on their own
+  // independent timer, so without this two of them can land in the same
+  // lane close enough together to visually overlap ("stuck together") --
+  // this picks a lane that actually has clearance at the spawn point (any
+  // entity type counts, not just same-type), trying a few lanes before
+  // giving up and skipping this spawn for now (the timer just fires again
+  // shortly after, so a skipped spawn is harmless, especially with the
+  // already-widened gaps in GAME_CONFIG).
+  const MIN_ENTITY_GAP = 90;
+  function pickRoomyLane(x){
+    for(const lane of shuffle([0,1,2])){
+      if(!entities.some(e => e.lane===lane && Math.abs(e.x-x) < MIN_ENTITY_GAP*SCALE)) return lane;
+    }
+    return null;
+  }
   function spawnTopicBlock(){
     const active = activeTopicsForStage();
     if(active.length===0) return;
+    const lane = pickRoomyLane(W+40);
+    if(lane===null) return;
     const topic = active[Math.floor(Math.random()*active.length)];
-    entities.push({ x:W+40, lane:Math.floor(Math.random()*LANES), r:24, type:'topic', topic, hit:false });
+    entities.push({ x:W+40, lane, r:24*SCALE, type:'topic', topic, hit:false });
   }
   function spawnGlucosePickup(){
-    entities.push({ x:W+40, lane:Math.floor(Math.random()*LANES), r:10, type:'glucose', hit:false });
+    const lane = pickRoomyLane(W+40);
+    if(lane===null) return;
+    entities.push({ x:W+40, lane, r:10*SCALE, type:'glucose', hit:false });
   }
   function spawnBomb(){
-    entities.push({ x:W+40, lane:Math.floor(Math.random()*LANES), r:20, type:'bomb', hit:false });
+    const lane = pickRoomyLane(W+40);
+    if(lane===null) return;
+    entities.push({ x:W+40, lane, r:20*SCALE, type:'bomb', hit:false });
   }
   function popup(x,y,text,color){ floaters.push({x,y,text,color,life:1}); }
   function flashRed(){
@@ -1666,7 +2056,15 @@
       mcqOptions.appendChild(b);
     });
     mcqFeedback.style.display = 'none';
+    mcqFlagBtn.classList.remove('flagged');
+    mcqFlagBtn.textContent = '🚩 Flag for review';
     mcqModal.classList.add('active');
+    // The question card is a scrollable panel (long explanations/feedback
+    // can push it past the visible height) -- without this, a NEW question
+    // just inherits whatever scroll position the PREVIOUS one was left at,
+    // so the new prompt could open already scrolled past its own first
+    // line instead of showing from the top.
+    mcqPanelCard.scrollTop = 0;
     // Runner and Group Race (both quizMode==='runner') are always timed.
     // Practice only times if the person opted in via the checkbox at
     // session start -- the bar itself is hidden entirely when untimed,
@@ -1765,6 +2163,16 @@
   mcqViewGuideBtn.addEventListener('click', ()=>{
     openStudyGuide(activeQuestionTheme, pendingTopic, pendingQuestion ? pendingQuestion.itemId : null);
   });
+  // sessionLog.push() for this question already ran inside answerMCQ(), well
+  // before this button is even visible (it only shows once feedback is up)
+  // -- so the entry to flag is always exactly the last one logged.
+  mcqFlagBtn.addEventListener('click', ()=>{
+    const entry = sessionLog[sessionLog.length-1];
+    if(!entry) return;
+    entry.flagged = !entry.flagged;
+    mcqFlagBtn.classList.toggle('flagged', entry.flagged);
+    mcqFlagBtn.textContent = entry.flagged ? '🚩 Flagged' : '🚩 Flag for review';
+  });
   mcqContinueBtn.addEventListener('click', ()=>{
     mcqModal.classList.remove('active');
     if(quizMode==='practice'){
@@ -1812,7 +2220,16 @@
   // ---------- update / draw ----------
   function update(dt){
     survivalTime += dt;
-    speed = Math.min(GAME_CONFIG.maxSpeed, GAME_CONFIG.baseSpeed + (stageIndex*GAME_CONFIG.speedRampPerStage) + (survivalTime*GAME_CONFIG.speedRampPerSecond));
+    // GAME_CONFIG's speed numbers are tuned for the landscape W=960 grid,
+    // where an entity travels ~850px (spawn to player) to cross the screen.
+    // On a narrower portrait canvas that same px/s speed covers the
+    // (shorter) screen in proportionally less real time -- e.g. a phone at
+    // roughly half the width gave players roughly half as long to react,
+    // even though nothing about the difficulty was meant to change. Scaling
+    // speed by W/960 keeps "time to cross the screen" consistent across
+    // every canvas width, landscape included (where this is exactly 1).
+    const widthScale = W/960;
+    speed = Math.min(GAME_CONFIG.maxSpeed, GAME_CONFIG.baseSpeed + (stageIndex*GAME_CONFIG.speedRampPerStage) + (survivalTime*GAME_CONFIG.speedRampPerSecond)) * widthScale;
     const desiredY = laneY(player.targetLane);
     player.y += (desiredY - player.y) * Math.min(1, dt*10);
     player.lane = player.targetLane;
@@ -1859,7 +2276,7 @@
       // slide there over the next few frames — checking .lane meant a
       // question could pop up the moment you pressed a key, before your own
       // character had even started moving toward the block on screen.
-      if(!e.hit && Math.abs(player.y - laneY(e.lane)) < laneH*0.4 && Math.abs(e.x - PLAYER_X) < e.r+22){
+      if(!e.hit && Math.abs(player.y - laneY(e.lane)) < laneH*0.4 && Math.abs(e.x - PLAYER_X) < e.r+22*SCALE){
         e.hit = true;
         if(e.type==='glucose'){
           glucose += GAME_CONFIG.glucosePickupValue;
@@ -1888,7 +2305,7 @@
   function drawVessel(){
     ctx.fillStyle = '#1c0710'; ctx.fillRect(0,0,W,H);
     ctx.strokeStyle = 'rgba(255,93,143,.10)'; ctx.lineWidth = 2;
-    for(let i=1;i<LANES;i++){ ctx.beginPath(); ctx.moveTo(0, laneH*i); ctx.lineTo(W, laneH*i); ctx.stroke(); }
+    for(let i=1;i<LANES;i++){ ctx.beginPath(); ctx.moveTo(0, topInset+laneH*i); ctx.lineTo(W, topInset+laneH*i); ctx.stroke(); }
     ctx.strokeStyle = 'rgba(255,93,143,.16)'; ctx.lineWidth = 3; ctx.setLineDash([26,18]);
     for(let i=0;i<LANES;i++){ ctx.beginPath(); ctx.moveTo(-bgOffset, laneY(i)); ctx.lineTo(W, laneY(i)); ctx.stroke(); }
     ctx.setLineDash([]);
@@ -1904,14 +2321,14 @@
   function drawPlayer(){
     const y = player.y + Math.sin(player.wob)*2, x = PLAYER_X;
     ctx.save(); ctx.shadowColor = '#ff5d8f'; ctx.shadowBlur = 22; ctx.fillStyle = '#ff5d8f';
-    ctx.beginPath(); ctx.arc(x,y,26,0,Math.PI*2); ctx.fill(); ctx.restore();
+    ctx.beginPath(); ctx.arc(x,y,26*SCALE,0,Math.PI*2); ctx.fill(); ctx.restore();
     ctx.fillStyle = '#c22a5c';
     for(let i=0;i<8;i++){
-      const a = (i/8)*Math.PI*2 + player.wob*0.3, rr = 26 + Math.sin(player.wob*2+i)*3;
-      ctx.beginPath(); ctx.arc(x+Math.cos(a)*rr, y+Math.sin(a)*rr, 4.5, 0, Math.PI*2); ctx.fill();
+      const a = (i/8)*Math.PI*2 + player.wob*0.3, rr = (26 + Math.sin(player.wob*2+i)*3)*SCALE;
+      ctx.beginPath(); ctx.arc(x+Math.cos(a)*rr, y+Math.sin(a)*rr, 4.5*SCALE, 0, Math.PI*2); ctx.fill();
     }
-    ctx.fillStyle = '#ffd93f'; ctx.beginPath(); ctx.arc(x-4,y-2,9,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#c58f00'; ctx.beginPath(); ctx.arc(x-6,y-4,3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#ffd93f'; ctx.beginPath(); ctx.arc(x-4*SCALE,y-2*SCALE,9*SCALE,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#c58f00'; ctx.beginPath(); ctx.arc(x-6*SCALE,y-4*SCALE,3*SCALE,0,Math.PI*2); ctx.fill();
   }
   function roundRect(ctx,x,y,w,h,r){
     ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
@@ -1930,21 +2347,37 @@
       return;
     }
     if(e.type==='bomb'){
-      ctx.fillStyle = 'rgba(255,59,92,.3)';
-      ctx.beginPath(); ctx.arc(e.x, y, e.r+6, 0, Math.PI*2); ctx.fill();
+      // A plain circle read as "just another pickup, not a real threat" --
+      // this reads as a naval mine instead: spiky silhouette plus a glow
+      // that pulses (staggered per-bomb by x position, so a row of them
+      // doesn't all pulse in lockstep) rather than sitting static.
+      const pulse = 0.5 + 0.5*Math.sin(survivalTime*6 + e.x*0.05); // 0..1
+      ctx.fillStyle = `rgba(255,59,92,${0.22 + pulse*0.28})`;
+      ctx.beginPath(); ctx.arc(e.x, y, e.r + (6 + pulse*6)*SCALE, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#1a0508';
+      const spikes = 8, spikeLen = e.r*0.6, spikeHalfWidth = e.r*0.16;
+      for(let i=0;i<spikes;i++){
+        const a = (i/spikes)*Math.PI*2 + survivalTime*0.4; // slow rotation adds to the menace
+        const bx = e.x+Math.cos(a)*e.r, by = y+Math.sin(a)*e.r;
+        const tx = e.x+Math.cos(a)*(e.r+spikeLen), ty = y+Math.sin(a)*(e.r+spikeLen);
+        const px = -Math.sin(a)*spikeHalfWidth, py = Math.cos(a)*spikeHalfWidth;
+        ctx.beginPath();
+        ctx.moveTo(bx+px, by+py); ctx.lineTo(tx, ty); ctx.lineTo(bx-px, by-py);
+        ctx.closePath(); ctx.fill();
+      }
       ctx.fillStyle = '#1a0508'; ctx.strokeStyle = '#ff3b5c'; ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.arc(e.x, y, e.r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-      drawIconOnCanvas(GAME_CONFIG.bombIcon, e.x, y, 20);
+      drawIconOnCanvas(GAME_CONFIG.bombIcon, e.x, y, 20*SCALE);
       return;
     }
-    const meta = TOPICS[e.topic]; const w=70,h=44;
+    const meta = TOPICS[e.topic]; const w=70*SCALE,h=44*SCALE;
     ctx.fillStyle = meta.color+'22';
     roundRect(ctx, e.x-w/2-4, y-h/2-4, w+8, h+8, 12); ctx.fill();
     ctx.fillStyle = 'rgba(20,6,12,.85)'; ctx.strokeStyle = meta.color; ctx.lineWidth = 2;
     roundRect(ctx, e.x-w/2, y-h/2, w, h, 10); ctx.fill(); ctx.stroke();
     // Icon only, no topic-name label -- bigger and centred in the block so
     // it reads instantly while lane-hopping instead of needing to be read.
-    drawIconOnCanvas(meta.icon, e.x, y, 32);
+    drawIconOnCanvas(meta.icon, e.x, y, 32*SCALE);
   }
   function drawFloaters(){
     ctx.textAlign='center';
@@ -2318,9 +2751,10 @@
     function rowHTML(r){
       const meta = TOPICS[r.topic];
       const stageLabel = r.stage ? ` · Stage ${r.stage}` : (r.mode==='practice' ? ' · Practice' : '');
+      const flagBadge = r.flagged ? `<span class="sr-flag" title="Flagged for review">🚩</span>` : '';
       return `<div class="sum-row">
         <div class="sr-top"><span style="color:${meta.color}">${iconHTML(meta.icon,13)} ${meta.label}${stageLabel}</span>
-        <span class="sr-verdict ${r.correct?'verdict-good':'verdict-bad'}">${r.correct?'Correct':'Wrong'}</span></div>
+        <span class="sr-verdict ${r.correct?'verdict-good':'verdict-bad'}">${flagBadge}${r.correct?'Correct':'Wrong'}</span></div>
         <div class="sr-q">${r.prompt}</div>
         <div class="sr-ans">Your answer: ${r.options[r.chosenIndex]}${r.correct?'':` · Correct: ${r.options[r.correctIndex]}`}</div>
         <div class="sr-link" data-theme="${r.theme}" data-topic="${r.topic}" data-item="${r.itemId}">📚 View in study guide</div>
@@ -2328,6 +2762,9 @@
     }
     if(summaryMode==='order'){
       summaryBody.innerHTML = sessionLog.map(rowHTML).join('');
+    } else if(summaryMode==='flagged'){
+      const rows = sessionLog.filter(r=>r.flagged);
+      summaryBody.innerHTML = rows.length ? rows.map(rowHTML).join('') : `<p class="p-desc">No questions flagged this session — tap 🚩 Flag for review after answering one to add it here.</p>`;
     } else {
       let out = '';
       Object.keys(TOPICS).forEach(t=>{
@@ -2345,20 +2782,25 @@
       });
     });
   }
-  sumTabOrder.addEventListener('click', ()=>{ summaryMode='order'; sumTabOrder.classList.add('active'); sumTabTopic.classList.remove('active'); renderSummary(); });
-  sumTabTopic.addEventListener('click', ()=>{ summaryMode='topic'; sumTabTopic.classList.add('active'); sumTabOrder.classList.remove('active'); renderSummary(); });
+  sumTabOrder.addEventListener('click', ()=>{ summaryMode='order'; sumTabOrder.classList.add('active'); sumTabTopic.classList.remove('active'); sumTabFlagged.classList.remove('active'); renderSummary(); });
+  sumTabTopic.addEventListener('click', ()=>{ summaryMode='topic'; sumTabTopic.classList.add('active'); sumTabOrder.classList.remove('active'); sumTabFlagged.classList.remove('active'); renderSummary(); });
+  sumTabFlagged.addEventListener('click', ()=>{ summaryMode='flagged'; sumTabFlagged.classList.add('active'); sumTabOrder.classList.remove('active'); sumTabTopic.classList.remove('active'); renderSummary(); });
   summaryClose.addEventListener('click', ()=> summaryModal.classList.remove('active'));
   viewSummaryBtn.addEventListener('click', openSummary);
 
   // ---------- Group Race (Firebase Realtime Database) ----------
   const mpModeCard = document.getElementById('mpModeCard');
   const mpSetupView = document.getElementById('mpSetupView');
+  const mpHostChooseBtn = document.getElementById('mpHostChooseBtn');
+  const mpHostSetupView = document.getElementById('mpHostSetupView');
+  const mpHostSetupBackBtn = document.getElementById('mpHostSetupBackBtn');
   const mpNameInput = document.getElementById('mpNameInput');
   const mpThemeGrid = document.getElementById('mpThemeGrid');
   const mpBackBtn = document.getElementById('mpBackBtn');
   const mpHostBtn = document.getElementById('mpHostBtn');
   const mpJoinBtn = document.getElementById('mpJoinBtn');
   const mpJoinEntryView = document.getElementById('mpJoinEntryView');
+  const mpJoinNameInput = document.getElementById('mpJoinNameInput');
   const mpCodeInput = document.getElementById('mpCodeInput');
   const mpJoinBackBtn = document.getElementById('mpJoinBackBtn');
   const mpJoinConfirmBtn = document.getElementById('mpJoinConfirmBtn');
@@ -2406,7 +2848,6 @@
   mpModeCard.addEventListener('click', async ()=>{
     cancerPickView.style.display = 'none';
     mpSetupView.style.display = 'block';
-    renderMpThemeGrid();
     // Firebase loads in the background from page load — by the time
     // someone has clicked into Group Race it's almost always already
     // settled one way or the other, but await it just in case this fires
@@ -2421,6 +2862,18 @@
   mpBackBtn.addEventListener('click', ()=>{
     mpSetupView.style.display = 'none';
     cancerPickView.style.display = 'block';
+  });
+  // Name + course only matter once you've actually chosen to host --
+  // joining just needs a name and the room code, not a course pick (the
+  // room already has one, set by whoever's hosting).
+  mpHostChooseBtn.addEventListener('click', ()=>{
+    mpSetupView.style.display = 'none';
+    mpHostSetupView.style.display = 'block';
+    renderMpThemeGrid();
+  });
+  mpHostSetupBackBtn.addEventListener('click', ()=>{
+    mpHostSetupView.style.display = 'none';
+    mpSetupView.style.display = 'block';
   });
   mpJoinBtn.addEventListener('click', ()=>{
     mpSetupView.style.display = 'none';
@@ -2453,7 +2906,7 @@
       await set(ref(fbdb, `rooms/${code}/players/${mp.playerId}`), {
         name, glucose: GAME_CONFIG.startingGlucose, stageIndex:0, stageRoman:'I', correctCount:0, incorrectCount:0, bonusScore:0, done:false, finishedWin:false,
       });
-      mpSetupView.style.display = 'none';
+      mpHostSetupView.style.display = 'none';
       mpWaitView.style.display = 'block';
       mpWaitTitle.textContent = 'Waiting for racers…';
       mpRoomCodeDisplay.textContent = code;
@@ -2470,7 +2923,7 @@
     mpJoinConfirmBtn.disabled = true;
     try{
       const code = mpCodeInput.value.trim().toUpperCase();
-      const name = mpNameInput.value.trim() || 'Player';
+      const name = mpJoinNameInput.value.trim() || 'Player';
       mpJoinError.style.display = 'none';
       if(!code || code.length!==5){ mpJoinError.textContent = 'Enter the 5-character room code.'; mpJoinError.style.display='block'; return; }
       const snap = await get(ref(fbdb, `rooms/${code}`));
@@ -2739,6 +3192,7 @@
   document.getElementById('versionTag').textContent = `version ${GAME_VERSION}`;
   manualGlucoseText.innerHTML = `You start with ${GAME_CONFIG.startingGlucose} life. Collect drifting pickups (+${GAME_CONFIG.glucosePickupValue} each) to top it up. Answering a question <b>wrong costs ${GAME_CONFIG.wrongAnswerPenalty}</b>. A rare 💣 bomb costs <b>${GAME_CONFIG.bombDamage}</b> instantly on contact — no question, just avoid it. If life drops below zero, the run ends. (Glucose for Cancer, ATP for Biochemistry — the name changes per theme.)`;
   buildCancerGrid();
+  updateTopInset();
   drawVessel();
   drawPlayer();
 </script>
