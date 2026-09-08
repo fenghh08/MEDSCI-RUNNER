@@ -226,6 +226,15 @@
   .sum-tab{ font-family:var(--mono); font-size:12px; padding:6px 14px; border-radius:16px; border:1px solid var(--panel-line);
     background:transparent; color:var(--hud-dim); cursor:pointer; }
   .sum-tab.active{ background:var(--membrane); color:#1a0508; border-color:var(--membrane); font-weight:700; }
+  .customize-color{ width:36px; height:36px; border-radius:50%; border:2px solid transparent; cursor:pointer;
+    padding:0; box-shadow:0 0 0 1px var(--panel-line); }
+  .customize-color.active{ border-color:#fff; box-shadow:0 0 0 2px var(--membrane); }
+  .customize-opt{ background:var(--panel); border:1px solid var(--panel-line); border-radius:10px; padding:6px;
+    cursor:pointer; text-align:center; width:64px; }
+  .customize-opt canvas{ display:block; margin:0 auto; }
+  .customize-opt span{ display:block; font-size:9.5px; color:var(--hud-dim); margin-top:2px; text-transform:capitalize; }
+  .customize-opt.active{ border-color:var(--membrane); background:rgba(255,93,143,.12); }
+  .customize-opt.active span{ color:var(--hud-ink); }
   .sum-row{ background:var(--bg-1); border:1px solid var(--panel-line); border-radius:8px; padding:9px 11px; margin-bottom:6px; font-size:12px; }
   .roster-row{ background:var(--bg-1); border:1px solid var(--panel-line); border-radius:8px; padding:8px 12px; margin-bottom:6px;
     font-size:12.5px; display:flex; justify-content:space-between; }
@@ -326,6 +335,7 @@
           <button class="secondary" id="manualBtn">📖 How to play</button>
           <button class="secondary" id="studyGuideBtnMenu">📚 Study guide</button>
           <button class="secondary" id="courseListBtnMenu">🎓 Browse by lecture</button>
+          <button class="secondary" id="customizeBtnMenu">🎨 Customise</button>
         </div>
         <div class="cancer-grid" id="cancerGrid"></div>
         <button class="pick-card" id="practiceModeCard" style="margin:10px auto 0;max-width:460px;display:block;text-align:center;">
@@ -344,6 +354,31 @@
           <span class="cc-icon">🧭</span><span class="cc-name">Learning Path</span>
           <span class="cc-blurb">One lecture, level by level.</span>
         </button>
+      </div>
+      <div id="customizeView" style="display:none;">
+        <h2>Customise Your Cell</h2>
+        <p class="desc">Pick a look that's easy to recognise during a race.</p>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;align-items:flex-start;">
+          <div style="text-align:center;flex-shrink:0;">
+            <div class="p-sub" style="margin-top:0;">Your cell</div>
+            <canvas id="customizePreviewCanvas" width="200" height="200" style="width:180px;height:180px;background:var(--bg-1);border-radius:16px;border:1px solid var(--panel-line);"></canvas>
+            <div class="btn-row" style="margin-top:10px;">
+              <button class="secondary" id="customizeRandomizeBtn">🔀 Randomise</button>
+            </div>
+          </div>
+          <div style="flex:1;min-width:240px;max-width:360px;text-align:left;">
+            <div class="p-sub" style="margin-top:0;">1. Colour</div>
+            <div id="customizeColorRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
+            <div class="p-sub">2. Face</div>
+            <div id="customizeFaceRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
+            <div class="p-sub">3. Accessory</div>
+            <div id="customizeAccessoryRow" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:18px;">
+          <button class="secondary" id="customizeBackBtn">← Back</button>
+          <button class="primary" id="customizeSaveBtn">Save &amp; Continue</button>
+        </div>
       </div>
       <div id="briefView" style="display:none;">
         <h2 id="briefTitle">—</h2>
@@ -672,6 +707,23 @@
   let soundMuted = (function(){
     try { return localStorage.getItem('soundMuted') === 'yes'; } catch(e){ return false; }
   })();
+
+  // ---------- cell customization (color/face/accessory) ----------
+  const CUSTOMIZE_DEFAULT = { color:'#ff5d8f', face:'happy', accessory:'none' };
+  const CUSTOMIZE_COLORS = ['#ff5d8f','#ff9f43','#3ec6e0','#c58bff','#7cff6b','#ffd23f'];
+  const CUSTOMIZE_FACES = ['happy','determined','mischievous','surprised'];
+  const CUSTOMIZE_ACCESSORIES = ['none','headband','glasses','headphones'];
+  let playerCustomization = (function(){
+    try {
+      const saved = JSON.parse(localStorage.getItem('playerCustomization'));
+      if(saved && CUSTOMIZE_COLORS.includes(saved.color) && CUSTOMIZE_FACES.includes(saved.face) && CUSTOMIZE_ACCESSORIES.includes(saved.accessory)) return saved;
+    } catch(e){ /* fine -- falls through to the default below */ }
+    return { ...CUSTOMIZE_DEFAULT };
+  })();
+  function savePlayerCustomization(c){
+    playerCustomization = c;
+    try { localStorage.setItem('playerCustomization', JSON.stringify(c)); } catch(e){ /* fine — just won't persist across a reload in browsers that block file:// storage */ }
+  }
   // Browsers block audio until a real user gesture happens on the page —
   // creating the AudioContext eagerly at load time would just leave it
   // permanently "suspended" and silently do nothing. So it's created lazily,
@@ -1086,6 +1138,15 @@
   const manualBtn = document.getElementById('manualBtn');
   const studyGuideBtnMenu = document.getElementById('studyGuideBtnMenu');
   const courseListBtnMenu = document.getElementById('courseListBtnMenu');
+  const customizeBtnMenu = document.getElementById('customizeBtnMenu');
+  const customizeView = document.getElementById('customizeView');
+  const customizePreviewCanvas = document.getElementById('customizePreviewCanvas');
+  const customizeColorRow = document.getElementById('customizeColorRow');
+  const customizeFaceRow = document.getElementById('customizeFaceRow');
+  const customizeAccessoryRow = document.getElementById('customizeAccessoryRow');
+  const customizeRandomizeBtn = document.getElementById('customizeRandomizeBtn');
+  const customizeBackBtn = document.getElementById('customizeBackBtn');
+  const customizeSaveBtn = document.getElementById('customizeSaveBtn');
   const courseListBtnGuide = document.getElementById('courseListBtnGuide');
 
   const practiceModeCard = document.getElementById('practiceModeCard');
@@ -1916,6 +1977,7 @@
     syncHudVisibility();
     briefView.style.display = 'none';
     practiceSetupView.style.display = 'none';
+    customizeView.style.display = 'none';
     mpSetupView.style.display = 'none';
     mpHostSetupView.style.display = 'none';
     mpJoinEntryView.style.display = 'none';
@@ -2318,17 +2380,98 @@
     ctx.fillStyle = vesselGradTop; ctx.fillRect(0,0,W,40);
     ctx.fillStyle = vesselGradBottom; ctx.fillRect(0,H-40,W,40);
   }
+  function darkenColor(hex, amount){
+    const n = parseInt(hex.slice(1),16);
+    const r = Math.max(0,Math.round(((n>>16)&255)*(1-amount)));
+    const g = Math.max(0,Math.round(((n>>8)&255)*(1-amount)));
+    const b = Math.max(0,Math.round((n&255)*(1-amount)));
+    return `rgb(${r},${g},${b})`;
+  }
+  // eyes+mouth only -- the base cell/receptor shape is drawn by
+  // drawCellSprite() below, which calls this. Kept separate so the
+  // customization screen's small option thumbnails can preview just a face
+  // against a plain circle without redrawing the receptor-dot animation.
+  function drawCellFace(context, cx, cy, r, face){
+    const eyeDX = r*0.32, eyeY = cy - r*0.05;
+    context.fillStyle = '#1a0508'; context.strokeStyle = '#1a0508';
+    context.lineCap = 'round';
+    if(face==='surprised'){
+      context.beginPath(); context.arc(cx-eyeDX, eyeY, r*0.15, 0, Math.PI*2); context.fill();
+      context.beginPath(); context.arc(cx+eyeDX, eyeY, r*0.15, 0, Math.PI*2); context.fill();
+      context.beginPath(); context.arc(cx, cy+r*0.32, r*0.13, 0, Math.PI*2); context.fill();
+      return;
+    }
+    if(face==='determined'){
+      context.lineWidth = r*0.09;
+      context.beginPath(); context.moveTo(cx-eyeDX-r*0.16, eyeY-r*0.16); context.lineTo(cx-eyeDX+r*0.12, eyeY-r*0.02); context.stroke();
+      context.beginPath(); context.moveTo(cx+eyeDX+r*0.16, eyeY-r*0.16); context.lineTo(cx+eyeDX-r*0.12, eyeY-r*0.02); context.stroke();
+      context.beginPath(); context.arc(cx-eyeDX, eyeY+r*0.08, r*0.08, 0, Math.PI*2); context.fill();
+      context.beginPath(); context.arc(cx+eyeDX, eyeY+r*0.08, r*0.08, 0, Math.PI*2); context.fill();
+      context.beginPath(); context.moveTo(cx-r*0.18, cy+r*0.34); context.lineTo(cx+r*0.18, cy+r*0.34); context.stroke();
+      return;
+    }
+    if(face==='mischievous'){
+      context.beginPath(); context.arc(cx-eyeDX, eyeY, r*0.1, 0, Math.PI*2); context.fill();
+      context.lineWidth = r*0.07;
+      context.beginPath(); context.arc(cx+eyeDX, eyeY+r*0.03, r*0.1, Math.PI*1.1, Math.PI*1.9); context.stroke();
+      context.beginPath(); context.moveTo(cx-r*0.18, cy+r*0.28); context.quadraticCurveTo(cx+r*0.02, cy+r*0.44, cx+r*0.22, cy+r*0.22); context.stroke();
+      return;
+    }
+    // 'happy' -- also the fallback for any unrecognised value
+    context.beginPath(); context.arc(cx-eyeDX, eyeY, r*0.1, 0, Math.PI*2); context.fill();
+    context.beginPath(); context.arc(cx+eyeDX, eyeY, r*0.1, 0, Math.PI*2); context.fill();
+    context.lineWidth = r*0.09;
+    context.beginPath(); context.arc(cx, cy+r*0.14, r*0.22, Math.PI*0.15, Math.PI*0.85); context.stroke();
+  }
+  function drawCellAccessory(context, cx, cy, r, accessory){
+    if(accessory==='headband'){
+      context.save();
+      context.beginPath(); context.arc(cx,cy,r,0,Math.PI*2); context.clip();
+      context.fillStyle = '#7c3aed';
+      context.fillRect(cx-r, cy-r*0.62, r*2, r*0.26);
+      context.restore();
+      return;
+    }
+    if(accessory==='glasses'){
+      const eyeDX = r*0.32, eyeY = cy - r*0.05, gr = r*0.19;
+      context.strokeStyle = '#1a0508'; context.lineWidth = r*0.06; context.fillStyle = 'rgba(255,255,255,.15)';
+      [-eyeDX, eyeDX].forEach(dx=>{
+        context.beginPath(); context.arc(cx+dx, eyeY, gr, 0, Math.PI*2); context.fill(); context.stroke();
+      });
+      context.beginPath(); context.moveTo(cx-eyeDX+gr, eyeY); context.lineTo(cx+eyeDX-gr, eyeY); context.stroke();
+      return;
+    }
+    if(accessory==='headphones'){
+      context.strokeStyle = '#1a0508'; context.lineWidth = r*0.1; context.lineCap = 'round';
+      context.beginPath(); context.arc(cx, cy, r*1.05, Math.PI*1.15, Math.PI*1.85); context.stroke();
+      context.fillStyle = '#1a0508';
+      context.beginPath(); context.arc(cx-r*0.95, cy-r*0.15, r*0.16, 0, Math.PI*2); context.fill();
+      context.beginPath(); context.arc(cx+r*0.95, cy-r*0.15, r*0.16, 0, Math.PI*2); context.fill();
+      return;
+    }
+    // 'none' -- nothing to draw
+  }
+  // The single source of truth for what a "cell" looks like -- used for the
+  // actual in-game player AND the customization screen's live preview and
+  // option thumbnails, so what you pick is exactly what you'll see racing.
+  // `wob` is optional (defaults to a static pose) so preview thumbnails
+  // don't need to fake an animation loop.
+  function drawCellSprite(context, cx, cy, r, custom, wob){
+    wob = wob || 0;
+    const color = custom.color || CUSTOMIZE_DEFAULT.color;
+    context.save(); context.shadowColor = color; context.shadowBlur = r*0.85; context.fillStyle = color;
+    context.beginPath(); context.arc(cx,cy,r,0,Math.PI*2); context.fill(); context.restore();
+    context.fillStyle = darkenColor(color, 0.35);
+    for(let i=0;i<8;i++){
+      const a = (i/8)*Math.PI*2 + wob*0.3, rr = r + Math.sin(wob*2+i)*(r*0.12);
+      context.beginPath(); context.arc(cx+Math.cos(a)*rr, cy+Math.sin(a)*rr, r*0.17, 0, Math.PI*2); context.fill();
+    }
+    drawCellFace(context, cx, cy, r, custom.face || CUSTOMIZE_DEFAULT.face);
+    drawCellAccessory(context, cx, cy, r, custom.accessory || CUSTOMIZE_DEFAULT.accessory);
+  }
   function drawPlayer(){
     const y = player.y + Math.sin(player.wob)*2, x = PLAYER_X;
-    ctx.save(); ctx.shadowColor = '#ff5d8f'; ctx.shadowBlur = 22; ctx.fillStyle = '#ff5d8f';
-    ctx.beginPath(); ctx.arc(x,y,26*SCALE,0,Math.PI*2); ctx.fill(); ctx.restore();
-    ctx.fillStyle = '#c22a5c';
-    for(let i=0;i<8;i++){
-      const a = (i/8)*Math.PI*2 + player.wob*0.3, rr = (26 + Math.sin(player.wob*2+i)*3)*SCALE;
-      ctx.beginPath(); ctx.arc(x+Math.cos(a)*rr, y+Math.sin(a)*rr, 4.5*SCALE, 0, Math.PI*2); ctx.fill();
-    }
-    ctx.fillStyle = '#ffd93f'; ctx.beginPath(); ctx.arc(x-4*SCALE,y-2*SCALE,9*SCALE,0,Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#c58f00'; ctx.beginPath(); ctx.arc(x-6*SCALE,y-4*SCALE,3*SCALE,0,Math.PI*2); ctx.fill();
+    drawCellSprite(ctx, x, y, 26*SCALE, playerCustomization, player.wob);
   }
   function roundRect(ctx,x,y,w,h,r){
     ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
@@ -2732,6 +2875,72 @@
   manualFromPauseBtn.addEventListener('click', ()=> manualModal.classList.add('active'));
   courseListBtnMenu.addEventListener('click', openCourseList);
   courseListBtnGuide.addEventListener('click', openCourseList);
+
+  // ---------- customize (cell appearance) ----------
+  // A draft copy, separate from the saved playerCustomization, so clicking
+  // around in here doesn't change your actual in-game look until you
+  // explicitly hit Save & Continue -- Back discards it.
+  let customizeDraft = { ...playerCustomization };
+  function renderCustomizeScreen(){
+    const previewCtx = customizePreviewCanvas.getContext('2d');
+    previewCtx.clearRect(0,0,customizePreviewCanvas.width,customizePreviewCanvas.height);
+    drawCellSprite(previewCtx, customizePreviewCanvas.width/2, customizePreviewCanvas.height/2, customizePreviewCanvas.width*0.32, customizeDraft, 0);
+
+    customizeColorRow.innerHTML = '';
+    CUSTOMIZE_COLORS.forEach(color=>{
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'customize-color' + (color===customizeDraft.color?' active':'');
+      b.style.background = color;
+      b.title = color;
+      b.addEventListener('click', ()=>{ customizeDraft = { ...customizeDraft, color }; renderCustomizeScreen(); });
+      customizeColorRow.appendChild(b);
+    });
+
+    function renderOptRow(container, options, key, drawExtra){
+      container.innerHTML = '';
+      options.forEach(value=>{
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'customize-opt' + (value===customizeDraft[key]?' active':'');
+        const c = document.createElement('canvas');
+        c.width = 56; c.height = 56;
+        const cctx = c.getContext('2d');
+        // Preview against the currently-picked color, but a plain circle
+        // (no receptor dots) so a face/accessory choice reads clearly at
+        // this size instead of getting lost among the spikes.
+        cctx.fillStyle = customizeDraft.color; cctx.beginPath(); cctx.arc(28,28,22,0,Math.PI*2); cctx.fill();
+        drawExtra(cctx, 28, 28, 22, value);
+        b.appendChild(c);
+        const label = document.createElement('span'); label.textContent = value; b.appendChild(label);
+        b.addEventListener('click', ()=>{ customizeDraft = { ...customizeDraft, [key]: value }; renderCustomizeScreen(); });
+        container.appendChild(b);
+      });
+    }
+    renderOptRow(customizeFaceRow, CUSTOMIZE_FACES, 'face', drawCellFace);
+    renderOptRow(customizeAccessoryRow, CUSTOMIZE_ACCESSORIES, 'accessory', drawCellAccessory);
+  }
+  customizeBtnMenu.addEventListener('click', ()=>{
+    customizeDraft = { ...playerCustomization };
+    cancerPickView.style.display = 'none';
+    customizeView.style.display = 'block';
+    renderCustomizeScreen();
+  });
+  customizeRandomizeBtn.addEventListener('click', ()=>{
+    customizeDraft = {
+      color: CUSTOMIZE_COLORS[Math.floor(Math.random()*CUSTOMIZE_COLORS.length)],
+      face: CUSTOMIZE_FACES[Math.floor(Math.random()*CUSTOMIZE_FACES.length)],
+      accessory: CUSTOMIZE_ACCESSORIES[Math.floor(Math.random()*CUSTOMIZE_ACCESSORIES.length)],
+    };
+    renderCustomizeScreen();
+  });
+  customizeBackBtn.addEventListener('click', ()=>{
+    customizeView.style.display = 'none';
+    cancerPickView.style.display = 'block';
+  });
+  customizeSaveBtn.addEventListener('click', ()=>{
+    savePlayerCustomization(customizeDraft);
+    customizeView.style.display = 'none';
+    cancerPickView.style.display = 'block';
+  });
 
   // ---------- summary ----------
   let summaryMode = 'order';
