@@ -1,5 +1,10 @@
 .DS_Store
 
+# Copyright-restricted lecture slides used as source material for authoring
+# content -- not for redistribution (see the reproduction notice printed on
+# the slides themselves), kept local-only rather than committed.
+[Trained] Lecture Notes/
+
 # Dependencies
 node_modules/
 
