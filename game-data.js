@@ -3009,7 +3009,13 @@
             },
             'emergingAptamerBiosensors': {
               'label': 'Aptamer-based wearable biosensors and precision medicine',
-              'images': [],
+              'images': [
+                {
+                  'caption': 'Aptamer sensors for different compound',
+                  'filename': 'Aptamer-sensors-for-different-compound.png',
+                  'url': 'images/Aptamer-sensors-for-different-compound.png',
+                },
+              ],
               'description': 'Combining aptamer recognition elements with microneedle patches is opening up continuous, real-time monitoring of drugs and biomarkers far beyond glucose.',
               'mechanism': 'Aptamers — synthetic DNA or RNA sequences that fold into shapes that bind a specific target — have been developed for a wide range of drugs (e.g. vancomycin), metabolites, toxins, and protein biomarkers. Embedding aptamer sensors in microneedle patches allows continuous, minimally invasive measurement of a target directly in interstitial fluid (ISF), rather than requiring repeated blood draws. This supports the broader idea of "molecular vital signs" — continuously tracking drug concentrations or biomarkers in real time, alongside today’s standard vital signs like heart rate and blood pressure, to support precision medicine.',
               'funFacts': [],
