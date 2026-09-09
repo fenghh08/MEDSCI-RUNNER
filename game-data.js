@@ -605,7 +605,7 @@
                 {
                   'caption': 'CAR-T cell therapy',
                   'filename': 'car_t_cell.png',
-                  'url': 'images/car_t_cell.png',
+                  'url': 'images/MEDS3002/L32/car_t_cell.png',
                 },
               ],
               'description': 'A patient\'s own T cells are genetically engineered to express a chimeric antigen receptor (commonly anti-CD19) targeting leukemic cells.',
@@ -3111,17 +3111,17 @@
                 {
                   'caption': 'Aptamer sensors for different compound',
                   'filename': 'Aptamer-sensors-for-different-compound.png',
-                  'url': 'images/Aptamer-sensors-for-different-compound.png',
+                  'url': 'images/MEDS3003/L12/Aptamer-sensors-for-different-compound.png',
                 },
                 {
                   'caption': 'Aptamer biosensor',
                   'filename': 'aptamer-biosensor.png',
-                  'url': 'images/aptamer-biosensor.png',
+                  'url': 'images/MEDS3003/L12/aptamer-biosensor.png',
                 },
                 {
                   'caption': 'Difference between antibodies and aptamers',
                   'filename': 'aptamer-antibody-dif.png',
-                  'url': 'images/aptamer-antibody-dif.png',
+                  'url': 'images/MEDS3003/L12/aptamer-antibody-dif.png',
                 },
               ],
               'description': 'Combining aptamer recognition elements with microneedle patches is opening up continuous, real-time monitoring of drugs and biomarkers far beyond glucose.',
