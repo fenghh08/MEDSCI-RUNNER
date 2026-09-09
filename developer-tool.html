@@ -444,7 +444,7 @@
     <div class="card" style="margin-top:16px;">
       <h2>📄 Bulk edit items via spreadsheet</h2>
       <p class="card-sub">Export every item to a spreadsheet, edit it there (or add new rows), then paste it back in. <b>Rows with an <code>itemId</code> that matches an existing item update that item</b> — everything else about it (including its questions) is left alone. <b>Rows with a blank <code>itemId</code> create a new item</b> (needs <code>theme</code> + <code>topic</code> to know where it goes — existing items ignore these two columns, so you can't accidentally move one to a different topic this way). <b>Nothing is ever deleted by this import</b>, even if you remove a row — deleting stays a deliberate action elsewhere in this tool. Every row still lands in the shared queue below for review before anything touches the real file, exactly like adding one at a time.</p>
-      <p class="card-sub">Columns, any order, matched by name: <b>label, description</b> (required for new rows), <b>itemId</b> (leave blank for new items — never hand-type one, only use what the export gave you), <b>theme, topic</b> (required for new rows only), <b>mechanism, funFacts, activeRecall, hashtags</b> (optional; separate multiple with a semicolon — <code>activeRecall</code> is open-ended self-test prompts shown on the item's page, e.g. "What are the three mechanisms of…?", not MCQs), <b>course, class</b> (optional, must match an existing course code + class key), <b>images</b> (optional, <code>caption|filename;caption2|filename2</code>), <b>refs</b> (optional, <code>label|url;label2|url2</code>). On an edit row, a blank <code>activeRecall</code> or <code>images</code> cell leaves the existing ones untouched rather than clearing them — the other list columns (funFacts/hashtags) do get overwritten by a blank cell, so only leave those blank if you actually mean to clear them.</p>
+      <p class="card-sub">Columns, any order, matched by name: <b>label, description</b> (required — on an edit row, still required to be re-filled every time, so a blank one always rejects that row rather than risk silently clearing it), <b>itemId</b> (leave blank for new items — never hand-type one, only use what the export gave you), <b>theme, topic</b> (required for new rows only), <b>mechanism, funFacts, activeRecall, hashtags</b> (optional; separate multiple with a semicolon — <code>activeRecall</code> is open-ended self-test prompts shown on the item's page, e.g. "What are the three mechanisms of…?", not MCQs), <b>course, class</b> (optional, must match an existing course code + class key), <b>images</b> (optional, <code>caption|filename;caption2|filename2</code>), <b>refs</b> (optional, <code>label|url;label2|url2</code>). <b>On an edit row, a blank cell in any of these optional columns always means "leave it as-is"</b> — it never clears existing content to empty. To actually clear one of these fields, edit the item directly in the "browse existing content" view instead.</p>
       <div class="btn-row">
         <button class="secondary" id="itemsExportBtn">⬇️ Export all items as CSV</button>
       </div>
@@ -764,10 +764,15 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       <details style="margin-top:14px;">
         <summary style="cursor:pointer;font-size:12px;color:var(--hud-dim);">⚙️ Update the template (only needed if you've hand-edited GAME_CONFIG, STAGES, or the header comments directly — the merge otherwise already reads the current game-data.js live)</summary>
         <div style="margin-top:10px;">
-          <p class="card-sub" style="margin-top:0;">Paste your current, working game-data.js here to refresh the static parts the merge carries through unchanged (everything outside COURSES/THEMES — comments, GAME_CONFIG, LIFE_CONFIG, STAGES, etc.). This is stored in this browser only.</p>
+          <p class="card-sub" style="margin-top:0;">Refreshes the static parts the merge carries through unchanged (everything outside COURSES/THEMES — comments, GAME_CONFIG, LIFE_CONFIG, STAGES, etc.). This is stored in this browser only — a fresh browser/machine that's never done this falls back to whatever's built into this copy of the tool.</p>
+          <div class="btn-row">
+            <button class="primary" id="templateRefreshGithubBtn">🔄 Refresh from GitHub main</button>
+            <span id="templateGithubStatus" style="font-size:12px;color:var(--hud-dim);"></span>
+          </div>
+          <p class="card-sub" style="margin:10px 0 0;">Only use the box below instead if your changes to game-data.js aren't pushed to GitHub yet — the button above always pulls the last <i>committed</i> version, not uncommitted local edits.</p>
           <textarea id="templateInput" rows="6" placeholder="Paste the full contents of your current game-data.js here..."></textarea>
           <div class="btn-row">
-            <button class="secondary" id="templateUpdateBtn">Extract &amp; save template</button>
+            <button class="secondary" id="templateUpdateBtn">Extract &amp; save template from pasted text</button>
             <span id="templateStatus" style="font-size:12px;color:var(--hud-dim);margin-left:8px;"></span>
           </div>
         </div>
@@ -1890,18 +1895,26 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
         errors.push(`Row ${rowNum}: itemId "${rawItemId}" doesn't match any existing item — added as a NEW item instead. If you meant to edit an existing one, check the itemId column.`);
       }
       if(existing){
+        // A blank cell on an edit row means "I didn't touch this", not "clear
+        // it" -- for every one of these list/optional fields. label and
+        // description are the only two that DON'T get this treatment: they're
+        // required (validated above, blank already rejects the row outright),
+        // so there's no silent-wipe risk to guard against there.
         const full = RD.THEMES[existing.theme]?.topics?.[existing.topic]?.items?.[existing.id];
         valid.push({
           isEdit: true,
           theme: existing.theme, topicId: existing.topic, usingNewTopic: false,
           itemId: existing.id, editingItemId: existing.id,
-          label, description, mechanism, funFacts,
+          label, description,
+          mechanism: mechanism || (full?.mechanism||''),
+          funFacts: funFacts.length ? funFacts : (full?.funFacts||[]),
           activeRecall: activeRecallList.length ? activeRecallList : (full?.activeRecall||[]),
-          hashtags,
+          hashtags: hashtags.length ? hashtags : (full?.hashtags||[]),
           course, class: cls, relatedCourseOverride: full?.relatedCourse||'',
           courseInfo: { addCourseSnippet:'', addClassSnippet:'', newCourseData:null, newClassData:null },
           addCourseSnippet: '', addClassSnippet: '',
-          refs, images: images.length ? images : (full?.images||[]),
+          refs: refs.length ? refs : (full?.refs||[]),
+          images: images.length ? images : (full?.images||[]),
           existingQuestions: full?.questions || [],
         });
         continue;
@@ -3567,6 +3580,20 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     a.click();
   });
 
+  // Shared by both the manual-paste box and the GitHub-refresh button below
+  // -- one save path, so "saved" always means the same thing regardless of
+  // where the text came from.
+  function saveTemplate(parts, statusEl, successNote){
+    try {
+      localStorage.setItem('gameDataTemplate', JSON.stringify(parts));
+      statusEl.textContent = `✓ Template saved in this browser${successNote||''}.`;
+      statusEl.style.color = 'var(--good)';
+    } catch(e){
+      statusEl.textContent = '⚠️ Could not save (this browser is blocking local storage for file:// pages) — the template will apply for this session only, not future ones.';
+      statusEl.style.color = 'var(--danger)';
+      window.__sessionTemplateOverride = parts; // best-effort in-memory fallback for the rest of this session
+    }
+  }
   document.getElementById('templateUpdateBtn').addEventListener('click', ()=>{
     const templateInput = document.getElementById('templateInput');
     const templateStatus = document.getElementById('templateStatus');
@@ -3576,16 +3603,38 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       templateStatus.style.color = 'var(--danger)';
       return;
     }
-    try {
-      localStorage.setItem('gameDataTemplate', JSON.stringify(parts));
-      templateStatus.textContent = '✓ Template saved in this browser.';
-      templateStatus.style.color = 'var(--good)';
-    } catch(e){
-      templateStatus.textContent = '⚠️ Could not save (this browser is blocking local storage for file:// pages) — the template will apply for this session only, not future ones.';
-      templateStatus.style.color = 'var(--danger)';
-      window.__sessionTemplateOverride = parts; // best-effort in-memory fallback for the rest of this session
-    }
+    saveTemplate(parts, templateStatus);
     templateInput.value = '';
+  });
+  // The actual fix for "I forgot to update the template" -- pulls the last
+  // COMMITTED game-data.js straight from GitHub (the same fetch the "Check
+  // for updates" feature already uses) instead of requiring a manual
+  // copy-paste. Only misses uncommitted local edits, which is what the
+  // paste box above is still there for.
+  document.getElementById('templateRefreshGithubBtn').addEventListener('click', async ()=>{
+    const btn = document.getElementById('templateRefreshGithubBtn');
+    const statusEl = document.getElementById('templateGithubStatus');
+    btn.disabled = true;
+    statusEl.style.color = 'var(--hud-dim)';
+    statusEl.textContent = 'Fetching game-data.js from GitHub…';
+    try {
+      const remoteText = await fetchRaw('game-data.js');
+      const parts = extractTemplateParts(remoteText);
+      if(!parts){
+        statusEl.textContent = '⚠️ Fetched the file but couldn\'t find COURSES/THEMES in it -- something\'s unexpectedly broken on GitHub main.';
+        statusEl.style.color = 'var(--danger)';
+        return;
+      }
+      // Sanity-check the fetch actually returned real data, not an empty/error page
+      const remoteData = parseGameDataText(remoteText);
+      const counts = countAll(remoteData);
+      saveTemplate(parts, statusEl, ` (${counts.items} items, ${counts.questions} questions, from GitHub main)`);
+    } catch(err){
+      statusEl.textContent = `⚠️ Couldn't fetch from GitHub (${err.message}). Use the paste box below instead if you're offline.`;
+      statusEl.style.color = 'var(--danger)';
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   function renderAll(){ renderItem(); renderQuestion(); renderCourse(); renderHashtagStructureList(); }
