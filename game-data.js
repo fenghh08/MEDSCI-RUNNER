@@ -61,7 +61,7 @@
    ("MEDS3002 · L14 · Cancer Hallmarks") is generated automatically — see
    courseDisplayString() in cancer-runner-group.html.
    ====================================================================== */
-              const COURSES = {
+                const COURSES = {
     'MEDS3002': {
       'code': 'MEDS3002',
       'label': 'Cancer / Medical Science',
@@ -107,10 +107,7 @@
         },
         'L14': {
           'label': 'Cancer Hallmarks',
-          'outcomes': [
-            'Identify the BCR-ABL fusion (Philadelphia chromosome) as a molecular hallmark of chronic myeloid leukemia.',
-            'Explain how loss of TP53 tumor-suppressor function contributes to genomic instability and treatment resistance.',
-          ],
+          'outcomes': ['Identify the BCR-ABL fusion (Philadelphia chromosome) as a molecular hallmark of chronic myeloid leukemia.', 'Explain how loss of TP53 tumor-suppressor function contributes to genomic instability and treatment resistance.'],
           'intro': 'This lecture covers two classic cancer hallmarks seen in leukemia: an activating fusion event (BCR-ABL) that drives unregulated proliferation, and a loss-of-function event (TP53) that lets damaged cells survive and divide instead of being stopped or destroyed.',
         },
         'L15': {
@@ -299,11 +296,21 @@
       'code': 'MEDS3003',
       'label': 'Advanced Therapeutics',
       'classes': {
-        'L7-8': { 'label': 'Nanoparticle Drug Delivery Systems' },
-        'L9': { 'label': 'Anatomy and Physiology of the Auditory System' },
-        'L10': { 'label': 'Cochlear Implants and Gene Therapy for Hearing Loss' },
-        'L11': { 'label': 'Biosensors – Definition, Structure and Classification' },
-        'L12': { 'label': 'Biosensors in Everyday Life and Healthcare' },
+        'L7-8': {
+          'label': 'Nanoparticle Drug Delivery Systems',
+        },
+        'L9': {
+          'label': 'Anatomy and Physiology of the Auditory System',
+        },
+        'L10': {
+          'label': 'Cochlear Implants and Gene Therapy for Hearing Loss',
+        },
+        'L11': {
+          'label': 'Biosensors – Definition, Structure and Classification',
+        },
+        'L12': {
+          'label': 'Biosensors in Everyday Life and Healthcare',
+        },
       },
     },
   };
@@ -384,7 +391,7 @@
    its item's (e.g. a question spanning several classes at once) — most
    questions just inherit the item's.
    ====================================================================== */
-              const THEMES = {
+                const THEMES = {
     'MEDS3002': {
       'label': 'MEDS3002',
       'icon': '🎗️',
@@ -479,45 +486,6 @@
                   'hashtags': ['Leukemia'],
                 },
               ],
-            },
-            'heytest_g7kw': {
-              'label': 'Hey test',
-              'images': [
-                {
-                  'caption': 'Biorender image',
-                  'filename': 'heytest-1.png',
-                  'url': 'images/heytest-1.png',
-                },
-              ],
-              'description': 'A drug',
-              'mechanism': 'It works',
-              'funFacts': ['Cool stuff'],
-              'refs': [
-                {
-                  'label': 'Link test',
-                  'url': 'https://app.notion.com/p/Medsci-run-3cba21c5759780ed844ad229e9acfb49',
-                },
-              ],
-              'hashtags': ['Senescence'],
-              'relatedCourse': 'MEDS3002 L3 RNA splicing\nMEDS3002 L8 Cellular senescence',
-              'questions': [],
-            },
-            'craig_itu2': {
-              'label': 'Craig',
-              'images': [
-                {
-                  'caption': 'Craig',
-                  'filename': 'craig-2.png',
-                  'url': 'images/craig-2.png',
-                },
-              ],
-              'description': 'this is Craig',
-              'mechanism': 'jdawd',
-              'funFacts': ['awda'],
-              'refs': [],
-              'hashtags': [],
-              'course': 'MEDS3002',
-              'class': 'L3',
             },
           },
         },
@@ -1478,9 +1446,7 @@
         'pharmacologyHistory': {
           'label': 'Pharmacology History',
           'icon': '📜',
-          'color': '#818cf8', // was a magenta close enough to 'pharmacology's red-pink to be
-                               // hard to tell apart for red-green colorblind players -- moved
-                               // to indigo, clearly distinct from every other MEDS3002 topic color
+          'color': '#818cf8',
           'items': {
             'historyOfPharmacology': {
               'label': 'History of pharmacology & pharmacognosy',
@@ -1885,10 +1851,10 @@
                 },
                 {
                   'id': 'np-dds-2',
-                  'prompt': "Why does a drug delivery system need to 'escape recognition' by the body's immune defences?",
-                  'options': ["So it isn't prematurely degraded before it reaches its target", 'So it can trigger a stronger inflammatory response at the target site', 'So it binds irreversibly to circulating immune cells', 'So it increases its own molecular weight during circulation'],
+                  'prompt': 'Why does a drug delivery system need to \'escape recognition\' by the body\'s immune defences?',
+                  'options': ['So it isn\'t prematurely degraded before it reaches its target', 'So it can trigger a stronger inflammatory response at the target site', 'So it binds irreversibly to circulating immune cells', 'So it increases its own molecular weight during circulation'],
                   'correctIndex': 0,
-                  'explanation': "If immune defences recognise and degrade the carrier too early, the therapeutic cargo never reaches its intended site — stealth from immune recognition is what keeps it circulating long enough to work.",
+                  'explanation': 'If immune defences recognise and degrade the carrier too early, the therapeutic cargo never reaches its intended site — stealth from immune recognition is what keeps it circulating long enough to work.',
                   'hashtags': ['Nanomedicine'],
                 },
               ],
@@ -1918,7 +1884,7 @@
                   'prompt': 'Pinocytosis, as a route of nanoparticle cellular uptake, is best described as:',
                   'options': ['Non-specific fluid-phase uptake without a distinct receptor or coat protein', 'A process that only occurs in the nucleus', 'Uptake that requires the particle to first bind a caveolin receptor', 'A route exclusive to particles larger than 1 micron'],
                   'correctIndex': 0,
-                  'explanation': "Pinocytosis is essentially 'cell drinking' — non-specific fluid uptake into small vesicles, without the receptor-specific or coat-protein machinery that clathrin/caveolin routes use.",
+                  'explanation': 'Pinocytosis is essentially \'cell drinking\' — non-specific fluid uptake into small vesicles, without the receptor-specific or coat-protein machinery that clathrin/caveolin routes use.',
                   'hashtags': ['Nanomedicine'],
                 },
               ],
@@ -1927,7 +1893,7 @@
               'label': 'Endosomal escape via the proton sponge effect',
               'images': [],
               'description': 'Ionizable nanoparticles can escape the endosome before being degraded in the lysosome, by exploiting the endosome\'s own acidification process.',
-              'mechanism': "As an early endosome matures into a late endosome, it acidifies. An ionizable nanoparticle buffers this acidification, drawing in extra protons and counter-ions, which causes osmotic swelling and eventual rupture of the endosomal membrane — releasing the nanoparticle into the cytoplasm. A non-responsive nanoparticle lacks this buffering capacity and instead proceeds to the lysosome, where enzymes degrade it.",
+              'mechanism': 'As an early endosome matures into a late endosome, it acidifies. An ionizable nanoparticle buffers this acidification, drawing in extra protons and counter-ions, which causes osmotic swelling and eventual rupture of the endosomal membrane — releasing the nanoparticle into the cytoplasm. A non-responsive nanoparticle lacks this buffering capacity and instead proceeds to the lysosome, where enzymes degrade it.',
               'funFacts': [],
               'activeRecall': ['How does the proton sponge effect let an ionizable nanoparticle escape the endosome?', 'What happens instead to a nanoparticle that lacks this buffering capacity?'],
               'refs': [],
@@ -1940,7 +1906,7 @@
                   'prompt': 'What ultimately allows an ionizable nanoparticle to escape the endosome instead of being degraded in the lysosome?',
                   'options': ['Its buffering causes osmotic swelling that ruptures the endosomal membrane', 'It actively binds and destroys lysosomal enzymes', 'It is too large to be enclosed by the endosomal membrane in the first place', 'It reverses the direction of vesicle trafficking back to the cell surface'],
                   'correctIndex': 0,
-                  'explanation': "This is the 'proton sponge effect' — the ionizable particle absorbs protons (and water, osmotically) as the endosome acidifies, swelling it until the membrane ruptures and releases the cargo into the cytoplasm.",
+                  'explanation': 'This is the \'proton sponge effect\' — the ionizable particle absorbs protons (and water, osmotically) as the endosome acidifies, swelling it until the membrane ruptures and releases the cargo into the cytoplasm.',
                   'hashtags': ['Nanomedicine'],
                 },
                 {
@@ -1956,7 +1922,7 @@
             'npPhysicochemicalFactors': {
               'label': 'Nanoparticle physicochemical properties and biological fate',
               'images': [],
-              'description': "A nanoparticle's size, shape, surface charge, and coating all influence how it behaves in the body — from crossing blood vessel walls to penetrating mucus.",
+              'description': 'A nanoparticle\'s size, shape, surface charge, and coating all influence how it behaves in the body — from crossing blood vessel walls to penetrating mucus.',
               'mechanism': 'Size and shape affect extravasation out of leaky tumour vasculature and clearance by immune cells; surface charge affects clearance and interaction with negatively-charged mucus; coating (e.g. a stealth layer) and active targeting ligands can reduce clearance and improve accumulation at the target tissue.',
               'funFacts': [],
               'activeRecall': ['Why is a roughly 20-150 nm neutral nanoparticle often the "sweet spot" for tumour delivery?', 'Why might a positively charged nanoparticle clear from circulation faster than a neutral one?'],
@@ -2000,7 +1966,7 @@
                   'prompt': 'Inorganic nanoparticles such as gold or iron oxide particles are particularly well suited to theranostic applications mainly because of their:',
                   'options': ['Unique electrical, magnetic, and optical properties', 'Complete absence of any toxicity concerns', 'Inherent biodegradability into harmless metabolites', 'High encapsulation efficiency for hydrophilic drugs'],
                   'correctIndex': 0,
-                  'explanation': "Inorganic nanoparticles' distinctive electrical, magnetic and optical properties (e.g. plasmon resonance in gold, magnetism in iron oxide) are exactly what makes them useful for both imaging and therapy — their main limitations are toxicity and solubility, not lack of these properties.",
+                  'explanation': 'Inorganic nanoparticles\' distinctive electrical, magnetic and optical properties (e.g. plasmon resonance in gold, magnetism in iron oxide) are exactly what makes them useful for both imaging and therapy — their main limitations are toxicity and solubility, not lack of these properties.',
                   'hashtags': ['Nanomedicine'],
                 },
                 {
@@ -2027,7 +1993,7 @@
               'questions': [
                 {
                   'id': 'np-triple-1',
-                  'prompt': "In the 'triple hit' gold nanorod/mesoporous silica/DOX system, what triggers drug release from the thermo-responsive polymer coating?",
+                  'prompt': 'In the \'triple hit\' gold nanorod/mesoporous silica/DOX system, what triggers drug release from the thermo-responsive polymer coating?',
                   'options': ['Near-infrared (NIR) light heating the gold nanorod core', 'A drop in extracellular pH alone, independent of light', 'Mechanical agitation of the particle by blood flow', 'UV light directly degrading the DOX molecule'],
                   'correctIndex': 0,
                   'explanation': 'NIR-LED light is absorbed by the gold nanorod core and converted to heat; that heat causes the thermo-responsive polymer coating to change conformation and release the loaded DOX — the switch is optical, not pH alone.',
@@ -2035,10 +2001,10 @@
                 },
                 {
                   'id': 'np-triple-2',
-                  'prompt': "Which three functions does the gold nanorod core provide in this 'triple hit' system?",
+                  'prompt': 'Which three functions does the gold nanorod core provide in this \'triple hit\' system?',
                   'options': ['A heat source for both drug release and photothermal therapy, plus a CT contrast agent', 'A pH sensor, an oxygen carrier, and a fluorescent tag', 'An antibody scaffold, a vaccine adjuvant, and a pH buffer', 'A magnetic core for MRI, a radiotracer, and an enzyme mimic'],
                   'correctIndex': 0,
-                  'explanation': "The gold core's job is thermal: it converts NIR light into heat for both triggering drug release and directly killing cells (photothermal therapy), while its high X-ray attenuation also makes it visible on CT scans.",
+                  'explanation': 'The gold core\'s job is thermal: it converts NIR light into heat for both triggering drug release and directly killing cells (photothermal therapy), while its high X-ray attenuation also makes it visible on CT scans.',
                   'hashtags': ['Nanomedicine', 'Theranostics'],
                 },
               ],
@@ -2047,7 +2013,7 @@
               'label': 'Localized surface plasmon resonance (LSPR) in gold nanoparticles',
               'images': [],
               'description': 'Gold nanoparticles convert light into heat through localized surface plasmon resonance, and also strongly attenuate X-rays — giving them both a therapeutic (hyperthermia) and a diagnostic (CT contrast) role.',
-              'mechanism': "LSPR is the collective oscillation of free electrons in the gold nanoparticle in response to light of a matching wavelength; this oscillation dissipates as heat, raising local temperature (hyperthermia, ~40-43°C). Separately, gold's high X-ray attenuation coefficient makes it useful as a contrast agent for X-ray CT imaging.",
+              'mechanism': 'LSPR is the collective oscillation of free electrons in the gold nanoparticle in response to light of a matching wavelength; this oscillation dissipates as heat, raising local temperature (hyperthermia, ~40-43°C). Separately, gold\'s high X-ray attenuation coefficient makes it useful as a contrast agent for X-ray CT imaging.',
               'funFacts': [],
               'activeRecall': ['What is localized surface plasmon resonance, and how does it turn light into heat?', 'Why does gold’s X-ray attenuation also make it useful for CT imaging?'],
               'refs': [],
@@ -2058,7 +2024,7 @@
                 {
                   'id': 'np-lspr-1',
                   'prompt': 'Localized surface plasmon resonance (LSPR) in a gold nanoparticle refers to:',
-                  'options': ['The collective oscillation of free electrons in the particle upon exposure to light, which is dissipated as heat', "The particle's rate of renal clearance from the bloodstream", 'A chemical reaction between gold and doxorubicin', 'The binding of gold nanoparticles to plasma membrane receptors'],
+                  'options': ['The collective oscillation of free electrons in the particle upon exposure to light, which is dissipated as heat', 'The particle\'s rate of renal clearance from the bloodstream', 'A chemical reaction between gold and doxorubicin', 'The binding of gold nanoparticles to plasma membrane receptors'],
                   'correctIndex': 0,
                   'explanation': 'LSPR describes the free electrons in the gold nanostructure oscillating together when hit by light of the right wavelength — that oscillation\'s energy is released as heat, which is the basis of gold-nanoparticle hyperthermia.',
                   'hashtags': ['Nanomedicine'],
@@ -2098,7 +2064,7 @@
                   'prompt': 'Why does this thermo-responsive behaviour matter for controlling drug release in the body?',
                   'options': ['It lets heat (e.g. from NIR-triggered gold heating) act as an external ON/OFF switch for release', 'It ensures the drug is released continuously regardless of temperature', 'It prevents the nanoparticle from ever reaching body temperature', 'It makes the polymer coating permanently impermeable to the drug'],
                   'correctIndex': 0,
-                  'explanation': "Because the polymer's physical state flips sharply around a specific temperature, applying (or withholding) heat becomes a controllable trigger — exactly the ON/OFF switching behaviour used to control when DOX is released.",
+                  'explanation': 'Because the polymer\'s physical state flips sharply around a specific temperature, applying (or withholding) heat becomes a controllable trigger — exactly the ON/OFF switching behaviour used to control when DOX is released.',
                   'hashtags': ['Nanomedicine'],
                 },
               ],
@@ -2136,7 +2102,7 @@
             'ultrasoundNPMechanisms': {
               'label': 'Ultrasound-triggered nanoparticle disruption',
               'images': [],
-              'description': "Ultrasound can release a nanoparticle's cargo through two distinct mechanisms — a thermal effect and a physical (mechanical) effect — and also plays several other roles in nanoparticle-based therapy.",
+              'description': 'Ultrasound can release a nanoparticle\'s cargo through two distinct mechanisms — a thermal effect and a physical (mechanical) effect — and also plays several other roles in nanoparticle-based therapy.',
               'mechanism': 'The thermal effect from ultrasound energy can cause a nanoparticle to deform/release its cargo through localized heating; the physical effect mechanically shatters/disrupts the particle structure directly. Beyond triggering release, ultrasound is also used for: (1) targeting/guiding accumulation at the tumour, (2) enhancing nanoparticle penetration into tissue, (3) directly disrupting the nanoparticle, and (4) sonoporation — transiently permeabilising the cell membrane to let cargo in.',
               'funFacts': [],
               'activeRecall': ['What are the two distinct mechanisms by which ultrasound can release a nanoparticle’s cargo?', 'What is sonoporation, and how is it different from the particle-disrupting effects of ultrasound?'],
@@ -2147,7 +2113,7 @@
               'questions': [
                 {
                   'id': 'np-us-1',
-                  'prompt': "Ultrasound can release a nanoparticle's cargo via two distinct effects. What are they?",
+                  'prompt': 'Ultrasound can release a nanoparticle\'s cargo via two distinct effects. What are they?',
                   'options': ['A thermal effect and a physical (mechanical disruption) effect', 'An electrical effect and a magnetic effect', 'An enzymatic effect and a pH effect', 'A chemical effect and a radioactive effect'],
                   'correctIndex': 0,
                   'explanation': 'Ultrasound energy can release cargo either by heating the particle (thermal effect) or by mechanically disrupting/shattering its structure (physical effect) — two separate physical mechanisms, not a chemical or enzymatic one.',
@@ -2155,10 +2121,10 @@
                 },
                 {
                   'id': 'np-us-2',
-                  'prompt': "'Sonoporation', as one of the roles ultrasound plays in nanoparticle-based therapy, refers to:",
+                  'prompt': '\'Sonoporation\', as one of the roles ultrasound plays in nanoparticle-based therapy, refers to:',
                   'options': ['Transiently making the cell membrane more permeable so cargo can enter', 'Permanently destroying the target cell membrane', 'Guiding nanoparticles using a magnetic field', 'Converting the nanoparticle into an inert byproduct'],
                   'correctIndex': 0,
-                  'explanation': "Sonoporation is the transient permeabilisation of the cell membrane caused by ultrasound, which helps cargo (drugs, genes) get into the cell — it's temporary, not a permanent destructive effect.",
+                  'explanation': 'Sonoporation is the transient permeabilisation of the cell membrane caused by ultrasound, which helps cargo (drugs, genes) get into the cell — it\'s temporary, not a permanent destructive effect.',
                   'hashtags': ['Nanomedicine', 'Ultrasound'],
                 },
               ],
@@ -2210,7 +2176,7 @@
                   'prompt': 'In the two-component (A+B) prodrug system, what happens to components A and B when they reach NON-target tissue?',
                   'options': ['They remain inert, do not react, and are excreted', 'They spontaneously combine into the active drug anyway', 'They become more toxic than the active drug itself', 'They are permanently trapped in non-target tissue'],
                   'correctIndex': 0,
-                  'explanation': "Without the localized ultrasound trigger present at non-target tissue, components A and B never react — they stay inert and are cleared from the body rather than forming active drug where it isn't wanted.",
+                  'explanation': 'Without the localized ultrasound trigger present at non-target tissue, components A and B never react — they stay inert and are cleared from the body rather than forming active drug where it isn\'t wanted.',
                   'hashtags': ['Nanomedicine'],
                 },
                 {
@@ -2218,7 +2184,7 @@
                   'prompt': 'What is the main advantage of splitting a drug into two separately-inert components (A and B) that only combine at the target site?',
                   'options': ['It reduces the chance of the active drug causing toxicity in non-target tissue', 'It doubles the total dose delivered everywhere in the body', 'It removes the need for any targeting mechanism at all', 'It makes both components individually more potent than the combined drug'],
                   'correctIndex': 0,
-                  'explanation': "Because the active drug only forms where the trigger (localized ultrasound) is applied, tissue elsewhere in the body is only ever exposed to the inert precursors — this is what limits off-target toxicity.",
+                  'explanation': 'Because the active drug only forms where the trigger (localized ultrasound) is applied, tissue elsewhere in the body is only ever exposed to the inert precursors — this is what limits off-target toxicity.',
                   'hashtags': ['Nanomedicine'],
                 },
               ],
@@ -2247,7 +2213,7 @@
                   'prompt': 'Which of the following is a key safety advantage of extracellular vesicles (EVs) over whole-cell therapies?',
                   'options': ['EVs cannot self-replicate, removing the risk of the therapy itself forming a tumour', 'EVs are larger than the cells that produce them', 'EVs are exclusively produced by cancer cells', 'EVs require live cell division to function therapeutically'],
                   'correctIndex': 0,
-                  'explanation': "Because EVs are non-replicating vesicles rather than living cells, there's no possibility of the therapeutic material itself dividing uncontrollably — unlike a transplanted living cell, which in principle could.",
+                  'explanation': 'Because EVs are non-replicating vesicles rather than living cells, there\'s no possibility of the therapeutic material itself dividing uncontrollably — unlike a transplanted living cell, which in principle could.',
                   'hashtags': ['Extracellular Vesicles'],
                 },
                 {
@@ -2307,7 +2273,7 @@
                   'prompt': 'Which EV-target cell interaction mode is described as high-efficiency and capable of affecting multiple cells via broad, transient signaling?',
                   'options': ['Bind-and-leave', 'Bind-and-stay', 'Bind-and-internalize', 'None of these modes affect more than one cell'],
                   'correctIndex': 0,
-                  'explanation': "'Bind-and-leave' briefly engages a receptor and then detaches, allowing the same EV (or its signal) to potentially affect multiple cells — this is the high-efficiency, broad-but-transient mode.",
+                  'explanation': '\'Bind-and-leave\' briefly engages a receptor and then detaches, allowing the same EV (or its signal) to potentially affect multiple cells — this is the high-efficiency, broad-but-transient mode.',
                   'hashtags': ['Extracellular Vesicles'],
                 },
                 {
@@ -2315,7 +2281,7 @@
                   'prompt': 'Which EV-target cell interaction mode carries a risk of the vesicle undergoing lysosomal degradation after internalization?',
                   'options': ['Bind-and-internalize', 'Bind-and-leave', 'Bind-and-stay', 'All three modes carry an identical risk of lysosomal degradation'],
                   'correctIndex': 0,
-                  'explanation': "Only 'bind-and-internalize' brings the EV inside the cell (via endocytosis), which is what exposes it to the endosome-to-lysosome degradation pathway — the other two modes act at the cell surface.",
+                  'explanation': 'Only \'bind-and-internalize\' brings the EV inside the cell (via endocytosis), which is what exposes it to the endosome-to-lysosome degradation pathway — the other two modes act at the cell surface.',
                   'hashtags': ['Extracellular Vesicles'],
                 },
               ],
@@ -2334,10 +2300,10 @@
               'questions': [
                 {
                   'id': 'ev-damage-1',
-                  'prompt': "In this damaged-cell signaling model, what does the stem cell send back to the damaged cell after receiving its distress signal?",
+                  'prompt': 'In this damaged-cell signaling model, what does the stem cell send back to the damaged cell after receiving its distress signal?',
                   'options': ['A small package of DNA/RNA instructions', 'A fully differentiated replacement cell', 'A dose of chemotherapy', 'Nothing — the stem cell only observes without responding'],
                   'correctIndex': 0,
-                  'explanation': "After receiving the damaged cell's EV-carried distress signal, the stem cell responds by sending back genetic material (DNA/RNA) — instructions the damaged cell then follows to repair itself, rather than being physically replaced.",
+                  'explanation': 'After receiving the damaged cell\'s EV-carried distress signal, the stem cell responds by sending back genetic material (DNA/RNA) — instructions the damaged cell then follows to repair itself, rather than being physically replaced.',
                   'hashtags': ['Extracellular Vesicles'],
                 },
                 {
