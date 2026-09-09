@@ -2783,6 +2783,7 @@
     guideListHeader.style.display = 'none';
     guideCourseHeader.style.display = 'block';
     courseBackBtn.textContent = courseViewOrigin==='list' ? '← Back to course list'
+      : courseViewOrigin==='unit' ? `← Back to ${guideActiveUnit}`
       : courseViewOrigin==='item' && cameFromItem ? `← Back to ${cameFromItem.item.label}`
       : '← Back to topics';
     courseHeaderText.textContent = headerText;
@@ -2823,20 +2824,11 @@
   function openTagView(tag, origin){
     openFilteredItemView('tag', `# ${tag}`, origin, item=>(item.hashtags||[]).includes(tag));
   }
-  // Lists every distinct course tag across every theme — the direct "browse
-  // by lecture" entry point, not requiring a click-through from an item.
-  function openCourseList(){
-    if(screenState==='running') pauseGame();
-    guideMode = 'courseList';
-    guideActiveCourse = null;
-    guideSearchInput.value = '';
-    itemDetailWrap.style.display = 'none';
-    guideTabsWrap.style.display = 'none';
-    guideCourseHeader.style.display = 'none';
-    guideListHeader.style.display = 'block';
-    guideTitle.textContent = '🎓 Browse by lecture';
-    guideBlurb.textContent = 'Grouped by unit code — pick a course/lecture to see everything filed under it.';
-    const courseMap = {}; // courseName -> count
+  // Shared aggregation used by both levels of "Browse by lecture": every
+  // distinct relatedCourse line, grouped by unit code (the first
+  // whitespace-separated token, e.g. "MEDS3002" from "MEDS3002 L14 ...").
+  function buildCourseUnitMap(){
+    const courseMap = {}; // full relatedCourse line -> item count
     Object.values(THEMES).forEach(theme=>{
       Object.values(theme.topics).forEach(topicData=>{
         Object.values(topicData.items).forEach(item=>{
@@ -2846,13 +2838,31 @@
         });
       });
     });
-    // Group by unit code — the first whitespace-separated token of the
-    // relatedCourse string (e.g. "MEDS3002" from "MEDS3002 L14 ...").
-    const units = {};
+    const units = {}; // unit code -> [full relatedCourse lines]
     Object.keys(courseMap).forEach(name=>{
       const unit = name.split(/\s+/)[0] || 'Other';
       (units[unit] = units[unit] || []).push(name);
     });
+    return { courseMap, units };
+  }
+  let guideActiveUnit = null; // which unit's lecture list "Browse by lecture" is currently one level into, or null at the top-level course picker
+  // Level 1 of "Browse by lecture": pick a course/unit first, so a big
+  // multi-course library doesn't dump every lecture from every course into
+  // one long scrolling list.
+  function openCourseList(){
+    if(screenState==='running') pauseGame();
+    guideMode = 'courseList';
+    guideActiveCourse = null;
+    guideActiveUnit = null;
+    guideSearchInput.value = '';
+    itemDetailWrap.style.display = 'none';
+    guideTabsWrap.style.display = 'none';
+    guideCourseHeader.style.display = 'none';
+    guideListHeader.style.display = 'block';
+    guideListBackBtn.textContent = '← Back to guide';
+    guideTitle.textContent = '🎓 Browse by lecture';
+    guideBlurb.textContent = 'Pick a course to see its lectures.';
+    const { courseMap, units } = buildCourseUnitMap();
     const unitNames = Object.keys(units).sort();
     guideItemGrid.style.display = 'grid';
     guideItemGrid.innerHTML = '';
@@ -2860,26 +2870,53 @@
       guideItemGrid.innerHTML = `<p class="p-desc">No items have a relatedCourse tag yet.</p>`;
     } else {
       unitNames.forEach(unit=>{
-        const section = document.createElement('div');
-        section.style.gridColumn = '1 / -1';
-        section.className = 'sum-group-title';
-        section.style.marginTop = '10px';
-        section.textContent = `📘 ${unit}`;
-        guideItemGrid.appendChild(section);
-        units[unit].sort().forEach(name=>{
-          const card = document.createElement('div');
-          card.className = 'item-card';
-          card.dataset.search = name.toLowerCase();
-          card.innerHTML = `<div class="ic-name">🎓 ${name}</div><div class="ic-hint">${courseMap[name]} item${courseMap[name]===1?'':'s'}</div>`;
-          card.addEventListener('click', ()=> openCourseView(name, 'list'));
-          guideItemGrid.appendChild(card);
-        });
+        const itemCount = units[unit].reduce((sum,name)=>sum+courseMap[name], 0);
+        const card = document.createElement('div');
+        card.className = 'item-card';
+        card.dataset.search = unit.toLowerCase();
+        card.innerHTML = `<div class="ic-name">📘 ${unit}</div><div class="ic-hint">${units[unit].length} lecture${units[unit].length===1?'':'s'} · ${itemCount} item${itemCount===1?'':'s'}</div>`;
+        card.addEventListener('click', ()=> openCourseUnitLectures(unit));
+        guideItemGrid.appendChild(card);
+      });
+    }
+    infoModal.classList.add('active');
+  }
+  // Level 2 of "Browse by lecture": the lectures within one already-chosen
+  // course/unit.
+  function openCourseUnitLectures(unit){
+    if(screenState==='running') pauseGame();
+    guideMode = 'courseList';
+    guideActiveCourse = null;
+    guideActiveUnit = unit;
+    guideSearchInput.value = '';
+    itemDetailWrap.style.display = 'none';
+    guideTabsWrap.style.display = 'none';
+    guideCourseHeader.style.display = 'none';
+    guideListHeader.style.display = 'block';
+    guideListBackBtn.textContent = '← Back to courses';
+    guideTitle.textContent = `🎓 ${unit}`;
+    guideBlurb.textContent = 'Pick a lecture to see everything filed under it.';
+    const { courseMap, units } = buildCourseUnitMap();
+    const lectures = (units[unit]||[]).sort();
+    guideItemGrid.style.display = 'grid';
+    guideItemGrid.innerHTML = '';
+    if(!lectures.length){
+      guideItemGrid.innerHTML = `<p class="p-desc">No lectures found for this course.</p>`;
+    } else {
+      lectures.forEach(name=>{
+        const card = document.createElement('div');
+        card.className = 'item-card';
+        card.dataset.search = name.toLowerCase();
+        card.innerHTML = `<div class="ic-name">🎓 ${name}</div><div class="ic-hint">${courseMap[name]} item${courseMap[name]===1?'':'s'}</div>`;
+        card.addEventListener('click', ()=> openCourseView(name, 'unit'));
+        guideItemGrid.appendChild(card);
       });
     }
     infoModal.classList.add('active');
   }
   courseBackBtn.addEventListener('click', ()=>{
     if(courseViewOrigin==='list'){ openCourseList(); return; }
+    if(courseViewOrigin==='unit'){ openCourseUnitLectures(guideActiveUnit); return; }
     if(courseViewOrigin==='item' && cameFromItem){
       const { topicId, itemId, item } = cameFromItem;
       openItemDetail(topicId, itemId, item);
@@ -2887,7 +2924,10 @@
     }
     openStudyGuide(guideActiveTheme, guideActiveTopic, null);
   });
-  guideListBackBtn.addEventListener('click', ()=> openStudyGuide(guideActiveTheme, guideActiveTopic, null));
+  guideListBackBtn.addEventListener('click', ()=>{
+    if(guideActiveUnit){ openCourseList(); return; }
+    openStudyGuide(guideActiveTheme, guideActiveTopic, null);
+  });
   guideClose.addEventListener('click', ()=> infoModal.classList.remove('active'));
 
   // ---------- image lightbox ----------
