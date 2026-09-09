@@ -14,16 +14,28 @@
     --hairline-strong:rgba(255,255,255,.25); --hairline-soft:rgba(255,255,255,.2); --chip-bg:rgba(255,255,255,.08);
     --mono:'SF Mono','JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
     --display:'Georgia','Iowan Old Style',serif;
+    /* The in-game HUD (#hud, stall/elimination toasts, racer leaderboard)
+       floats on top of the canvas, which -- unlike the rest of the UI --
+       never re-themes (see the note below): it's always the dark "vessel"
+       look. So the HUD's own text needs to always stay legible against that
+       same dark backdrop too, in EITHER page theme -- these are deliberately
+       never overridden in the light block below, unlike --hud-ink/--hud-dim
+       themselves. (Reported from a real device: in light mode, the HUD was
+       inheriting the light theme's dark ink color and going near-invisible
+       against the still-dark canvas underneath it.) */
+    --ov-ink:#ffe9ef; --ov-dim:#c98a9c; --ov-danger:#ff3b5c; --ov-bg:#1c0710;
   }
-  /* Light mode only re-themes the surrounding UI chrome (menus, HUD, modals,
+  /* Light mode only re-themes the surrounding UI chrome (menus, modals,
      buttons) via these variable overrides -- the in-game canvas keeps its
-     dark "vessel" look in both themes. The canvas's own draw calls use
-     literal hex colors tuned for a dark backdrop (glowing cells read best
-     against darkness), not these CSS variables, so it's unaffected either
-     way; retheming it would mean redesigning contrast for every entity with
-     no way to verify it live. Brand accents (membrane/danger/good) are
-     deepened here rather than reused as-is, since the dark-mode values are
-     tuned for glow-on-black and read as low-contrast text on a light page. */
+     dark "vessel" look in both themes, and the HUD that floats on top of it
+     is pinned to the always-dark --ov-* variables above for the same reason.
+     The canvas's own draw calls use literal hex colors tuned for a dark
+     backdrop (glowing cells read best against darkness), not these CSS
+     variables, so it's unaffected either way; retheming it would mean
+     redesigning contrast for every entity with no way to verify it live.
+     Brand accents (membrane/danger/good) are deepened here rather than
+     reused as-is, since the dark-mode values are tuned for glow-on-black and
+     read as low-contrast text on a light page. */
   :root[data-theme="light"]{
     color-scheme: light;
     --bg-0:#ffe3ea; --bg-1:#fffbfc;
@@ -77,20 +89,20 @@
   canvas{ display:block; width:100%; height:100%; background:var(--bg-1); }
 
   #hud{ position:absolute;top:0;left:0;right:0; display:none;justify-content:space-between;align-items:flex-start;
-    padding:14px 16px; pointer-events:none; z-index:22; }
+    padding:14px 16px; pointer-events:none; z-index:22; color:var(--ov-ink); }
   #hudLeft{ display:flex; gap:8px; align-items:flex-start; }
   #hudRightCol{ display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
   .hud-block{ background:rgba(13,3,8,.55); backdrop-filter:blur(4px); border:1px solid rgba(255,93,143,.25);
     border-radius:10px; padding:8px 12px; pointer-events:auto; }
-  .hud-label{ font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--hud-dim); margin-bottom:2px; }
+  .hud-label{ font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--ov-dim); margin-bottom:2px; }
   .hud-value{ font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; }
-  .hud-value.low-life{ color:var(--danger); animation:lowLifePulse 1s ease-in-out infinite; }
+  .hud-value.low-life{ color:var(--ov-danger); animation:lowLifePulse 1s ease-in-out infinite; }
   @keyframes lowLifePulse{ 0%,100%{ opacity:1; } 50%{ opacity:.55; } }
-  .hud-stage-line{ font-size:11px; color:var(--hud-ink); margin-top:4px; font-weight:700; }
+  .hud-stage-line{ font-size:11px; color:var(--ov-ink); margin-top:4px; font-weight:700; }
   .topic-chips{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; max-width:340px; }
   .topic-chip{ font-size:10px; padding:3px 8px; border-radius:12px; border:1px solid; white-space:nowrap; }
   #hudRight{ display:flex;flex-direction:column;align-items:flex-end;gap:6px; pointer-events:auto; }
-  .icon-btn{ background:rgba(13,3,8,.55); border:1px solid rgba(255,93,143,.3); color:var(--hud-ink);
+  .icon-btn{ background:rgba(13,3,8,.55); border:1px solid rgba(255,93,143,.3); color:var(--ov-ink);
     border-radius:8px; width:34px;height:34px; font-size:15px; cursor:pointer; }
   .icon-btn.inactive{ opacity:.35; pointer-events:none; }
 
@@ -111,6 +123,14 @@
     border-radius:5px; padding:1px 6px; font-size:12px; }
 
   .cancer-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; width:100%; max-width:460px; margin:0 auto 6px; }
+  /* Course/theme grid cards (MEDS3002, MEDS2003, etc.) were left-aligned by
+     the shared .pick-card default while the mode-picker cards below them
+     (Study & Practice, Group Race, ...) are explicitly centered inline --
+     inconsistent, and reads as off-balance next to the centered icon above
+     the text. Centering here matches the mode cards everywhere this grid is
+     reused (theme pickers, lecture pickers, etc.), not just the landing
+     screen. */
+  .cancer-grid .pick-card{ text-align:center; }
   /* width:100%/box-sizing/display are explicit here rather than relying on
      a plain <button>'s width:auto to stretch to fill its container -- that
      technically should happen per spec once display:block is set (as the
@@ -185,6 +205,20 @@
     width:100%; max-height:92%; overflow-y:auto; padding:22px; text-align:left; position:relative; }
   .panel-close{ position:absolute; top:12px; right:12px; background:none; border:none; color:var(--hud-dim);
     font-size:18px; cursor:pointer; }
+  /* Scroll-more affordance for any .panel-card whose content overflows its
+     max-height:92% -- without this, a scrollable card with more content
+     below just looks cut off / incomplete rather than obviously scrollable
+     (reported from a real device on the MCQ card and the race-summary card).
+     `position:sticky` inside the card's own scroll container keeps it
+     pinned to the visible bottom edge while there's still content below,
+     then it releases and scrolls away naturally once the true end is
+     reached -- see attachScrollHints() below, which toggles `.show` based
+     on actual scroll position so it disappears once nothing more is hidden. */
+  .scroll-more-hint{ position:sticky; bottom:0; left:0; right:0; height:28px; margin:8px -22px -22px;
+    display:flex; align-items:flex-end; justify-content:center; padding-bottom:5px;
+    background:linear-gradient(to bottom, transparent, var(--panel) 65%);
+    color:var(--hud-dim); font-size:14px; pointer-events:none; opacity:0; transition:opacity .15s; }
+  .scroll-more-hint.show{ opacity:1; }
   .p-cat{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--hud-dim); margin-bottom:2px; }
   .p-name{ font-family:var(--display); font-style:italic; font-size:23px; margin:0 0 10px; }
   .p-desc{ font-size:13px; line-height:1.55; margin:0 0 12px; color:var(--hud-ink); }
@@ -261,10 +295,16 @@
   .roster-row{ background:var(--bg-1); border:1px solid var(--panel-line); border-radius:8px; padding:8px 12px; margin-bottom:6px;
     font-size:12.5px; display:flex; justify-content:space-between; }
   .roster-row.me{ border-color:var(--membrane); color:var(--membrane); }
-  .lb-row{ background:var(--bg-1); border:1px solid var(--panel-line); border-radius:8px; padding:8px 12px; margin-bottom:6px;
-    font-size:12.5px; display:flex; justify-content:space-between; gap:10px; }
+  .lb-row{ background:var(--ov-bg); border:1px solid var(--panel-line); border-radius:8px; padding:7px 10px; margin-bottom:5px;
+    font-size:12px; display:flex; justify-content:space-between; gap:8px; color:var(--ov-ink); }
   .lb-row.me{ border-color:var(--membrane); }
-  .lb-row .lb-rank{ color:var(--hud-dim); width:24px; flex-shrink:0; }
+  .lb-row .lb-rank{ color:var(--ov-dim); width:16px; flex-shrink:0; }
+  /* Name is the one part allowed to truncate -- score/status must always
+     stay on one line and fully visible, or the row looks broken/cropped on
+     a narrow HUD panel (this is exactly what was happening before: a long
+     name squeezed the score's own span so much its text wrapped). */
+  .lb-row > span:first-child{ overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:0; }
+  .lb-row > span:last-child{ flex-shrink:0; white-space:nowrap; }
   #mpLeaderboardPanel{ max-height:170px; overflow-y:auto; }
   /* top uses --hud-clearance (see the #mcqModal comment above) so this sits
      just below the HUD however tall it actually is, rather than a fixed
@@ -331,7 +371,7 @@
           <button class="icon-btn" id="pauseBtn" title="Pause (P)">⏸</button>
           <button class="icon-btn" id="guideBtn" title="Study guide">📚</button>
         </div>
-        <div class="hud-block" id="mpOpponentPanel" style="display:none;max-width:230px;">
+        <div class="hud-block" id="mpOpponentPanel" style="display:none;max-width:min(250px, 46vw);">
           <div class="hud-label">Racers</div>
           <div id="mpLeaderboardPanel"></div>
         </div>
@@ -342,11 +382,11 @@
       flex-direction:column;gap:6px;z-index:23;pointer-events:none;">
       <div id="resumeIndicatorNum" style="font-family:var(--display);font-style:italic;font-size:110px;line-height:1;
         color:var(--membrane);text-shadow:0 0 40px rgba(255,93,143,.6);"></div>
-      <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--hud-dim);">Resuming</div>
+      <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ov-dim);">Resuming</div>
     </div>
     <div id="stallWarning" style="display:none;position:absolute;top:var(--hud-clearance, 70px);left:50%;transform:translateX(-50%);z-index:6;
-      background:rgba(13,3,8,.85);backdrop-filter:blur(4px);border:1px solid var(--danger);border-radius:10px;
-      padding:8px 16px;font-size:12px;color:var(--hud-ink);text-align:center;pointer-events:none;
+      background:rgba(13,3,8,.85);backdrop-filter:blur(4px);border:1px solid var(--ov-danger);border-radius:10px;
+      padding:8px 16px;font-size:12px;color:var(--ov-ink);text-align:center;pointer-events:none;
       max-width:min(90vw, 420px);"></div>
 
     <!-- LANDING -->
@@ -495,13 +535,28 @@
       </div>
       <div id="mpHostSetupView" style="display:none;">
         <h2>Host a race</h2>
-        <p class="desc">Pick a course and a name racers will see you as.</p>
+        <p class="desc">Pick a course and a name racers will see you as. Topic and lecture are optional — leave them unchecked to race the whole course.</p>
         <label class="field" style="max-width:300px;margin:0 auto 16px;">
           <span class="fl-label">Your name</span>
           <input type="text" id="mpNameInput" placeholder="e.g. Eason" style="width:100%;font-family:var(--mono);font-size:13px;background:var(--bg-1);color:var(--hud-ink);border:1px solid var(--panel-line);border-radius:8px;padding:8px 10px;">
         </label>
         <div class="p-sub" style="margin-top:0;">Course</div>
         <div class="cancer-grid" id="mpThemeGrid" style="max-width:400px;margin:0 auto 16px;"></div>
+        <div class="filter-section">
+          <div class="filter-section-head">
+            <span class="p-sub">Topics <span style="color:var(--hud-dim);font-weight:400;text-transform:none;letter-spacing:0;">(leave unchecked for every topic)</span></span>
+            <button type="button" class="filter-select-toggle" id="mpTopicClearBtn">Clear</button>
+          </div>
+          <div class="checks" id="mpTopicChecks"></div>
+        </div>
+        <div class="filter-section">
+          <div class="filter-section-head">
+            <span class="p-sub">Lectures <span style="color:var(--hud-dim);font-weight:400;text-transform:none;letter-spacing:0;">(leave unchecked for every lecture)</span></span>
+            <button type="button" class="filter-select-toggle" id="mpClassClearBtn">Clear</button>
+          </div>
+          <div class="checks" id="mpClassChecks"></div>
+        </div>
+        <p class="desc" id="mpMatchCount" style="color:var(--hud-dim);"></p>
         <div class="btn-row">
           <button class="secondary" id="mpHostSetupBackBtn">← Back</button>
           <button class="primary" id="mpHostBtn">Host a race</button>
@@ -528,6 +583,7 @@
           <div id="mpRoomCodeDisplay" style="font-size:36px;font-weight:700;letter-spacing:.15em;color:var(--membrane);">—</div>
         </div>
         <p class="desc" id="mpWaitStatus">Share this code with your friends.</p>
+        <p class="desc" id="mpWaitPlaying" style="margin-top:-10px;"></p>
         <div class="p-sub" style="margin-top:0;">Racers so far</div>
         <div id="mpRosterList" style="max-width:320px;margin:0 auto 18px;"></div>
         <div class="btn-row">
@@ -1082,6 +1138,13 @@
       }
       return; // not loaded yet this frame — skip drawing rather than show a broken icon
     }
+    // Some emoji (e.g. the DNA-helix icon) don't have a full-color glyph in
+    // every font, so canvas falls back to filling them with whatever
+    // fillStyle the caller last happened to set -- which for a topic block
+    // was a near-transparent version of its own border color, making the
+    // icon read as nearly invisible. Force a legible color here so this
+    // never depends on caller state.
+    ctx.fillStyle = '#ffffff';
     ctx.font = `${size}px sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(icon, x, y);
   }
@@ -2593,11 +2656,20 @@
       drawIconOnCanvas(GAME_CONFIG.bombIcon, e.x, y, 20*SCALE);
       return;
     }
+    // Topic blocks are the thing the player actually has to steer INTO, so
+    // they need to read clearly against the vessel background at a glance --
+    // the previous version (a near-black fill barely lighter than the
+    // background, plus a faint 13%-alpha glow) blended in enough that
+    // players reported not being able to see them to hit them. Same
+    // cheap-layered-glow approach as glucose/bombs above, just tuned
+    // brighter/wider so the topic's own color actually shows up.
     const meta = TOPICS[e.topic]; const w=70*SCALE,h=44*SCALE;
-    ctx.fillStyle = meta.color+'22';
-    roundRect(ctx, e.x-w/2-4, y-h/2-4, w+8, h+8, 12); ctx.fill();
-    ctx.fillStyle = 'rgba(20,6,12,.85)'; ctx.strokeStyle = meta.color; ctx.lineWidth = 2;
-    roundRect(ctx, e.x-w/2, y-h/2, w, h, 10); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = meta.color+'40';
+    roundRect(ctx, e.x-w/2-7, y-h/2-7, w+14, h+14, 14); ctx.fill();
+    ctx.fillStyle = meta.color+'2b';
+    roundRect(ctx, e.x-w/2, y-h/2, w, h, 10); ctx.fill();
+    ctx.strokeStyle = meta.color; ctx.lineWidth = 3;
+    roundRect(ctx, e.x-w/2, y-h/2, w, h, 10); ctx.stroke();
     // Icon only, no topic-name label -- bigger and centred in the block so
     // it reads instantly while lane-hopping instead of needing to be read.
     drawIconOnCanvas(meta.icon, e.x, y, 32*SCALE);
@@ -3055,6 +3127,32 @@
   studyGuideBtnMenu.addEventListener('click', ()=> openStudyGuide(null, null, null));
   studyGuideFromPauseBtn.addEventListener('click', ()=> openStudyGuide(null, null, null));
 
+  // ---------- scroll-more affordance ----------
+  // Every .panel-card can end up taller than its max-height:92% (long MCQ
+  // question, race summary with lots of stats, study-guide text) and relies
+  // on overflow-y:auto to stay usable -- but with no visual cue, a card cut
+  // off mid-scroll just reads as broken/incomplete rather than scrollable.
+  // Attaches a small pinned "more below" hint to each one, shown/hidden by
+  // actual scroll position rather than just always-on, so it disappears once
+  // there's genuinely nothing left to reveal.
+  function attachScrollHints(){
+    document.querySelectorAll('.panel-card').forEach(card=>{
+      const hint = document.createElement('div');
+      hint.className = 'scroll-more-hint';
+      hint.textContent = '▾';
+      card.appendChild(hint);
+      const check = ()=>{
+        const hasMore = card.scrollHeight - card.scrollTop - card.clientHeight > 4;
+        hint.classList.toggle('show', hasMore);
+      };
+      card.addEventListener('scroll', check);
+      new ResizeObserver(check).observe(card);
+      new MutationObserver(check).observe(card, { childList:true, subtree:true, characterData:true });
+      check();
+    });
+  }
+  attachScrollHints();
+
   // ---------- manual / dev guide ----------
   applyTheme(currentTheme);
   themeToggleBtn.addEventListener('click', ()=> applyTheme(currentTheme==='light' ? 'dark' : 'light'));
@@ -3193,6 +3291,11 @@
   const mpHostSetupBackBtn = document.getElementById('mpHostSetupBackBtn');
   const mpNameInput = document.getElementById('mpNameInput');
   const mpThemeGrid = document.getElementById('mpThemeGrid');
+  const mpTopicChecks = document.getElementById('mpTopicChecks');
+  const mpClassChecks = document.getElementById('mpClassChecks');
+  const mpMatchCount = document.getElementById('mpMatchCount');
+  const mpTopicClearBtn = document.getElementById('mpTopicClearBtn');
+  const mpClassClearBtn = document.getElementById('mpClassClearBtn');
   const mpBackBtn = document.getElementById('mpBackBtn');
   const mpHostBtn = document.getElementById('mpHostBtn');
   const mpJoinBtn = document.getElementById('mpJoinBtn');
@@ -3206,6 +3309,7 @@
   const mpWaitTitle = document.getElementById('mpWaitTitle');
   const mpRoomCodeDisplay = document.getElementById('mpRoomCodeDisplay');
   const mpWaitStatus = document.getElementById('mpWaitStatus');
+  const mpWaitPlaying = document.getElementById('mpWaitPlaying');
   const mpCancelBtn = document.getElementById('mpCancelBtn');
   const mpStartRaceBtn = document.getElementById('mpStartRaceBtn');
   const mpCountdownOverlay = document.getElementById('mpCountdownOverlay');
@@ -3222,9 +3326,21 @@
     active:false, roomCode:null, playerId:null, isHost:false,
     roster:{}, knownDone:new Set(), myName:'Player', finished:false,
     roomListenerRef:null, countdownStarted:false, theme:RUNNABLE_THEMES[0], selectedTheme:RUNNABLE_THEMES[0],
+    // filterCourse/filterTopics/filterClasses describe an optional narrowing
+    // within the chosen course -- empty topic/class lists mean "the whole
+    // course". Populated from the host's own checkbox picks, or (for a
+    // joiner) copied straight off the room doc -- see mpFilteredQuestions()/
+    // describeMpSelection() below and the room-doc fields written in the
+    // mpHostBtn handler.
+    filterCourse:null, filterTopics:[], filterClasses:[],
   };
+  // Host picks ONE course (any THEMES key now, not just RUNNABLE_THEMES) --
+  // Group Race no longer requires a hand-authored STAGES entry for a course
+  // to be raceable: see mpBeginRace(), which falls back to the same
+  // generated-stage machinery Custom run already uses whenever there's no
+  // authored STAGES entry, or the host narrowed by topic/lecture.
   function renderMpThemeGrid(){
-    mpThemeGrid.innerHTML = RUNNABLE_THEMES.map(id=>{
+    mpThemeGrid.innerHTML = Object.keys(THEMES).map(id=>{
       const t = THEMES[id];
       const active = id===mp.selectedTheme;
       return `<button class="pick-card" data-th="${id}" style="border-color:${active?'var(--membrane)':'var(--panel-line)'};padding:10px;text-align:center;">
@@ -3232,8 +3348,77 @@
       </button>`;
     }).join('');
     mpThemeGrid.querySelectorAll('[data-th]').forEach(btn=>{
-      btn.addEventListener('click', ()=>{ mp.selectedTheme = btn.dataset.th; renderMpThemeGrid(); });
+      btn.addEventListener('click', ()=>{
+        mp.selectedTheme = btn.dataset.th;
+        mp.filterTopics = []; mp.filterClasses = []; // switching course invalidates any prior topic/lecture picks
+        renderMpThemeGrid();
+        renderMpFilterChecks();
+      });
     });
+  }
+  // Lectures that actually have questions in this course, derived from
+  // ALL_QUESTIONS itself (not the COURSES citation registry) so an
+  // authored-but-empty lecture never shows up as a choosable filter.
+  function mpAvailableClasses(courseId){
+    const seen = new Map(); // classKey -> display label
+    ALL_QUESTIONS.forEach(q=>{
+      if(q.theme!==courseId || !q.class || seen.has(q.class)) return;
+      const label = COURSES[courseId]?.classes?.[q.class]?.label;
+      seen.set(q.class, label ? `${q.class} · ${label}` : q.class);
+    });
+    return [...seen.entries()].sort((a,b)=> a[0].localeCompare(b[0], undefined, {numeric:true}));
+  }
+  function mpFilteredQuestions(){
+    const course = mp.selectedTheme;
+    return ALL_QUESTIONS.filter(q => q.theme===course
+      && (!mp.filterTopics.length || mp.filterTopics.includes(q.topic))
+      && (!mp.filterClasses.length || mp.filterClasses.includes(q.class)));
+  }
+  // Rebuilds the Topic/Lecture checkbox lists for whichever course is
+  // currently selected -- called on host-setup entry and every time the
+  // course selection changes (the previous course's topics/lectures don't
+  // apply to a different one).
+  function renderMpFilterChecks(){
+    const course = THEMES[mp.selectedTheme];
+    mpTopicChecks.innerHTML = Object.entries(course.topics).map(([id,t])=>
+      `<label><input type="checkbox" class="mp-check" value="${id}"> ${iconHTML(t.icon,14)} ${t.label}</label>`).join('');
+    mpClassChecks.innerHTML = mpAvailableClasses(mp.selectedTheme).map(([id,label])=>
+      `<label><input type="checkbox" class="mp-check" value="${id}"> ${label}</label>`).join('');
+    [mpTopicChecks, mpClassChecks].forEach(container=>{
+      container.querySelectorAll('.mp-check').forEach(cb=>cb.addEventListener('change', updateMpMatchCount));
+    });
+    updateMpMatchCount();
+  }
+  function updateMpMatchCount(){
+    mp.filterTopics = [...mpTopicChecks.querySelectorAll('input:checked')].map(cb=>cb.value);
+    mp.filterClasses = [...mpClassChecks.querySelectorAll('input:checked')].map(cb=>cb.value);
+    const matches = mpFilteredQuestions();
+    const topicCount = new Set(matches.map(q=>q.topic)).size;
+    mpMatchCount.textContent = matches.length
+      ? `${matches.length} question${matches.length===1?'':'s'} match, across ${topicCount} topic${topicCount===1?'':'s'}.`
+      : `No questions match that combination yet — widen your filters.`;
+    mpHostBtn.disabled = matches.length === 0;
+  }
+  mpTopicClearBtn.addEventListener('click', ()=>{
+    mpTopicChecks.querySelectorAll('input').forEach(cb=>cb.checked=false);
+    updateMpMatchCount();
+  });
+  mpClassClearBtn.addEventListener('click', ()=>{
+    mpClassChecks.querySelectorAll('input').forEach(cb=>cb.checked=false);
+    updateMpMatchCount();
+  });
+  // Shown on the waiting screen (host and joiners alike) so nobody commits
+  // to a race blind -- reads mp.filterCourse/filterTopics/filterClasses,
+  // which by that point are populated either from the host's own picks or
+  // copied off the room doc (see mpJoinConfirmBtn).
+  function describeMpSelection(){
+    const course = THEMES[mp.filterCourse];
+    const courseLabel = course ? course.label : (mp.filterCourse || '');
+    const topicLabel = mp.filterTopics.length
+      ? mp.filterTopics.map(t => course?.topics?.[t]?.label || t).join(', ')
+      : 'All topics';
+    const classLabel = mp.filterClasses.length ? mp.filterClasses.join(', ') : 'All lectures';
+    return `Playing: ${courseLabel} · ${topicLabel} · ${classLabel}`;
   }
   function randCode(){
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -3267,6 +3452,7 @@
     mpSetupView.style.display = 'none';
     mpHostSetupView.style.display = 'block';
     renderMpThemeGrid();
+    renderMpFilterChecks();
   });
   mpHostSetupBackBtn.addEventListener('click', ()=>{
     mpHostSetupView.style.display = 'none';
@@ -3290,15 +3476,28 @@
   mpHostBtn.addEventListener('click', async ()=>{
     if(mpHostBtn.disabled) return;
     if(!firebaseReady){ toastCustom('Group Race isn\u2019t connected right now — check your internet connection and try again.'); return; }
+    const matches = mpFilteredQuestions();
+    if(!matches.length){ toastCustom('No questions match that combination yet — widen your filters.'); return; }
     mpHostBtn.disabled = true;
     try{
       const name = mpNameInput.value.trim() || 'Player 1';
       mp.myName = name; mp.playerId = randId(); mp.isHost = true; mp.finished = false;
-      mp.theme = mp.selectedTheme;
+      mp.filterCourse = mp.selectedTheme;
+      // Whole-course picks on a course with a hand-authored STAGES entry
+      // (MEDS3002/MEDS2003 today) keep behaving exactly as before -- curated
+      // per-stage requirements and clinical scenario text, `mp.theme` set to
+      // the real course id. Anything else (a course with no authored STAGES,
+      // e.g. MEDS3003, or any topic/lecture narrowing) routes through the
+      // same generated-stage machinery Custom run already uses -- see
+      // mpBeginRace(), which builds customStages/customPoolByTopic from
+      // filterCourse/filterTopics/filterClasses when mp.theme==='custom'.
+      const useAuthored = !mp.filterTopics.length && !mp.filterClasses.length && !!STAGES[mp.selectedTheme];
+      mp.theme = useAuthored ? mp.selectedTheme : 'custom';
       const code = randCode();
       mp.roomCode = code;
       await set(ref(fbdb, `rooms/${code}`), {
-        status:'waiting', hostId: mp.playerId, hostName: name, createdAt: Date.now(), winner: null, theme: mp.theme,
+        status:'waiting', hostId: mp.playerId, hostName: name, createdAt: Date.now(), winner: null,
+        theme: mp.theme, filterCourse: mp.filterCourse, filterTopics: mp.filterTopics, filterClasses: mp.filterClasses,
       });
       await set(ref(fbdb, `rooms/${code}/players/${mp.playerId}`), {
         name, glucose: GAME_CONFIG.startingGlucose, stageIndex:0, stageRoman:'I', correctCount:0, incorrectCount:0, bonusScore:0, done:false, finishedWin:false,
@@ -3307,6 +3506,7 @@
       mpWaitView.style.display = 'block';
       mpWaitTitle.textContent = 'Waiting for racers…';
       mpRoomCodeDisplay.textContent = code;
+      mpWaitPlaying.textContent = describeMpSelection();
       mpStartRaceBtn.style.display = 'none';
       mpAttachRoomListener();
     } finally {
@@ -3329,6 +3529,12 @@
       if(room.status!=='waiting'){ mpJoinError.textContent = 'That race has already started or finished.'; mpJoinError.style.display='block'; return; }
       mp.myName = name; mp.playerId = randId(); mp.isHost = false; mp.roomCode = code; mp.finished = false;
       mp.theme = room.theme || RUNNABLE_THEMES[0];
+      // Firebase RTDB stores an empty array as if it were never set, so a
+      // "whole course" pick (no topic/lecture narrowing) comes back as
+      // undefined here, not [] -- guard with `|| []` same as the host side.
+      mp.filterCourse = room.filterCourse || mp.theme;
+      mp.filterTopics = room.filterTopics || [];
+      mp.filterClasses = room.filterClasses || [];
       await set(ref(fbdb, `rooms/${code}/players/${mp.playerId}`), {
         name, glucose: GAME_CONFIG.startingGlucose, stageIndex:0, stageRoman:'I', correctCount:0, incorrectCount:0, bonusScore:0, done:false, finishedWin:false,
       });
@@ -3336,6 +3542,7 @@
       mpWaitView.style.display = 'block';
       mpWaitTitle.textContent = 'Joined!';
       mpRoomCodeDisplay.textContent = code;
+      mpWaitPlaying.textContent = describeMpSelection();
       mpStartRaceBtn.style.display = 'none';
       mpAttachRoomListener();
     } finally {
@@ -3468,7 +3675,7 @@
     const myScore = mpScore({ correctCount:myCorrectCount, incorrectCount:myIncorrectCount, glucose:Math.max(0,glucose), stageIndex, bonusScore:myBonusScore });
     if(!allOthersDone){
       const stillRacing = others.filter(([pid,p])=>!p.done).map(([pid,p])=>p.name).join(', ') || 'others';
-      overText.innerHTML = `Stage ${STAGES[currentCancerId][stageIndex].roman} · ${myCorrectCount}✓/${myIncorrectCount}✗ · score <b>${myScore}</b> — still waiting on <b>${stillRacing}</b>. This updates automatically.`;
+      overText.innerHTML = `Stage ${currentStages()[stageIndex].roman} · ${myCorrectCount}✓/${myIncorrectCount}✗ · score <b>${myScore}</b> — still waiting on <b>${stillRacing}</b>. This updates automatically.`;
     } else {
       overText.innerHTML = `Your score: <b>${myScore}</b>. Everyone's finished — working out the result…`;
     }
@@ -3495,9 +3702,24 @@
   function mpBeginRace(){
     mp.active = true;
     currentCancerId = mp.theme || RUNNABLE_THEMES[0];
+    // A narrowed or unauthored-course race routes through the same
+    // generated-stage machinery Custom run uses (currentCancerId==='custom')
+    // -- both host and joiner land here with identical filterCourse/
+    // filterTopics/filterClasses (host set them directly; joiner copied them
+    // off the room doc in mpJoinConfirmBtn), so this independently produces
+    // an identical stages/pool config on every client without needing to
+    // sync actual question content over Firebase.
+    if(currentCancerId==='custom'){
+      const matches = ALL_QUESTIONS.filter(q => q.theme===mp.filterCourse
+        && (!mp.filterTopics.length || mp.filterTopics.includes(q.topic))
+        && (!mp.filterClasses.length || mp.filterClasses.includes(q.class)));
+      const built = buildCustomRunConfig(matches);
+      customStages = built.stages;
+      customPoolByTopic = built.byTopic;
+    }
     resetRunState();
     stageProgress = {};
-    Object.keys(STAGES[currentCancerId][0].requirements).forEach(t=>stageProgress[t]=0);
+    Object.keys(currentStages()[0].requirements).forEach(t=>stageProgress[t]=0);
     mpOpponentPanel.style.display = 'block';
     mpLeaderboardPanel.innerHTML = '';
     updateHUD();
@@ -3506,7 +3728,7 @@
   function mpSyncMyState(){
     if(!mp.active || !mp.roomCode || !mp.playerId) return;
     fbUpdate(ref(fbdb, `rooms/${mp.roomCode}/players/${mp.playerId}`), {
-      glucose, stageIndex, stageRoman: STAGES[currentCancerId][stageIndex].roman,
+      glucose, stageIndex, stageRoman: currentStages()[stageIndex].roman,
       correctCount: myCorrectCount, incorrectCount: myIncorrectCount, bonusScore: myBonusScore,
     }).catch(()=>{});
   }
@@ -3520,7 +3742,7 @@
     syncHudVisibility();
     fbUpdate(ref(fbdb, `rooms/${mp.roomCode}/players/${mp.playerId}`), {
       done:true, doneReason:reason, finishedWin: reason==='finished',
-      glucose: Math.max(0,glucose), stageIndex, stageRoman: STAGES[currentCancerId][stageIndex].roman,
+      glucose: Math.max(0,glucose), stageIndex, stageRoman: currentStages()[stageIndex].roman,
       correctCount: myCorrectCount, incorrectCount: myIncorrectCount, bonusScore: myBonusScore,
     });
     get(ref(fbdb, `rooms/${mp.roomCode}`)).then(snap=>{
@@ -3578,7 +3800,8 @@
   function mpTeardown(){
     if(mp.roomListenerRef){ off(mp.roomListenerRef); }
     mp = { active:false, roomCode:null, playerId:null, isHost:false, roster:{}, knownDone:new Set(),
-      myName:'Player', finished:false, roomListenerRef:null, countdownStarted:false, theme:RUNNABLE_THEMES[0], selectedTheme:RUNNABLE_THEMES[0] };
+      myName:'Player', finished:false, roomListenerRef:null, countdownStarted:false, theme:RUNNABLE_THEMES[0], selectedTheme:RUNNABLE_THEMES[0],
+      filterCourse:null, filterTopics:[], filterClasses:[] };
     mpOpponentPanel.style.display = 'none';
     mpSetOverButtons('solo');
   }
