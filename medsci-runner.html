@@ -155,11 +155,15 @@
   .tag-chip-btn:hover{ border-color:var(--membrane); color:var(--hud-ink); }
   .item-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; width:100%;
     max-width:680px; margin:0 0 6px; max-height:340px; overflow-y:auto; padding-right:2px; }
+  .item-grid.list-mode{ grid-template-columns:1fr; max-width:none; }
   .item-card{ background:var(--panel); border:1px solid var(--panel-line); border-radius:10px; padding:10px;
     cursor:pointer; text-align:left; color:var(--hud-ink); font-family:var(--mono); }
   .item-card:hover{ border-color:currentColor; }
   .item-card .ic-name{ font-size:12.5px; font-weight:700; margin-bottom:2px; }
   .item-card .ic-hint{ font-size:9.5px; color:var(--hud-dim); }
+  .item-card.list-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; }
+  .item-card.list-row .ic-name{ margin-bottom:0; }
+  .item-card.list-row .ic-hint{ flex-shrink:0; }
 
   #infoModal, #manualModal, #mcqModal, #scenarioOverlay, #summaryModal, #scoreInfoModal{
     position:absolute; inset:0; display:none; align-items:flex-start; justify-content:safe center;
@@ -2607,6 +2611,7 @@
     renderGuideItems(c);
     itemDetailWrap.style.display = 'none';
     guideItemGrid.style.display = 'grid';
+    guideItemGrid.classList.remove('list-mode');
     infoModal.classList.add('active');
     if(jumpItemId){
       const item = c.topics[guideActiveTopic].items[jumpItemId];
@@ -2644,6 +2649,7 @@
         renderGuideItems(c);
         itemDetailWrap.style.display = 'none';
         guideItemGrid.style.display = 'grid';
+        guideItemGrid.classList.remove('list-mode');
       });
     });
   }
@@ -2686,6 +2692,7 @@
       });
     });
     guideItemGrid.style.display = 'grid';
+    guideItemGrid.classList.remove('list-mode');
     guideItemGrid.innerHTML = '';
     if(!matches.length){
       guideItemGrid.innerHTML = `<p class="p-desc">No matches for "${q}" anywhere in the guide.</p>`;
@@ -2758,6 +2765,7 @@
     itemBackBtn.onclick = ()=>{
       itemDetailWrap.style.display = 'none';
       guideItemGrid.style.display = 'grid';
+      guideItemGrid.classList.remove('list-mode');
       if(guideMode==='course' || guideMode==='tag'){
         guideCourseHeader.style.display = 'block';
       } else if(guideMode==='search'){
@@ -2796,6 +2804,7 @@
       });
     });
     guideItemGrid.style.display = 'grid';
+    guideItemGrid.classList.remove('list-mode');
     guideItemGrid.innerHTML = '';
     if(!matches.length){
       guideItemGrid.innerHTML = `<p class="p-desc">Nothing else here yet.</p>`;
@@ -2865,6 +2874,7 @@
     const { courseMap, units } = buildCourseUnitMap();
     const unitNames = Object.keys(units).sort();
     guideItemGrid.style.display = 'grid';
+    guideItemGrid.classList.remove('list-mode');
     guideItemGrid.innerHTML = '';
     if(!unitNames.length){
       guideItemGrid.innerHTML = `<p class="p-desc">No items have a relatedCourse tag yet.</p>`;
@@ -2897,15 +2907,23 @@
     guideTitle.textContent = `🎓 ${unit}`;
     guideBlurb.textContent = 'Pick a lecture to see everything filed under it.';
     const { courseMap, units } = buildCourseUnitMap();
-    const lectures = (units[unit]||[]).sort();
+    // Sort by the lecture number itself (e.g. 7 out of "L7-8", 10 out of
+    // "L10") rather than plain alphabetical string order, which would
+    // otherwise put L10/L11/L12 before L7-8/L9.
+    const lectureNum = name=>{
+      const m = /\bL(\d+)/.exec(name);
+      return m ? parseInt(m[1], 10) : Infinity;
+    };
+    const lectures = (units[unit]||[]).slice().sort((a,b)=> lectureNum(a)-lectureNum(b) || a.localeCompare(b));
     guideItemGrid.style.display = 'grid';
+    guideItemGrid.classList.add('list-mode');
     guideItemGrid.innerHTML = '';
     if(!lectures.length){
       guideItemGrid.innerHTML = `<p class="p-desc">No lectures found for this course.</p>`;
     } else {
       lectures.forEach(name=>{
         const card = document.createElement('div');
-        card.className = 'item-card';
+        card.className = 'item-card list-row';
         card.dataset.search = name.toLowerCase();
         card.innerHTML = `<div class="ic-name">🎓 ${name}</div><div class="ic-hint">${courseMap[name]} item${courseMap[name]===1?'':'s'}</div>`;
         card.addEventListener('click', ()=> openCourseView(name, 'unit'));
