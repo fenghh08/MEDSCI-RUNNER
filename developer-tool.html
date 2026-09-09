@@ -362,6 +362,11 @@
           <div class="list-editor" id="i_funFacts"></div>
         </label>
         <label class="field">
+          <span class="fl-label">Active recall prompts</span>
+          <span class="fl-help">Open-ended questions shown below the item on the study-guide page, for a student to self-test from memory -- not MCQs, no options or answer given. E.g. "What are the three mechanisms of X?"</span>
+          <div class="list-editor" id="i_activeRecall"></div>
+        </label>
+        <label class="field">
           <span class="fl-label">Hashtags</span>
           <span class="fl-help">Which disease/sub-area this belongs to, e.g. "CLL", "Leukemia". Shown as chips.</span>
           <div class="list-editor" id="i_hashtags"></div>
@@ -439,14 +444,14 @@
     <div class="card" style="margin-top:16px;">
       <h2>📄 Bulk edit items via spreadsheet</h2>
       <p class="card-sub">Export every item to a spreadsheet, edit it there (or add new rows), then paste it back in. <b>Rows with an <code>itemId</code> that matches an existing item update that item</b> — everything else about it (including its questions) is left alone. <b>Rows with a blank <code>itemId</code> create a new item</b> (needs <code>theme</code> + <code>topic</code> to know where it goes — existing items ignore these two columns, so you can't accidentally move one to a different topic this way). <b>Nothing is ever deleted by this import</b>, even if you remove a row — deleting stays a deliberate action elsewhere in this tool. Every row still lands in the shared queue below for review before anything touches the real file, exactly like adding one at a time.</p>
-      <p class="card-sub">Columns, any order, matched by name: <b>label, description</b> (required for new rows), <b>itemId</b> (leave blank for new items — never hand-type one, only use what the export gave you), <b>theme, topic</b> (required for new rows only), <b>mechanism, funFacts, hashtags</b> (optional; separate multiple with a semicolon), <b>course, class</b> (optional, must match an existing course code + class key), <b>images</b> (optional, <code>caption|filename;caption2|filename2</code>), <b>refs</b> (optional, <code>label|url;label2|url2</code>).</p>
+      <p class="card-sub">Columns, any order, matched by name: <b>label, description</b> (required for new rows), <b>itemId</b> (leave blank for new items — never hand-type one, only use what the export gave you), <b>theme, topic</b> (required for new rows only), <b>mechanism, funFacts, activeRecall, hashtags</b> (optional; separate multiple with a semicolon — <code>activeRecall</code> is open-ended self-test prompts shown on the item's page, e.g. "What are the three mechanisms of…?", not MCQs), <b>course, class</b> (optional, must match an existing course code + class key), <b>images</b> (optional, <code>caption|filename;caption2|filename2</code>), <b>refs</b> (optional, <code>label|url;label2|url2</code>). On an edit row, a blank <code>activeRecall</code> or <code>images</code> cell leaves the existing ones untouched rather than clearing them — the other list columns (funFacts/hashtags) do get overwritten by a blank cell, so only leave those blank if you actually mean to clear them.</p>
       <div class="btn-row">
         <button class="secondary" id="itemsExportBtn">⬇️ Export all items as CSV</button>
       </div>
       <label class="field">
         <span class="fl-label">Paste CSV text</span>
-        <textarea id="csvitem_textarea" rows="8" placeholder="itemId,theme,topic,label,description,mechanism,funFacts,hashtags,course,class,images,refs
-,MEDS3002,pharmacology,Ibrutinib,&quot;A BTK inhibitor used in CLL.&quot;,&quot;Irreversibly binds BTK.&quot;,&quot;First oral targeted therapy in CLL&quot;,Leukemia,MEDS3002,L15,,"></textarea>
+        <textarea id="csvitem_textarea" rows="8" placeholder="itemId,theme,topic,label,description,mechanism,funFacts,activeRecall,hashtags,course,class,images,refs
+,MEDS3002,pharmacology,Ibrutinib,&quot;A BTK inhibitor used in CLL.&quot;,&quot;Irreversibly binds BTK.&quot;,&quot;First oral targeted therapy in CLL&quot;,&quot;What class of drug is ibrutinib?;Why is it used in CLL specifically?&quot;,Leukemia,MEDS3002,L15,,"></textarea>
       </label>
       <div id="csvitem_preview" style="margin:10px 0;font-size:12px;color:var(--hud-dim);"></div>
       <div class="btn-row">
@@ -699,6 +704,24 @@
             <button class="secondary" id="lo_copyOne">Copy this snippet</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>📄 Bulk edit learning outcomes via spreadsheet</h2>
+      <p class="card-sub">Export every lecture that already exists (across every course), edit the <code>outcomes</code>/<code>intro</code> columns in a spreadsheet, then paste it back in. <b>Only existing lectures can be edited this way</b> — course + classKey must already match one under "New course" above; this can't create a new course or lecture. A row with a blank <code>outcomes</code> column is skipped (leave a lecture's row out entirely if you don't want to touch it — this can't be used to clear outcomes back to none). Every row still lands in the shared queue below for review before anything touches the real file, same as the single-lecture form above.</p>
+      <p class="card-sub">Columns, any order, matched by name: <b>course, classKey</b> (both required, must match an existing course code + lecture key), <b>label</b> (reference only — ignored on import, edit the lecture's actual label elsewhere), <b>outcomes</b> (required to take effect — one or more, separated by semicolons), <b>intro</b> (optional short blurb).</p>
+      <div class="btn-row">
+        <button class="secondary" id="loExportBtn">⬇️ Export all lectures as CSV</button>
+      </div>
+      <label class="field">
+        <span class="fl-label">Paste CSV text</span>
+        <textarea id="csvlo_textarea" rows="8" placeholder="course,classKey,label,outcomes,intro
+MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of CML;Explain how loss of TP53 drives genomic instability&quot;,&quot;This lecture covers two classic cancer hallmarks seen in leukemia.&quot;"></textarea>
+      </label>
+      <div id="csvlo_preview" style="margin:10px 0;font-size:12px;color:var(--hud-dim);"></div>
+      <div class="btn-row">
+        <button class="primary" id="csvlo_parseBtn">Parse &amp; add all to queue</button>
       </div>
     </div>
   </div>
@@ -1441,6 +1464,7 @@
   const i_description = document.getElementById('i_description');
   const i_mechanism = document.getElementById('i_mechanism');
   const i_funFactsEl = document.getElementById('i_funFacts');
+  const i_activeRecallEl = document.getElementById('i_activeRecall');
   const i_hashtagsEl = document.getElementById('i_hashtags');
   const i_refsEl = document.getElementById('i_refs');
   const i_imagesEl = document.getElementById('i_images');
@@ -1464,6 +1488,7 @@
   });
   [i_newTopicLabel, i_newTopicIcon, i_label, i_description, i_mechanism].forEach(el=>el.addEventListener('input', renderItem));
   makeTextList(i_funFactsEl, 'A short interesting fact…', renderItem);
+  makeTextList(i_activeRecallEl, 'e.g. What are the three mechanisms of…?', renderItem);
   makeTextList(i_hashtagsEl, 'e.g. Leukemia', renderItem, null, 'knownHashtagsList');
   makeRefList(i_refsEl, renderItem);
   makeImageList(i_imagesEl, renderItem);
@@ -1538,6 +1563,7 @@
     i_description.value = item.description || '';
     i_mechanism.value = item.mechanism || '';
     makeTextList(i_funFactsEl, 'A short interesting fact…', renderItem, item.funFacts||[]);
+    makeTextList(i_activeRecallEl, 'e.g. What are the three mechanisms of…?', renderItem, item.activeRecall||[]);
     makeTextList(i_hashtagsEl, 'e.g. Leukemia', renderItem, item.hashtags||[], 'knownHashtagsList');
     makeRefList(i_refsEl, renderItem, item.refs||[]);
     makeImageList(i_imagesEl, renderItem, item.images||[]);
@@ -1569,6 +1595,7 @@
     i_theme.disabled = false; i_topic.disabled = false;
     i_label.value=''; i_description.value=''; i_mechanism.value='';
     makeTextList(i_funFactsEl, 'A short interesting fact…', renderItem);
+    makeTextList(i_activeRecallEl, 'e.g. What are the three mechanisms of…?', renderItem);
     makeTextList(i_hashtagsEl, 'e.g. Leukemia', renderItem, null, 'knownHashtagsList');
     makeRefList(i_refsEl, renderItem);
     makeImageList(i_imagesEl, renderItem);
@@ -1601,6 +1628,7 @@
         description: i_description.value.trim(),
         mechanism: i_mechanism.value.trim(),
         funFacts: i_funFactsEl._getValues(),
+        activeRecall: i_activeRecallEl._getValues(),
         hashtags: i_hashtagsEl._getValues(),
         course: courseInfo.course, class: courseInfo.class, relatedCourseOverride: courseInfo.relatedCourseOverride, courseInfo,
         addCourseSnippet: courseInfo.addCourseSnippet, addClassSnippet: courseInfo.addClassSnippet,
@@ -1624,6 +1652,7 @@
       description: i_description.value.trim(),
       mechanism: i_mechanism.value.trim(),
       funFacts: i_funFactsEl._getValues(),
+      activeRecall: i_activeRecallEl._getValues(),
       hashtags: i_hashtagsEl._getValues(),
       course: courseInfo.course, class: courseInfo.class, relatedCourseOverride: courseInfo.relatedCourseOverride, courseInfo,
       addCourseSnippet: courseInfo.addCourseSnippet, addClassSnippet: courseInfo.addClassSnippet,
@@ -1657,6 +1686,7 @@
     if(o.addClassSnippet) out += o.addClassSnippet + '\n\n';
     const imagesStr = o.images.length ? `[\n${o.images.map(im=>`      { url:'${im.url}', caption:'${esc(im.caption)}' },`).join('\n')}\n    ]` : '[]';
     const factsStr = o.funFacts.length ? o.funFacts.map(f=>`'${esc(f)}'`).join(', ') : '';
+    const recallStr = o.activeRecall.length ? o.activeRecall.map(f=>`'${esc(f)}'`).join(', ') : '';
     const hashtagsStr = o.hashtags.length ? `[${o.hashtags.map(h=>`'${esc(h)}'`).join(', ')}]` : '[]';
     const refsStr = o.refs.length ? `[${o.refs.map(r=>`{ label:'${esc(r.label)}'${r.url?`, url:'${esc(r.url)}'`:''} }`).join(', ')}]` : '[]';
     out += o.editingItemId
@@ -1666,6 +1696,7 @@
     out += `  description:'${esc(o.description)}',\n`;
     if(o.mechanism) out += `  mechanism:'${esc(o.mechanism)}',\n`;
     out += `  funFacts:[${factsStr}],\n`;
+    out += `  activeRecall:[${recallStr}],\n`;
     out += `  refs:${refsStr},\n`;
     out += `  hashtags:${hashtagsStr}`;
     // A "spans several classes" free-text override (see initCourseClassPicker)
@@ -1684,6 +1715,7 @@
     const topicMeta = RD.TOPICS[o.topicId] || (o.usingNewTopic ? { label:o.newTopicLabel||o.topicId, icon:o.newTopicIcon } : { label:o.topicId });
     const courseStr = o.course ? courseDisplayString(o.course, o.class) : '';
     const factsHtml = o.funFacts.length ? `<div class="p-sub">Fun facts</div><ul class="p-facts">${o.funFacts.map(f=>`<li>${esc(f).replace(/\\'/g,"'")}</li>`).join('')}</ul>` : '';
+    const recallHtml = o.activeRecall.length ? `<div class="p-sub">🧠 Active recall</div><ul class="p-facts">${o.activeRecall.map(f=>`<li>${esc(f).replace(/\\'/g,"'")}</li>`).join('')}</ul>` : '';
     const mechHtml = o.mechanism ? `<div class="p-sub">Mechanism</div><p class="p-desc">${o.mechanism}</p>` : '';
     // Contributor.html only ever has a filename typed in, not the actual
     // image file, so this can't render the real picture — it shows a
@@ -1704,6 +1736,7 @@
       <p class="p-desc">${o.description || '<span style="opacity:.6;">(add a description)</span>'}</p>
       ${mechHtml}
       ${factsHtml}
+      ${recallHtml}
       ${refsHtml}
     `;
   }
@@ -1778,14 +1811,14 @@
   }
 
   document.getElementById('itemsExportBtn').addEventListener('click', ()=>{
-    const header = ['itemId','theme','topic','label','description','mechanism','funFacts','hashtags','course','class','images','refs'];
+    const header = ['itemId','theme','topic','label','description','mechanism','funFacts','activeRecall','hashtags','course','class','images','refs'];
     const rows = [header];
     Object.entries(RD.THEMES).forEach(([themeId, theme])=>{
       Object.entries(theme.topics).forEach(([topicId, topic])=>{
         Object.entries(topic.items).forEach(([itemId, item])=>{
           rows.push([
             itemId, themeId, topicId, item.label, item.description||'', item.mechanism||'',
-            (item.funFacts||[]).join(';'), (item.hashtags||[]).join(';'), item.course||'', item.class||'',
+            (item.funFacts||[]).join(';'), (item.activeRecall||[]).join(';'), (item.hashtags||[]).join(';'), item.course||'', item.class||'',
             encodeImageList(item.images),
             encodePairList((item.refs||[]).map(r=>({label:r.label, url:r.url||''})), 'label', 'url'),
           ].map(csvField));
@@ -1819,7 +1852,7 @@
     if(rows.length < 2) return { valid:[], errors:['Paste a header row plus at least one item row.'] };
     const header = rows[0].map(h=>h.trim().toLowerCase());
     const col = name => header.indexOf(name);
-    const idx = { itemid:col('itemid'), theme:col('theme'), topic:col('topic'), label:col('label'), description:col('description'), mechanism:col('mechanism'), funfacts:col('funfacts'), hashtags:col('hashtags'), course:col('course'), class:col('class'), images:col('images'), refs:col('refs') };
+    const idx = { itemid:col('itemid'), theme:col('theme'), topic:col('topic'), label:col('label'), description:col('description'), mechanism:col('mechanism'), funfacts:col('funfacts'), activerecall:col('activerecall'), hashtags:col('hashtags'), course:col('course'), class:col('class'), images:col('images'), refs:col('refs') };
     const missingCols = ['label','description'].filter(k=>idx[k]<0);
     if(missingCols.length) return { valid:[], errors:[`Missing required column(s): ${missingCols.join(', ')}.`] };
     const valid = [], errors = [];
@@ -1832,6 +1865,7 @@
       const description = (row[idx.description]||'').trim();
       const mechanism = idx.mechanism>=0 ? (row[idx.mechanism]||'').trim() : '';
       const funFacts = idx.funfacts>=0 ? (row[idx.funfacts]||'').split(';').map(s=>s.trim()).filter(Boolean) : [];
+      const activeRecallList = idx.activerecall>=0 ? (row[idx.activerecall]||'').split(';').map(s=>s.trim()).filter(Boolean) : [];
       const hashtags = idx.hashtags>=0 ? (row[idx.hashtags]||'').split(';').map(s=>s.trim()).filter(Boolean) : [];
       const courseCode = idx.course>=0 ? (row[idx.course]||'').trim() : '';
       const classKey = idx.class>=0 ? (row[idx.class]||'').trim() : '';
@@ -1861,7 +1895,9 @@
           isEdit: true,
           theme: existing.theme, topicId: existing.topic, usingNewTopic: false,
           itemId: existing.id, editingItemId: existing.id,
-          label, description, mechanism, funFacts, hashtags,
+          label, description, mechanism, funFacts,
+          activeRecall: activeRecallList.length ? activeRecallList : (full?.activeRecall||[]),
+          hashtags,
           course, class: cls, relatedCourseOverride: full?.relatedCourse||'',
           courseInfo: { addCourseSnippet:'', addClassSnippet:'', newCourseData:null, newClassData:null },
           addCourseSnippet: '', addClassSnippet: '',
@@ -1879,7 +1915,7 @@
       const itemId = slugify(label) + '_' + randSuffix();
       valid.push({
         isEdit: false,
-        theme, topicId, itemId, label, description, mechanism, funFacts, hashtags,
+        theme, topicId, itemId, label, description, mechanism, funFacts, activeRecall: activeRecallList, hashtags,
         refs, images, course, class: cls, relatedCourseOverride: '',
         usingNewTopic: false, addCourseSnippet: '', addClassSnippet: '',
         courseInfo: { addCourseSnippet:'', addClassSnippet:'', newCourseData:null, newClassData:null },
@@ -2481,6 +2517,72 @@
   });
   renderLectureOutcomes();
 
+  // ---------- learning outcomes: bulk CSV ----------
+  document.getElementById('loExportBtn').addEventListener('click', ()=>{
+    const header = ['course','classKey','label','outcomes','intro'];
+    const rows = [header];
+    Object.entries(RD.COURSES||{}).forEach(([code, c])=>{
+      Object.entries(c.classes||{}).forEach(([classKey, cls])=>{
+        rows.push([code, classKey, cls.label||'', (cls.outcomes||[]).join(';'), cls.intro||''].map(csvField));
+      });
+    });
+    const csvText = rows.map(r=>r.join(',')).join('\n');
+    const blob = new Blob([csvText], { type:'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'learning-outcomes.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  function parseCsvLectureOutcomes(){
+    const rows = parseCSV(document.getElementById('csvlo_textarea').value);
+    if(rows.length < 2) return { valid:[], errors:['Paste a header row plus at least one lecture row.'] };
+    const header = rows[0].map(h=>h.trim().toLowerCase());
+    const col = name => header.indexOf(name);
+    const idx = { course:col('course'), classkey:col('classkey'), outcomes:col('outcomes'), intro:col('intro') };
+    const missingCols = ['course','classkey','outcomes'].filter(k=>idx[k]<0);
+    if(missingCols.length) return { valid:[], errors:[`Missing required column(s): ${missingCols.join(', ')}.`] };
+    const valid = [], errors = [];
+    for(let r=1; r<rows.length; r++){
+      const row = rows[r];
+      if(row.every(f=>(f||'').trim()==='')) continue; // silently skip fully-blank rows
+      const rowNum = r+1;
+      const courseCode = (row[idx.course]||'').trim();
+      const classKeyRaw = (row[idx.classkey]||'').trim();
+      const outcomes = (row[idx.outcomes]||'').split(';').map(s=>s.trim()).filter(Boolean);
+      const intro = idx.intro>=0 ? (row[idx.intro]||'').trim() : '';
+      if(!courseCode){ errors.push(`Row ${rowNum}: missing course, skipped.`); continue; }
+      if(!KNOWN_COURSES[courseCode]){ errors.push(`Row ${rowNum}: course "${courseCode}" doesn't exist, skipped.`); continue; }
+      if(!classKeyRaw){ errors.push(`Row ${rowNum}: missing classKey, skipped.`); continue; }
+      const classKey = resolveLectureKey(courseCode, classKeyRaw);
+      if(!classKey){ errors.push(`Row ${rowNum}: lecture "${classKeyRaw}" doesn't exist under ${courseCode}, skipped.`); continue; }
+      if(!outcomes.length){ errors.push(`Row ${rowNum}: no outcomes given (this can't clear existing outcomes to empty), skipped -- leave the row out entirely if you don't want to change it.`); continue; }
+      valid.push({ course:courseCode, classKey, outcomes, intro });
+    }
+    return { valid, errors };
+  }
+  function renderCsvLoPreview(){
+    const csvlo_preview = document.getElementById('csvlo_preview');
+    const text = document.getElementById('csvlo_textarea').value;
+    if(!text.trim()){ csvlo_preview.textContent = ''; return; }
+    const { valid, errors } = parseCsvLectureOutcomes();
+    let msg = `${valid.length} lecture${valid.length===1?'':'s'} ready to queue.`;
+    if(errors.length) msg += ` ${errors.length} row${errors.length===1?'':'s'} skipped: ${errors.join(' ')}`;
+    csvlo_preview.textContent = msg;
+  }
+  document.getElementById('csvlo_textarea').addEventListener('input', renderCsvLoPreview);
+  document.getElementById('csvlo_parseBtn').addEventListener('click', ()=>{
+    const { valid, errors } = parseCsvLectureOutcomes();
+    if(errors.length && !valid.length){ toast(errors[0]); return; }
+    valid.forEach(o=>{
+      const classLabel = KNOWN_COURSES[o.course]?.classes[o.classKey]?.label || o.classKey;
+      pushToQueue({ type:'lectureOutcomes', title:`${o.course} ${o.classKey}`, code:lectureOutcomesCodeString(o), note:`${classLabel} · learning outcomes (bulk)`, data:o });
+    });
+    toast(`Added ${valid.length} lecture${valid.length===1?'':'s'} to queue${errors.length?` (${errors.length} skipped, see preview)`:''}`);
+    document.getElementById('csvlo_textarea').value = '';
+    renderCsvLoPreview();
+  });
+
   // ================= TABS =================
   const tabStructure = document.getElementById('tabStructure');
   const tabItem = document.getElementById('tabItem');
@@ -2524,6 +2626,7 @@
     const qCount = (full.questions||[]).length;
     const searchBlob = `${full.label} ${full.description||''} ${full.mechanism||''} ${(full.hashtags||[]).join(' ')} ${(full.questions||[]).map(q=>q.prompt+' '+q.explanation).join(' ')}`.toLowerCase();
     const factsHtml = (full.funFacts||[]).length ? `<div class="p-sub">Fun facts</div><ul class="p-facts">${full.funFacts.map(f=>`<li>${esc2(f)}</li>`).join('')}</ul>` : '';
+    const recallHtml = (full.activeRecall||[]).length ? `<div class="p-sub">🧠 Active recall</div><ul class="p-facts">${full.activeRecall.map(f=>`<li>${esc2(f)}</li>`).join('')}</ul>` : '';
     const mechHtml = full.mechanism ? `<div class="p-sub">Mechanism</div><p>${esc2(full.mechanism)}</p>` : '';
     const hashtagsHtml = (full.hashtags||[]).length ? `<div class="p-sub">Hashtags</div><div class="p-chips">${full.hashtags.map(h=>`<span class="p-chip">#${esc2(h)}</span>`).join('')}</div>` : '';
     const imagesNote = (full.images||[]).length ? `<div class="p-sub">Images</div><p>${full.images.length} image(s) attached</p>` : '';
@@ -2543,6 +2646,7 @@
           <p>${esc2(full.description||'')}</p>
           ${mechHtml}
           ${factsHtml}
+          ${recallHtml}
           ${hashtagsHtml}
           ${imagesNote}
           <button type="button" class="struct-edit-link" data-edit-item="${it.id}">✏️ Edit this item</button>
@@ -3282,6 +3386,7 @@
     const out = { label:o.label, images:o.images||[], description:o.description };
     if(o.mechanism) out.mechanism = o.mechanism;
     out.funFacts = o.funFacts||[];
+    out.activeRecall = o.activeRecall||[];
     out.refs = o.refs||[];
     out.hashtags = o.hashtags||[];
     if(o.relatedCourseOverride) out.relatedCourse = o.relatedCourseOverride;
