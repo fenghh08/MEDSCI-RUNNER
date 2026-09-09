@@ -444,7 +444,7 @@
     <div class="card" style="margin-top:16px;">
       <h2>📄 Bulk edit items via spreadsheet</h2>
       <p class="card-sub">Export every item to a spreadsheet, edit it there (or add new rows), then paste it back in. <b>Rows with an <code>itemId</code> that matches an existing item update that item</b> — everything else about it (including its questions) is left alone. <b>Rows with a blank <code>itemId</code> create a new item</b> (needs <code>theme</code> + <code>topic</code> to know where it goes — existing items ignore these two columns, so you can't accidentally move one to a different topic this way). <b>Nothing is ever deleted by this import</b>, even if you remove a row — deleting stays a deliberate action elsewhere in this tool. Every row still lands in the shared queue below for review before anything touches the real file, exactly like adding one at a time.</p>
-      <p class="card-sub">Columns, any order, matched by name: <b>label, description</b> (required — on an edit row, still required to be re-filled every time, so a blank one always rejects that row rather than risk silently clearing it), <b>itemId</b> (leave blank for new items — never hand-type one, only use what the export gave you), <b>theme, topic</b> (required for new rows only), <b>mechanism, funFacts, activeRecall, hashtags</b> (optional; separate multiple with a semicolon — <code>activeRecall</code> is open-ended self-test prompts shown on the item's page, e.g. "What are the three mechanisms of…?", not MCQs), <b>course, class</b> (optional, must match an existing course code + class key), <b>images</b> (optional, <code>caption|filename;caption2|filename2</code>), <b>refs</b> (optional, <code>label|url;label2|url2</code>). <b>On an edit row, a blank cell in any of these optional columns always means "leave it as-is"</b> — it never clears existing content to empty. To actually clear one of these fields, edit the item directly in the "browse existing content" view instead.</p>
+      <p class="card-sub">Columns, any order, matched by name: <b>label, description</b> (required — on an edit row, still required to be re-filled every time, so a blank one always rejects that row rather than risk silently clearing it), <b>itemId</b> (leave blank for new items — never hand-type one, only use what the export gave you), <b>theme, topic</b> (required for new rows only), <b>mechanism, funFacts, activeRecall, hashtags</b> (optional; separate multiple with a semicolon — <code>activeRecall</code> is open-ended self-test prompts shown on the item's page, e.g. "What are the three mechanisms of…?", not MCQs), <b>course, class</b> (optional, must match an existing course code + class key), <b>images</b> (optional, <code>caption|filename;caption2|filename2</code> — just the bare filename, e.g. <code>car_t_cell.png</code>, not a path; the full <code>images/&lt;course&gt;/&lt;class&gt;/filename</code> location is worked out automatically from that row's course/class, so the actual file needs to end up in that matching subfolder), <b>refs</b> (optional, <code>label|url;label2|url2</code>). <b>On an edit row, a blank cell in any of these optional columns always means "leave it as-is"</b> — it never clears existing content to empty. To actually clear one of these fields, edit the item directly in the "browse existing content" view instead.</p>
       <div class="btn-row">
         <button class="secondary" id="itemsExportBtn">⬇️ Export all items as CSV</button>
       </div>
@@ -1207,18 +1207,21 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     addBtn.className = 'list-add'; addBtn.type = 'button'; addBtn.textContent = '+ Add another image';
     addBtn.addEventListener('click', ()=>{ addRow(); onChange(); });
     container.appendChild(addBtn);
-    if(initialValues && initialValues.length) initialValues.forEach(im=>addRow(im.caption, (im.url||'').replace(/^images\//,'')));
+    if(initialValues && initialValues.length) initialValues.forEach(im=>addRow(im.caption, im.filename || imageBasename(im.url)));
     // itemSlug is the content-based slug (not yet the final random-suffixed
     // id) — used only to suggest a sensible filename. Contributors can
     // freely overwrite the suggestion; once they type their own, it's left alone.
-    container._getValues = (itemSlug) => [...container.querySelectorAll('.list-row.img-row')].map(r=>{
+    // course/cls place the image in images/<course>/<class>/ -- passed in
+    // fresh each call since they can change (e.g. picking a different
+    // course) after this list was first built.
+    container._getValues = (itemSlug, course, cls) => [...container.querySelectorAll('.list-row.img-row')].map(r=>{
       const cap = r.querySelector('.img-cap').value.trim();
       const fileInput = r.querySelector('.img-file');
       if(r.dataset.userEdited!=='true' && itemSlug){
         fileInput.value = `${itemSlug}-${r.dataset.n}${r.dataset.ext||'.png'}`;
       }
       const filename = fileInput.value.trim();
-      return (cap && filename) ? { url:`images/${filename}`, caption:cap, filename } : null;
+      return (cap && filename) ? { url:imageUrlFor(course, cls, filename), caption:cap, filename } : null;
     }).filter(Boolean);
     container._addRow = addRow;
   }
@@ -1638,7 +1641,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
         course: courseInfo.course, class: courseInfo.class, relatedCourseOverride: courseInfo.relatedCourseOverride, courseInfo,
         addCourseSnippet: courseInfo.addCourseSnippet, addClassSnippet: courseInfo.addClassSnippet,
         refs: i_refsEl._getValues(),
-        images: i_imagesEl._getValues(editingItemId),
+        images: i_imagesEl._getValues(editingItemId, courseInfo.course, courseInfo.class),
         existingQuestions: (editingItemQuestions || []).filter(q=>!removedQuestionIds.has(q.id)),
       };
     }
@@ -1662,7 +1665,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       course: courseInfo.course, class: courseInfo.class, relatedCourseOverride: courseInfo.relatedCourseOverride, courseInfo,
       addCourseSnippet: courseInfo.addCourseSnippet, addClassSnippet: courseInfo.addClassSnippet,
       refs: i_refsEl._getValues(),
-      images: i_imagesEl._getValues(baseSlug),
+      images: i_imagesEl._getValues(baseSlug, courseInfo.course, courseInfo.class),
     };
   }
   // Faithfully re-emits an item's EXISTING questions array as code, so that
@@ -1754,7 +1757,12 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     renderItemPreview(o);
     if(o.images.length){
       i_filesNeeded.classList.add('show');
-      i_filesNeeded.innerHTML = `📎 Files needed: ${o.images.map(im=>`<b>${im.filename}</b>`).join(', ')}. Click the 🖼 picker next to each image above to pick the file and preview it, then use the ⬇ button to save a copy already renamed correctly (or just rename it yourself) — then upload it to <a href="https://drive.google.com/drive/folders/1Wofvby0aQ6a169mr50jU0sYIEk-6BaG2?usp=drive_link" target="_blank" rel="noopener" style="color:var(--membrane);">the shared Drive folder</a> with that exact name.`;
+      // Images are filed under images/<course>/<class>/ in the repo (not one
+      // flat folder) -- the url each image already carries (built by
+      // imageUrlFor) is the exact destination path, so it's shown directly
+      // rather than re-derived, keeping this message correct even for the
+      // rare item with only a course (no specific lecture).
+      i_filesNeeded.innerHTML = `📎 Files needed: ${o.images.map(im=>`<b>${im.url}</b>`).join(', ')}. Click the 🖼 picker next to each image above to pick the file and preview it, then use the ⬇ button to save a copy already renamed correctly (or just rename it yourself) — then upload it to <a href="https://drive.google.com/drive/folders/1Wofvby0aQ6a169mr50jU0sYIEk-6BaG2?usp=drive_link" target="_blank" rel="noopener" style="color:var(--membrane);">the shared Drive folder</a>, matching that exact path so it lands in the right course/lecture subfolder when it's added to the repo.`;
     } else {
       i_filesNeeded.classList.remove('show');
     }
@@ -1802,17 +1810,32 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     }).filter(o=>o[keyA]);
   }
   // A few older items were hand-authored directly in game-data.js with just
-  // a `url` (e.g. 'images/car_t_cell.png') instead of the picker's
-  // `caption`+`filename` convention. Exporting those with encodePairList
-  // alone would leave filename blank -- silently wiping the image on
-  // reimport, since the decode side rebuilds `url` from `filename`. This
-  // derives filename from url as a fallback so the round-trip is lossless
-  // either way.
+  // a `url` (e.g. 'images/MEDS3002/L32/car_t_cell.png') instead of the
+  // picker's `caption`+`filename` convention. Exporting those with
+  // encodePairList alone would leave filename blank -- silently wiping the
+  // image on reimport, since the decode side rebuilds `url` from `filename`.
+  // This derives the bare filename from the tail of url as a fallback so
+  // the round-trip is lossless either way, regardless of how deep the url's
+  // course/lecture subfolder path is.
+  function imageBasename(url){
+    return (url||'').split('/').pop();
+  }
   function encodeImageList(images){
     return encodePairList((images||[]).map(im=>({
       caption: im.caption||'',
-      filename: im.filename || (im.url ? im.url.replace(/^images\//,'') : ''),
+      filename: im.filename || imageBasename(im.url),
     })), 'caption', 'filename');
+  }
+  // Images are filed under images/<course>/<class>/<filename> so each
+  // course's assets sit together on disk instead of one flat folder --
+  // this is the one place that builds that path, so every export/import/
+  // preview path stays consistent even as the convention evolves. Falls
+  // back to a flatter path for the rare item that only has a course (no
+  // specific lecture) or genuinely neither.
+  function imageUrlFor(course, cls, filename){
+    if(course && cls) return `images/${course}/${cls}/${filename}`;
+    if(course) return `images/${course}/${filename}`;
+    return `images/${filename}`;
   }
 
   document.getElementById('itemsExportBtn').addEventListener('click', ()=>{
@@ -1874,7 +1897,11 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       const hashtags = idx.hashtags>=0 ? (row[idx.hashtags]||'').split(';').map(s=>s.trim()).filter(Boolean) : [];
       const courseCode = idx.course>=0 ? (row[idx.course]||'').trim() : '';
       const classKey = idx.class>=0 ? (row[idx.class]||'').trim() : '';
-      const images = idx.images>=0 ? decodePairList(row[idx.images], 'caption', 'filename').map(im=>({...im, url:`images/${im.filename}`})) : [];
+      // Just the caption/filename pairs for now -- building `url` needs to
+      // know the item's actual effective course/class, which (for an edit
+      // row with course/class left blank) isn't settled until after the
+      // existing item is looked up below.
+      const imagePairs = idx.images>=0 ? decodePairList(row[idx.images], 'caption', 'filename') : [];
       const refs = idx.refs>=0 ? decodePairList(row[idx.refs], 'label', 'url') : [];
       if(!label){ errors.push(`Row ${rowNum}: missing label, skipped.`); continue; }
       if(!description){ errors.push(`Row ${rowNum}: missing description, skipped.`); continue; }
@@ -1901,6 +1928,15 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
         // required (validated above, blank already rejects the row outright),
         // so there's no silent-wipe risk to guard against there.
         const full = RD.THEMES[existing.theme]?.topics?.[existing.topic]?.items?.[existing.id];
+        // A blank course/class column on an edit row means "unchanged" (same
+        // rule as every other optional field) -- fall back to the item's
+        // current course/class so a NEW image on that row still lands in
+        // the right folder, rather than a blank/flat one.
+        const effCourse = course || full?.course || '';
+        const effCls = cls || full?.class || '';
+        const editImages = imagePairs.length
+          ? imagePairs.map(im=>({ ...im, url: imageUrlFor(effCourse, effCls, im.filename) }))
+          : (full?.images||[]);
         valid.push({
           isEdit: true,
           theme: existing.theme, topicId: existing.topic, usingNewTopic: false,
@@ -1914,7 +1950,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
           courseInfo: { addCourseSnippet:'', addClassSnippet:'', newCourseData:null, newClassData:null },
           addCourseSnippet: '', addClassSnippet: '',
           refs: refs.length ? refs : (full?.refs||[]),
-          images: images.length ? images : (full?.images||[]),
+          images: editImages,
           existingQuestions: full?.questions || [],
         });
         continue;
@@ -1926,6 +1962,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       if(!topicId){ errors.push(`Row ${rowNum}: new item needs a topic, skipped.`); continue; }
       if(!RD.THEMES[theme]?.topics?.[topicId]){ errors.push(`Row ${rowNum}: topic "${topicId}" doesn't exist under ${theme}, skipped.`); continue; }
       const itemId = slugify(label) + '_' + randSuffix();
+      const images = imagePairs.map(im=>({ ...im, url: imageUrlFor(course, cls, im.filename) }));
       valid.push({
         isEdit: false,
         theme, topicId, itemId, label, description, mechanism, funFacts, activeRecall: activeRecallList, hashtags,
