@@ -660,6 +660,7 @@
         <div id="guideCourseHeader" style="display:none;margin-bottom:10px;">
           <button class="secondary" id="courseBackBtn" style="margin-bottom:8px;">← Back to topics</button>
           <div class="p-sub" style="margin-top:0;" id="courseHeaderText">Lecture</div>
+          <div id="courseOutcomesBlock" style="display:none;background:var(--panel);border:1px solid var(--panel-line);border-radius:10px;padding:10px 14px;margin:8px 0 4px;text-align:left;"></div>
         </div>
         <div id="guideListHeader" style="display:none;margin-bottom:6px;">
           <button class="secondary" id="guideListBackBtn">← Back to guide</button>
@@ -676,6 +677,11 @@
           <p class="p-desc" id="itemDesc"></p>
           <div id="itemMechWrap"><div class="p-sub" style="margin-top:0;">Mechanism</div><p class="p-desc" id="itemMech"></p></div>
           <div id="itemFactsWrap"><div class="p-sub">Fun facts</div><ul class="p-facts" id="itemFacts"></ul></div>
+          <div id="itemRecallWrap" style="display:none;">
+            <div class="p-sub">🧠 Active recall</div>
+            <p class="p-desc" style="margin-top:-4px;">Close the page and answer these from memory before checking back.</p>
+            <ul class="p-facts" id="itemRecall"></ul>
+          </div>
           <div id="itemRefsWrap" style="display:none;"><div class="p-sub">References</div><ul class="p-facts" id="itemRefs"></ul></div>
         </div>
       </div>
@@ -930,6 +936,18 @@
     if(!c) return '';
     const k = c.classes[cls];
     return k ? `${c.code} ${cls} ${k.label}` : c.code;
+  }
+  // Reverses courseDisplayString -- given the exact display line a lecture
+  // card/course pill shows, finds which course code + class key produced it,
+  // so its authored learning outcomes (if any) can be looked up and shown.
+  function findCourseClassByDisplayString(name){
+    for(const code of Object.keys(COURSES)){
+      const c = COURSES[code];
+      for(const clsKey of Object.keys(c.classes||{})){
+        if(courseDisplayString(code, clsKey) === name) return { course: code, classKey: clsKey, cls: c.classes[clsKey] };
+      }
+    }
+    return null;
   }
   // An item/question's relatedCourse is usually one line, but the "spans
   // several classes" override can list several lecture references — one
@@ -1298,12 +1316,15 @@
   const itemHashtags = document.getElementById('itemHashtags');
   const guideCourseHeader = document.getElementById('guideCourseHeader');
   const courseHeaderText = document.getElementById('courseHeaderText');
+  const courseOutcomesBlock = document.getElementById('courseOutcomesBlock');
   const courseBackBtn = document.getElementById('courseBackBtn');
   const itemDesc = document.getElementById('itemDesc');
   const itemMechWrap = document.getElementById('itemMechWrap');
   const itemMech = document.getElementById('itemMech');
   const itemFactsWrap = document.getElementById('itemFactsWrap');
   const itemFacts = document.getElementById('itemFacts');
+  const itemRecallWrap = document.getElementById('itemRecallWrap');
+  const itemRecall = document.getElementById('itemRecall');
   const itemRefsWrap = document.getElementById('itemRefsWrap');
   const itemRefs = document.getElementById('itemRefs');
 
@@ -2745,6 +2766,10 @@
     itemDesc.textContent = item.description || '';
     if(item.mechanism){ itemMech.textContent = item.mechanism; itemMechWrap.style.display='block'; } else { itemMechWrap.style.display='none'; }
     if(item.funFacts && item.funFacts.length){ itemFacts.innerHTML = item.funFacts.map(f=>`<li>${f}</li>`).join(''); itemFactsWrap.style.display='block'; } else { itemFactsWrap.style.display='none'; }
+    // Plain recall PROMPTS, not MCQs -- no options, no answer checking. The
+    // point is to make the student actively try to explain/recall the item
+    // from memory after reading it, not to quiz them here and now.
+    if(item.activeRecall && item.activeRecall.length){ itemRecall.innerHTML = item.activeRecall.map(q=>`<li>${escapeHtml(q)}</li>`).join(''); itemRecallWrap.style.display='block'; } else { itemRecallWrap.style.display='none'; }
     if(item.refs && item.refs.length){
       itemRefs.innerHTML = item.refs.map(r=> r.url ? `<li><a href="${r.url}" target="_blank" rel="noopener" style="color:var(--membrane)">${r.label}</a></li>` : `<li>${r.label}</li>`).join('');
       itemRefsWrap.style.display = 'block';
@@ -2795,6 +2820,19 @@
       : courseViewOrigin==='item' && cameFromItem ? `← Back to ${cameFromItem.item.label}`
       : '← Back to topics';
     courseHeaderText.textContent = headerText;
+    // Only a specific lecture (mode 'course') can have authored learning
+    // outcomes -- a #tag view spans many unrelated lectures, so there's no
+    // single set of outcomes to show there.
+    const courseMatch = mode==='course' ? findCourseClassByDisplayString(headerText.replace(/^🎓 /,'')) : null;
+    const outcomes = courseMatch && courseMatch.cls.outcomes;
+    if(outcomes && outcomes.length){
+      const items = outcomes.map(o=>`<li>${escapeHtml(o)}</li>`).join('');
+      courseOutcomesBlock.innerHTML = `<div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--hud-dim);margin-bottom:6px;">Learning Outcomes</div><ul style="margin:0;padding-left:20px;">${items}</ul>`;
+      courseOutcomesBlock.style.display = 'block';
+    } else {
+      courseOutcomesBlock.style.display = 'none';
+      courseOutcomesBlock.innerHTML = '';
+    }
     const matches = [];
     Object.entries(THEMES).forEach(([themeId, theme])=>{
       Object.entries(theme.topics).forEach(([topicId, topicData])=>{
