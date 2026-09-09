@@ -1763,6 +1763,19 @@
       return { [keyA]: a||'', [keyB]: b||'' };
     }).filter(o=>o[keyA]);
   }
+  // A few older items were hand-authored directly in game-data.js with just
+  // a `url` (e.g. 'images/car_t_cell.png') instead of the picker's
+  // `caption`+`filename` convention. Exporting those with encodePairList
+  // alone would leave filename blank -- silently wiping the image on
+  // reimport, since the decode side rebuilds `url` from `filename`. This
+  // derives filename from url as a fallback so the round-trip is lossless
+  // either way.
+  function encodeImageList(images){
+    return encodePairList((images||[]).map(im=>({
+      caption: im.caption||'',
+      filename: im.filename || (im.url ? im.url.replace(/^images\//,'') : ''),
+    })), 'caption', 'filename');
+  }
 
   document.getElementById('itemsExportBtn').addEventListener('click', ()=>{
     const header = ['itemId','theme','topic','label','description','mechanism','funFacts','hashtags','course','class','images','refs'];
@@ -1773,7 +1786,7 @@
           rows.push([
             itemId, themeId, topicId, item.label, item.description||'', item.mechanism||'',
             (item.funFacts||[]).join(';'), (item.hashtags||[]).join(';'), item.course||'', item.class||'',
-            encodePairList(item.images, 'caption', 'filename'),
+            encodeImageList(item.images),
             encodePairList((item.refs||[]).map(r=>({label:r.label, url:r.url||''})), 'label', 'url'),
           ].map(csvField));
         });
@@ -3029,6 +3042,10 @@
                      AND (via \`course\`/\`class\` on an item/question) a lecture
                      citation, which is why an item's own course usually
                      matches its top-level THEMES key but doesn't have to.
+                     A class/lecture can optionally carry \`outcomes\` (an
+                     array of learning-outcome strings) and \`intro\` (a short
+                     content blurb) — set these to make that lecture playable
+                     in the "Learning Path" mode (see LEARNING_PATH_CONFIG).
    THEMES         — Course (e.g. "MEDS3002") → Topic → study-guide Item.
                      Topics are specific to their course now -- each one
                      carries its own \`label\`/\`icon\`/\`color\` inline instead of
@@ -3036,8 +3053,11 @@
                      COURSES entry via \`course\` + \`class\`, and carries its own
                      \`questions\` array — the MCQs players get asked about
                      that item (each with its own \`difficulty\`, one of
-                     'easy'/'medium'/'hard', optional). A question only needs
-                     its own \`course\`/\`class\` (or, rarely, a literal
+                     'easy'/'medium'/'hard', optional, and its own \`level\`,
+                     one of 'identify'/'understand'/'apply'/'case', optional
+                     — cognitive level used by the "Learning Path" mode;
+                     untagged questions count as 'identify'). A question only
+                     needs its own \`course\`/\`class\` (or, rarely, a literal
                      \`relatedCourse\` string) if it genuinely differs from its
                      item's — most just inherit the item's.
    STAGES         — Course → ordered list of Runner-mode stages.
@@ -3045,6 +3065,9 @@
                      mode vs. Study & Practice-only).
    GAME_CONFIG    — every tunable gameplay number.
    LIFE_CONFIG    — per-course label/icon for the "life" resource.
+   LEARNING_PATH_CONFIG — cognitive levels/quotas for the lecture-scoped
+                     "Learning Path" mode (identify → understand → apply →
+                     case study).
    COMPLETE_SCENARIO — text shown after the last stage.
    ============================================================================ */
 (function(){
@@ -3057,7 +3080,7 @@
    ("MEDS3002 · L14 · Cancer Hallmarks") is generated automatically — see
    courseDisplayString() in cancer-runner-group.html.
    ====================================================================== */
-            `,
+              `,
     betweenCoursesThemes: `
 
 /* ======================================================================
@@ -3073,8 +3096,9 @@
     wrongAnswerPenalty: 40,    // life lost per wrong MCQ answer
     postAnswerPauseMs: 2000,   // brief freeze after clicking Continue, before the run resumes -- gives a beat to
                                // get oriented instead of getting dropped straight back next to whatever piled up
-    obstacleSpawnBaseMs: 250,  // topic-block spawn interval = base + random(0..rand)
-    obstacleSpawnRandMs: 450,
+    obstacleSpawnBaseMs: 500,  // topic-block spawn interval = base + random(0..rand) -- widened per playtester
+                               // feedback that questions/obstacles were coming at the player too frequently
+    obstacleSpawnRandMs: 700,
     glucoseSpawnBaseMs: 550,   // life-pickup spawn interval = base + random(0..rand)
     glucoseSpawnRandMs: 300,
     initialObstacleDelayMs: 1200, // delay before the very first topic block spawns
@@ -3082,8 +3106,8 @@
     bombDamage: 40,               // life lost when a bomb is hit (instant, no question)
     bombIcon: '💣',                // swap for 'icons/bomb.png' (or any path/URL -- see the ICONS comment
                                    // in medsci-runner.html) to use your own image instead of the emoji
-    bombSpawnBaseMs: 500,        // bomb spawn interval — base + random(0..rand)
-    bombSpawnRandMs: 1300,
+    bombSpawnBaseMs: 800,        // bomb spawn interval — base + random(0..rand) -- widened alongside obstacleSpawn* above
+    bombSpawnRandMs: 1600,
     scoreCorrectWeight: 50,    // Group Race ranking score = correct*this - incorrect*this + life*this + stageIndex*stageWeight
     scoreIncorrectWeight: 35,
     scoreLifeWeight: 1,
@@ -3105,6 +3129,27 @@
   };
 
 /* ======================================================================
+   LEARNING_PATH_CONFIG — tunables for the lecture-scoped "Learning Path"
+   mode. That mode picks a single lecture (a COURSES[course].classes[class]
+   entry) and runs its questions through these cognitive levels in order,
+   gated by perLevelQuota correct answers each. A lecture only shows up in
+   the Learning Path picker once it has an \`outcomes\` array (see COURSES
+   above) AND at least one question tagged with a matching \`level\` (see the
+   THEMES/questions comment below) — levels with zero matching questions for
+   that lecture are skipped rather than shown empty.
+   ====================================================================== */
+  const LEARNING_PATH_CONFIG = {
+    levels: ['identify', 'understand', 'apply', 'case'],
+    perLevelQuota: 3, // correct answers needed within a level before advancing to the next
+    levelLabels: { identify:'Identify', understand:'Understand', apply:'Apply', case:'Case Study' },
+    levelBlurbs: {
+      understand: "You've identified the basics — now let's understand the mechanism behind them.",
+      apply:      "Time to apply that understanding to a scenario.",
+      case:       "Bring it all together with a case study.",
+    },
+  };
+
+/* ======================================================================
    THEMES — Course -> Topic -> Item. Each item can carry "hashtags" (which
    cancer type / sub-area it belongs to, e.g. ['Leukemia']), course + class
    fields pointing into COURSES above (e.g. course:'MEDS3002', class:'L14'),
@@ -3114,7 +3159,7 @@
    its item's (e.g. a question spanning several classes at once) — most
    questions just inherit the item's.
    ====================================================================== */
-            `,
+              `,
     afterThemes: `
 
 /* ======================================================================
@@ -3152,7 +3197,7 @@
 
   window.RUNNER_DATA = {
     COURSES, GAME_CONFIG, LIFE_CONFIG, THEMES,
-    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES,
+    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES, LEARNING_PATH_CONFIG,
   };
 
 })();
