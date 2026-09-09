@@ -682,6 +682,10 @@
             <p class="p-desc" style="margin-top:-4px;">Close the page and answer these from memory before checking back.</p>
             <ul class="p-facts" id="itemRecall"></ul>
           </div>
+          <div id="itemQuizWrap" style="display:none;margin:16px 0;text-align:center;">
+            <button class="primary" id="itemQuizBtn">🧠 Test yourself</button>
+            <div id="itemQuizResult" class="p-desc" style="margin-top:8px;color:var(--good);display:none;"></div>
+          </div>
           <div id="itemRefsWrap" style="display:none;"><div class="p-sub">References</div><ul class="p-facts" id="itemRefs"></ul></div>
         </div>
       </div>
@@ -1325,6 +1329,9 @@
   const itemFacts = document.getElementById('itemFacts');
   const itemRecallWrap = document.getElementById('itemRecallWrap');
   const itemRecall = document.getElementById('itemRecall');
+  const itemQuizWrap = document.getElementById('itemQuizWrap');
+  const itemQuizBtn = document.getElementById('itemQuizBtn');
+  const itemQuizResult = document.getElementById('itemQuizResult');
   const itemRefsWrap = document.getElementById('itemRefsWrap');
   const itemRefs = document.getElementById('itemRefs');
 
@@ -1398,6 +1405,14 @@
   let practiceQueue = [];
   let practiceCorrect = 0, practiceAnswered = 0;
   let practiceTheme = null;
+  // Set when practice mode was launched from an item's own "Test yourself"
+  // button (on its study-guide page) instead of the full Study & Practice
+  // setup flow -- ending the session then returns to that exact item page
+  // with a small result banner, instead of dropping back to the landing
+  // screen and opening the whole-session summary (which would mix in
+  // whatever else was answered earlier this session, not just this item).
+  let practiceReturnTarget = null;
+  let currentItemDetail = null; // { topicId, itemId, item } for whichever item's page is currently open, so the "Test yourself" button knows what to quiz on without needing its own separate wiring at every call site of openItemDetail()
   let pendingQuestion = null;
   let mcqTimerInterval = null;
   const MCQ_TIME_LIMIT = 45; // seconds baseline -- run out and it counts as a wrong answer, same as an incorrect pick.
@@ -1745,19 +1760,31 @@
     landingScreen.classList.remove('active');
     advancePractice();
   });
-  function advancePractice(){
-    if(practiceQueue.length===0){
-      mcqModal.classList.remove('active');
-      quizMode = 'runner';
-      screenState = 'menu';
-      syncHudVisibility();
-      showScreen('landing');
-      landingScreen.classList.add('active');
-      cancerPickView.style.display = 'block';
-      practiceSetupView.style.display = 'none';
-      openSummary();
+  // Shared by both "ran out of queued questions" and "hit End practice"
+  // early -- one exit path, so both always agree on where a session
+  // that started should end up.
+  function endPracticeSession(){
+    mcqModal.classList.remove('active');
+    quizMode = 'runner';
+    screenState = 'menu';
+    syncHudVisibility();
+    if(practiceReturnTarget){
+      const { topicId, itemId, item } = practiceReturnTarget;
+      practiceReturnTarget = null;
+      openItemDetail(topicId, itemId, item); // resets itemQuizResult to hidden -- set its real text after
+      itemQuizResult.textContent = `✅ ${practiceCorrect}/${practiceAnswered} correct`;
+      itemQuizResult.style.display = 'block';
+      infoModal.classList.add('active');
       return;
     }
+    showScreen('landing');
+    landingScreen.classList.add('active');
+    cancerPickView.style.display = 'block';
+    practiceSetupView.style.display = 'none';
+    openSummary();
+  }
+  function advancePractice(){
+    if(practiceQueue.length===0){ endPracticeSession(); return; }
     const next = practiceQueue.shift();
     mcqPracticeBar.style.display = 'flex';
     mcqPracticeProgress.textContent = `Practice · ${practiceAnswered} answered (${practiceCorrect} correct) · ${practiceQueue.length} left`;
@@ -1766,15 +1793,7 @@
   mcqEndPracticeBtn.addEventListener('click', ()=>{
     clearMcqTimer();
     practiceQueue = [];
-    mcqModal.classList.remove('active');
-    quizMode = 'runner';
-    screenState = 'menu';
-    syncHudVisibility();
-    showScreen('landing');
-    landingScreen.classList.add('active');
-    cancerPickView.style.display = 'block';
-    practiceSetupView.style.display = 'none';
-    openSummary();
+    endPracticeSession();
   });
 
   // ---------- run lifecycle ----------
@@ -2730,7 +2749,34 @@
     });
   }
   guideSearchInput.addEventListener('input', applyGuideSearch);
+  // Topic ids are unique across the whole file (TOPICS is already built as
+  // one flat merged index on that assumption -- see its construction near
+  // the top of this script), so a topic's theme can always be found by
+  // checking which THEMES entry owns it, regardless of how the item page
+  // was reached (browsing a topic normally keeps guideActiveTheme correct,
+  // but arriving via "Browse by lecture" or a #tag click doesn't).
+  function themeForTopic(topicId){
+    for(const themeId of Object.keys(THEMES)){
+      if(THEMES[themeId].topics[topicId]) return themeId;
+    }
+    return null;
+  }
+  itemQuizBtn.addEventListener('click', ()=>{
+    if(!currentItemDetail || !currentItemDetail.item.questions || !currentItemDetail.item.questions.length) return;
+    const { topicId, itemId, item } = currentItemDetail;
+    practiceQueue = shuffle(item.questions.map(q=>({ q, topic: topicId })));
+    practiceCorrect = 0; practiceAnswered = 0; streak = 0;
+    practiceTimed = false; // a quick self-test from the study guide, not a timed drill
+    activeQuestionTheme = themeForTopic(topicId) || guideActiveTheme;
+    practiceReturnTarget = { topicId, itemId, item };
+    quizMode = 'practice';
+    screenState = 'mcq';
+    syncHudVisibility();
+    infoModal.classList.remove('active'); // mcqModal and infoModal share the same z-index/backdrop -- both active at once would hide the question behind the study guide
+    advancePractice();
+  });
   function openItemDetail(topicId, itemId, item){
+    currentItemDetail = { topicId, itemId, item };
     const meta = TOPICS[topicId];
     guideItemGrid.style.display = 'none';
     guideTabsWrap.style.display = 'none';
@@ -2770,6 +2816,14 @@
     // point is to make the student actively try to explain/recall the item
     // from memory after reading it, not to quiz them here and now.
     if(item.activeRecall && item.activeRecall.length){ itemRecall.innerHTML = item.activeRecall.map(q=>`<li>${escapeHtml(q)}</li>`).join(''); itemRecallWrap.style.display='block'; } else { itemRecallWrap.style.display='none'; }
+    itemQuizResult.style.display = 'none';
+    if(item.questions && item.questions.length){
+      const n = item.questions.length;
+      itemQuizBtn.textContent = `🧠 Test yourself (${n} question${n===1?'':'s'})`;
+      itemQuizWrap.style.display = 'block';
+    } else {
+      itemQuizWrap.style.display = 'none';
+    }
     if(item.refs && item.refs.length){
       itemRefs.innerHTML = item.refs.map(r=> r.url ? `<li><a href="${r.url}" target="_blank" rel="noopener" style="color:var(--membrane)">${r.label}</a></li>` : `<li>${r.label}</li>`).join('');
       itemRefsWrap.style.display = 'block';
