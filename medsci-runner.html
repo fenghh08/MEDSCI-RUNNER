@@ -116,6 +116,7 @@
   button.primary{ font-family:var(--mono); background:linear-gradient(135deg,var(--membrane),#c22a5c);
     color:#1a0508; font-weight:700; border:none; padding:11px 26px; border-radius:30px; font-size:14px;
     cursor:pointer; box-shadow:0 8px 20px -6px rgba(255,93,143,.6); }
+  button.primary:disabled{ background:var(--chip-bg); color:var(--hud-dim); cursor:not-allowed; box-shadow:none; }
   button.secondary{ font-family:var(--mono); background:transparent; color:var(--hud-ink);
     border:1px solid var(--hairline-strong); padding:10px 22px; border-radius:30px; font-size:13px; cursor:pointer; }
   button.secondary.flagged{ border-color:#ffd54d; color:#ffd54d; background:rgba(255,213,77,.12); }
@@ -730,6 +731,7 @@
           <h3 class="p-name" id="itemName">—</h3>
           <div class="p-desc" id="itemCourse" style="margin-top:-6px;color:var(--hud-dim);font-size:11.5px;"></div>
           <div class="p-chips" id="itemHashtags" style="margin-bottom:10px;"></div>
+          <button class="secondary" id="itemReadAloudBtn" style="display:none;font-size:12px;padding:6px 14px;margin-bottom:10px;">🔊 Read aloud</button>
           <p class="p-desc" id="itemDesc"></p>
           <div id="itemMechWrap"><div class="p-sub" style="margin-top:0;">Mechanism</div><p class="p-desc" id="itemMech"></p></div>
           <div id="itemFactsWrap"><div class="p-sub">Fun facts</div><ul class="p-facts" id="itemFacts"></ul></div>
@@ -740,6 +742,7 @@
           </div>
           <div id="itemQuizWrap" style="display:none;margin:16px 0;text-align:center;">
             <button class="primary" id="itemQuizBtn">🧠 Test yourself</button>
+            <p id="itemQuizBlockedNote" class="p-desc" style="margin-top:8px;display:none;">Finish or quit your current run to test yourself here — starting a practice quiz mid-run would lose your progress.</p>
             <div id="itemQuizResult" class="p-desc" style="margin-top:8px;color:var(--good);display:none;"></div>
           </div>
           <div id="itemRefsWrap" style="display:none;"><div class="p-sub">References</div><ul class="p-facts" id="itemRefs"></ul></div>
@@ -1395,6 +1398,8 @@
   const itemQuizWrap = document.getElementById('itemQuizWrap');
   const itemQuizBtn = document.getElementById('itemQuizBtn');
   const itemQuizResult = document.getElementById('itemQuizResult');
+  const itemQuizBlockedNote = document.getElementById('itemQuizBlockedNote');
+  const itemReadAloudBtn = document.getElementById('itemReadAloudBtn');
   const itemRefsWrap = document.getElementById('itemRefsWrap');
   const itemRefs = document.getElementById('itemRefs');
 
@@ -2834,6 +2839,7 @@
     return null;
   }
   itemQuizBtn.addEventListener('click', ()=>{
+    if(itemQuizBtn.disabled) return;
     if(!currentItemDetail || !currentItemDetail.item.questions || !currentItemDetail.item.questions.length) return;
     const { topicId, itemId, item } = currentItemDetail;
     practiceQueue = shuffle(item.questions.map(q=>({ q, topic: topicId })));
@@ -2847,8 +2853,31 @@
     infoModal.classList.remove('active'); // mcqModal and infoModal share the same z-index/backdrop -- both active at once would hide the question behind the study guide
     advancePractice();
   });
+  // ---------- read aloud (Web Speech API) ----------
+  // Browser-built-in TTS -- free, offline, no server round-trip. Feature-
+  // detected: the button just stays hidden on a browser/webview without
+  // SpeechSynthesis instead of erroring.
+  const canReadAloud = 'speechSynthesis' in window;
+  function stopReadAloud(){
+    if(canReadAloud) window.speechSynthesis.cancel();
+    itemReadAloudBtn.textContent = '🔊 Read aloud';
+  }
+  function readAloudTextFor(item){
+    return [item.label, item.description, item.mechanism].filter(Boolean).join('. ');
+  }
+  itemReadAloudBtn.addEventListener('click', ()=>{
+    if(!canReadAloud || !currentItemDetail) return;
+    if(window.speechSynthesis.speaking){ stopReadAloud(); return; }
+    const utter = new SpeechSynthesisUtterance(readAloudTextFor(currentItemDetail.item));
+    utter.onend = ()=>{ itemReadAloudBtn.textContent = '🔊 Read aloud'; };
+    utter.onerror = ()=>{ itemReadAloudBtn.textContent = '🔊 Read aloud'; };
+    itemReadAloudBtn.textContent = '⏹ Stop reading';
+    window.speechSynthesis.speak(utter);
+  });
   function openItemDetail(topicId, itemId, item){
+    stopReadAloud(); // switching items mid-speech would otherwise overlap the old and new text
     currentItemDetail = { topicId, itemId, item };
+    itemReadAloudBtn.style.display = canReadAloud ? 'inline-block' : 'none';
     const meta = TOPICS[topicId];
     guideItemGrid.style.display = 'none';
     guideTabsWrap.style.display = 'none';
@@ -2893,6 +2922,15 @@
       const n = item.questions.length;
       itemQuizBtn.textContent = `🧠 Test yourself (${n} question${n===1?'':'s'})`;
       itemQuizWrap.style.display = 'block';
+      // The study guide can be opened mid-run (HUD button while paused, or
+      // "View in study guide" straight from an MCQ's feedback, screenState
+      // still 'mcq') -- starting a practice quiz there would stomp on the
+      // live run's screenState/quizMode and strand it, since practice mode
+      // returns to this item page when done, not back to the paused run.
+      // Only 'menu' means there's no run underneath to protect.
+      const blocked = screenState !== 'menu';
+      itemQuizBtn.disabled = blocked;
+      itemQuizBlockedNote.style.display = blocked ? 'block' : 'none';
     } else {
       itemQuizWrap.style.display = 'none';
     }
@@ -2914,6 +2952,7 @@
     }
     itemBackBtn.textContent = (guideMode==='course' || guideMode==='tag') ? '← Back' : (guideMode==='search' ? '← Back to results' : '← All topics');
     itemBackBtn.onclick = ()=>{
+      stopReadAloud();
       itemDetailWrap.style.display = 'none';
       guideItemGrid.style.display = 'grid';
       guideItemGrid.classList.remove('list-mode');
@@ -3110,7 +3149,7 @@
     if(guideActiveUnit){ openCourseList(); return; }
     openStudyGuide(guideActiveTheme, guideActiveTopic, null);
   });
-  guideClose.addEventListener('click', ()=> infoModal.classList.remove('active'));
+  guideClose.addEventListener('click', ()=>{ stopReadAloud(); infoModal.classList.remove('active'); });
 
   // ---------- image lightbox ----------
   function openLightbox(url, caption){
@@ -3721,7 +3760,15 @@
     stageProgress = {};
     Object.keys(currentStages()[0].requirements).forEach(t=>stageProgress[t]=0);
     mpOpponentPanel.style.display = 'block';
-    mpLeaderboardPanel.innerHTML = '';
+    // Render immediately from the roster snapshot the waiting-room listener
+    // already has (mp.roster), instead of leaving the panel blank until the
+    // next Firebase value-change event -- mpRenderLeaderboard() only ever
+    // gets called from the room listener when mp.active is true, and if
+    // nothing in the room happens to change right after the race starts
+    // (no one's answered a question yet), that could otherwise take several
+    // real seconds, which is exactly the empty-panel-then-it-appears gap
+    // reported from a real device.
+    mpRenderLeaderboard(mp.roster);
     updateHUD();
     resumeIntoRunning();
   }
