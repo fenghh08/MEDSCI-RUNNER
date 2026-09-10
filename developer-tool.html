@@ -445,7 +445,7 @@
         </label>
         <label class="field">
           <span class="fl-label">Images</span>
-          <span class="fl-help">A caption and a filename for each image. Upload the actual image file to <a href="https://drive.google.com/drive/folders/1Wofvby0aQ6a169mr50jU0sYIEk-6BaG2?usp=drive_link" target="_blank" rel="noopener" style="color:var(--membrane);">this shared Drive folder</a>, named <b>exactly</b> the filename shown below (edit the filename first if you want a different one, then match the upload to it).</span>
+          <span class="fl-help">A caption and a <b>link</b> to where the image lives (textbook figure page, journal article, a diagram on a site). The game lists these as links under the item's References instead of embedding a copy — nothing copyrighted gets redistributed inside the game.</span>
           <div class="list-editor" id="i_images"></div>
         </label>
       </div>
@@ -532,17 +532,6 @@
             <option value="easy">🟢 Easy</option>
             <option value="medium" selected>🟡 Medium</option>
             <option value="hard">🔴 Hard</option>
-          </select>
-        </label>
-        <label class="field" style="max-width:220px;">
-          <span class="fl-label">Cognitive level</span>
-          <span class="fl-help">Used by the "Learning Path" mode's identify → understand → apply → case study progression. Leave unset if you're not sure — it just won't be offered in that mode yet.</span>
-          <select id="q_level">
-            <option value="" selected>— Not set —</option>
-            <option value="identify">🔍 Identify</option>
-            <option value="understand">💡 Understand</option>
-            <option value="apply">🛠️ Apply</option>
-            <option value="case">🩺 Case Study</option>
           </select>
         </label>
         <label class="field">
@@ -648,9 +637,9 @@
       </div>
       <label class="field">
         <span class="fl-label">Paste CSV text</span>
-        <textarea id="lec_textarea" rows="10" placeholder="questionId,course,lecture,topic,item,prompt,optionA,optionB,optionC,optionD,correct,explanation,hashtags,difficulty,level,description,mechanism,funfacts
-,MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;,BTK,JAK2,mTOR,PI3K,A,&quot;Ibrutinib irreversibly binds BTK.&quot;,Leukemia,medium,identify,&quot;A BTK inhibitor used in CLL and mantle cell lymphoma.&quot;,&quot;Irreversibly binds BTK, blocking B-cell receptor signalling.&quot;,&quot;First-in-class BTK inhibitor;Taken orally once daily&quot;"></textarea>
-        <span class="fl-help">Leave <code>questionId</code> blank for a new question — never hand-type one, only use what the export below gave you. "level" is optional -- one of identify/understand/apply/case, used by the Learning Path mode. "description"/"mechanism"/"funfacts" are optional too -- fill them in on an item's first row to fully author it instead of leaving a bare label; "funfacts" can hold several, separated by semicolons. Leave any of these columns out (or the cell blank) to skip them.</span>
+        <textarea id="lec_textarea" rows="10" placeholder="questionId,course,lecture,topic,item,prompt,optionA,optionB,optionC,optionD,correct,explanation,hashtags,difficulty,description,mechanism,funfacts
+,MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;,BTK,JAK2,mTOR,PI3K,A,&quot;Ibrutinib irreversibly binds BTK.&quot;,Leukemia,medium,&quot;A BTK inhibitor used in CLL and mantle cell lymphoma.&quot;,&quot;Irreversibly binds BTK, blocking B-cell receptor signalling.&quot;,&quot;First-in-class BTK inhibitor;Taken orally once daily&quot;"></textarea>
+        <span class="fl-help">Leave <code>questionId</code> blank for a new question — never hand-type one, only use what the export below gave you. "description"/"mechanism"/"funfacts" are optional too -- fill them in on an item's first row to fully author it instead of leaving a bare label; "funfacts" can hold several, separated by semicolons. Leave any of these columns out (or the cell blank) to skip them.</span>
       </label>
       <div id="lec_preview" style="margin:10px 0;font-size:12px;color:var(--hud-dim);"></div>
       <div class="btn-row">
@@ -702,7 +691,7 @@
     <div class="layout" style="margin-top:16px;">
       <div class="card">
         <h2>🧭 Lecture learning outcomes</h2>
-        <p class="card-sub">Pick an existing course and lecture, then add the learning outcome(s) it should show before "Learning Path" mode starts, plus an optional short intro blurb. This only affects lectures that already have questions tagged with a cognitive level (identify/understand/apply/case, set in the "New question" tab) — a lecture won't show up in Learning Path mode until both are in place.</p>
+        <p class="card-sub">Pick an existing course and lecture, then add the learning outcome(s) shown at the top of that lecture in the game's "Browse by lecture" view, plus an optional short intro blurb.</p>
         <label class="field">
           <span class="fl-label">Course <span class="req">*</span></span>
           <select id="lo_course"></select>
@@ -713,7 +702,7 @@
         </label>
         <label class="field">
           <span class="fl-label">Learning outcome(s) <span class="req">*</span></span>
-          <span class="fl-help">One per line — shown to the player before they start this lecture in Learning Path mode.</span>
+          <span class="fl-help">One per line — shown as a bullet list at the top of this lecture in "Browse by lecture".</span>
           <div class="list-editor" id="lo_outcomes"></div>
         </label>
         <label class="field">
@@ -1003,8 +992,10 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
         const saqEntry = (isSaq && entry) ? entry.item.saq?.[Number(qId.slice(3))] : null;
         const prompt = q ? q.prompt : saqEntry ? saqEntry.prompt : '(question not found — possibly deleted or edited since)';
         const correct = s.correct||0, wrong = s.wrong||0, total = correct+wrong;
+        const topicLabel = entry ? ((RD.THEMES[entry.themeId]?.topics?.[entry.topicId]||{}).label || entry.topicId) : '';
         return {
           itemLabel: entry ? entry.item.label : itemId, prompt, correct, wrong, total,
+          course: entry ? entry.themeId : '', topic: topicLabel,
           missRate: total ? wrong/total : 0,
         };
       }).filter(r=>r.total>0).sort((a,b)=> b.missRate - a.missRate || b.total - a.total);
@@ -1018,8 +1009,10 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   function renderAnalyticsTable(rows){
     if(!rows.length){ analyticsTableWrap.innerHTML = '<p class="card-sub">No answer data recorded yet.</p>'; return; }
     analyticsTableWrap.innerHTML = `<table class="analytics-table">
-      <thead><tr><th>Item</th><th>Question</th><th>Correct</th><th>Wrong</th><th>Miss rate</th></tr></thead>
+      <thead><tr><th>Course</th><th>Topic</th><th>Item</th><th>Question</th><th>Correct</th><th>Wrong</th><th>Miss rate</th></tr></thead>
       <tbody>${rows.map(r=>`<tr>
+        <td>${esc2(r.course)}</td>
+        <td>${esc2(r.topic)}</td>
         <td>${esc2(r.itemLabel)}</td>
         <td>${esc2((r.prompt||'').slice(0,90))}${(r.prompt||'').length>90?'…':''}</td>
         <td>${r.correct}</td>
@@ -1284,90 +1277,34 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       .filter(s=>s.prompt && s.modelAnswer);
   }
   function makeImageList(container, onChange, initialValues){
+    // Images are links to their source, not files in the repo -- the game
+    // lists them under the item's References, so there's nothing to pick,
+    // rename, or upload any more. Same caption+url shape as refs.
     container.innerHTML = '';
-    let n = 0;
-    function addRow(caption, filename){
-      n++;
+    function addRow(caption, url){
       const row = document.createElement('div');
       row.className = 'list-row img-row';
-      // The file input/thumbnail are purely a local authoring aid -- picking
-      // a file never uploads anywhere (this tool has no backend to upload
-      // to). It just: (1) shows a live preview so you can confirm you
-      // picked the right image, (2) suggests a matching filename from the
-      // item's slug + the file's own extension, and (3) lets you download a
-      // renamed copy with one click so you're not manually renaming the
-      // file yourself before dragging it into the shared image folder.
-      row.innerHTML = `<label class="img-pick" title="Pick an image file (preview + auto-fill only -- doesn't upload anywhere)">
-          <input type="file" class="img-file-input" accept="image/*" style="display:none;">
-          <img class="img-thumb" style="display:none;">
-          <span class="img-pick-icon">🖼</span>
-        </label>
-        <input type="text" class="img-cap" placeholder="Caption, e.g. H&E stain, bone marrow">
-        <input type="text" class="img-file" placeholder="filename, e.g. bcrabl-x1.png">
-        <button class="secondary img-download" type="button" title="Save a copy of the picked file under this exact filename" style="display:none;padding:4px 8px;font-size:11px;">⬇</button>
+      row.innerHTML = `<input type="text" class="img-cap" placeholder="Caption, e.g. H&E stain, bone marrow">
+        <input type="text" class="img-url" placeholder="https://… link to the image / figure">
         <button class="list-remove" type="button">✕</button>`;
-      row.dataset.n = n;
-      row.dataset.userEdited = filename ? 'true' : 'false';
-      row.dataset.ext = '.png';
       row.querySelector('.img-cap').value = caption||'';
-      row.querySelector('.img-file').value = filename||'';
-      row.querySelector('.img-file').addEventListener('input', ()=>{ row.dataset.userEdited = 'true'; onChange(); });
+      row.querySelector('.img-url').value = url||'';
       row.querySelector('.img-cap').addEventListener('input', onChange);
-      const fileInputEl = row.querySelector('.img-file-input');
-      const thumbEl = row.querySelector('.img-thumb');
-      const pickIconEl = row.querySelector('.img-pick-icon');
-      const downloadBtn = row.querySelector('.img-download');
-      fileInputEl.addEventListener('change', ()=>{
-        const file = fileInputEl.files[0];
-        if(!file) return;
-        row._pickedFile = file;
-        thumbEl.src = URL.createObjectURL(file);
-        thumbEl.style.display = 'block';
-        pickIconEl.style.display = 'none';
-        downloadBtn.style.display = 'inline-block';
-        const extMatch = file.name.match(/\.[a-z0-9]+$/i);
-        row.dataset.ext = extMatch ? extMatch[0].toLowerCase() : '.png';
-        // Only auto-fill the caption/filename if they're still empty --
-        // never clobber something the contributor already typed.
-        const capEl = row.querySelector('.img-cap');
-        if(!capEl.value.trim()) capEl.value = file.name.replace(/\.[a-z0-9]+$/i, '').replace(/[_-]+/g,' ');
-        if(row.dataset.userEdited!=='true'){
-          // Leave the actual value to be filled in at _getValues(itemSlug)
-          // time (same deferred pattern as before) -- just mark that we now
-          // have a real extension to use instead of the .png fallback.
-        }
-        onChange();
-      });
-      downloadBtn.addEventListener('click', ()=>{
-        if(!row._pickedFile) return;
-        const filename = row.querySelector('.img-file').value.trim() || row._pickedFile.name;
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(row._pickedFile);
-        a.download = filename;
-        a.click();
-      });
+      row.querySelector('.img-url').addEventListener('input', onChange);
       row.querySelector('.list-remove').addEventListener('click', ()=>{ row.remove(); onChange(); });
       container.insertBefore(row, addBtn);
     }
     const addBtn = document.createElement('button');
-    addBtn.className = 'list-add'; addBtn.type = 'button'; addBtn.textContent = '+ Add another image';
+    addBtn.className = 'list-add'; addBtn.type = 'button'; addBtn.textContent = '+ Add another image link';
     addBtn.addEventListener('click', ()=>{ addRow(); onChange(); });
     container.appendChild(addBtn);
-    if(initialValues && initialValues.length) initialValues.forEach(im=>addRow(im.caption, im.filename || imageBasename(im.url)));
-    // itemSlug is the content-based slug (not yet the final random-suffixed
-    // id) — used only to suggest a sensible filename. Contributors can
-    // freely overwrite the suggestion; once they type their own, it's left alone.
-    // course/cls place the image in images/<course>/<class>/ -- passed in
-    // fresh each call since they can change (e.g. picking a different
-    // course) after this list was first built.
-    container._getValues = (itemSlug, course, cls) => [...container.querySelectorAll('.list-row.img-row')].map(r=>{
+    if(initialValues && initialValues.length) initialValues.forEach(im=>addRow(im.caption, im.url));
+    // Extra args are accepted (older call sites pass slug/course/class for
+    // the old filename convention) and ignored.
+    container._getValues = () => [...container.querySelectorAll('.list-row.img-row')].map(r=>{
       const cap = r.querySelector('.img-cap').value.trim();
-      const fileInput = r.querySelector('.img-file');
-      if(r.dataset.userEdited!=='true' && itemSlug){
-        fileInput.value = `${itemSlug}-${r.dataset.n}${r.dataset.ext||'.png'}`;
-      }
-      const filename = fileInput.value.trim();
-      return (cap && filename) ? { url:imageUrlFor(course, cls, filename), caption:cap, filename } : null;
+      const url = r.querySelector('.img-url').value.trim();
+      return (cap && url) ? { url, caption:cap } : null;
     }).filter(Boolean);
     container._addRow = addRow;
   }
@@ -1896,7 +1833,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     // placeholder with the caption instead. Matches the real page's
     // "No image added yet" fallback when there's nothing entered.
     const imagesHtml = o.images.length
-      ? `<div class="img-strip">${o.images.map(im=>`<div class="img-placeholder">🖼 ${im.caption||im.filename}</div>`).join('')}</div>`
+      ? `<div class="p-sub">Images</div><ul class="p-facts">${o.images.map(im=>`<li><a href="${im.url}" target="_blank" rel="noopener" style="color:var(--membrane)">🖼 ${esc(im.caption||'')}</a></li>`).join('')}</ul>`
       : `<div class="img-strip"><div class="img-placeholder">No image added yet</div></div>`;
     const refsHtml = o.refs.length
       ? `<div class="p-sub">References</div><ul class="p-facts">${o.refs.map(r=> r.url ? `<li><a href="${r.url}" target="_blank" rel="noopener" style="color:var(--membrane)">${esc(r.label).replace(/\\'/g,"'")}</a></li>` : `<li>${esc(r.label).replace(/\\'/g,"'")}</li>`).join('')}</ul>`
@@ -1923,17 +1860,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       : `id: ${o.itemId}`;
     i_codeOut.textContent = itemCodeString(o);
     renderItemPreview(o);
-    if(o.images.length){
-      i_filesNeeded.classList.add('show');
-      // Images are filed under images/<course>/<class>/ in the repo (not one
-      // flat folder) -- the url each image already carries (built by
-      // imageUrlFor) is the exact destination path, so it's shown directly
-      // rather than re-derived, keeping this message correct even for the
-      // rare item with only a course (no specific lecture).
-      i_filesNeeded.innerHTML = `📎 Files needed: ${o.images.map(im=>`<b>${im.url}</b>`).join(', ')}. Click the 🖼 picker next to each image above to pick the file and preview it, then use the ⬇ button to save a copy already renamed correctly (or just rename it yourself) — then upload it to <a href="https://drive.google.com/drive/folders/1Wofvby0aQ6a169mr50jU0sYIEk-6BaG2?usp=drive_link" target="_blank" rel="noopener" style="color:var(--membrane);">the shared Drive folder</a>, matching that exact path so it lands in the right course/lecture subfolder when it's added to the repo.`;
-    } else {
-      i_filesNeeded.classList.remove('show');
-    }
+    i_filesNeeded.classList.remove('show'); // images are links now -- no files to ship alongside the code
   }
   document.getElementById('i_copyOne').addEventListener('click', ()=>{
     copyText(itemCodeString(buildItemObject()));
@@ -1989,10 +1916,15 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     return (url||'').split('/').pop();
   }
   function encodeImageList(images){
-    return encodePairList((images||[]).map(im=>({
-      caption: im.caption||'',
-      filename: im.filename || imageBasename(im.url),
-    })), 'caption', 'filename');
+    return encodePairList((images||[]).map(im=>({ caption: im.caption||'', url: im.url||'' })), 'caption', 'url');
+  }
+  // CSV image cells are `caption|url`. A bare filename (the pre-links
+  // convention, e.g. `car_t_cell.png`) is still accepted and resolved to
+  // its images/<course>/<class>/ path so older sheets keep importing.
+  function resolveImageUrl(course, cls, value){
+    if(!value) return '';
+    if(/^(https?:\/\/|images\/|data:)/i.test(value)) return value;
+    return imageUrlFor(course, cls, value);
   }
   // Images are filed under images/<course>/<class>/<filename> so each
   // course's assets sit together on disk instead of one flat folder --
@@ -2069,7 +2001,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       // know the item's actual effective course/class, which (for an edit
       // row with course/class left blank) isn't settled until after the
       // existing item is looked up below.
-      const imagePairs = idx.images>=0 ? decodePairList(row[idx.images], 'caption', 'filename') : [];
+      const imagePairs = idx.images>=0 ? decodePairList(row[idx.images], 'caption', 'url') : [];
       const refs = idx.refs>=0 ? decodePairList(row[idx.refs], 'label', 'url') : [];
       if(!label){ errors.push(`Row ${rowNum}: missing label, skipped.`); continue; }
       if(!description){ errors.push(`Row ${rowNum}: missing description, skipped.`); continue; }
@@ -2103,7 +2035,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
         const effCourse = course || full?.course || '';
         const effCls = cls || full?.class || '';
         const editImages = imagePairs.length
-          ? imagePairs.map(im=>({ ...im, url: imageUrlFor(effCourse, effCls, im.filename) }))
+          ? imagePairs.map(im=>({ caption: im.caption, url: resolveImageUrl(effCourse, effCls, im.url) }))
           : (full?.images||[]);
         valid.push({
           isEdit: true,
@@ -2130,7 +2062,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       if(!topicId){ errors.push(`Row ${rowNum}: new item needs a topic, skipped.`); continue; }
       if(!RD.THEMES[theme]?.topics?.[topicId]){ errors.push(`Row ${rowNum}: topic "${topicId}" doesn't exist under ${theme}, skipped.`); continue; }
       const itemId = slugify(label) + '_' + randSuffix();
-      const images = imagePairs.map(im=>({ ...im, url: imageUrlFor(course, cls, im.filename) }));
+      const images = imagePairs.map(im=>({ caption: im.caption, url: resolveImageUrl(course, cls, im.url) }));
       valid.push({
         isEdit: false,
         theme, topicId, itemId, label, description, mechanism, funFacts, activeRecall: activeRecallList, hashtags,
@@ -2179,7 +2111,6 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   const q_optionsEl = document.getElementById('q_options');
   const q_explanation = document.getElementById('q_explanation');
   const q_difficulty = document.getElementById('q_difficulty');
-  const q_level = document.getElementById('q_level');
   const q_hashtagsEl = document.getElementById('q_hashtags');
   const q_codeOut = document.getElementById('q_codeOut');
   const q_previewCard = document.getElementById('q_previewCard');
@@ -2219,7 +2150,6 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       correctIndex,
       explanation: q_explanation.value.trim() || '(add an explanation)',
       difficulty: q_difficulty.value,
-      level: q_level.value,
       hashtags: q_hashtagsEl._getValues(),
       course: courseInfo.course, class: courseInfo.class, relatedCourseOverride: courseInfo.relatedCourseOverride, courseInfo,
       addCourseSnippet: courseInfo.addCourseSnippet, addClassSnippet: courseInfo.addClassSnippet,
@@ -2234,7 +2164,6 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const optsStr = o.options.map(op=>`'${esc(op)}'`).join(', ');
     const hashtagsStr = o.hashtags.length ? `, hashtags:[${o.hashtags.map(h=>`'${esc(h)}'`).join(', ')}]` : '';
     const difficultyStr = o.difficulty && o.difficulty!=='medium' ? `, difficulty:'${o.difficulty}'` : '';
-    const levelStr = o.level ? `, level:'${o.level}'` : '';
     // Questions live nested under their item now, in an item.questions
     // array, and inherit the item's course/class automatically — only
     // spell course/class out on the question itself if it genuinely
@@ -2244,7 +2173,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     let tail = '';
     if(o.relatedCourseOverride) tail = `,\n  relatedCourse:'${escMultiline(o.relatedCourseOverride)}'`;
     else if(differsFromItem) tail = `,\n  course:'${o.course}'${o.class?`,\n  class:'${o.class}'`:''}`;
-    return `${pre}// -> THEMES.${o.theme}.topics.${o.topic}.items.${o.itemId}.questions in game-data.js\n{ id:'${o.qId}', prompt:'${esc(o.prompt)}',\n  options:[${optsStr}], correctIndex:${o.correctIndex},\n  explanation:'${esc(o.explanation)}'${difficultyStr}${levelStr}${hashtagsStr}${tail} },`;
+    return `${pre}// -> THEMES.${o.theme}.topics.${o.topic}.items.${o.itemId}.questions in game-data.js\n{ id:'${o.qId}', prompt:'${esc(o.prompt)}',\n  options:[${optsStr}], correctIndex:${o.correctIndex},\n  explanation:'${esc(o.explanation)}'${difficultyStr}${hashtagsStr}${tail} },`;
   }
   // Mirrors the real MCQ modal's styling — correct option highlighted, same
   // as a player would see it after answering.
@@ -2333,7 +2262,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const col = name => header.indexOf(name);
     const idx = {
       prompt: col('prompt'), a: col('optiona'), b: col('optionb'), c: col('optionc'), d: col('optiond'),
-      correct: col('correct'), explanation: col('explanation'), hashtags: col('hashtags'), difficulty: col('difficulty'), level: col('level'),
+      correct: col('correct'), explanation: col('explanation'), hashtags: col('hashtags'), difficulty: col('difficulty'),
     };
     const missingCols = ['prompt','a','b','c','d','correct','explanation'].filter(k=>idx[k]<0);
     if(missingCols.length) return { valid:[], errors:[`Missing required column(s): ${missingCols.map(k=>({a:'optionA',b:'optionB',c:'optionC',d:'optionD'}[k]||k)).join(', ')}.`] };
@@ -2348,8 +2277,6 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       const hashtags = idx.hashtags>=0 ? (row[idx.hashtags]||'').split(';').map(s=>s.trim()).filter(Boolean) : [];
       const difficultyRaw = idx.difficulty>=0 ? (row[idx.difficulty]||'').trim().toLowerCase() : '';
       const difficulty = ['easy','medium','hard'].includes(difficultyRaw) ? difficultyRaw : 'medium';
-      const levelRaw = idx.level>=0 ? (row[idx.level]||'').trim().toLowerCase() : '';
-      const level = ['identify','understand','apply','case'].includes(levelRaw) ? levelRaw : '';
       const rowNum = r+1; // 1-indexed, matches what a person sees in a spreadsheet
       if(!prompt){ errors.push(`Row ${rowNum}: missing prompt, skipped.`); continue; }
       if(options.some(o=>!o)){ errors.push(`Row ${rowNum}: needs all four options, skipped.`); continue; }
@@ -2450,7 +2377,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     if(rows.length < 2) return { valid:[], newItems:[], errors:['Paste a header row plus at least one question row.'] };
     const header = rows[0].map(h=>h.trim().toLowerCase());
     const col = name => header.indexOf(name);
-    const idx = { questionid:col('questionid'), course:col('course'), lecture:col('lecture'), topic:col('topic'), item:col('item'), prompt:col('prompt'), a:col('optiona'), b:col('optionb'), c:col('optionc'), d:col('optiond'), correct:col('correct'), explanation:col('explanation'), hashtags:col('hashtags'), difficulty:col('difficulty'), level:col('level'), description:col('description'), mechanism:col('mechanism'), funfacts:col('funfacts') };
+    const idx = { questionid:col('questionid'), course:col('course'), lecture:col('lecture'), topic:col('topic'), item:col('item'), prompt:col('prompt'), a:col('optiona'), b:col('optionb'), c:col('optionc'), d:col('optiond'), correct:col('correct'), explanation:col('explanation'), hashtags:col('hashtags'), difficulty:col('difficulty'), description:col('description'), mechanism:col('mechanism'), funfacts:col('funfacts') };
     const missingCols = ['course','topic','item','prompt','a','b','c','d','correct','explanation'].filter(k=>idx[k]<0);
     if(missingCols.length) return { valid:[], newItems:[], errors:[`Missing required column(s): ${missingCols.map(k=>({a:'optionA',b:'optionB',c:'optionC',d:'optionD'}[k]||k)).join(', ')}.`] };
     // Per-row "lecture" is optional and, when given, takes priority over
@@ -2477,8 +2404,6 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       const hashtags = idx.hashtags>=0 ? (row[idx.hashtags]||'').split(';').map(s=>s.trim()).filter(Boolean) : [];
       const difficultyRaw = idx.difficulty>=0 ? (row[idx.difficulty]||'').trim().toLowerCase() : '';
       const difficulty = ['easy','medium','hard'].includes(difficultyRaw) ? difficultyRaw : 'medium';
-      const levelRaw = idx.level>=0 ? (row[idx.level]||'').trim().toLowerCase() : '';
-      const level = ['identify','understand','apply','case'].includes(levelRaw) ? levelRaw : '';
       if(!prompt){ errors.push(`Row ${rowNum}: missing prompt, skipped.`); continue; }
       if(options.some(o=>!o)){ errors.push(`Row ${rowNum}: needs all four options, skipped.`); continue; }
       const correctIndex = 'ABCD'.indexOf(correctLetter);
@@ -2613,7 +2538,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
   }
   document.getElementById('lec_exportBtn').addEventListener('click', ()=>{
-    const header = ['questionId','course','lecture','topic','item','prompt','optionA','optionB','optionC','optionD','correct','explanation','hashtags','difficulty','level','description','mechanism','funfacts'];
+    const header = ['questionId','course','lecture','topic','item','prompt','optionA','optionB','optionC','optionD','correct','explanation','hashtags','difficulty','description','mechanism','funfacts'];
     const rows = [header];
     Object.entries(RD.THEMES).forEach(([themeId, theme])=>{
       Object.entries(theme.topics).forEach(([topicId, topic])=>{
@@ -2623,7 +2548,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
             rows.push([
               q.id, item.course||'', item.class||'', topicId, item.label,
               q.prompt, q.options[0]||'', q.options[1]||'', q.options[2]||'', q.options[3]||'',
-              correctLetter, q.explanation, (item.hashtags||[]).join(';'), q.difficulty||'', q.level||'',
+              correctLetter, q.explanation, (item.hashtags||[]).join(';'), q.difficulty||'',
               item.description||'', item.mechanism||'', (item.funFacts||[]).join(';'),
             ].map(csvField));
           });
@@ -3383,9 +3308,8 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
                      citation, which is why an item's own course usually
                      matches its top-level THEMES key but doesn't have to.
                      A class/lecture can optionally carry \`outcomes\` (an
-                     array of learning-outcome strings) and \`intro\` (a short
-                     content blurb) — set these to make that lecture playable
-                     in the "Learning Path" mode (see LEARNING_PATH_CONFIG).
+                     array of learning-outcome strings) — shown as a bullet
+                     list at the top of that lecture in "Browse by lecture".
    THEMES         — Course (e.g. "MEDS3002") → Topic → study-guide Item.
                      Topics are specific to their course now -- each one
                      carries its own \`label\`/\`icon\`/\`color\` inline instead of
@@ -3393,10 +3317,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
                      COURSES entry via \`course\` + \`class\`, and carries its own
                      \`questions\` array — the MCQs players get asked about
                      that item (each with its own \`difficulty\`, one of
-                     'easy'/'medium'/'hard', optional, and its own \`level\`,
-                     one of 'identify'/'understand'/'apply'/'case', optional
-                     — cognitive level used by the "Learning Path" mode;
-                     untagged questions count as 'identify'). A question only
+                     'easy'/'medium'/'hard', optional). A question only
                      needs its own \`course\`/\`class\` (or, rarely, a literal
                      \`relatedCourse\` string) if it genuinely differs from its
                      item's — most just inherit the item's.
@@ -3405,9 +3326,6 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
                      mode vs. Study & Practice-only).
    GAME_CONFIG    — every tunable gameplay number.
    LIFE_CONFIG    — per-course label/icon for the "life" resource.
-   LEARNING_PATH_CONFIG — cognitive levels/quotas for the lecture-scoped
-                     "Learning Path" mode (identify → understand → apply →
-                     case study).
    COMPLETE_SCENARIO — text shown after the last stage.
    ============================================================================ */
 (function(){
@@ -3469,27 +3387,6 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   };
 
 /* ======================================================================
-   LEARNING_PATH_CONFIG — tunables for the lecture-scoped "Learning Path"
-   mode. That mode picks a single lecture (a COURSES[course].classes[class]
-   entry) and runs its questions through these cognitive levels in order,
-   gated by perLevelQuota correct answers each. A lecture only shows up in
-   the Learning Path picker once it has an \`outcomes\` array (see COURSES
-   above) AND at least one question tagged with a matching \`level\` (see the
-   THEMES/questions comment below) — levels with zero matching questions for
-   that lecture are skipped rather than shown empty.
-   ====================================================================== */
-  const LEARNING_PATH_CONFIG = {
-    levels: ['identify', 'understand', 'apply', 'case'],
-    perLevelQuota: 3, // correct answers needed within a level before advancing to the next
-    levelLabels: { identify:'Identify', understand:'Understand', apply:'Apply', case:'Case Study' },
-    levelBlurbs: {
-      understand: "You've identified the basics — now let's understand the mechanism behind them.",
-      apply:      "Time to apply that understanding to a scenario.",
-      case:       "Bring it all together with a case study.",
-    },
-  };
-
-/* ======================================================================
    THEMES — Course -> Topic -> Item. Each item can carry "hashtags" (which
    cancer type / sub-area it belongs to, e.g. ['Leukemia']), course + class
    fields pointing into COURSES above (e.g. course:'MEDS3002', class:'L14'),
@@ -3537,7 +3434,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
 
   window.RUNNER_DATA = {
     COURSES, GAME_CONFIG, LIFE_CONFIG, THEMES,
-    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES, LEARNING_PATH_CONFIG,
+    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES,
   };
 
 })();
@@ -3634,7 +3531,6 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   function questionDataObject(o){
     const out = { id:o.qId, prompt:o.prompt, options:o.options, correctIndex:o.correctIndex, explanation:o.explanation };
     if(o.difficulty && o.difficulty!=='medium') out.difficulty = o.difficulty;
-    if(o.level) out.level = o.level;
     if(o.hashtags && o.hashtags.length) out.hashtags = o.hashtags;
     if(o.relatedCourseOverride) out.relatedCourse = o.relatedCourseOverride;
     else if(o.course){ out.course = o.course; if(o.class) out.class = o.class; }
