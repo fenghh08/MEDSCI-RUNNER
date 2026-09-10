@@ -11,7 +11,9 @@ No build step, no server, no install. Every file here is a plain HTML/JS file �
 | `medsci-runner.html` | **The game itself.** Landing screen, Runner mode, Study & Practice, Custom Run, Group Race. This is what you send someone who just wants to play. |
 | `game-data.js` | **All the content.** Every course, topic, theme, item, and question lives in this one file as plain data. The game and the developer tool both read it — nothing else needs touching to change what's playable. |
 | `developer-tool.html` | **The content editor.** Add, edit, or delete items and questions through a form instead of hand-writing JavaScript. Generates code ready to paste into `game-data.js`, or (for the maintainer) can merge everything queued into a complete, ready-to-replace copy of the file in one click. |
-| `icons/`, `images/` | Image assets referenced by items in `game-data.js`. |
+| `SCORING_AND_LIFE.md` | Exactly how life (glucose/ATP), score, streaks, stage clearing, the question timer and Group Race ranking are calculated, with the tunables that drive them. |
+| `TECHNICAL_OVERVIEW.md` | How the plumbing works: Google sign-in, Firebase, the native app build (`www/`, Capacitor, `ios/`/`android/`, `node_modules/`), every JSON/config file, and what must be true for the game to run. |
+| `icons/`, `images/` | Icon assets (topic/theme icons, bomb, etc.) plus a few legacy image files. Item images are **links** to their source (listed under the item's References in the game), not files shipped in the repo — see "Images" below. |
 
 All three files (plus the two asset folders) need to sit in the **same folder** — the game and the dev tool both load `game-data.js` via a relative path, and won't find it otherwise.
 
@@ -45,7 +47,8 @@ THEMES
          └─ <topic>
              └─ items
                  └─ <item>
-                     ├─ label, description, mechanism, funFacts, notes, activeRecall, saq, hashtags, images, refs
+                     ├─ label, description, mechanism, funFacts, notes, activeRecall, saq, hashtags, refs
+                     ├─ images                  ({ caption, url } — links to the source figure, shown alongside refs, never embedded)
                      ├─ course, class            (optional — inherited by nested questions by default)
                      └─ questions[]              (each optionally overriding course/class)
 ```
