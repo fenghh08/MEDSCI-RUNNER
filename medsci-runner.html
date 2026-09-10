@@ -1509,7 +1509,13 @@
   // actually fixes the HUD covering the top lane/entities: previously lanes
   // were spaced across the FULL H with no awareness the HUD existed at all.
   let topInset = 0;
-  let laneH = H / LANES; // usable per-lane height, i.e. (H-topInset)/LANES once topInset is known
+  // Reserved at the BOTTOM of the canvas's own coordinate system, same idea
+  // as topInset -- currently only ever non-zero during the tutorial, whose
+  // caption bar docks to the bottom of the stage and would otherwise sit
+  // on top of (and hide) the bottom lane (reported: "last lane covered").
+  // Always 0 in real gameplay, so this changes nothing there.
+  let bottomInset = 0;
+  let laneH = H / LANES; // usable per-lane height, i.e. (H-topInset-bottomInset)/LANES once both are known
   const laneY = i => topInset + laneH * i + laneH / 2;
   let PLAYER_X = 150;
   let SCALE = 1; // multiplies the fixed-pixel entity/player sizes below so they stay proportional when H changes
@@ -1533,7 +1539,7 @@
     // canvas however tall the HUD gets (it'll overlap a little instead).
     const unitsPerCssPx = stageRect.height ? H / stageRect.height : 1;
     topInset = hudCss ? Math.min(Math.ceil(hudCss * unitsPerCssPx) + 8, Math.round(H * 0.36)) : 0;
-    laneH = (H - topInset) / LANES;
+    laneH = (H - topInset - bottomInset) / LANES;
     // 160 = the original landscape laneH (480/3) with no HUD carve-out at
     // all -- SCALE lives here, not in resizeCanvasForPortrait, because
     // topInset (and therefore laneH) can change independently of a resize,
@@ -2574,29 +2580,47 @@
 
   // ---------- tutorial ("See it in action") ----------
   // A real walkthrough, not slides: it drives the SAME canvas renderer
-  // (drawVessel/drawEntity/drawPlayer) real gameplay uses, with fake
-  // entities parked in place instead of spawned/scrolling/colliding, plus
-  // its own tiny mock question card (own DOM, own handlers -- never
-  // touches the real question bank, scoring, SRS, or Firebase). Entirely
-  // independent of screenState/the real game loop, so it can't leave
-  // anything behind when it closes.
+  // (drawVessel/drawEntity/drawPlayer) real gameplay uses. Steps that
+  // teach a specific interaction (steer to collect, or just stay put to
+  // avoid) run a small looping animation of it happening on its own --
+  // reported feedback on the first cut was that a frozen single frame
+  // didn't actually show how lane-switching or collecting anything
+  // worked. Plus its own tiny mock question card (own DOM, own handlers
+  // -- never touches the real question bank, scoring, SRS, or Firebase).
+  // Entirely independent of screenState/the real game loop, so it can't
+  // leave anything behind when it closes.
   let tutorialActive = false, tutorialStep = 0, tutorialRafId = null, tutorialEntities = [];
+  let tutorialDemo = null;          // { cfg, phase, phaseStart } -- the looping approach/collect-or-avoid animation
+  let tutorialAutoCycle = null;     // { seq, idx, phaseStart } -- step 0's own "watch it switch lanes" idle demo
+  let tutorialUserTookControl = false; // once true on step 0, the auto-cycle stops fighting the player's own input
+  // Numbers below are pulled straight from GAME_CONFIG so this can never
+  // drift out of sync with the real values the way a hand-typed number
+  // eventually would (reported: the HUD step didn't give any concrete
+  // numbers, and blurred Life and Score together as if they were the same
+  // thing).
   const TUTORIAL_STEPS = [
-    { title:'Meet your cell', caption:'This is you. Try switching lanes now — ↑/↓, W/S, or the on-screen lane buttons on a touch device.', entities:[] },
-    { title:'Topic blocks', caption:'A glowing coloured block is a question waiting for you. Steer into it to open it.', entities:[{type:'topic', lane:1, topic:'genetics'}] },
-    { title:'Answer it', caption:'Get it right and you make progress toward the next stage (plus points). Get it wrong — or run out of time — and you lose life, but nothing else resets. Try the sample question below.', mockMcq:true, entities:[] },
-    { title:'Life pickups', caption:'Drifting circles top up your life. Grab them on the way past — no need to go out of your way.', entities:[{type:'glucose', lane:0}] },
-    { title:'Bombs', caption:'Spiky and red means danger. Touching one costs life instantly — no question, no warning. Just steer around it.', entities:[{type:'bomb', lane:2}] },
-    { title:'The HUD', caption:'Life, score, and how many correct answers each topic still needs for this stage — all live at the top the whole time you play.', entities:[], showHud:true },
-    { title:'Group Race extras', caption:'Racing friends adds gold 🎁 gift blocks. Answer one right and you can arm a grenade to throw at a rival, or a shield to block one coming your way.', entities:[{type:'gift', lane:1}] },
-    { title:"You're ready", caption:'Pick a mode below and give it a run — you can reopen this any time from the menu.', entities:[], final:true },
+    { title:'Meet your cell', caption:'This is you. Watch it switch lanes on its own for a moment — that\'s exactly what ↑/↓, W/S, or the on-screen lane buttons do. Try one yourself any time to take over.' },
+    { title:'Topic blocks', caption:'A glowing coloured block is a question waiting for you. Steer into it to open it — watch the cell line up with it and go in.',
+      demo:{ type:'topic', topic:'genetics', lane:2, outcome:'collect' } },
+    { title:'Answer it', caption:'Get it right and you make progress toward the next stage (plus points). Get it wrong — or run out of time — and you lose life, but nothing else resets. Try the sample question below.', mockMcq:true },
+    { title:'Life pickups', caption:()=>`Drifting circles top up your life (+${GAME_CONFIG.glucosePickupValue} each). Grab them on the way past — watch the cell move up a lane to reach this one.`,
+      demo:{ type:'glucose', lane:0, outcome:'collect' } },
+    { title:'Bombs', caption:()=>`Spiky and red means danger. Touching one costs ${GAME_CONFIG.bombDamage} life instantly — no question, no warning. You don't have to do anything to avoid it — just don't be in its lane, like the cell isn't here.`,
+      demo:{ type:'bomb', lane:0, outcome:'avoid', stayLane:1 } },
+    { title:'Life', caption:()=>`Life is your health, shown top-left. You start at ${GAME_CONFIG.startingGlucose}. A wrong answer or a timeout costs ${GAME_CONFIG.wrongAnswerPenalty}, a bomb costs ${GAME_CONFIG.bombDamage} — same amount either way. A pickup gives back ${GAME_CONFIG.glucosePickupValue}. In Group Race, buying a grenade or a shield costs ${GAME_CONFIG.giftCost} life too. Run out (below zero) and the run ends.`, showHud:true },
+    { title:'Score', caption:()=>`Score is a completely separate number, used to rank Group Race. A correct answer is +${GAME_CONFIG.scoreCorrectWeight}, a wrong one is −${GAME_CONFIG.scoreIncorrectWeight}, reaching a new stage is +${GAME_CONFIG.stageWeight}, and every ${GAME_CONFIG.streakBonusEvery} correct answers in a row banks a +${GAME_CONFIG.streakBonusScoreAmount} streak bonus. Life and score don't affect each other — losing life doesn't cost you score, and score can't buy back life.`, showHud:true },
+    { title:'Group Race extras', caption:'Racing friends adds gold 🎁 gift blocks — answered just like a topic block. Get it right and you can spend life on a grenade to throw at a rival, or a shield to block one coming your way.',
+      demo:{ type:'gift', lane:2, outcome:'collect' } },
+    { title:"You're ready", caption:'Pick a mode below and give it a run — you can reopen this any time from the menu.', final:true },
   ];
+  function resolveCaption(step){ return typeof step.caption==='function' ? step.caption() : step.caption; }
   function openTutorial(){
     tutorialActive = true;
     tutorialStep = 0;
     landingScreen.classList.remove('active');
     document.body.classList.add('in-run');
     hud.style.display = 'none';
+    bottomInset = 0;
     updateTopInset();
     player = { lane:1, y:laneY(1), targetLane:1, wob:0 };
     tutorialCloseBtn.style.display = 'inline-block';
@@ -2605,39 +2629,120 @@
   }
   function closeTutorial(){
     tutorialActive = false;
+    tutorialDemo = null; tutorialAutoCycle = null; tutorialEntities = [];
     if(tutorialRafId){ cancelAnimationFrame(tutorialRafId); tutorialRafId = null; }
     tutorialCaptionBar.style.display = 'none';
     tutorialCloseBtn.style.display = 'none';
     tutorialMcqModal.classList.remove('active');
-    hud.style.display = 'none';
+    hud.style.display = 'none'; hud.style.pointerEvents = '';
     document.body.classList.remove('in-run');
+    bottomInset = 0;
+    updateTopInset();
     showScreen('landing');
   }
-  function tutorialFrame(){
+  // The caption bar's real rendered height changes with the caption's own
+  // line count -- re-measured every time it (or its text) changes, same
+  // idea as updateTopInset()'s HUD measurement, converted through the same
+  // CSS-px-to-canvas-units scale so the reserved band is accurate at any
+  // window size. This is what actually fixes the bottom lane disappearing
+  // behind the caption bar.
+  function updateTutorialBottomInset(){
+    const visible = tutorialCaptionBar.style.display === 'block';
+    if(!visible){ bottomInset = 0; updateTopInset(); return; }
+    const stageRect = stageEl.getBoundingClientRect();
+    const unitsPerCssPx = stageRect.height ? H / stageRect.height : 1;
+    bottomInset = Math.ceil(tutorialCaptionBar.getBoundingClientRect().height * unitsPerCssPx) + 6;
+    updateTopInset();
+  }
+  function tutorialFrame(now){
     if(!tutorialActive) return;
     bgOffset = (bgOffset + 24*(1/60)) % 80; // a gentle idle scroll -- slower than real gameplay, just enough to read as "alive"
     player.wob += (1/60)*6;
     const desiredY = laneY(player.targetLane);
     player.y += (desiredY - player.y) * Math.min(1, (1/60)*10);
     player.lane = player.targetLane;
+    if(tutorialStep===0) stepTutorialAutoCycle(now);
+    stepTutorialDemo(now);
     drawVessel();
     tutorialEntities.forEach(e=> drawEntity(e));
     drawPlayer();
     tutorialRafId = requestAnimationFrame(tutorialFrame);
   }
+  // ---- step 0: an idle "watch it switch lanes" demo, ceding control the
+  // instant the player tries the real controls themselves ----
+  function startTutorialAutoCycle(){
+    tutorialUserTookControl = false;
+    tutorialAutoCycle = { seq:[0,1,2,1,0,1], idx:0, phaseStart: performance.now() };
+    // Start ON the sequence's own first value (not a hardcoded centre lane)
+    // -- otherwise the first tick just reasserts the same lane the player
+    // already saw, reading as a dead beat before the demo visibly does
+    // anything (no consecutive pair in the sequence repeats, so every
+    // OTHER tick is already a real, visible change).
+    player.targetLane = tutorialAutoCycle.seq[0];
+  }
+  function stepTutorialAutoCycle(now){
+    if(!tutorialAutoCycle || tutorialUserTookControl) return;
+    if(now - tutorialAutoCycle.phaseStart > 850){
+      tutorialAutoCycle.idx = (tutorialAutoCycle.idx+1) % tutorialAutoCycle.seq.length;
+      player.targetLane = tutorialAutoCycle.seq[tutorialAutoCycle.idx];
+      tutorialAutoCycle.phaseStart = now;
+    }
+  }
+  // ---- steps with a `demo`: an entity drifts in from the right and
+  // either gets "collected" (player steers to meet it, matching feedback
+  // fires, same popup/sound real gameplay uses) or, for `outcome:'avoid'`,
+  // just drifts past a player that deliberately stays put -- looping for
+  // as long as the step is on screen ----
+  function entityRadiusFor(type){ return (type==='topic'||type==='gift') ? 24*SCALE : type==='bomb' ? 20*SCALE : 10*SCALE; }
+  function startTutorialDemo(step){
+    tutorialDemo = step.demo ? { cfg: step.demo, phase:'approach', phaseStart: performance.now() } : null;
+    tutorialEntities = [];
+    if(tutorialDemo && tutorialDemo.cfg.outcome==='avoid') player.targetLane = tutorialDemo.cfg.stayLane;
+  }
+  function tutorialCollectFeedback(cfg){
+    const y = laneY(cfg.lane) - 26*SCALE;
+    if(cfg.type==='glucose'){ popup(PLAYER_X, y, `+${GAME_CONFIG.glucosePickupValue} ${lifeCfg().label}`, '#3ee6b8'); SoundFX.pickup(); }
+    else if(cfg.type==='gift'){ popup(PLAYER_X, y, '🎁 Gift!', '#ffd54d'); SoundFX.pickup(); }
+    else { popup(PLAYER_X, y, '❓ Question time!', '#ffffff'); }
+  }
+  function tutorialAvoidFeedback(cfg){
+    popup(PLAYER_X, laneY(cfg.stayLane) - 26*SCALE, '✅ Different lane — nothing happens', '#3ee6b8');
+  }
+  function stepTutorialDemo(now){
+    if(!tutorialDemo){ tutorialEntities = []; return; }
+    const { cfg } = tutorialDemo;
+    const avoiding = cfg.outcome==='avoid';
+    const APPROACH = avoiding ? 1700 : 1300, HOLD = 900, GAP = 500;
+    const elapsed = now - tutorialDemo.phaseStart;
+    if(tutorialDemo.phase==='approach'){
+      if(!avoiding && elapsed>120) player.targetLane = cfg.lane; // start steering toward it shortly after it appears
+      const u = Math.min(1, elapsed/APPROACH);
+      const endX = avoiding ? -40*SCALE : PLAYER_X + 90*SCALE;
+      const x = (W+40) + u*(endX - (W+40));
+      tutorialEntities = [{ x, lane: avoiding ? cfg.lane : cfg.lane, r: entityRadiusFor(cfg.type), type: cfg.type, topic: cfg.topic, hit:false }];
+      if(u>=1){
+        if(avoiding) tutorialAvoidFeedback(cfg); else tutorialCollectFeedback(cfg);
+        tutorialDemo.phase = 'hold'; tutorialDemo.phaseStart = now;
+      }
+    } else if(tutorialDemo.phase==='hold'){
+      tutorialEntities = [];
+      if(elapsed>HOLD){ tutorialDemo.phase='gap'; tutorialDemo.phaseStart = now; }
+    } else {
+      tutorialEntities = [];
+      if(elapsed>GAP){
+        if(!avoiding) player.targetLane = 1; // recentre so the "steer toward it" motion reads clearly again next loop
+        tutorialDemo.phase = 'approach'; tutorialDemo.phaseStart = now;
+      }
+    }
+  }
   function renderTutorialStep(){
     const step = TUTORIAL_STEPS[tutorialStep];
     tutorialTitle.textContent = step.title;
-    tutorialCaption.textContent = step.caption;
+    tutorialCaption.textContent = resolveCaption(step);
     tutorialDots.innerHTML = TUTORIAL_STEPS.map((_,i)=>`<span class="tc-dot${i===tutorialStep?' on':''}"></span>`).join('');
     tutorialBackBtn.style.display = tutorialStep===0 ? 'none' : 'inline-block';
     tutorialNextBtn.textContent = step.final ? 'Let\'s go →' : 'Next →';
     tutorialSkipBtn.style.display = step.final ? 'none' : 'inline-block';
-    tutorialEntities = (step.entities||[]).map(e=>({
-      x: PLAYER_X + 230*SCALE, lane: e.lane, hit:false, topic: e.topic,
-      r: (e.type==='topic'||e.type==='gift') ? 24*SCALE : e.type==='bomb' ? 20*SCALE : 10*SCALE,
-      type: e.type,
-    }));
     hud.style.display = step.showHud ? 'flex' : 'none';
     // Look, don't touch -- this is the real #hud with its real pause/sound/
     // study-guide buttons; without this a curious click during the preview
@@ -2657,7 +2762,6 @@
       }).join('');
       mpOpponentPanel.style.display = 'none';
     }
-    updateTopInset();
     // While the mock question is up, the caption bar's own Back/Skip/Next
     // would sit BEHIND the question card's full-stage backdrop -- visible
     // through it (translucent) but not actually clickable, since the
@@ -2665,8 +2769,11 @@
     // card's own "Got it -- Next" drive progression instead (the ✕ close
     // button stays available regardless -- it's stacked above everything).
     tutorialCaptionBar.style.display = step.mockMcq ? 'none' : 'block';
+    updateTutorialBottomInset(); // must run AFTER the caption text/visibility above is set, so it measures the real rendered height
     tutorialMcqModal.classList.remove('active');
     tutorialMcqFeedback.style.display = 'none';
+    if(tutorialStep===0) startTutorialAutoCycle(); else tutorialAutoCycle = null;
+    startTutorialDemo(step);
     if(step.mockMcq) openTutorialMockMcq();
   }
   function openTutorialMockMcq(){
@@ -2704,9 +2811,15 @@
 
   // ---------- lanes / controls ----------
   function setLane(dir){
-    if(screenState!=='running' && !tutorialActive) return;
+    // Only step 0 of the tutorial (the idle "watch it switch lanes" demo)
+    // takes manual input -- every later step drives player.targetLane
+    // itself to demonstrate a specific lesson (steer to collect, or stay
+    // put to avoid), and would otherwise fight a stray key/button press.
+    const tutorialControllable = tutorialActive && tutorialStep===0;
+    if(screenState!=='running' && !tutorialControllable) return;
     const next = player.targetLane + dir;
     if(next>=0 && next<LANES) player.targetLane = next;
+    if(tutorialControllable) tutorialUserTookControl = true;
   }
   upBtn.addEventListener('click', ()=>setLane(-1));
   downBtn.addEventListener('click', ()=>setLane(1));
@@ -5331,6 +5444,14 @@
       updateGiftHUD();
     }
     window.__runnerDebug = {
+      // A read-only peek at module-scoped tutorial/canvas state for
+      // automated checks -- nothing here mutates anything.
+      tutorialSnapshot(){
+        return { step: tutorialStep, title: tutorialTitle.textContent, caption: tutorialCaption.textContent,
+          playerTargetLane: player.targetLane, bottomInset, topInset, laneH, H, W,
+          entityCount: tutorialEntities.length, entityX: tutorialEntities[0] && Math.round(tutorialEntities[0].x),
+          hudDisplay: hud.style.display };
+      },
       // simulateGrenade(shieldsHeld): during a run, stages an incoming grenade as if a rival threw it.
       simulateGrenade(shields){
         if(screenState!=='running') return 'Start a run first (Runner or Custom run), then call this while it is running.';
