@@ -24,9 +24,8 @@
                      citation, which is why an item's own course usually
                      matches its top-level THEMES key but doesn't have to.
                      A class/lecture can optionally carry `outcomes` (an
-                     array of learning-outcome strings) and `intro` (a short
-                     content blurb) — set these to make that lecture playable
-                     in the "Learning Path" mode (see LEARNING_PATH_CONFIG).
+                     array of learning-outcome strings) — shown as a bullet
+                     list at the top of that lecture in "Browse by lecture".
    THEMES         — Course (e.g. "MEDS3002") → Topic → study-guide Item.
                      Topics are specific to their course now -- each one
                      carries its own `label`/`icon`/`color` inline instead of
@@ -34,10 +33,7 @@
                      COURSES entry via `course` + `class`, and carries its own
                      `questions` array — the MCQs players get asked about
                      that item (each with its own `difficulty`, one of
-                     'easy'/'medium'/'hard', optional, and its own `level`,
-                     one of 'identify'/'understand'/'apply'/'case', optional
-                     — cognitive level used by the "Learning Path" mode;
-                     untagged questions count as 'identify'). A question only
+                     'easy'/'medium'/'hard', optional). A question only
                      needs its own `course`/`class` (or, rarely, a literal
                      `relatedCourse` string) if it genuinely differs from its
                      item's — most just inherit the item's.
@@ -46,9 +42,6 @@
                      mode vs. Study & Practice-only).
    GAME_CONFIG    — every tunable gameplay number.
    LIFE_CONFIG    — per-course label/icon for the "life" resource.
-   LEARNING_PATH_CONFIG — cognitive levels/quotas for the lecture-scoped
-                     "Learning Path" mode (identify → understand → apply →
-                     case study).
    COMPLETE_SCENARIO — text shown after the last stage.
    ============================================================================ */
 (function(){
@@ -187,42 +180,211 @@
       'classes': {
         'L1': {
           'label': 'Intro to Metabolism',
+          'outcomes': [
+            'Appreciate how metabolism is made up of many interconnected biochemical reactions.',
+            'Revise how enzymes catalyse chemical reactions.',
+            'Understand some common ways in which enzymes (and metabolic pathways) are regulated.',
+            'Appreciate the role played by the hydrogen/electron carriers in catabolism.',
+            'Recall the basic chemistry of carbohydrates, lipids and proteins.',
+            'Understand the separate stages of fuel oxidation, electron transport and ATP synthesis.',
+          ],
         },
         'L2': {
           'label': 'Glycolysis vs FA Oxidation',
+          'outcomes': [
+            'Outline the effect of muscle glucose utilisation on blood glucose levels and hormonal responses.',
+            'Predict the effect of low insulin and high glucagon on target tissues and blood fuel levels.',
+            'Explain why glucose needs to be recycled and describe how this is achieved.',
+            'Recognise what catabolic pathways change as fatty acids become available during low intensity exercise.',
+            'Describe the general pattern of fuel oxidation in gentle exercise.',
+            'Predict the effect of increasing the pace of gentle exercise.',
+            'Compare the pattern of fuel utilisation in moderate exercise with that in gentle exercise.',
+            'Describe the changes to fatty acid oxidation that occur when an athlete changes from gentle to strenuous exercise.',
+            'Explain the circumstances under which muscle glycogen is mobilised.',
+            'Outline the pattern of fuel utilisation in strenuous exercise.',
+            'State the importance of glycogen to the competitive athlete.',
+          ],
         },
         'L3': {
           'label': 'Glycolysis, FA Oxidation, Krebs Cycle',
+          'outcomes': [
+            'Beta oxidation: identify the carbon atoms in fatty acids based on different codes of nomenclature.',
+            'Beta oxidation: explain how fatty acids are transported into the cytoplasm, trapped, and then transferred into the mitochondrial matrix.',
+            'Beta oxidation: explain the biochemical features of CoA that enable it to do its job.',
+            'Beta oxidation: appreciate the role played by FAD and NAD in FA-CoA oxidation.',
+            'Beta oxidation: understand the steps within the process of beta-oxidation.',
+            'Glycolysis: give a strategic overview of glycolysis.',
+            'Glycolysis: discuss the process of glucose transport into the cytoplasm and trapping within the cell.',
+            'Glycolysis: outline the energy investment and return stages of glycolysis.',
+            'Glycolysis: identify the different fates of pyruvate and understand when each is required or desirable.',
+            'Krebs cycle: understand the position of the Krebs cycle in catabolism.',
+            'Krebs cycle: outline the overall process and strategy of the Krebs cycle.',
+            'Krebs cycle: describe the major intermediates and regulatory steps in the Krebs cycle.',
+          ],
         },
         'L4': {
           'label': 'Electron Transport Chain and Ox Phos',
+          'outcomes': [
+            'Describe how measurement of oxygen consumption or carbon dioxide production gives an estimate of whole-body energy expenditure.',
+            'Explain the principles of uncoupling and how DNP and UCP-1 can lead to uncontrolled or regulated uncoupling respectively.',
+            'Explain how the chemical properties of NAD, FAD, UQ and the complexes allow them to fulfil their roles in electron transport.',
+            'Outline how the exchange of electrons between different types of carriers can lead to proton pumping.',
+            'Appreciate the electrical and concentration components of the proton motive force.',
+            'Appreciate the reasons why cytosolic NAD+ regeneration presents an important challenge and how the glycerol 3-phosphate shuttle and the malate-aspartate shuttle can help.',
+            'Organise the four separate routes that feed into UQ (Complex I, Complex II, G3P shuttle and beta-oxidation).',
+            'Outline the mechanisms involved in the generation and destruction of free radicals.',
+            'List the components and functions of ATP synthase and explain the mechanism by which it produces ATP.',
+            'Recognise the contribution of the proton gradient to processes other than ATP synthase.',
+            'Understand the assumptions made in tables which claim to calculate the yield of ATP from different metabolic pathways and fuels.',
+            'Using the fundamental rules of coupling, extrapolate to predict the effects of various interventions on the rates of fuel oxidation, maintenance of the proton gradient and ATP generation.',
+          ],
         },
         'L5': {
           'label': 'Early Starvation, Glycogenolysis',
+          'outcomes': [
+            'Outline the fuel stores in the human body.',
+            'Describe the general principles of whole-body glucose homeostasis.',
+            'Predict the changes in blood glucose during the first few hours of a fast.',
+            'Recall how glycogen is mobilised from the liver and how the process is regulated.',
+            'Understand why muscle cannot contribute to blood glucose homeostasis.',
+            'Assess the dynamics of glycogen depletion in starvation.',
+            'Describe how fat is mobilised from adipose tissue and how the process is regulated.',
+            'Understand the way in which glucagon and insulin signal tissue-specific metabolic changes.',
+            'Predict the effect of fatty acid oxidation on glucose oxidation.',
+            'Describe the central features of the glucose-fatty acid cycle and the Cori cycle.',
+            'Summarise the patterns of fuel selection and mobilisation in early starvation.',
+          ],
         },
         'L6': {
           'label': 'Gluconeogenesis, Proteolysis and Ketone Body Synthesis',
+          'outcomes': [
+            'Summarise the substrates available for de novo gluconeogenesis.',
+            'Explain why using lactate as a substrate does not increase the circulating glucose pool via gluconeogenesis.',
+            'Describe the overall structure and strategy of gluconeogenesis.',
+            'Frame the overarching principles of amino acid processing.',
+            'Outline the general flow of nitrogenous compounds in starvation.',
+            'Understand how ketone bodies are formed and how they help address the shortfall in glucose demanded by the brain during long-term starvation.',
+            'Predict the source of inefficiencies in energy metabolism induced by the ketotic state.',
+            'Summarise the patterns of fuel selection and mobilisation in late starvation.',
+            'Construct flow diagrams to encapsulate the movement, source and fate of fuels during extended starvation.',
+            'Explain the role played by glucagon in extended starvation.',
+          ],
         },
         'L7': {
           'label': 'Regulation, Enzymes, RLS',
+          'outcomes': [
+            'Describe the chemical features of ATP which make it ideal for use as an energy currency.',
+            'Explain the concept of energy charge with reference to the concentration of adenine nucleotides.',
+            'Review how a small change in ATP concentration is translated into a large relative change in AMP concentration.',
+            'Identify the most likely control points in metabolic pathways.',
+            'Interpret enzyme kinetic parameters to identify potential rate-limiting steps.',
+            'Describe the properties of rate-limiting steps.',
+            'Review the major ways in which enzyme activity can be changed.',
+            'List the key rate-limiting steps in the major pathways of catabolism.',
+            'Provide an overview of the regulation of phosphofructokinase.',
+            'Provide an overview of the regulation of hexokinase.',
+            'Using an example, illustrate how control motifs act synergistically to regulate pathways.',
+            'Using an example, show how enzymes are controlled by reversible phosphorylation.',
+            'Recognise that rate-limiting steps can change with circumstances.',
+            'Explain the principles of reciprocal regulation of pathways.',
+          ],
         },
         'L8': {
           'label': 'Gluconeogenesis In Depth',
+          'outcomes': [
+            'Define the key steps involved in the conversion of 3-carbon intermediates to 6-carbon intermediates in gluconeogenesis.',
+            'Review the steps involved in the release of glucose from cytosolic glucose 6-phosphate.',
+            'Analyse the effects of the absence of the 2-OH group in glucose and generate rationales for the use of 2-deoxy derivatives in clinical diagnostics.',
+            'Predict the flow of glycolysis and gluconeogenesis based on the relative activities of phosphofructokinase and fructose 1,6-bisphosphatase.',
+            'Compare the regulators of phosphofructokinase and fructose 1,6-bisphosphatase.',
+            'Outline the reasons to produce fructose 2,6-bisphosphate.',
+            'Apply knowledge of the effects of fructose 2,6-bisphosphate to the regulation of PFK and F16BPase.',
+            'Illustrate the dual identity of PFK/F26BPase through phosphorylation changes.',
+            'Outline the consequences of changes in PFK/F26BPase activity.',
+            'Compare the conversion of pyruvate to phosphoenolpyruvate in gluconeogenesis to the opposite process in glycolysis.',
+            'Predict the effect of fatty acid oxidation on glucose fluxes as a consequence of its effects on pyruvate carboxylase.',
+            'Evaluate the importance of anaplerosis of Krebs cycle intermediates.',
+          ],
         },
         'L9': {
           'label': 'Glycemic Responses, Glycogenesis',
+          'outcomes': [
+            'Understand the dynamics of post-prandial glucose disposal and the key hormones involved.',
+            'Understand the post-prandial glucose responses for subjects with glucose intolerance, insulin resistance and diabetes.',
+            'Understand what glycemic index is, how it is measured and how it is clinically useful.',
+            'Appreciate the role of different glucose transporters in different tissues and how these function.',
+            'Review the chemical structure of glycogen and the chemical strategy for its synthesis.',
+            'Understand how increased glycogen synthesis stimulates glycolysis.',
+            'Explain the consequences of the different activities of hexokinase and glucokinase.',
+            'Summarise the similarities and differences in glycogenesis in different tissues (liver vs muscle).',
+          ],
         },
         'L10': {
           'label': 'Lipogenesis, Pentose P Pathway',
+          'outcomes': [
+            'Recall the overall scheme for the synthesis of fatty acids from glucose.',
+            'Understand the reaction catalysed by and the regulation of acetyl-CoA carboxylase (ACC).',
+            'Describe the reaction sequence of fatty acid synthase (FAS).',
+            'Apply knowledge of the regulators of acetyl-CoA carboxylase to different physiological situations.',
+            'Describe the process of esterification.',
+            'Integrate the pathways and processes that need to come together to support and supply lipogenesis.',
+            'Summarise the effect of insulin on the activity of pyruvate dehydrogenase.',
+            'Evaluate the probability of the different fates of acetyl-CoA in lipogenic tissue.',
+            'Explain the role of citrate in controlling the major anabolic and catabolic pathways.',
+            'Outline the mechanisms for the return of oxaloacetate to the mitochondria after citrate cleavage.',
+            'Describe the purpose of the pentose phosphate pathway and how it fits into lipogenesis.',
+            'Illustrate the flow of substrates and key enzyme control points for lipogenesis.',
+          ],
         },
         'L11': {
           'label': 'Lipoprotein and Cholesterol Metabolism',
+          'outcomes': [
+            'Illustrate the problems involved in the digestion of fat and the role of bile salts in digestion.',
+            'Understand the way in which fat is digested by pancreatic lipase.',
+            'Predict the consequences of problems in fat digestion, using fat substitutes or lipase inhibitors.',
+            'Describe the general features of lipoproteins.',
+            'Understand the role of chylomicrons, VLDL, LDL, HDL and cholesterol in fat digestion and distribution of fatty acids and cholesterol to tissues.',
+            'Summarise the endogenous formation of cholesterol and identify the rate-limiting step.',
+            'Generate arguments for why LDL is "bad" and HDL is "good".',
+            'Critically analyse the different methods for reducing blood cholesterol levels.',
+            'Describe the importance of cholesterol in membrane integrity.',
+            'Provide an overview of the types and sources of dietary unsaturated fatty acids.',
+            'Review the key steps in the oxidation of unsaturated fatty acids.',
+          ],
         },
         'L12': {
           'label': 'Nitrogen Metabolism',
+          'outcomes': [
+            'Quantify the inputs and outputs that represent daily nitrogen balance.',
+            'Recognise the physiological periods in which amino acid processing is highest and lowest.',
+            'Describe the basic principles of amino acid processing.',
+            'Understand the significance of amino acid degradation enzymes having a high Km.',
+            'Describe the central role of transaminases in the shuffling of amino groups during amino acid processing.',
+            'Summarise the key features of the urea cycle.',
+            'Conceptualise the relationship between the urea cycle and other central metabolic pathways.',
+            'Understand why some amino acids are ketogenic and some are glucogenic.',
+            'Appreciate the reasons why most amino acids need to be in the human diet.',
+            'Predict the effects of purine synthesis inhibitors on cell health.',
+            'Deduce the reasons for uric acid accumulation in cells experiencing chronic energy charge crisis.',
+          ],
         },
         'L13': {
           'label': 'Integration of Metabolism',
+          'outcomes': [
+            'Describe the essential features of Type I diabetes.',
+            'Illustrate the phases of insulin secretion.',
+            'Review the proposed time-course of diabetes development.',
+            'Review the role of insulin in glucose uptake into tissues.',
+            'Quantify the role of insulin in glucose disposal.',
+            'Assess the relative importance of insulin\'s anti-lipolytic role.',
+            'Derive the relationship between hepatic glucose production and hypoinsulinemia.',
+            'Predict the effects of ketosis on fuel oxidation.',
+            'Outline the main metabolic consequences of hypoinsulinemia.',
+            'Describe the main components of ketotic acidosis.',
+            'Summarise how hypoinsulinemia causes the main signs and symptoms of Type I diabetes.',
+            'Judge the main aims of diabetes control.',
+            'Assess the different methods for monitoring and insulin delivery.',
+          ],
         },
         'L14': {
           'label': 'Revision Session 1 – L1–L4',
@@ -238,45 +400,146 @@
         },
         'L18': {
           'label': 'Molecular Biology Intro',
+          'outcomes': [
+            'Describe the flow of genetic information between generations and within the cell.',
+            'Appreciate the sequence abundance and diversity in the genome, transcriptome and proteome.',
+          ],
         },
         'L19': {
           'label': 'Nucleic Acid Structure',
+          'outcomes': [
+            'Identify the main components of DNA and RNA with reference to Chargaff\'s rules.',
+            'Describe the key covalent bonds in DNA and RNA: phosphodiester and N-glycosidic bonds.',
+            'Explain how weak forces maintain the double helix: base stacking (hydrophobic and electronic interactions), base pairing (hydrogen bonding), ionic interactions, and van der Waals forces.',
+            'Describe the structural features that make DNA a very good store of genetic information: two strands, deoxyribose, thymine.',
+            'Explain the importance of the major and minor grooves to gene expression.',
+            'Identify the structural differences between DNA and RNA.',
+          ],
         },
         'L20': {
           'label': 'Prokaryotic Replication',
+          'outcomes': [
+            'Describe the general mechanism for nucleic acid synthesis (RNA and DNA), considering substrate and products, orientation, supply of energy, and key enzymes/proteins and their roles.',
+            'Describe the problems associated with replication and how the cell overcomes them.',
+            'Relate the properties of DNA polymerases to the need for fidelity in the copying process, and explain why replication needs to be more accurate than transcription.',
+          ],
         },
         'L21': {
           'label': 'Eukaryotic Replication',
+          'outcomes': [
+            'Describe the controls on the cell cycle and how mutations in these can lead to cancer.',
+            'Appreciate the similarities and differences between eukaryotic and prokaryotic DNA replication.',
+            'Explain the unique challenges of eukaryotic replication at initiation and at the ends, and how the end problem is solved in the cell.',
+            'Predict the implications of telomerase activity for aging and immortality.',
+            'Explain why telomerase is an attractive target for cancer treatments.',
+          ],
         },
         'L22': {
           'label': 'DNA Synthesis in the Lab',
+          'outcomes': [
+            'Explain the relevance of base stacking/base pairing to molecular biology techniques.',
+            'Explain the relevance of backbone charge to molecular biology techniques.',
+            'Describe how DNA is synthesised in vitro in PCR.',
+            'Explain how properties of DNA polymerases are useful in PCR.',
+            'Describe how DNA is synthesised in vitro in reverse transcription for RNA analysis.',
+            'Describe how DNA is synthesised in vitro in DNA sequencing.',
+            'Explain how properties of DNA polymerases are useful in Sanger sequencing.',
+          ],
         },
         'L23': {
           'label': 'The Eukaryotic Genome',
+          'outcomes': [
+            'Account for the large amount of non-coding DNA in the genomes of complex organisms: introns, repetitive DNA, pseudogenes, etc.',
+            'Describe the packaging of DNA with histones to form nucleosomes, and nucleosome structure.',
+            'Describe how histone modifications can influence gene expression.',
+            'Understand how histone acetyltransferases and histone deacetylases influence the binding interaction between histones and the DNA backbone.',
+            'Explain how histone modifications can be used to remodel regions of chromatin to increase or decrease how tightly it is packed.',
+            'Describe how pluripotent stem cells and terminally differentiated cells will differ in their ability to access and transcribe certain regions of the genome.',
+          ],
         },
         'L24': {
           'label': 'Prokaryotic Transcription',
+          'outcomes': [
+            'Stages and basic mechanisms of prokaryotic transcription.',
+            'Features of promoters.',
+            'Role and function of promoters.',
+            'Effect of promoter strength on transcription rate.',
+            'Transcriptional regulation of lac and trp operons.',
+            'Role and function of repressors.',
+          ],
         },
         'L25': {
           'label': 'Eukaryotic Transcription',
+          'outcomes': [
+            'Differences between prokaryotic and eukaryotic transcription.',
+            'Types and roles of eukaryotic RNA polymerases.',
+            'Types of eukaryotic promoter elements.',
+            'Role of enhancers.',
+            'Role of transcription factors.',
+            'Hormone regulation of gene expression.',
+            'Drugs that target hormone receptors to alter gene expression.',
+          ],
         },
         'L26': {
           'label': 'Post-transcriptional Processing',
+          'outcomes': [
+            'Processing events for rRNA.',
+            'Processing events for tRNA.',
+            'Processing events for mRNA.',
+            'Roles of 5\' capping and 3\' polyadenylation.',
+            'Features and importance of splicing.',
+            'Alternative splicing as a means to generate protein diversity.',
+            'mRNA transport after processing.',
+          ],
         },
         'L27-28': {
           'label': 'Prokaryotic and Eukaryotic Translation',
+          'outcomes': [
+            'Properties of nucleic acids vs amino acids.',
+            'Features of the genetic code.',
+            'tRNA as an adaptor molecule.',
+            'tRNA binding to codons and amino acids.',
+            'Role of aminoacyl-tRNA synthetases.',
+            'Role of ribosomes in protein synthesis.',
+            'Stages of translation and its features.',
+            'Differences between prokaryotic and eukaryotic translation.',
+            'Inhibition of protein synthesis as a mechanism of drugs and toxins.',
+          ],
         },
         'L29': {
           'label': 'Translational Regulation',
+          'outcomes': [
+            'Features and application of alternative translation start sites.',
+            'Features of nonsense-mediated mRNA decay.',
+            'Features of non-stop mRNA decay.',
+            'Features of no-go mRNA decay.',
+            'Mechanisms of controlling cellular iron levels.',
+            'Roles of the iron response element in ferritin and transferrin receptor synthesis.',
+            'Roles of small RNAs in regulating mRNA stability.',
+          ],
         },
         'L30': {
           'label': 'CS – Molecular Techniques I',
+          'outcomes': [
+            'Identify some uses of recombinant DNA technology.',
+            'Explain the implications of the universal genetic code for cloning.',
+            'Describe the differences between genomic DNA and cDNA.',
+            'Describe how cDNA is generated.',
+          ],
         },
         'L31': {
           'label': 'CS – Molecular Techniques II',
+          'outcomes': [
+            'Identify the components of cloning vectors and explain the functions of these components.',
+            'Describe the procedures used to generate recombinant DNA molecules.',
+            'Describe the properties of restriction enzymes and apply these properties to cloning contexts.',
+          ],
         },
         'L32': {
           'label': 'CS – Molecular Techniques III',
+          'outcomes': [
+            'Identify and describe the procedures used to screen and validate recombinant DNA molecules.',
+          ],
         },
         'L33': {
           'label': 'L18–L23 Revision Questions',
@@ -398,11 +661,11 @@
     bombSpawnBaseMs: 800,        // bomb spawn interval — base + random(0..rand) -- widened alongside obstacleSpawn* above
     bombSpawnRandMs: 1600,
     scoreCorrectWeight: 50,    // Group Race ranking score = correct*this - incorrect*this + life*this + stageIndex*stageWeight
-    scoreIncorrectWeight: 35,
-    scoreLifeWeight: 1,
+    scoreIncorrectWeight: 50,
+    scoreLifeWeight: 0,
     stageWeight: 300,          // added per stage reached (stageIndex is 0-based, so Stage I contributes 0)
     streakBonusEvery: 3,       // award a bonus every Nth correct answer IN A ROW (resets to 0 on any wrong answer)
-    streakBonusAmount: 10,     // life gained when a streak bonus triggers
+    streakBonusAmount: 0,     // life gained when a streak bonus triggers
     streakBonusAppliesToLife: true, // set false to stop the streak bonus from also topping up life -- the life-award code below stays intact either way, this just gates it
     streakBonusScoreAmount: 150, // flat score points awarded when a streak bonus triggers (on top of the usual correct/incorrect/life/stage weights)
   };
@@ -415,27 +678,6 @@
   const LIFE_CONFIG = {
     'MEDS3002': { label:'Glucose', icon:'🩸' },
     'MEDS2003': { label:'ATP',     icon:'⚡' },
-  };
-
-/* ======================================================================
-   LEARNING_PATH_CONFIG — tunables for the lecture-scoped "Learning Path"
-   mode. That mode picks a single lecture (a COURSES[course].classes[class]
-   entry) and runs its questions through these cognitive levels in order,
-   gated by perLevelQuota correct answers each. A lecture only shows up in
-   the Learning Path picker once it has an `outcomes` array (see COURSES
-   above) AND at least one question tagged with a matching `level` (see the
-   THEMES/questions comment below) — levels with zero matching questions for
-   that lecture are skipped rather than shown empty.
-   ====================================================================== */
-  const LEARNING_PATH_CONFIG = {
-    levels: ['identify', 'understand', 'apply', 'case'],
-    perLevelQuota: 3, // correct answers needed within a level before advancing to the next
-    levelLabels: { identify:'Identify', understand:'Understand', apply:'Apply', case:'Case Study' },
-    levelBlurbs: {
-      understand: "You've identified the basics — now let's understand the mechanism behind them.",
-      apply:      "Time to apply that understanding to a scenario.",
-      case:       "Bring it all together with a case study.",
-    },
   };
 
 /* ======================================================================
@@ -476,7 +718,6 @@
                   'explanation': 't(9;22)(q34;q11) creates the BCR-ABL1 fusion gene, the Philadelphia chromosome, diagnostic for CML.',
                   'hashtags': ['Leukemia'],
                   'id': 'g1',
-                  'level': 'identify',
                   'options': ['t(9;22) — Philadelphia chromosome', 't(15;17)', 't(8;14)', 't(12;21)'],
                   'prompt': 'Which translocation is the hallmark of chronic myeloid leukemia (CML)?',
                 },
@@ -485,7 +726,6 @@
                   'explanation': 'BCR-ABL encodes a fusion protein with unregulated tyrosine kinase activity, driving proliferation.',
                   'hashtags': ['Leukemia'],
                   'id': 'g2',
-                  'level': 'understand',
                   'options': ['A constitutively active tyrosine kinase', 'A tumor suppressor', 'A cell-surface receptor with no kinase activity', 'A DNA repair enzyme'],
                   'prompt': 'What type of protein does the BCR-ABL fusion gene produce?',
                 },
@@ -494,7 +734,6 @@
                   'explanation': 'The reciprocal translocation shortens chromosome 22, producing the visibly abnormal "Philadelphia chromosome."',
                   'hashtags': ['Leukemia'],
                   'id': 'g9',
-                  'level': 'identify',
                   'options': ['Chromosome 22', 'Chromosome 21', 'Chromosome 9', 'Chromosome 17'],
                   'prompt': 'The Philadelphia chromosome is a shortened, abnormal version of which chromosome?',
                 },
@@ -4415,7 +4654,7 @@
 
   window.RUNNER_DATA = {
     COURSES, GAME_CONFIG, LIFE_CONFIG, THEMES,
-    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES, LEARNING_PATH_CONFIG,
+    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES,
   };
 
 })();
