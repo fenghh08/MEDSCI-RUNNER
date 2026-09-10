@@ -133,6 +133,28 @@
      portrait phones have no free strip there, so it drops below the HUD. */
   #stallWarning{ top:10px; z-index:23; }
   @media (orientation:portrait){ #stallWarning{ top:var(--hud-clearance, 70px); z-index:6; } }
+  /* Sits a bit lower than the (rarer, red) stall warning so the two can
+     coexist without overlapping if both happen to be up at once. */
+  #catchUpBanner{ top:48px; z-index:23; border-color:#ffd54d; color:#ffd54d; }
+  @media (orientation:portrait){ #catchUpBanner{ top:calc(var(--hud-clearance, 70px) + 34px); z-index:6; } }
+  /* Tutorial -- a real render of the actual canvas/HUD with a caption bar
+     docked to the bottom of the stage instead of covering it, so what's
+     being described is visible at the same time as the description. */
+  #tutorialCaptionBar{ display:none; position:absolute; left:0; right:0; bottom:0; z-index:24;
+    background:var(--backdrop); padding:14px 18px; text-align:center; }
+  #tutorialCaptionBar .tc-title{ font-family:var(--display); font-style:italic; font-size:17px; color:var(--ov-ink); margin:0 0 4px; }
+  #tutorialCaptionBar .tc-caption{ font-size:12.5px; line-height:1.5; color:var(--ov-dim); max-width:520px; margin:0 auto 10px; }
+  #tutorialCaptionBar .tc-dots{ display:flex; gap:5px; justify-content:center; margin-bottom:10px; }
+  #tutorialCaptionBar .tc-dot{ width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,.25); }
+  #tutorialCaptionBar .tc-dot.on{ background:var(--membrane); }
+  #tutorialCloseBtn{ position:absolute; top:12px; right:14px; z-index:25; background:var(--hud-block-bg); border:1px solid rgba(255,93,143,.3);
+    color:var(--ov-ink); border-radius:8px; width:30px; height:30px; font-size:14px; cursor:pointer; display:none; }
+  /* Mock question card for the tutorial's "answer it" step -- same look as
+     the real .mcq-* classes, but its own DOM/handlers: no real question,
+     no real scoring, no Firebase, nothing left behind once it closes. */
+  #tutorialMcqModal{ position:absolute; inset:0; display:none; align-items:flex-start; justify-content:safe center;
+    background:var(--backdrop); z-index:24; padding:18px; padding-top:20px; }
+  #tutorialMcqModal.active{ display:flex; }
   /* Live scoreboard on the "You're done" screen while others still race */
   #overLiveBoard .lb-row{ color:var(--hud-ink); border-color:var(--panel-line); background:var(--panel); }
   #overLiveBoard .lb-row .lb-rank{ color:var(--hud-dim); }
@@ -433,7 +455,7 @@
     <div id="hud">
       <div id="hudLeft">
         <div class="hud-block">
-          <div class="hud-label" id="lifeLabel">Glucose</div>
+          <div class="hud-label" id="lifeLabel">Life</div>
           <div class="hud-value" id="glucoseVal">50</div>
           <div class="hud-stage-line" id="stageLine"></div>
           <div id="giftHudLine" style="display:none;font-size:11px;margin-top:4px;color:#ffd54d;"></div>
@@ -457,6 +479,29 @@
       </div>
     </div>
     <div id="mpEliminationToast"></div>
+    <button class="panel-close" id="tutorialCloseBtn" title="Close tutorial">✕</button>
+    <div id="tutorialCaptionBar">
+      <div class="tc-title" id="tutorialTitle">—</div>
+      <div class="tc-caption" id="tutorialCaption"></div>
+      <div class="tc-dots" id="tutorialDots"></div>
+      <div class="btn-row" style="justify-content:center;">
+        <button class="secondary" id="tutorialBackBtn">← Back</button>
+        <button class="secondary" id="tutorialSkipBtn">Skip tutorial</button>
+        <button class="primary" id="tutorialNextBtn">Next →</button>
+      </div>
+    </div>
+    <div id="tutorialMcqModal">
+      <div class="panel-card" style="max-width:520px;">
+        <div class="mcq-cat" style="color:#7fd1ff;">🧬 GENETICS <span style="float:right;color:var(--hud-dim);font-weight:400;">(sample question)</span></div>
+        <p class="mcq-prompt">Which translocation is the hallmark of chronic myeloid leukemia (CML)?</p>
+        <div id="tutorialMcqOptions"></div>
+        <div id="tutorialMcqFeedback" style="display:none;">
+          <div class="mcq-verdict" id="tutorialMcqVerdict">—</div>
+          <div class="mcq-explain">t(9;22) creates the BCR-ABL1 fusion gene — this is exactly what a real explanation looks like after you answer.</div>
+          <div class="btn-row"><button class="primary" id="tutorialMcqContinueBtn">Got it — Next →</button></div>
+        </div>
+      </div>
+    </div>
     <div id="grenadeOverlay">
       <div id="grenadeWarnWrap">
         <div class="grenade-warn">⚠️</div>
@@ -479,6 +524,13 @@
       background:var(--hud-block-bg);backdrop-filter:blur(4px);border:1px solid var(--ov-danger);border-radius:10px;
       padding:6px 14px;font-size:11.5px;color:var(--ov-ink);text-align:center;pointer-events:none;
       max-width:min(90vw, 420px);"></div>
+    <!-- Group Race: shown to everyone still racing once the first racer
+         finishes -- they have this long to out-score them before the
+         match locks in. See startCatchUpCountdown(). -->
+    <div id="catchUpBanner" style="display:none;position:absolute;left:50%;transform:translateX(-50%);
+      background:var(--hud-block-bg);backdrop-filter:blur(4px);border:1px solid #ffd54d;border-radius:10px;
+      padding:6px 14px;font-size:11.5px;font-weight:700;text-align:center;pointer-events:none;
+      max-width:min(90vw, 420px);"></div>
 
     <!-- LANDING -->
     <div class="screen active" id="landingScreen">
@@ -486,6 +538,7 @@
         <p class="desc">Hit a block, answer, keep your life up.</p>
         <div class="btn-row" style="margin-bottom:16px;">
           <button class="secondary" id="manualBtn">📖 How to play</button>
+          <button class="secondary" id="tutorialBtn">🎬 See it in action</button>
           <button class="secondary" id="studyGuideBtnMenu">📚 Study guide</button>
           <button class="secondary" id="courseListBtnMenu">🎓 Browse by lecture</button>
           <button class="secondary" id="customizeBtnMenu">🎨 Customise</button>
@@ -1386,7 +1439,7 @@
     });
   });
 
-  function lifeCfg(){ return LIFE_CONFIG[currentCancerId] || { label:'Life', icon:'❤️' }; }
+  function lifeCfg(){ return LIFE_CONFIG[currentCancerId] || { label:'Life', icon:'🩸' }; }
 
 /* ======================================================================
    ICONS — any "icon" field (on a cancer, topic, or elsewhere) can be either
@@ -1593,6 +1646,21 @@
   const customizeFontRow = document.getElementById('customizeFontRow');
   const customizeSpeedRow = document.getElementById('customizeSpeedRow');
   const giftHudLine = document.getElementById('giftHudLine');
+  const catchUpBanner = document.getElementById('catchUpBanner');
+  const tutorialBtn = document.getElementById('tutorialBtn');
+  const tutorialCaptionBar = document.getElementById('tutorialCaptionBar');
+  const tutorialTitle = document.getElementById('tutorialTitle');
+  const tutorialCaption = document.getElementById('tutorialCaption');
+  const tutorialDots = document.getElementById('tutorialDots');
+  const tutorialBackBtn = document.getElementById('tutorialBackBtn');
+  const tutorialSkipBtn = document.getElementById('tutorialSkipBtn');
+  const tutorialNextBtn = document.getElementById('tutorialNextBtn');
+  const tutorialCloseBtn = document.getElementById('tutorialCloseBtn');
+  const tutorialMcqModal = document.getElementById('tutorialMcqModal');
+  const tutorialMcqOptions = document.getElementById('tutorialMcqOptions');
+  const tutorialMcqFeedback = document.getElementById('tutorialMcqFeedback');
+  const tutorialMcqVerdict = document.getElementById('tutorialMcqVerdict');
+  const tutorialMcqContinueBtn = document.getElementById('tutorialMcqContinueBtn');
   const overLiveBoard = document.getElementById('overLiveBoard');
   const grenadeOverlay = document.getElementById('grenadeOverlay');
   const grenadeWarnWrap = document.getElementById('grenadeWarnWrap');
@@ -2407,7 +2475,7 @@
     screenState = 'paused';
     syncHudVisibility();
     pauseBtn.textContent = '▶';
-    pauseStatus.textContent = `Stage ${currentStages()[stageIndex].roman} · Glucose ${Math.round(glucose)}`;
+    pauseStatus.textContent = `Stage ${currentStages()[stageIndex].roman} · ${lifeCfg().label} ${Math.round(glucose)}`;
     showScreen('paused');
   }
   function resumeGame(){
@@ -2504,9 +2572,139 @@
     landingScreen.classList.add('active');
   }
 
+  // ---------- tutorial ("See it in action") ----------
+  // A real walkthrough, not slides: it drives the SAME canvas renderer
+  // (drawVessel/drawEntity/drawPlayer) real gameplay uses, with fake
+  // entities parked in place instead of spawned/scrolling/colliding, plus
+  // its own tiny mock question card (own DOM, own handlers -- never
+  // touches the real question bank, scoring, SRS, or Firebase). Entirely
+  // independent of screenState/the real game loop, so it can't leave
+  // anything behind when it closes.
+  let tutorialActive = false, tutorialStep = 0, tutorialRafId = null, tutorialEntities = [];
+  const TUTORIAL_STEPS = [
+    { title:'Meet your cell', caption:'This is you. Try switching lanes now — ↑/↓, W/S, or the on-screen lane buttons on a touch device.', entities:[] },
+    { title:'Topic blocks', caption:'A glowing coloured block is a question waiting for you. Steer into it to open it.', entities:[{type:'topic', lane:1, topic:'genetics'}] },
+    { title:'Answer it', caption:'Get it right and you make progress toward the next stage (plus points). Get it wrong — or run out of time — and you lose life, but nothing else resets. Try the sample question below.', mockMcq:true, entities:[] },
+    { title:'Life pickups', caption:'Drifting circles top up your life. Grab them on the way past — no need to go out of your way.', entities:[{type:'glucose', lane:0}] },
+    { title:'Bombs', caption:'Spiky and red means danger. Touching one costs life instantly — no question, no warning. Just steer around it.', entities:[{type:'bomb', lane:2}] },
+    { title:'The HUD', caption:'Life, score, and how many correct answers each topic still needs for this stage — all live at the top the whole time you play.', entities:[], showHud:true },
+    { title:'Group Race extras', caption:'Racing friends adds gold 🎁 gift blocks. Answer one right and you can arm a grenade to throw at a rival, or a shield to block one coming your way.', entities:[{type:'gift', lane:1}] },
+    { title:"You're ready", caption:'Pick a mode below and give it a run — you can reopen this any time from the menu.', entities:[], final:true },
+  ];
+  function openTutorial(){
+    tutorialActive = true;
+    tutorialStep = 0;
+    landingScreen.classList.remove('active');
+    document.body.classList.add('in-run');
+    hud.style.display = 'none';
+    updateTopInset();
+    player = { lane:1, y:laneY(1), targetLane:1, wob:0 };
+    tutorialCloseBtn.style.display = 'inline-block';
+    renderTutorialStep();
+    if(!tutorialRafId) tutorialRafId = requestAnimationFrame(tutorialFrame);
+  }
+  function closeTutorial(){
+    tutorialActive = false;
+    if(tutorialRafId){ cancelAnimationFrame(tutorialRafId); tutorialRafId = null; }
+    tutorialCaptionBar.style.display = 'none';
+    tutorialCloseBtn.style.display = 'none';
+    tutorialMcqModal.classList.remove('active');
+    hud.style.display = 'none';
+    document.body.classList.remove('in-run');
+    showScreen('landing');
+  }
+  function tutorialFrame(){
+    if(!tutorialActive) return;
+    bgOffset = (bgOffset + 24*(1/60)) % 80; // a gentle idle scroll -- slower than real gameplay, just enough to read as "alive"
+    player.wob += (1/60)*6;
+    const desiredY = laneY(player.targetLane);
+    player.y += (desiredY - player.y) * Math.min(1, (1/60)*10);
+    player.lane = player.targetLane;
+    drawVessel();
+    tutorialEntities.forEach(e=> drawEntity(e));
+    drawPlayer();
+    tutorialRafId = requestAnimationFrame(tutorialFrame);
+  }
+  function renderTutorialStep(){
+    const step = TUTORIAL_STEPS[tutorialStep];
+    tutorialTitle.textContent = step.title;
+    tutorialCaption.textContent = step.caption;
+    tutorialDots.innerHTML = TUTORIAL_STEPS.map((_,i)=>`<span class="tc-dot${i===tutorialStep?' on':''}"></span>`).join('');
+    tutorialBackBtn.style.display = tutorialStep===0 ? 'none' : 'inline-block';
+    tutorialNextBtn.textContent = step.final ? 'Let\'s go →' : 'Next →';
+    tutorialSkipBtn.style.display = step.final ? 'none' : 'inline-block';
+    tutorialEntities = (step.entities||[]).map(e=>({
+      x: PLAYER_X + 230*SCALE, lane: e.lane, hit:false, topic: e.topic,
+      r: (e.type==='topic'||e.type==='gift') ? 24*SCALE : e.type==='bomb' ? 20*SCALE : 10*SCALE,
+      type: e.type,
+    }));
+    hud.style.display = step.showHud ? 'flex' : 'none';
+    // Look, don't touch -- this is the real #hud with its real pause/sound/
+    // study-guide buttons; without this a curious click during the preview
+    // would actually open the real study guide or try to pause a run that
+    // doesn't exist.
+    hud.style.pointerEvents = step.showHud ? 'none' : '';
+    if(step.showHud){
+      // Placeholder values only -- this is a live look at the real HUD
+      // markup/CSS, not bound to any actual run.
+      lifeLabel.textContent = lifeCfg().label;
+      glucoseVal.innerHTML = `${iconHTML(lifeCfg().icon,20)} × 82`;
+      scoreHudBlock.style.display = 'block';
+      scoreVal.textContent = '340';
+      stageLine.textContent = 'Stage I';
+      topicChips.innerHTML = ['genetics','immunology'].map(t=>{
+        const meta = TOPICS[t]; return `<span class="topic-chip" style="color:${meta.color};border-color:${meta.color}77;background:${meta.color}11">${iconHTML(meta.icon,13)} 2/3</span>`;
+      }).join('');
+      mpOpponentPanel.style.display = 'none';
+    }
+    updateTopInset();
+    // While the mock question is up, the caption bar's own Back/Skip/Next
+    // would sit BEHIND the question card's full-stage backdrop -- visible
+    // through it (translucent) but not actually clickable, since the
+    // backdrop div still covers that whole region. Hide it and let the
+    // card's own "Got it -- Next" drive progression instead (the ✕ close
+    // button stays available regardless -- it's stacked above everything).
+    tutorialCaptionBar.style.display = step.mockMcq ? 'none' : 'block';
+    tutorialMcqModal.classList.remove('active');
+    tutorialMcqFeedback.style.display = 'none';
+    if(step.mockMcq) openTutorialMockMcq();
+  }
+  function openTutorialMockMcq(){
+    const options = ['t(9;22) — Philadelphia chromosome', 't(15;17)', 't(8;14)', 't(12;21)'];
+    tutorialMcqOptions.innerHTML = '';
+    options.forEach((opt,i)=>{
+      const b = document.createElement('button');
+      b.className = 'mcq-option';
+      b.innerHTML = `<span class="opt-key">${i+1}</span>${opt}`;
+      b.addEventListener('click', ()=>{
+        tutorialMcqOptions.querySelectorAll('.mcq-option').forEach((btn,j)=>{
+          btn.classList.add('disabled');
+          if(j===0) btn.classList.add('correct'); else if(j===i) btn.classList.add('wrong');
+        });
+        tutorialMcqVerdict.textContent = i===0 ? 'Correct' : 'Not quite';
+        tutorialMcqVerdict.className = 'mcq-verdict ' + (i===0 ? 'verdict-good' : 'verdict-bad');
+        tutorialMcqFeedback.style.display = 'block';
+      });
+      tutorialMcqOptions.appendChild(b);
+    });
+    tutorialMcqModal.classList.add('active');
+  }
+  tutorialMcqContinueBtn.addEventListener('click', ()=>{ tutorialMcqModal.classList.remove('active'); tutorialAdvance(1); });
+  function tutorialAdvance(dir){
+    const step = TUTORIAL_STEPS[tutorialStep];
+    if(dir>0 && step.final){ closeTutorial(); return; }
+    tutorialStep = Math.max(0, Math.min(TUTORIAL_STEPS.length-1, tutorialStep+dir));
+    renderTutorialStep();
+  }
+  tutorialBtn.addEventListener('click', openTutorial);
+  tutorialCloseBtn.addEventListener('click', closeTutorial);
+  tutorialSkipBtn.addEventListener('click', closeTutorial);
+  tutorialBackBtn.addEventListener('click', ()=> tutorialAdvance(-1));
+  tutorialNextBtn.addEventListener('click', ()=> tutorialAdvance(1));
+
   // ---------- lanes / controls ----------
   function setLane(dir){
-    if(screenState!=='running') return;
+    if(screenState!=='running' && !tutorialActive) return;
     const next = player.targetLane + dir;
     if(next>=0 && next<LANES) player.targetLane = next;
   }
@@ -2536,6 +2734,7 @@
       return;
     }
     if(grenadeOverlay.classList.contains('active')) return;
+    if(tutorialActive){ if(e.key==='Escape') closeTutorial(); return; }
     if(infoModal.classList.contains('active')){ if(e.key==='Escape') guideClose.click(); return; }
     if(manualModal.classList.contains('active')){ if(e.key==='Escape') manualClose.click(); return; }
     if(summaryModal.classList.contains('active')){ if(e.key==='Escape') summaryClose.click(); return; }
@@ -4499,6 +4698,10 @@
     // incoming-grenade bookkeeping (keys already seen + the queue waiting
     // for a moment the run is actually 'running'), and the host's speed pick
     shields:0, giftsUnlocked:false, giftFirstRollDone:false, giftTimer:0, seenIncoming:new Set(), incomingQueue:[], speed:'normal',
+    // catchUpEndsAt: the room's shared raceEndsAt once the first racer
+    // finishes -- everyone still racing gets until then to out-score them.
+    // catchUpTimer is the local setTimeout driving the visible countdown.
+    catchUpEndsAt:null, catchUpFinisherName:null, catchUpTimer:null,
     roomListenerRef:null, countdownStarted:false, theme:RUNNABLE_THEMES[0], selectedTheme:RUNNABLE_THEMES[0],
     // filterCourse/filterTopics/filterClasses describe an optional narrowing
     // within the chosen course -- empty topic/class lists mean "the whole
@@ -4771,6 +4974,16 @@
         mpRenderLeaderboard(roster);
         mpCheckEliminations(roster);
         mpAutoWinIfLastStanding(roster);
+        // The first racer to finish starts a shared catch-up window (see
+        // mpMarkDone) -- every client picks it up here, the moment it
+        // becomes true on the room, and starts its OWN local countdown
+        // toward the same shared deadline.
+        if(room.raceEndsAt && !mp.catchUpEndsAt && screenState!=='over'){
+          mp.catchUpEndsAt = room.raceEndsAt;
+          const finisher = Object.values(roster).find(p=>p.doneReason==='finished');
+          mp.catchUpFinisherName = (finisher && finisher.name) || 'A racer';
+          startCatchUpCountdown();
+        }
         // Gift questions switch on once enough of the room has reached
         // Stage II (GAME_CONFIG.giftUnlockShare) -- everyone sees the same
         // moment since it's computed from the shared roster.
@@ -4822,7 +5035,7 @@
       // `done` is set for EVERY way a race ends (finished, eliminated, quit),
       // so it has to be checked together with the reason -- previously a
       // finisher also matched the bare `done` test first and showed 💀.
-      const status = p.done ? ({ finished:'🏆', 'last-standing':'🏁', ended:'🚪' }[p.doneReason] || (p.finishedWin ? '🏆' : '💀')) : `S${p.stageRoman||'I'}`;
+      const status = p.done ? ({ finished:'🏆', 'last-standing':'🏁', ended:'🚪', timeup:'⌛' }[p.doneReason] || (p.finishedWin ? '🏆' : '💀')) : `S${p.stageRoman||'I'}`;
       return `<div class="lb-row${isMe?' me':''}"><span><span class="lb-rank">#${i+1}</span>${p.name}${isMe?' (you)':''}</span><span>${status} · ${p.score}</span></div>`;
     }).join('');
   }
@@ -4840,6 +5053,7 @@
         const reason = p.doneReason || (p.finishedWin ? 'finished' : 'eliminated');
         const text = (reason==='finished' || reason==='last-standing') ? `🏁 ${p.name} finished!`
           : reason==='ended' ? `🚪 ${p.name} left the race`
+          : reason==='timeup' ? `⌛ ${p.name}'s catch-up time is up`
           : `💀 ${p.name} is out!`;
         mpShowEliminationToast(text);
       }
@@ -4866,6 +5080,39 @@
     clearMcqTimer();
     mpMarkDone('last-standing');
   }
+  // Ticks the shared 30s (GAME_CONFIG.catchUpWindowMs) window visible via
+  // #catchUpBanner. Independent of the main game loop (which only runs
+  // while screenState==='running') via its own setTimeout, so it keeps
+  // counting down through a question, a pause, anything -- exactly the
+  // point, since the whole idea is "you get this long of REAL time,
+  // regardless of what you're doing with it."
+  function startCatchUpCountdown(){
+    catchUpBanner.style.display = 'block';
+    (function tick(){
+      if(!mp.active || mp.finished || screenState==='over'){ catchUpBanner.style.display = 'none'; return; }
+      const remain = mp.catchUpEndsAt - serverNow();
+      if(remain <= 0){
+        catchUpBanner.style.display = 'none';
+        forceEndForCatchUp();
+        return;
+      }
+      catchUpBanner.textContent = `🏁 ${mp.catchUpFinisherName} finished! ${Math.ceil(remain/1000)}s left to out-score them`;
+      mp.catchUpTimer = setTimeout(tick, 250);
+    })();
+  }
+  // Same cleanup mpAutoWinIfLastStanding uses to interrupt whatever's on
+  // screen (a live question, the stage-transition overlay, a resume
+  // count) and lock the run in right where it stands -- the window is
+  // real time, not "finish your current question first."
+  function forceEndForCatchUp(){
+    if(!mp.active || mp.finished || screenState==='over') return;
+    mcqModal.classList.remove('active');
+    scenarioOverlay.classList.remove('active');
+    grenadeOverlay.classList.remove('active');
+    resumeIndicator.style.display = 'none';
+    clearMcqTimer();
+    mpMarkDone('timeup');
+  }
   function mpShowEliminationToast(text){
     mpEliminationToast.textContent = text;
     mpEliminationToast.classList.add('show');
@@ -4889,7 +5136,7 @@
     const ranked = mpRankedRoster(roster);
     overLiveBoard.innerHTML = `<div class="p-sub" style="margin-top:0;">Live standings</div>` + ranked.map((p,i)=>{
       const isMe = p.pid===mp.playerId;
-      const status = p.done ? ({ finished:'🏆', 'last-standing':'🏁', ended:'🚪' }[p.doneReason] || (p.finishedWin ? '🏆' : '💀')) : `🏃 S${p.stageRoman||'I'}`;
+      const status = p.done ? ({ finished:'🏆', 'last-standing':'🏁', ended:'🚪', timeup:'⌛' }[p.doneReason] || (p.finishedWin ? '🏆' : '💀')) : `🏃 S${p.stageRoman||'I'}`;
       return `<div class="lb-row${isMe?' me':''}"><span><span class="lb-rank">#${i+1}</span>${escapeHtml(p.name||'')}${isMe?' (you)':''}</span><span>${status} · ${p.score}</span></div>`;
     }).join('');
     overLiveBoard.style.display = 'block';
@@ -4936,6 +5183,8 @@
     Object.keys(currentStages()[0].requirements).forEach(t=>stageProgress[t]=0);
     mpOpponentPanel.style.display = 'block';
     mp.shields = 0; mp.giftsUnlocked = false; mp.giftFirstRollDone = false; mp.giftTimer = 0; mp.seenIncoming = new Set(); mp.incomingQueue = [];
+    clearTimeout(mp.catchUpTimer); mp.catchUpEndsAt = null; mp.catchUpFinisherName = null;
+    catchUpBanner.style.display = 'none';
     updateGiftHUD();
     // Render immediately from the roster snapshot the waiting-room listener
     // already has (mp.roster), instead of leaving the panel blank until the
@@ -4969,6 +5218,13 @@
       glucose: Math.max(0,glucose), stageIndex, stageRoman: currentStages()[stageIndex].roman,
       correctCount: myCorrectCount, incorrectCount: myIncorrectCount, bonusScore: myBonusScore,
     });
+    if(reason==='finished'){
+      // Reaching the end doesn't win outright -- it starts a shared
+      // catch-up window for everyone still racing. A transaction means
+      // only the FIRST racer to finish actually sets it; anyone finishing
+      // afterward sees it already set and leaves it alone.
+      runTransaction(ref(fbdb, `rooms/${mp.roomCode}/raceEndsAt`), current => current===null ? serverNow()+GAME_CONFIG.catchUpWindowMs : current).catch(()=>{});
+    }
     get(ref(fbdb, `rooms/${mp.roomCode}`)).then(snap=>{
       const room = snap.val();
       if(room) mpRenderWaitingResult(room.players||{});
@@ -5023,10 +5279,13 @@
   }
   function mpTeardown(){
     if(mp.roomListenerRef){ off(mp.roomListenerRef); }
+    clearTimeout(mp.catchUpTimer);
+    catchUpBanner.style.display = 'none';
     mp = { active:false, roomCode:null, playerId:null, isHost:false, roster:{}, knownDone:new Set(),
       myName:'Player', finished:false, roomListenerRef:null, countdownStarted:false, theme:RUNNABLE_THEMES[0], selectedTheme:RUNNABLE_THEMES[0],
       filterCourse:null, filterTopics:[], filterClasses:[],
-      shields:0, giftsUnlocked:false, giftFirstRollDone:false, giftTimer:0, seenIncoming:new Set(), incomingQueue:[], speed:'normal' };
+      shields:0, giftsUnlocked:false, giftFirstRollDone:false, giftTimer:0, seenIncoming:new Set(), incomingQueue:[], speed:'normal',
+      catchUpEndsAt:null, catchUpFinisherName:null, catchUpTimer:null };
     mpOpponentPanel.style.display = 'none';
     grenadeOverlay.classList.remove('active');
     updateGiftHUD();
@@ -5037,7 +5296,7 @@
   const GAME_VERSION = '2026-09-10-gifts-3-stages-speed'; // bump this string whenever you send friends a new copy of the file
   console.log('[Runner Game] version', GAME_VERSION);
   document.getElementById('versionTag').textContent = `version ${GAME_VERSION}`;
-  manualGlucoseText.innerHTML = `You start with ${GAME_CONFIG.startingGlucose} life. Collect drifting pickups (+${GAME_CONFIG.glucosePickupValue} each) to top it up. Answering a question <b>wrong costs ${GAME_CONFIG.wrongAnswerPenalty}</b>. A rare 💣 bomb costs <b>${GAME_CONFIG.bombDamage}</b> instantly on contact — no question, just avoid it. If life drops below zero, the run ends. (Glucose for Cancer, ATP for Biochemistry — the name changes per theme.)`;
+  manualGlucoseText.innerHTML = `You start with ${GAME_CONFIG.startingGlucose} life. Collect drifting pickups (+${GAME_CONFIG.glucosePickupValue} each) to top it up. Answering a question <b>wrong costs ${GAME_CONFIG.wrongAnswerPenalty}</b>. A rare 💣 bomb costs <b>${GAME_CONFIG.bombDamage}</b> instantly on contact — no question, just avoid it. If life drops below zero, the run ends.`;
   buildCancerGrid();
   refreshReviewModeCardBlurb();
   updateTopInset();
@@ -5094,6 +5353,16 @@
       // current lane, so you don't have to actually steer into it --
       // handy for automated checks of what happens after.
       showToast(text){ mpShowEliminationToast(text); return 'shown'; },
+      // Previews the catch-up countdown banner without touching Firebase
+      // (mp.roomCode stays unset, so the eventual mpMarkDone('timeup') at
+      // expiry silently no-ops rather than writing anywhere).
+      testCatchUp(seconds, name){
+        mp.active = true;
+        mp.catchUpFinisherName = name || 'Debug rival';
+        mp.catchUpEndsAt = serverNow() + (seconds||30)*1000;
+        startCatchUpCountdown();
+        return 'Catch-up countdown started.';
+      },
       forceGiftCollision(){
         const g = entities.find(e=>e.type==='gift' && !e.hit);
         if(!g) return 'No un-hit gift block on screen -- call spawnGift() first.';
