@@ -20,7 +20,7 @@
        re-themed in lockstep with it below -- the HUD must always contrast
        with whatever the track behind it looks like, never with the page. */
     --ov-ink:#ffe9ef; --ov-dim:#c98a9c; --ov-danger:#ff3b5c; --ov-bg:#1c0710;
-    --hud-block-bg:rgba(13,3,8,.55); --backdrop:rgba(4,1,3,.9);
+    --hud-block-bg:rgba(13,3,8,.55); --backdrop:rgba(4,1,3,.9); --backdrop-soft:rgba(4,1,3,.6);
   }
   /* Light mode re-themes everything: the menus/modals through these
      variables, AND the run itself -- drawVessel/drawEntity read the matching
@@ -36,7 +36,7 @@
     --panel:#ffffff; --panel-line:rgba(214,16,106,.22);
     --hairline-strong:rgba(58,13,28,.25); --hairline-soft:rgba(58,13,28,.18); --chip-bg:rgba(58,13,28,.06);
     --ov-ink:#3a0d1c; --ov-dim:#8a5568; --ov-danger:#c81a3f; --ov-bg:#fff1f5;
-    --hud-block-bg:rgba(255,255,255,.72); --backdrop:rgba(255,236,242,.93);
+    --hud-block-bg:rgba(255,255,255,.72); --backdrop:rgba(255,236,242,.93); --backdrop-soft:rgba(255,236,242,.66);
   }
   /* Optional reading fonts (Customise → Reading font). OpenDyslexic is
      fetched from a CDN with font-display:swap, so offline (or in the native
@@ -123,6 +123,33 @@
   .screen{ position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:safe center;
     background:var(--bg-0); text-align:center; padding:22px; z-index:10; overflow-y:auto; }
   .screen.active{ display:flex; }
+  /* Pause shows the frozen track through it, so you can see what's coming
+     before the 3-2-1 resume count hands control back (reported: the solid
+     pause screen meant resuming blind into whatever had piled up). */
+  #pauseScreen{ background:var(--backdrop-soft); backdrop-filter:blur(2px); }
+  #pauseScreen .btn-row{ max-width:520px; }
+  /* Stall warning lives in the free strip at the top of the HUD (between
+     the life block and the buttons) instead of floating over the lanes --
+     portrait phones have no free strip there, so it drops below the HUD. */
+  #stallWarning{ top:10px; z-index:23; }
+  @media (orientation:portrait){ #stallWarning{ top:var(--hud-clearance, 70px); z-index:6; } }
+  /* Live scoreboard on the "You're done" screen while others still race */
+  #overLiveBoard .lb-row{ color:var(--hud-ink); border-color:var(--panel-line); background:var(--panel); }
+  #overLiveBoard .lb-row .lb-rank{ color:var(--hud-dim); }
+  /* Group Race gifts: incoming-grenade overlay */
+  #grenadeOverlay{ position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center;
+    background:var(--backdrop-soft); z-index:26; text-align:center; padding:20px; }
+  #grenadeOverlay.active{ display:flex; }
+  .grenade-warn{ font-size:64px; line-height:1; animation:grenadeFlash .5s steps(2,start) infinite; }
+  @keyframes grenadeFlash{ 0%{ opacity:1; transform:scale(1);} 100%{ opacity:.35; transform:scale(1.12);} }
+  .grenade-title{ font-family:var(--display); font-style:italic; font-size:30px; color:var(--danger); margin:8px 0 4px; text-shadow:0 0 24px rgba(255,59,92,.5); }
+  .gift-shop{ margin:12px 0 4px; padding:12px; border:1px solid #ffd54d88; background:rgba(255,213,77,.08); border-radius:12px; text-align:left; }
+  .gift-shop .gs-title{ font-weight:700; color:#ffd54d; margin-bottom:6px; }
+  .gift-shop .btn-row{ justify-content:flex-start; }
+  .gift-shop button.secondary:disabled{ opacity:.45; cursor:not-allowed; }
+  #mcqReportWrap{ margin-top:10px; padding:10px 12px; border:1px solid var(--panel-line); border-radius:10px; text-align:left; }
+  #mcqReportWrap .btn-row{ justify-content:flex-start; }
+  #mcqReportWrap button.secondary{ font-size:11.5px; padding:6px 12px; }
   .screen h2{ font-family:var(--display); font-style:italic; font-weight:400; font-size:30px; margin:0 0 6px; }
   .screen p.desc{ color:var(--hud-dim); max-width:480px; line-height:1.55; font-size:13px; margin:0 auto 16px; text-align:center; }
 
@@ -409,6 +436,7 @@
           <div class="hud-label" id="lifeLabel">Glucose</div>
           <div class="hud-value" id="glucoseVal">50</div>
           <div class="hud-stage-line" id="stageLine"></div>
+          <div id="giftHudLine" style="display:none;font-size:11px;margin-top:4px;color:#ffd54d;"></div>
           <div class="topic-chips" id="topicChips"></div>
         </div>
         <div class="hud-block" id="scoreHudBlock" style="display:none;">
@@ -429,15 +457,27 @@
       </div>
     </div>
     <div id="mpEliminationToast"></div>
+    <div id="grenadeOverlay">
+      <div id="grenadeWarnWrap">
+        <div class="grenade-warn">⚠️</div>
+        <div class="grenade-title">WARNING! Grenade incoming!</div>
+        <p class="desc" id="grenadeFromText" style="margin-bottom:6px;"></p>
+        <p class="desc" id="grenadeShieldText" style="margin-bottom:12px;"></p>
+        <div class="btn-row">
+          <button class="primary" id="grenadeApplyShieldBtn">🛡 Apply shield</button>
+          <button class="secondary" id="grenadeBraceBtn">Don't apply — brace!</button>
+        </div>
+      </div>
+    </div>
     <div id="resumeIndicator" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;
       flex-direction:column;gap:6px;z-index:23;pointer-events:none;">
       <div id="resumeIndicatorNum" style="font-family:var(--display);font-style:italic;font-size:110px;line-height:1;
         color:var(--membrane);text-shadow:0 0 40px rgba(255,93,143,.6);"></div>
       <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ov-dim);">Resuming</div>
     </div>
-    <div id="stallWarning" style="display:none;position:absolute;top:var(--hud-clearance, 70px);left:50%;transform:translateX(-50%);z-index:6;
+    <div id="stallWarning" style="display:none;position:absolute;left:50%;transform:translateX(-50%);
       background:var(--hud-block-bg);backdrop-filter:blur(4px);border:1px solid var(--ov-danger);border-radius:10px;
-      padding:8px 16px;font-size:12px;color:var(--ov-ink);text-align:center;pointer-events:none;
+      padding:6px 14px;font-size:11.5px;color:var(--ov-ink);text-align:center;pointer-events:none;
       max-width:min(90vw, 420px);"></div>
 
     <!-- LANDING -->
@@ -489,7 +529,9 @@
             <div class="p-sub">3. Accessory</div>
             <div id="customizeAccessoryRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
             <div class="p-sub">4. Reading font <span style="color:var(--hud-dim);font-weight:400;text-transform:none;letter-spacing:0;">(applies straight away, everywhere)</span></div>
-            <div id="customizeFontRow" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+            <div id="customizeFontRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
+            <div class="p-sub">5. Game speed <span style="color:var(--hud-dim);font-weight:400;text-transform:none;letter-spacing:0;">(a Group Race uses the host's pick)</span></div>
+            <div id="customizeSpeedRow" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
           </div>
         </div>
         <div class="btn-row" style="margin-top:18px;">
@@ -523,7 +565,7 @@
         </select>
         <p id="practiceLimitNote" class="desc" style="margin:-10px 0 14px;font-size:11.5px;"></p>
         <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--hud-ink);cursor:pointer;margin-bottom:18px;">
-          <input type="checkbox" id="practiceTimedCheck"> ⏱ Time each question (30s, same as Runner) — off by default
+          <input type="checkbox" id="practiceTimedCheck"> ⏱ Time each question (45s+, same as Runner) — off by default
         </label>
         <div class="btn-row">
           <button class="secondary" id="practiceBackBtn">← Back</button>
@@ -674,6 +716,7 @@
     <div class="screen" id="overScreen">
       <h2 id="overTitle">—</h2>
       <p class="desc" id="overText"></p>
+      <div id="overLiveBoard" style="display:none;width:100%;max-width:380px;margin:0 auto 16px;text-align:left;"></div>
       <div class="btn-row">
         <button class="primary" id="viewSummaryBtn">View summary</button>
         <button class="secondary" id="againBtn">Play again</button>
@@ -718,7 +761,7 @@
           <span id="mcqPracticeProgress"></span>
           <button type="button" class="secondary" id="mcqEndPracticeBtn" style="font-size:11px;padding:4px 12px;">End practice</button>
         </div>
-        <div class="mcq-cat" id="mcqCat" style="color:var(--hud-dim);display:flex;justify-content:space-between;align-items:center;"><span id="mcqCatLabel">TOPIC</span><span id="mcqDifficulty"></span></div>
+        <div class="mcq-cat" id="mcqCat" style="color:var(--hud-dim);display:flex;justify-content:space-between;align-items:center;"><span id="mcqCatLabel">TOPIC</span><span><span id="mcqGiftTag" style="display:none;color:#ffd54d;margin-right:10px;">🎁 Gift question</span><span id="mcqDifficulty"></span></span></div>
         <div id="mcqTimerWrap" style="height:4px;background:var(--panel-line);border-radius:2px;margin:6px 0 10px;overflow:hidden;">
           <div id="mcqTimerBar" style="height:100%;width:100%;background:var(--membrane);transition:width 1s linear, background 0.3s;"></div>
         </div>
@@ -727,10 +770,20 @@
         <div id="mcqFeedback" style="display:none;">
           <div class="mcq-verdict" id="mcqVerdict">—</div>
           <div class="mcq-explain" id="mcqExplain"></div>
+          <div class="gift-shop" id="mcqGiftShop" style="display:none;">
+            <div class="gs-title">🎁 You earned a gift!</div>
+            <div id="mcqGiftShopBody"></div>
+          </div>
           <div class="btn-row">
             <button class="primary" id="mcqContinueBtn">Continue (Enter)</button>
             <button class="secondary" id="mcqViewGuideBtn">📚 View in study guide</button>
             <button class="secondary" id="mcqFlagBtn" title="Flag this question to find it again in the session summary">🚩 Flag for review</button>
+            <button class="secondary" id="mcqReportBtn" title="Tell the content team something is off with this question">⚠️ Report question</button>
+          </div>
+          <div id="mcqReportWrap" style="display:none;">
+            <div class="p-sub" style="margin-top:0;">What's wrong with this question?</div>
+            <div class="btn-row" id="mcqReportReasons"></div>
+            <div id="mcqReportStatus" style="font-size:11.5px;color:var(--hud-dim);margin-top:6px;"></div>
           </div>
         </div>
       </div>
@@ -945,6 +998,41 @@
     });
   }
 
+  // ---------- game speed ----------
+  // Personal preference for solo/Custom runs. A Group Race takes the HOST's
+  // pick and writes it on the room, so every racer runs at the same speed.
+  const SPEED_OPTIONS = [
+    { id:'slow',   label:'Slow',   icon:'🐢', hint:'75% speed' },
+    { id:'normal', label:'Normal', icon:'🏃', hint:'the standard pace' },
+    { id:'fast',   label:'Fast',   icon:'🚀', hint:'125% speed' },
+  ];
+  let gameSpeedPref = (function(){
+    try { const saved = localStorage.getItem('gameSpeed'); return SPEED_OPTIONS.some(o=>o.id===saved) ? saved : 'normal'; } catch(e){ return 'normal'; }
+  })();
+  function applyGameSpeed(id){
+    if(!SPEED_OPTIONS.some(o=>o.id===id)) id = 'normal';
+    gameSpeedPref = id;
+    try { localStorage.setItem('gameSpeed', id); } catch(e){ /* fine */ }
+    syncPush('gameSpeed', id);
+    if(customizeSpeedRow) renderSpeedRow();
+  }
+  function speedMultiplier(){
+    const id = (mp.active && mp.speed) ? mp.speed : gameSpeedPref;
+    return (GAME_CONFIG.speedPresets || {})[id] || 1;
+  }
+  function renderSpeedRow(){
+    customizeSpeedRow.innerHTML = '';
+    SPEED_OPTIONS.forEach(o=>{
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'customize-opt' + (o.id===gameSpeedPref ? ' active' : '');
+      b.title = o.hint;
+      const icon = document.createElement('span'); icon.className = 'cf-sample'; icon.textContent = o.icon; b.appendChild(icon);
+      const label = document.createElement('span'); label.textContent = o.label; b.appendChild(label);
+      b.addEventListener('click', ()=> applyGameSpeed(o.id));
+      customizeSpeedRow.appendChild(b);
+    });
+  }
+
   // ---------- light/dark theme ----------
   // Defaults to dark (the tuned, tested look) rather than following the
   // OS's color-scheme preference — this app has a deliberate dark "vessel"
@@ -1006,6 +1094,9 @@
     wrong(){ tone(220,0,0.22,{type:'sawtooth',gain:0.14,sweepTo:140}); },
     pickup(){ tone(1100,0,0.07,{type:'sine',gain:0.11}); },
     damage(){ tone(120,0,0.18,{type:'square',gain:0.16,sweepTo:60}); },
+    explosion(){ tone(90,0,0.4,{type:'sawtooth',gain:0.22,sweepTo:25}); tone(160,0.05,0.25,{type:'square',gain:0.12,sweepTo:40}); },
+    shieldBlock(){ tone(880,0,0.12,{type:'triangle',gain:0.16}); tone(1320,0.1,0.22,{type:'triangle',gain:0.16}); },
+    grenadeWhistle(){ tone(1400,0,0.9,{type:'sine',gain:0.08,sweepTo:500}); },
     stageComplete(){ [523,659,784,1047].forEach((f,i)=> tone(f, i*0.09, 0.16, {type:'triangle',gain:0.15})); },
     win(){ [523,659,784,1047,1319].forEach((f,i)=> tone(f, i*0.1, 0.22, {type:'triangle',gain:0.16})); },
     lose(){ [392,330,262].forEach((f,i)=> tone(f, i*0.15, 0.28, {type:'sine',gain:0.14})); },
@@ -1160,6 +1251,7 @@
     savePlayerCustomization(remote.playerCustomization || playerCustomization);
     applyTheme(remote.theme || currentTheme);
     applyFont(remote.font || currentFont);
+    applyGameSpeed(remote.gameSpeed || gameSpeedPref);
     if(customizeView.style.display === 'block') renderCustomizeScreen();
     if(reviewView.style.display === 'block') refreshReviewScreen();
   }
@@ -1499,6 +1591,22 @@
   const customizeFaceRow = document.getElementById('customizeFaceRow');
   const customizeAccessoryRow = document.getElementById('customizeAccessoryRow');
   const customizeFontRow = document.getElementById('customizeFontRow');
+  const customizeSpeedRow = document.getElementById('customizeSpeedRow');
+  const giftHudLine = document.getElementById('giftHudLine');
+  const overLiveBoard = document.getElementById('overLiveBoard');
+  const grenadeOverlay = document.getElementById('grenadeOverlay');
+  const grenadeWarnWrap = document.getElementById('grenadeWarnWrap');
+  const grenadeFromText = document.getElementById('grenadeFromText');
+  const grenadeShieldText = document.getElementById('grenadeShieldText');
+  const grenadeApplyShieldBtn = document.getElementById('grenadeApplyShieldBtn');
+  const grenadeBraceBtn = document.getElementById('grenadeBraceBtn');
+  const mcqGiftTag = document.getElementById('mcqGiftTag');
+  const mcqGiftShop = document.getElementById('mcqGiftShop');
+  const mcqGiftShopBody = document.getElementById('mcqGiftShopBody');
+  const mcqReportBtn = document.getElementById('mcqReportBtn');
+  const mcqReportWrap = document.getElementById('mcqReportWrap');
+  const mcqReportReasons = document.getElementById('mcqReportReasons');
+  const mcqReportStatus = document.getElementById('mcqReportStatus');
   const customizeRandomizeBtn = document.getElementById('customizeRandomizeBtn');
   const customizeBackBtn = document.getElementById('customizeBackBtn');
   const customizeSaveBtn = document.getElementById('customizeSaveBtn');
@@ -1738,13 +1846,27 @@
     for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
     return a;
   }
-  function nextQuestion(cancerId, topicId){
-    const key = cancerId+'|'+topicId;
+  // A stage's difficulty ('easy'/'medium'/'hard' on the STAGES entry) is a
+  // PREFERENCE, not a filter: questions tagged with it are served first,
+  // then everything else, so a stage never runs dry just because few
+  // questions carry that tag yet. Untagged questions count as medium.
+  function stageDifficulty(){
+    const st = currentStages()[stageIndex];
+    return (st && st.difficulty) || null;
+  }
+  function nextQuestion(cancerId, topicId, preferDifficulty){
+    const key = cancerId+'|'+topicId+'|'+(preferDifficulty||'');
     if(!questionQueues[key] || questionQueues[key].length===0){
       let source;
       if(cancerId==='custom' && customPoolByTopic) source = customPoolByTopic[topicId] || [];
       else source = QUESTIONS_BY_THEME_TOPIC[cancerId]?.[topicId] || [];
-      questionQueues[key] = shuffle(source);
+      if(preferDifficulty){
+        const preferred = source.filter(q=>(q.difficulty||'medium')===preferDifficulty);
+        const rest = source.filter(q=>(q.difficulty||'medium')!==preferDifficulty);
+        questionQueues[key] = [...shuffle(preferred), ...shuffle(rest)];
+      } else {
+        questionQueues[key] = shuffle(source);
+      }
     }
     const q = questionQueues[key].shift();
     if(!q) return q;
@@ -1855,7 +1977,7 @@
     const stages = CUSTOM_STAGE_BLURBS.map((scenario, i)=>{
       const requirements = {};
       topics.forEach(t=>{ requirements[t] = CUSTOM_PER_STAGE_PER_TOPIC; });
-      return { n:i+1, roman:['I','II','III'][i], requirements, scenario };
+      return { n:i+1, roman:['I','II','III'][i], difficulty:['easy','medium','hard'][i], requirements, scenario };
     });
     return { stages, byTopic };
   }
@@ -2148,7 +2270,7 @@
   // outright rather than just sitting behind another overlay, so nothing
   // peeks through a semi-opaque screen underneath.
   function syncHudVisibility(){
-    const inRun = ['running','resuming'].includes(screenState)
+    const inRun = ['running','resuming','grenade'].includes(screenState)
       || (screenState==='mcq' && quizMode==='runner');
     hud.style.display = inRun ? 'flex' : 'none';
     controlsMobile.classList.toggle('in-run', inRun);
@@ -2234,7 +2356,8 @@
     const st = currentStages()[idx];
     const c = currentThemeMeta();
     scenarioIcon.innerHTML = iconHTML(c.icon,40);
-    scenarioStageLabel.textContent = `STAGE ${st.roman}`;
+    const diffLabel = { easy:'🟢 Easy', medium:'🟡 Medium', hard:'🔴 Hard' }[st.difficulty];
+    scenarioStageLabel.textContent = `STAGE ${st.roman}${diffLabel ? ` · ${diffLabel}` : ''}`;
     scenarioText.textContent = st.scenario;
     scenarioReqs.innerHTML = Object.keys(st.requirements).map(t=>{
       const meta = TOPICS[t];
@@ -2289,12 +2412,9 @@
   }
   function resumeGame(){
     if(screenState!=='paused') return;
-    screenState = 'running';
-    syncHudVisibility();
     pauseBtn.textContent = '⏸';
     pauseScreen.classList.remove('active');
-    lastT = performance.now();
-    requestAnimationFrame(loop);
+    startResumeCountdown(3000); // see-through pause + a 3-2-1 count = time to read the track before it moves
   }
   function togglePause(){
     if(screenState==='running') pauseGame();
@@ -2325,6 +2445,7 @@
     showScreen('over');
   }
   function mpSetOverButtons(mode){
+    overLiveBoard.style.display = mode==='waiting' ? 'block' : 'none';
     // 'solo': normal single-player over-screen buttons.
     // 'waiting': your race is done but the match isn't resolved yet.
     //   "Play again" stays hidden (restarting mid-race for everyone else
@@ -2414,6 +2535,7 @@
       }
       return;
     }
+    if(grenadeOverlay.classList.contains('active')) return;
     if(infoModal.classList.contains('active')){ if(e.key==='Escape') guideClose.click(); return; }
     if(manualModal.classList.contains('active')){ if(e.key==='Escape') manualClose.click(); return; }
     if(summaryModal.classList.contains('active')){ if(e.key==='Escape') summaryClose.click(); return; }
@@ -2456,6 +2578,29 @@
     const lane = pickRoomyLane(W+40);
     if(lane===null) return;
     entities.push({ x:W+40, lane, r:20*SCALE, type:'bomb', hit:false });
+  }
+  // A gift block is a normal topic question with a prize attached: answer
+  // it right and you can spend life on a grenade (thrown at a rival right
+  // away) or a shield (kept for later). Group Race only.
+  function spawnGiftBlock(){
+    const active = activeTopicsForStage();
+    if(active.length===0) return;
+    if(entities.some(e=>e.type==='gift')) return; // one on screen at a time
+    const lane = pickRoomyLane(W+40);
+    if(lane===null) return;
+    const topic = active[Math.floor(Math.random()*active.length)];
+    entities.push({ x:W+40, lane, r:24*SCALE, type:'gift', topic, hit:false });
+  }
+  // 1st place gets giftChanceMin, last place giftChanceMax, linear between.
+  function giftChanceForMe(){
+    const ranked = mpRankedRoster(mp.roster).filter(p=>!p.done);
+    const n = ranked.length;
+    const idx = ranked.findIndex(p=>p.pid===mp.playerId);
+    // Racing alone (or everyone else already done) means there's no one to
+    // rank against -- treat that as last place (max chance) rather than an
+    // average, since "I'm the only one left" is closer to last than to mid-pack.
+    if(n<=1 || idx<0) return GAME_CONFIG.giftChanceMax;
+    return GAME_CONFIG.giftChanceMin + (GAME_CONFIG.giftChanceMax - GAME_CONFIG.giftChanceMin) * (idx/(n-1));
   }
   function popup(x,y,text,color){ floaters.push({x,y,text,color,life:1}); }
   function flashRed(){
@@ -2515,6 +2660,11 @@
     mcqFeedback.style.display = 'none';
     mcqFlagBtn.classList.remove('flagged');
     mcqFlagBtn.textContent = '🚩 Flag for review';
+    mcqGiftShop.style.display = 'none';
+    mcqGiftTag.style.display = 'none';
+    mcqIsGift = false;
+    mcqReportWrap.style.display = 'none';
+    mcqReportBtn.disabled = false; mcqReportBtn.textContent = '⚠️ Report question';
     mcqModal.classList.add('active');
     // The question card is a scrollable panel (long explanations/feedback
     // can push it past the visible height) -- without this, a NEW question
@@ -2539,7 +2689,7 @@
     syncHudVisibility();
     stallTimer = 0;
     stallWarning.style.display = 'none';
-    const q = nextQuestion(currentCancerId, entity.topic);
+    const q = nextQuestion(currentCancerId, entity.topic, stageDifficulty());
     if(!q){ // no questions available — treat as a no-op, resume
       entities = entities.filter(e=>e!==entity);
       screenState = 'running';
@@ -2555,7 +2705,10 @@
     activeQuestionTheme = (currentCancerId==='custom' && q.theme) ? q.theme : currentCancerId;
     presentQuestion(q, entity.topic);
     mcqPracticeBar.style.display = 'none';
+    mcqIsGift = entity.type==='gift';
+    mcqGiftTag.style.display = mcqIsGift ? 'inline' : 'none';
   }
+  let mcqIsGift = false; // the open question came from a 🎁 gift block (Group Race)
   // ---------- spaced repetition ----------
   // Simple Leitner boxes, not full SM-2 -- a correct answer moves a
   // question up one box (reviewed less often), a wrong answer drops it
@@ -2826,6 +2979,7 @@
       SoundFX.wrong();
     }
     mcqExplain.textContent = q.explanation;
+    if(correct && mcqIsGift && quizMode==='runner' && mp.active) renderGiftShop();
     mcqFeedback.style.display = 'block';
     if(quizMode==='runner') updateHUD();
     recordSrsAnswer(q.itemId, q.id, correct);
@@ -2850,6 +3004,256 @@
     mcqFlagBtn.classList.toggle('flagged', entry.flagged);
     mcqFlagBtn.textContent = entry.flagged ? '🚩 Flagged' : '🚩 Flag for review';
   });
+  // ---------- report a question (straight to the content team's queue) ----------
+  const REPORT_REASONS = ['Answer too obvious', 'Wrong difficulty', 'Wrong concept / factually off', 'Poor question quality', 'Something else'];
+  mcqReportBtn.addEventListener('click', ()=>{
+    const open = mcqReportWrap.style.display !== 'block';
+    mcqReportWrap.style.display = open ? 'block' : 'none';
+    if(!open) return;
+    mcqReportStatus.textContent = firebaseReady ? '' : 'Needs an internet connection to send — you can still flag it for the summary.';
+    mcqReportReasons.innerHTML = '';
+    REPORT_REASONS.forEach(reason=>{
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'secondary'; b.textContent = reason;
+      b.addEventListener('click', ()=> submitQuestionReport(reason));
+      mcqReportReasons.appendChild(b);
+    });
+    mcqReportWrap.scrollIntoView({ block:'nearest' });
+  });
+  async function submitQuestionReport(reason){
+    const q = pendingQuestion;
+    if(!q) return;
+    if(!firebaseReady){ mcqReportStatus.textContent = 'Not connected — try again once you’re online.'; return; }
+    mcqReportReasons.querySelectorAll('button').forEach(b=> b.disabled = true);
+    mcqReportStatus.textContent = 'Sending…';
+    try {
+      // Same `contributions` queue the study-guide "Contribute" section and
+      // the dev tool use, as a 'flag-question' entry the maintainer sees
+      // with the reason, the prompt, and enough ids to jump straight to it.
+      await fbPush(ref(fbdb, 'contributions'), {
+        type: 'flag-question',
+        title: (q.prompt||'').length > 70 ? q.prompt.slice(0,67)+'…' : (q.prompt||'(question)'),
+        note: `⚠️ ${reason}`,
+        data: { theme: activeQuestionTheme, topicId: pendingTopic, itemId: q.itemId, qId: q.id, reason, prompt: q.prompt, difficulty: q.difficulty||'medium' },
+        contributorName: contributorDisplayName(),
+        createdAt: Date.now(),
+      });
+      mcqReportStatus.textContent = 'Thanks — reported to the content team. 🙏';
+      mcqReportBtn.disabled = true; mcqReportBtn.textContent = '✅ Reported';
+      setTimeout(()=>{ mcqReportWrap.style.display = 'none'; }, 1400);
+    } catch(err){
+      mcqReportStatus.textContent = 'Couldn’t send — check your connection and try again.';
+      mcqReportReasons.querySelectorAll('button').forEach(b=> b.disabled = false);
+    }
+  }
+
+  // ---------- Group Race gifts: grenade & shield ----------
+  // After a correct gift-question answer: spend life on a grenade (thrown
+  // right now at the racer just ahead of or just behind you) or a shield
+  // (kept; blocks one incoming grenade). Buying is always optional.
+  function renderGiftShop(){
+    const cost = GAME_CONFIG.giftCost;
+    const life = lifeCfg().label;
+    const canAfford = glucose > cost; // never let a purchase itself end the run
+    const ranked = mpRankedRoster(mp.roster).filter(p=>!p.done);
+    const myIdx = ranked.findIndex(p=>p.pid===mp.playerId);
+    const ahead = myIdx > 0 ? ranked[myIdx-1] : null;
+    const behind = (myIdx >= 0 && myIdx < ranked.length-1) ? ranked[myIdx+1] : null;
+    const targets = [ahead && { ...ahead, rel:'ahead', rank:myIdx }, behind && { ...behind, rel:'behind', rank:myIdx+2 }].filter(Boolean);
+    mcqGiftShopBody.innerHTML = `
+      <div style="font-size:12.5px;line-height:1.5;margin-bottom:8px;">Spend <b>${cost} ${life}</b> on one of these, or keep your ${life} and move on.${canAfford ? '' : ` <span style="color:var(--danger)">You need more than ${cost} ${life} to buy.</span>`}</div>
+      <div class="btn-row" id="giftChoiceRow">
+        <button type="button" class="secondary" id="giftBuyGrenadeBtn" ${(!canAfford || !targets.length) ? 'disabled' : ''}>💣 Grenade — throw it now</button>
+        <button type="button" class="secondary" id="giftBuyShieldBtn" ${canAfford ? '' : 'disabled'}>🛡 Shield — keep for later (you have ${mp.shields})</button>
+        <button type="button" class="secondary" id="giftDeclineBtn">No thanks</button>
+      </div>
+      <div id="giftTargetRow" style="display:none;margin-top:8px;">
+        <div style="font-size:12px;color:var(--hud-dim);margin-bottom:6px;">Throw at:</div>
+        <div class="btn-row">${targets.map(t=>`<button type="button" class="secondary" data-target="${t.pid}" data-rel="${t.rel}">${t.rel==='ahead'?'⬆️':'⬇️'} #${t.rank} ${escapeHtml(t.name)} (${t.rel})</button>`).join('')}</div>
+      </div>
+      <div id="giftShopStatus" style="font-size:12px;margin-top:8px;color:#ffd54d;"></div>`;
+    if(!targets.length) mcqGiftShopBody.querySelector('#giftShopStatus').textContent = 'No rival still racing to throw at — a shield is still on offer.';
+    const done = (msg)=>{ mcqGiftShopBody.querySelector('#giftChoiceRow').style.display = 'none'; mcqGiftShopBody.querySelector('#giftTargetRow').style.display = 'none'; mcqGiftShopBody.querySelector('#giftShopStatus').textContent = msg; };
+    mcqGiftShopBody.querySelector('#giftDeclineBtn').addEventListener('click', ()=> done('Kept your ' + life + '.'));
+    mcqGiftShopBody.querySelector('#giftBuyShieldBtn').addEventListener('click', ()=>{
+      if(glucose <= cost) return;
+      glucose -= cost; updateGlucoseUI();
+      mp.shields += 1; updateGiftHUD(); mpSyncMyState();
+      SoundFX.pickup();
+      done(`🛡 Shield ready — you now have ${mp.shields}. It'll be offered the moment a grenade comes your way.`);
+    });
+    mcqGiftShopBody.querySelector('#giftBuyGrenadeBtn').addEventListener('click', ()=>{
+      mcqGiftShopBody.querySelector('#giftTargetRow').style.display = 'block';
+    });
+    mcqGiftShopBody.querySelectorAll('[data-target]').forEach(b=> b.addEventListener('click', ()=>{
+      if(glucose <= cost) return;
+      const target = ranked.find(p=>p.pid===b.dataset.target);
+      if(!target) return;
+      glucose -= cost; updateGlucoseUI();
+      throwGrenade(target.pid);
+      SoundFX.damage();
+      done(`💣 Grenade thrown at ${target.name}! (−${cost} ${life})`);
+      popup(PLAYER_X, player.y-40, `💣 → ${target.name}`, '#ffd54d');
+    }));
+  }
+  function throwGrenade(targetPid){
+    if(!mp.roomCode) return;
+    fbPush(ref(fbdb, `rooms/${mp.roomCode}/players/${targetPid}/incoming`), { fromName: mp.myName, fromId: mp.playerId, at: serverNow() }).catch(()=>{});
+  }
+  function updateGiftHUD(){
+    if(!mp.active){ giftHudLine.style.display = 'none'; return; }
+    giftHudLine.style.display = 'block';
+    giftHudLine.textContent = `🛡 ×${mp.shields}${mp.giftsUnlocked ? ' · 🎁 gifts live' : ''}`;
+  }
+  // Incoming grenades queue up until the run is actually 'running' (never
+  // mid-question or mid-countdown), then freeze the track, warn, offer a
+  // shield if there is one, and play out the hit or the block.
+  function noteIncomingGrenades(me){
+    if(!me || !me.incoming) return;
+    Object.entries(me.incoming).forEach(([key, g])=>{
+      if(mp.seenIncoming.has(key)) return;
+      mp.seenIncoming.add(key);
+      // Already off the track (done/over): the grenade fizzles -- clear it so it never replays.
+      if(!mp.active || mp.finished || screenState==='over'){ remove(ref(fbdb, `rooms/${mp.roomCode}/players/${mp.playerId}/incoming/${key}`)).catch(()=>{}); return; }
+      mp.incomingQueue.push({ key, ...g });
+    });
+  }
+  function processIncomingGrenades(){
+    if(!mp.incomingQueue.length || screenState!=='running') return;
+    const g = mp.incomingQueue.shift();
+    if(mp.roomCode && g.key) remove(ref(fbdb, `rooms/${mp.roomCode}/players/${mp.playerId}/incoming/${g.key}`)).catch(()=>{});
+    showIncomingGrenade(g);
+  }
+  function showIncomingGrenade(g){
+    screenState = 'grenade';
+    syncHudVisibility();
+    grenadeWarnWrap.style.display = 'block';
+    grenadeFromText.textContent = `${g.fromName || 'A rival'} threw a grenade at you.`;
+    grenadeShieldText.textContent = mp.shields > 0
+      ? `You have ${mp.shields} shield${mp.shields===1?'':'s'} left.`
+      : `You have no shields — brace for −${GAME_CONFIG.grenadeDamage} ${lifeCfg().label}.`;
+    grenadeApplyShieldBtn.style.display = mp.shields > 0 ? 'inline-block' : 'none';
+    grenadeBraceBtn.textContent = mp.shields > 0 ? "Don't apply — brace!" : 'Brace!';
+    grenadeOverlay.classList.add('active');
+    SoundFX.wrong();
+  }
+  function resolveGrenade(useShield){
+    if(screenState!=='grenade') return;
+    const shielded = useShield && mp.shields > 0;
+    grenadeOverlay.classList.remove('active'); // the rest plays out on the track itself
+    if(shielded){ mp.shields -= 1; updateGiftHUD(); }
+    playGrenadeAnimation(shielded, ()=>{
+      // impact
+      if(shielded){
+        SoundFX.shieldBlock();
+        popup(PLAYER_X, player.y - 44*SCALE, '🛡 Blocked!', '#4fc3f7');
+      } else {
+        glucose -= GAME_CONFIG.grenadeDamage; updateGlucoseUI();
+        flashRed(); SoundFX.explosion();
+        popup(PLAYER_X, player.y - 44*SCALE, `💥 -${GAME_CONFIG.grenadeDamage} ${lifeCfg().label}`, 'var(--danger)');
+      }
+      mpSyncMyState();
+    }, ()=>{
+      // done
+      if(screenState!=='grenade') return; // quit/ended meanwhile
+      if(glucose < 0){ screenState = 'running'; endRun('loss'); return; }
+      startResumeCountdown(1500);
+    });
+  }
+  // The sequence from the team's sketch, drawn straight onto the frozen
+  // track: the grenade arcs in from the top-right and drops onto your cell
+  // (or onto the shield arc that pops up in front of it), then a starburst
+  // explosion -- red on the cell if unshielded, bursting outward off the
+  // blue shield if not. Runs on its own rAF while screenState is 'grenade'
+  // (the normal loop only draws while 'running'), and bails the moment
+  // the state changes underneath it (quit, end, etc).
+  function playGrenadeAnimation(shielded, onImpact, onDone){
+    const FALL = 1100, BURST = 750, HOLD = 350;
+    const px = PLAYER_X, py = player.y, pr = 26*SCALE;
+    const shieldR = pr*1.8;
+    const ex = shielded ? px + shieldR*0.8 : px, ey = shielded ? py - shieldR*0.35 : py;
+    // Starts just under the HUD strip at the right, lobs gently (control
+    // point only a little above the start) and lands on the cell -- keeps
+    // the whole flight inside the visible track rather than arcing off the
+    // top of the canvas and only appearing for the final drop.
+    const sx = Math.min(W - 40*SCALE, px + 340*SCALE), sy = topInset + 16*SCALE;
+    const cx = (sx + ex)/2 + 30*SCALE, cy = Math.max(topInset - 10*SCALE, Math.min(sy, ey) - 70*SCALE);
+    const start = performance.now();
+    let impacted = false;
+    SoundFX.grenadeWhistle();
+    (function frame(now){
+      if(screenState!=='grenade') return;
+      const t = now - start;
+      drawVessel(); for(const e of entities) drawEntity(e); drawPlayer(); drawFloaters();
+      if(shielded) drawShieldArc(px, py, shieldR, t);
+      if(t < FALL){
+        const u = t/FALL, k = Math.pow(u, 1.5); // gravity-ish: eases in, lands fast, but stays on screen
+        const x = (1-k)*(1-k)*sx + 2*(1-k)*k*cx + k*k*ex;
+        const y = (1-k)*(1-k)*sy + 2*(1-k)*k*cy + k*k*ey;
+        drawGrenadeSprite(x, y, t*0.008);
+      } else {
+        if(!impacted){ impacted = true; onImpact(); }
+        const b = (t - FALL)/BURST;
+        if(b < 1) drawExplosion(ex, ey, b, shielded);
+      }
+      if(t < FALL + BURST + HOLD) requestAnimationFrame(frame); else onDone();
+    })(performance.now());
+  }
+  function drawGrenadeSprite(x, y, rot){
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,59,92,.25)';
+    ctx.beginPath(); ctx.arc(x, y, 22*SCALE, 0, Math.PI*2); ctx.fill();
+    ctx.translate(x, y); ctx.rotate(rot);
+    drawIconOnCanvas('💣', 0, 0, 30*SCALE);
+    ctx.restore();
+  }
+  // Blue arc in front of the cell (threats come from the right), popping in
+  // with a little overshoot, then a slow shimmer.
+  function drawShieldArc(px, py, r, t){
+    const pop = Math.min(1, t/260);
+    const scale = pop < 1 ? (1.25 - 0.25*Math.cos(pop*Math.PI)) * pop : 1 + 0.03*Math.sin(t*0.01);
+    ctx.save();
+    ctx.translate(px, py); ctx.scale(scale, scale);
+    ctx.shadowColor = '#4fc3f7'; ctx.shadowBlur = 22*SCALE;
+    ctx.fillStyle = 'rgba(79,195,247,.16)';
+    ctx.beginPath(); ctx.arc(0, 0, r, -Math.PI*0.45, Math.PI*0.45); ctx.arc(0, 0, r*0.7, Math.PI*0.45, -Math.PI*0.45, true); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(79,195,247,.95)'; ctx.lineWidth = 6*SCALE; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(0, 0, r, -Math.PI*0.45, Math.PI*0.45); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 2*SCALE;
+    ctx.beginPath(); ctx.arc(0, 0, r*0.9, -Math.PI*0.35, Math.PI*0.1); ctx.stroke();
+    ctx.restore();
+  }
+  // Starburst: outer red and inner yellow ragged stars that grow and fade.
+  // Shielded bursts are pushed outward (right/up) off the shield instead of
+  // engulfing the cell.
+  function drawExplosion(x, y, b, shielded){
+    const ease = 1 - Math.pow(1-b, 2);
+    const R = (24 + 90*ease)*SCALE, alpha = 1 - b;
+    const dx = shielded ? 22*ease*SCALE : 0, dy = shielded ? -12*ease*SCALE : 0;
+    function star(rOuter, rInner, points, color, wobble){
+      ctx.beginPath();
+      for(let i=0;i<points*2;i++){
+        const a = (i/(points*2))*Math.PI*2 + wobble;
+        const rr = (i%2===0 ? rOuter : rInner) * (0.85 + 0.15*Math.sin(i*2.7 + b*9));
+        const X = x + dx + Math.cos(a)*rr, Y = y + dy + Math.sin(a)*rr;
+        i===0 ? ctx.moveTo(X, Y) : ctx.lineTo(X, Y);
+      }
+      ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+    }
+    ctx.save();
+    if(shielded){ // clip the burst to the far side of the shield so it visibly bounces off
+      ctx.beginPath(); ctx.rect(x - 4*SCALE, -10, W, H + 20); ctx.clip();
+    }
+    star(R, R*0.42, 9, `rgba(255,59,92,${alpha*0.9})`, b*0.6);
+    star(R*0.62, R*0.28, 7, `rgba(255,150,40,${alpha})`, -b*0.9);
+    star(R*0.32, R*0.14, 6, `rgba(255,235,120,${alpha})`, b*1.4);
+    ctx.restore();
+    ctx.strokeStyle = `rgba(255,120,90,${alpha*0.6})`; ctx.lineWidth = 3*SCALE;
+    ctx.beginPath(); ctx.arc(x + dx, y + dy, R*1.25, 0, Math.PI*2); ctx.stroke();
+  }
+  grenadeApplyShieldBtn.addEventListener('click', ()=> resolveGrenade(true));
+  grenadeBraceBtn.addEventListener('click', ()=> resolveGrenade(false));
+
   mcqContinueBtn.addEventListener('click', ()=>{
     mcqModal.classList.remove('active');
     if(quizMode==='practice'){
@@ -2863,6 +3267,7 @@
     if(activeTopicsForStage().length===0){
       if(stageIndex >= currentStages().length-1){ endRun('win'); return; }
       stageIndex++;
+      if(mp.active) mpSyncMyState(); // push the new stage immediately -- the room-wide gift unlock and grenade targeting both read this live, not on the next answered question
       showStageScenario(stageIndex, false);
       return;
     }
@@ -2872,9 +3277,15 @@
     // hung), which can also mean an unavoidable hit. Counts down in whole
     // seconds, same as the Group Race start countdown, instead of a
     // decimal that never quite feels like it's counting down cleanly.
+    startResumeCountdown(GAME_CONFIG.postAnswerPauseMs);
+  });
+  // Whole-second 3-2-1 style count before control is handed back -- shared
+  // by the post-answer pause, un-pausing (so you can read the frozen track
+  // first), and the aftermath of an incoming grenade.
+  function startResumeCountdown(ms){
     screenState = 'resuming';
     syncHudVisibility();
-    const resumeAt = performance.now() + GAME_CONFIG.postAnswerPauseMs;
+    const resumeAt = performance.now() + ms;
     resumeIndicator.style.display = 'flex';
     let shownSecond = null;
     (function tickResume(){
@@ -2892,10 +3303,11 @@
       if(second !== shownSecond){ shownSecond = second; resumeIndicatorNum.textContent = second; }
       requestAnimationFrame(tickResume);
     })();
-  });
+  }
 
   // ---------- update / draw ----------
   function update(dt){
+    if(mp.incomingQueue && mp.incomingQueue.length){ processIncomingGrenades(); if(screenState!=='running') return; }
     survivalTime += dt;
     // GAME_CONFIG's speed numbers are tuned for the landscape W=960 grid,
     // where an entity travels ~850px (spawn to player) to cross the screen.
@@ -2906,7 +3318,8 @@
     // speed by W/960 keeps "time to cross the screen" consistent across
     // every canvas width, landscape included (where this is exactly 1).
     const widthScale = W/960;
-    speed = Math.min(GAME_CONFIG.maxSpeed, GAME_CONFIG.baseSpeed + (stageIndex*GAME_CONFIG.speedRampPerStage) + (survivalTime*GAME_CONFIG.speedRampPerSecond)) * widthScale;
+    const mult = speedMultiplier(); // Customise → Game speed (host's pick in a Group Race)
+    speed = Math.min(GAME_CONFIG.maxSpeed, GAME_CONFIG.baseSpeed + (stageIndex*GAME_CONFIG.speedRampPerStage) + (survivalTime*GAME_CONFIG.speedRampPerSecond)) * widthScale * mult;
     const desiredY = laneY(player.targetLane);
     player.y += (desiredY - player.y) * Math.min(1, dt*10);
     player.lane = player.targetLane;
@@ -2942,7 +3355,23 @@
     }
     if(bombTimer <= 0){
       spawnBomb();
-      bombTimer = GAME_CONFIG.bombSpawnBaseMs + Math.random()*GAME_CONFIG.bombSpawnRandMs;
+      // Easy stages see fewer bombs, hard stages more (see GAME_CONFIG.bombIntervalByDifficulty)
+      const diffMult = (GAME_CONFIG.bombIntervalByDifficulty || {})[stageDifficulty()] || 1;
+      bombTimer = (GAME_CONFIG.bombSpawnBaseMs + Math.random()*GAME_CONFIG.bombSpawnRandMs) * diffMult;
+    }
+    // Group Race gift questions -- rolled on their own timer once unlocked,
+    // with the odds tilted toward whoever is further down the leaderboard.
+    if(mp.active && mp.giftsUnlocked){
+      mp.giftTimer -= dt*1000;
+      if(mp.giftTimer <= 0){
+        mp.giftTimer = GAME_CONFIG.giftSpawnBaseMs + Math.random()*GAME_CONFIG.giftSpawnRandMs;
+        // The very first roll after unlock always spawns one (no coin flip)
+        // -- otherwise "gifts are live" plus a run of bad luck reads as the
+        // feature being broken instead of just quiet. Every roll after this
+        // one goes back to the normal rank-based odds.
+        if(mp.giftFirstRollDone) { if(Math.random() < giftChanceForMe()) spawnGiftBlock(); }
+        else { mp.giftFirstRollDone = true; spawnGiftBlock(); }
+      }
     }
 
     for(const e of entities){
@@ -2960,7 +3389,7 @@
           updateGlucoseUI();
           popup(e.x, laneY(e.lane)-24, `+${GAME_CONFIG.glucosePickupValue} ${lifeCfg().label}`, '#3ee6b8');
           SoundFX.pickup();
-        } else if(e.type==='topic'){
+        } else if(e.type==='topic' || e.type==='gift'){
           openMCQ(e);
         } else if(e.type==='bomb'){
           glucose -= GAME_CONFIG.bombDamage;
@@ -2972,7 +3401,7 @@
         }
       }
     }
-    entities = entities.filter(e => e.x > -60 && !(e.hit && e.type!=='topic'));
+    entities = entities.filter(e => e.x > -60 && !(e.hit && e.type!=='topic' && e.type!=='gift'));
     for(const f of floaters){ f.y -= dt*40; f.life -= dt*0.9; }
     floaters = floaters.filter(f=>f.life>0);
   }
@@ -3154,6 +3583,20 @@
       ctx.fillStyle = '#1a0508'; ctx.strokeStyle = '#ff3b5c'; ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.arc(e.x, y, e.r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
       drawIconOnCanvas(GAME_CONFIG.bombIcon, e.x, y, 20*SCALE);
+      return;
+    }
+    if(e.type==='gift'){
+      // Gold, pulsing, unmistakably a prize -- same block shape as a topic so
+      // it's obviously something you answer, not something you dodge.
+      const pulse = 0.5 + 0.5*Math.sin(survivalTime*5 + e.x*0.03);
+      const w=70*SCALE, h=44*SCALE;
+      ctx.fillStyle = `rgba(255,213,77,${0.18 + pulse*0.22})`;
+      roundRect(ctx, e.x-w/2-9, y-h/2-9, w+18, h+18, 16); ctx.fill();
+      ctx.fillStyle = 'rgba(255,213,77,.35)';
+      roundRect(ctx, e.x-w/2, y-h/2, w, h, 10); ctx.fill();
+      ctx.strokeStyle = '#ffd54d'; ctx.lineWidth = 3;
+      roundRect(ctx, e.x-w/2, y-h/2, w, h, 10); ctx.stroke();
+      drawIconOnCanvas('🎁', e.x, y, 30*SCALE);
       return;
     }
     // Topic blocks are the thing the player actually has to steer INTO, so
@@ -3790,6 +4233,7 @@
   // ---------- manual / dev guide ----------
   applyTheme(currentTheme);
   applyFont(currentFont);
+  applyGameSpeed(gameSpeedPref);
   themeToggleBtn.addEventListener('click', ()=> applyTheme(currentTheme==='light' ? 'dark' : 'light'));
   // Native (packaged iOS/Android) can't use the web popup flow at all --
   // Google blocks its OAuth popup inside an embedded WebView. Capacitor's
@@ -3919,6 +4363,7 @@
     renderOptRow(customizeFaceRow, CUSTOMIZE_FACES, 'face', drawCellFace);
     renderOptRow(customizeAccessoryRow, CUSTOMIZE_ACCESSORIES, 'accessory', drawCellAccessory);
     renderFontRow();
+    renderSpeedRow();
   }
   customizeBtnMenu.addEventListener('click', ()=>{
     customizeDraft = { ...playerCustomization };
@@ -4041,6 +4486,10 @@
   let mp = {
     active:false, roomCode:null, playerId:null, isHost:false,
     roster:{}, knownDone:new Set(), myName:'Player', finished:false,
+    // gifts: shields held, whether gift blocks are live yet, spawn timer,
+    // incoming-grenade bookkeeping (keys already seen + the queue waiting
+    // for a moment the run is actually 'running'), and the host's speed pick
+    shields:0, giftsUnlocked:false, giftFirstRollDone:false, giftTimer:0, seenIncoming:new Set(), incomingQueue:[], speed:'normal',
     roomListenerRef:null, countdownStarted:false, theme:RUNNABLE_THEMES[0], selectedTheme:RUNNABLE_THEMES[0],
     // filterCourse/filterTopics/filterClasses describe an optional narrowing
     // within the chosen course -- empty topic/class lists mean "the whole
@@ -4211,9 +4660,11 @@
       mp.theme = useAuthored ? mp.selectedTheme : 'custom';
       const code = randCode();
       mp.roomCode = code;
+      mp.speed = gameSpeedPref; // the host's Customise → Game speed pick applies to every racer
       await set(ref(fbdb, `rooms/${code}`), {
         status:'waiting', hostId: mp.playerId, hostName: name, createdAt: Date.now(), winner: null,
         theme: mp.theme, filterCourse: mp.filterCourse, filterTopics: mp.filterTopics, filterClasses: mp.filterClasses,
+        speed: mp.speed,
       });
       await set(ref(fbdb, `rooms/${code}/players/${mp.playerId}`), {
         name, glucose: GAME_CONFIG.startingGlucose, stageIndex:0, stageRoman:'I', correctCount:0, incorrectCount:0, bonusScore:0, done:false, finishedWin:false,
@@ -4251,6 +4702,7 @@
       mp.filterCourse = room.filterCourse || mp.theme;
       mp.filterTopics = room.filterTopics || [];
       mp.filterClasses = room.filterClasses || [];
+      mp.speed = room.speed || 'normal';
       await set(ref(fbdb, `rooms/${code}/players/${mp.playerId}`), {
         name, glucose: GAME_CONFIG.startingGlucose, stageIndex:0, stageRoman:'I', correctCount:0, incorrectCount:0, bonusScore:0, done:false, finishedWin:false,
       });
@@ -4310,6 +4762,21 @@
         mpRenderLeaderboard(roster);
         mpCheckEliminations(roster);
         mpAutoWinIfLastStanding(roster);
+        // Gift questions switch on once enough of the room has reached
+        // Stage II (GAME_CONFIG.giftUnlockShare) -- everyone sees the same
+        // moment since it's computed from the shared roster.
+        if(!mp.giftsUnlocked){
+          const ids = Object.keys(roster);
+          const reached = ids.filter(pid=>(roster[pid].stageIndex||0) >= 1).length;
+          if(ids.length && reached/ids.length >= GAME_CONFIG.giftUnlockShare){
+            mp.giftsUnlocked = true;
+            mp.giftFirstRollDone = false;
+            mp.giftTimer = 2500;
+            updateGiftHUD();
+            if(!mp.finished && screenState!=='over') mpShowEliminationToast('🎁 Gift questions are live — answer one to arm a grenade or a shield!');
+          }
+        }
+        noteIncomingGrenades(roster[mp.playerId]);
       }
 
       // While my own race has ended but the match isn't resolved yet, keep
@@ -4408,6 +4875,15 @@
     } else {
       overText.innerHTML = `Your score: <b>${myScore}</b>. Everyone's finished — working out the result…`;
     }
+    // Live standings while the rest of the room keeps racing -- the same
+    // rows as the in-run leaderboard, re-rendered on every roster update.
+    const ranked = mpRankedRoster(roster);
+    overLiveBoard.innerHTML = `<div class="p-sub" style="margin-top:0;">Live standings</div>` + ranked.map((p,i)=>{
+      const isMe = p.pid===mp.playerId;
+      const status = p.done ? ({ finished:'🏆', 'last-standing':'🏁', ended:'🚪' }[p.doneReason] || (p.finishedWin ? '🏆' : '💀')) : `🏃 S${p.stageRoman||'I'}`;
+      return `<div class="lb-row${isMe?' me':''}"><span><span class="lb-rank">#${i+1}</span>${escapeHtml(p.name||'')}${isMe?' (you)':''}</span><span>${status} · ${p.score}</span></div>`;
+    }).join('');
+    overLiveBoard.style.display = 'block';
   }
   function mpRunCountdown(targetAt){
     mpWaitView.style.display = 'none';
@@ -4450,6 +4926,8 @@
     stageProgress = {};
     Object.keys(currentStages()[0].requirements).forEach(t=>stageProgress[t]=0);
     mpOpponentPanel.style.display = 'block';
+    mp.shields = 0; mp.giftsUnlocked = false; mp.giftFirstRollDone = false; mp.giftTimer = 0; mp.seenIncoming = new Set(); mp.incomingQueue = [];
+    updateGiftHUD();
     // Render immediately from the roster snapshot the waiting-room listener
     // already has (mp.roster), instead of leaving the panel blank until the
     // next Firebase value-change event -- mpRenderLeaderboard() only ever
@@ -4466,7 +4944,7 @@
     if(!mp.active || !mp.roomCode || !mp.playerId) return;
     fbUpdate(ref(fbdb, `rooms/${mp.roomCode}/players/${mp.playerId}`), {
       glucose, stageIndex, stageRoman: currentStages()[stageIndex].roman,
-      correctCount: myCorrectCount, incorrectCount: myIncorrectCount, bonusScore: myBonusScore,
+      correctCount: myCorrectCount, incorrectCount: myIncorrectCount, bonusScore: myBonusScore, shields: mp.shields,
     }).catch(()=>{});
   }
   // Called when my own race ends for ANY reason — reached the last stage,
@@ -4538,13 +5016,16 @@
     if(mp.roomListenerRef){ off(mp.roomListenerRef); }
     mp = { active:false, roomCode:null, playerId:null, isHost:false, roster:{}, knownDone:new Set(),
       myName:'Player', finished:false, roomListenerRef:null, countdownStarted:false, theme:RUNNABLE_THEMES[0], selectedTheme:RUNNABLE_THEMES[0],
-      filterCourse:null, filterTopics:[], filterClasses:[] };
+      filterCourse:null, filterTopics:[], filterClasses:[],
+      shields:0, giftsUnlocked:false, giftFirstRollDone:false, giftTimer:0, seenIncoming:new Set(), incomingQueue:[], speed:'normal' };
     mpOpponentPanel.style.display = 'none';
+    grenadeOverlay.classList.remove('active');
+    updateGiftHUD();
     mpSetOverButtons('solo');
   }
 
   // ---------- init ----------
-  const GAME_VERSION = '2026-09-10-track-size-light-run-fonts'; // bump this string whenever you send friends a new copy of the file
+  const GAME_VERSION = '2026-09-10-gifts-3-stages-speed'; // bump this string whenever you send friends a new copy of the file
   console.log('[Runner Game] version', GAME_VERSION);
   document.getElementById('versionTag').textContent = `version ${GAME_VERSION}`;
   manualGlucoseText.innerHTML = `You start with ${GAME_CONFIG.startingGlucose} life. Collect drifting pickups (+${GAME_CONFIG.glucosePickupValue} each) to top it up. Answering a question <b>wrong costs ${GAME_CONFIG.wrongAnswerPenalty}</b>. A rare 💣 bomb costs <b>${GAME_CONFIG.bombDamage}</b> instantly on contact — no question, just avoid it. If life drops below zero, the run ends. (Glucose for Cancer, ATP for Biochemistry — the name changes per theme.)`;
@@ -4554,6 +5035,22 @@
   drawVessel();
   drawPlayer();
   window.__runnerInitDone = true;
+  // Open the game with ?debug=1 to get a couple of preview helpers on the
+  // console -- lets anyone see the grenade/shield sequence in a solo run
+  // without needing a second racer to throw one.
+  if(new URLSearchParams(location.search).has('debug')){
+    window.__runnerDebug = {
+      // simulateGrenade(shieldsHeld): during a run, stages an incoming grenade as if a rival threw it.
+      simulateGrenade(shields){
+        if(screenState!=='running') return 'Start a run first (Runner or Custom run), then call this while it is running.';
+        mp.shields = Math.max(0, shields|0);
+        showIncomingGrenade({ fromName:'Debug rival' });
+        return 'Incoming grenade staged.';
+      },
+      spawnGift(){ if(screenState!=='running') return 'Start a run first.'; spawnGiftBlock(); return 'Gift block spawned.'; },
+    };
+    console.log('[Runner Game] debug helpers: window.__runnerDebug.simulateGrenade(shields), .spawnGift()');
+  }
 </script>
 </body>
 </html>
