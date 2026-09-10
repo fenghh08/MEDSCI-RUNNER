@@ -23,6 +23,8 @@ Applies to: **Runner**, **Custom run**, and **Group Race** (all three share the 
 | Wrong MCQ answer | **−40** | `wrongAnswerPenalty` | `answerMCQ()` |
 | MCQ timer runs out | **−40** (counted exactly like a wrong answer) | `wrongAnswerPenalty` | `answerMCQ(isTimeout)` |
 | Touch a 💣 bomb | **−40**, instantly, no question | `bombDamage` | collision in `update()` |
+| Buy a grenade or shield after a 🎁 gift question (Group Race) | **−25** | `giftCost` | `renderGiftShop()` |
+| Hit by a rival's grenade without a shield (Group Race) | **−40** | `grenadeDamage` | `resolveGrenade()` |
 
 Rules around it:
 
@@ -32,6 +34,7 @@ Rules around it:
   on a bomb hit.
 - **Nothing drains life over time.** Speed ramps up as you survive (section 4) but simply
   existing costs nothing.
+- **Gift purchases can't kill you.** The shop only sells while life is strictly above 25.
 - **Life feeds the score** at 1 point per unit (section 2), so pickups are worth +5 score each
   and every wrong answer effectively costs 35 + 40 = 75 points.
 - In Group Race, life is synced to the room after every answer, and the value used for the final
@@ -48,7 +51,7 @@ One formula, used for the HUD score box, the end-of-run screen, and Group Race r
 score = correct   × 50      scoreCorrectWeight
       − wrong     × 35      scoreIncorrectWeight
       + life      × 1       scoreLifeWeight      (life floored at 0)
-      + stageIdx  × 300     stageWeight          (0-based: Stage I = 0, II = 300, III = 600, IV = 900)
+      + stageIdx  × 300     stageWeight          (0-based: Stage I = 0, II = 300, III = 600)
       + streak bonuses × 150   streakBonusScoreAmount
 ```
 
@@ -86,11 +89,27 @@ A worked example, one full Stage I on MEDS3002 (needs 12 correct answers):
 
 ## 4. Stages, questions and the timer
 
-**Clearing a stage.** Each stage lists how many correct answers it needs per topic
-(`STAGES[course][n].requirements`, e.g. Stage I of MEDS3002: genetics 3, immunology 3,
-pharmacology 3, oncology 3). Only topics that still need answers spawn as blocks. A wrong
-answer does **not** subtract from progress — it just costs life/score. When every topic's
-counter is full you move to the next stage; clearing the last stage ends the run as a win.
+**Three stages: easy → medium → hard.** MEDS3002 has three stages (`STAGES` in
+`game-data.js`), each tagged with a difficulty:
+
+| Stage | Difficulty | Correct answers needed |
+|---|---|---|
+| I | 🟢 easy | genetics 3, immunology 3, pharmacology 3, oncology 3 (12) |
+| II | 🟡 medium | genetics 4, immunology 8, pharmacology 5 (17) |
+| III | 🔴 hard | genetics 3, immunology 6, pharmacology 8, oncology 8 (25) |
+
+Custom runs generate three stages the same way (3 per topic each, easy/medium/hard).
+The difficulty does two things:
+
+- **Question order.** Questions tagged with the stage's difficulty are served first, then the
+  rest, so a stage never runs dry if few questions carry that tag. Untagged questions count as
+  medium. (Right now no question is tagged, so every stage draws from the whole pool.)
+- **Bomb frequency.** The bomb spawn interval is multiplied by 1.5 on easy, 1 on medium, 0.7 on
+  hard (`bombIntervalByDifficulty`).
+
+Only topics that still need answers spawn as blocks. A wrong answer does **not** subtract from
+progress — it just costs life/score. When every topic's counter is full you move to the next
+stage; clearing the last stage ends the run as a win.
 
 **Question timer.** Runner, Custom run and Group Race always time each question:
 
@@ -105,11 +124,18 @@ Running out counts as a wrong answer: −40 life, −35 score, streak reset.
 **Speed.** Purely a difficulty ramp; it never touches life or score:
 
 ```
-speed = min(1000, 600 + 40 × stageIdx + 10 × seconds survived)   px/s
+speed = min(1000, 600 + 40 × stageIdx + 10 × seconds survived) × preset   px/s
+preset = 0.75 (Slow) · 1 (Normal) · 1.25 (Fast)      Customise → Game speed, `speedPresets`
 ```
 
-**Stall warning.** If you go 10 s without hitting a topic block, a banner tells you how many
-more correct answers the stage needs. Cosmetic only.
+A Group Race uses the **host's** speed pick for everyone (stored on the room as `speed`).
+
+**Stall warning.** If you go 10 s without hitting a topic block, a banner at the top of the HUD
+tells you how many more correct answers the stage needs. Cosmetic only.
+
+**Pause.** The track stays visible (dimmed) behind the pause menu, and resuming counts 3-2-1
+before anything moves again. The same whole-second count runs after every question (2 s) and
+after a grenade lands (1.5 s).
 
 **Spawn timing** (all in ms, `base + random(0..rand)`): topic blocks 500 + 0–700, life pickups
 550 + 0–300, bombs 800 + 0–1600. First block after 1200 ms, first pickup after 500 ms.
@@ -121,7 +147,7 @@ more correct answers the stage needs. Cosmetic only.
 - **Study & Practice** and **Review** have no life, no score, no stages and no bombs. They only
   count `practiceCorrect / practiceAnswered` for the session summary.
 - The question timer is **off by default** in Practice (opt-in checkbox, which then uses the same
-  45–80 s rule as Runner — the checkbox label still says "30s", which is out of date).
+  45–80 s rule as Runner).
 - Self-graded SAQs on an item's study-guide page are marked right/wrong by the student.
 
 ---
@@ -140,6 +166,35 @@ Regardless of mode, each answered MCQ (and each self-graded SAQ) does two extra 
 ---
 
 ## 7. Group Race specifics
+
+### Gifts: grenades and shields
+
+- **Unlock.** Gift questions switch on for the whole room once **20%** of racers have reached
+  Stage II (`giftUnlockShare`). A toast announces it.
+- **Spawning.** Every 7–13 s (`giftSpawnBaseMs/RandMs`) each racer rolls for a 🎁 gift block. The
+  odds run from **30%** for whoever is in 1st place to **85%** for last place
+  (`giftChanceMin/Max`), so falling behind earns more gifts. At most one gift block is on screen.
+- **A gift block is a normal question** for one of the stage's topics: it counts toward stage
+  progress, streaks, score and SRS exactly like any other. Answer it **correctly** and the shop
+  appears under the explanation.
+- **The shop.** Spend 25 life on one of:
+  - 💣 **Grenade** — thrown immediately at the racer directly **ahead of** or directly **behind**
+    you (your choice; racers who are already done can't be targeted).
+  - 🛡 **Shield** — kept; you can hold several. The HUD shows `🛡 ×n`.
+  - **No thanks** — keep your life.
+  You can only buy while life is strictly above 25, so a purchase never ends your run.
+- **Being hit.** The grenade is delivered through the room (`players/<you>/incoming`). It waits
+  until you're actually running (never mid-question or mid-countdown), then the track freezes,
+  a flashing ⚠️ *WARNING! Grenade incoming!* shows who threw it and how many shields you hold,
+  and you choose **Apply shield** or **Brace**. The rest plays out on the track: the grenade lobs
+  in from the right and drops onto your cell. With a shield, a blue arc pops up in front of the
+  cell and the explosion bursts off it: *Blocked!*, no damage. Without one, the starburst lands
+  on the cell: **−40 life** (`grenadeDamage`), red flash. Then a 1.5 s count and the run
+  continues. If the hit takes life below zero, the run ends as usual.
+- **Previewing it solo.** Open the game with `?debug=1` on the URL, start any run, and in the
+  browser console call `__runnerDebug.simulateGrenade(1)` (the number is how many shields you
+  hold) or `__runnerDebug.spawnGift()`.
+- Grenades that arrive after you're already done simply fizzle.
 
 - Each racer plays the same stages independently; only life, stage, counts and bonus points are
   synced to `rooms/<code>/players/<id>`.
@@ -168,6 +223,13 @@ Regardless of mode, each answered MCQ (and each self-graded SAQ) does two extra 
 | `scoreIncorrectWeight` | 35 | Score lost per wrong answer |
 | `scoreLifeWeight` | 1 | Score per unit of life remaining |
 | `stageWeight` | 300 | Score per stage index reached |
+| `speedPresets` | slow 0.75 / normal 1 / fast 1.25 | Customise → Game speed multipliers |
+| `bombIntervalByDifficulty` | easy 1.5 / medium 1 / hard 0.7 | Bomb spawn interval multiplier per stage |
+| `giftUnlockShare` | 0.2 | Share of racers on Stage II before gifts start |
+| `giftSpawnBaseMs` / `giftSpawnRandMs` | 7000 / 6000 | How often a gift block is rolled for |
+| `giftChanceMin` / `giftChanceMax` | 0.3 / 0.85 | Gift odds for 1st place / last place |
+| `giftCost` | 25 | Life per grenade or shield |
+| `grenadeDamage` | 40 | Life lost to an unshielded grenade |
 | `baseSpeed` / `speedRampPerStage` / `speedRampPerSecond` / `maxSpeed` | 600 / 40 / 10 / 1000 | Scroll speed ramp (px/s) |
 | `MCQ_TIME_LIMIT` (in the game file) | 45 s | Base question timer |
 

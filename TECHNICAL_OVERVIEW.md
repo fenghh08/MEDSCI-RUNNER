@@ -96,10 +96,11 @@ Everything is one JSON tree. The paths the code reads and writes:
 
 | Path | Written by | Read by | What it holds |
 |---|---|---|---|
-| `rooms/<CODE>` | Group Race host (creates), every racer (updates own player) | Every racer in that room, live via `onValue` | `status` (waiting/countdown/finished), `countdownAt`, `theme` + filters, `players/<playerId>` (name, glucose, stage, correct/incorrect counts, `done`, `doneReason`, …), `winner` |
+| `rooms/<CODE>` | Group Race host (creates), every racer (updates own player) | Every racer in that room, live via `onValue` | `status` (waiting/countdown/finished), `countdownAt`, `theme` + filters, `speed` (host's Game speed pick), `players/<playerId>` (name, glucose, stage, correct/incorrect counts, `shields`, `done`, `doneReason`, …), `winner` |
+| `rooms/<CODE>/players/<targetId>/incoming/<pushKey>` | A racer who buys a grenade | The targeted racer (via the same room listener) | `{ fromName, fromId, at }` — one thrown grenade. The target removes the key once it has played out, so it never replays. |
 | `stats/<itemId>::<qId>` | The game, every time any player answers (a transaction that increments `correct` or `wrong`) | `developer-tool.html` → Analytics tab | Aggregate per-question correct/wrong counts, used for the miss-rate table |
-| `contributions/<pushKey>` | The game's "Contribute" section on an item page, and the dev tool's "Add to batch" | `developer-tool.html` → Team Queue | Suggested fun facts / notes / flags / new items+questions, waiting for a maintainer to review and merge into `game-data.js` |
-| `users/<uid>/sync/<key>` | The game, whenever a **signed-in** player changes something syncable | The game, on sign-in and live afterwards | `theme`, `font`, `playerCustomization`, `srsState` (spaced-repetition history, merged per-entry by newest `lastSeen`) |
+| `contributions/<pushKey>` | The game's "Contribute" section on an item page, the ⚠️ **Report question** button under any answered question, and the dev tool's "Add to batch" | `developer-tool.html` → Team Queue | Suggested fun facts / notes / flags / question reports (`flag-question`, with the reason, prompt and ids) / new items+questions, waiting for a maintainer to review and merge into `game-data.js` |
+| `users/<uid>/sync/<key>` | The game, whenever a **signed-in** player changes something syncable | The game, on sign-in and live afterwards | `theme`, `font`, `gameSpeed`, `playerCustomization`, `srsState` (spaced-repetition history, merged per-entry by newest `lastSeen`) |
 | `.info/serverTimeOffset` | Firebase itself | The game | Clock offset between this device and Firebase's servers, so the Group Race countdown is the same on every device even if someone's clock is wrong |
 
 Nothing a player submits ever appears to other players directly — content only becomes real
@@ -267,23 +268,26 @@ Security Rules, and the Auth "Authorized domains" list — all live in the Fireb
    only the dependent features (Group Race / sign-in / contributions / dyslexia font) drop out.
 4. Sign-in specifically needs the page to be served from an **authorized https domain**, never
    `file://`.
-5. `game-data.js` must parse. A quick check after editing it by hand:
+5. Debug helpers: add `?debug=1` to the game's URL and `window.__runnerDebug` appears in the
+   console with `simulateGrenade(shields)` and `spawnGift()` for previewing Group Race gifts in
+   a solo run. Nothing else changes; without the parameter the object doesn't exist.
+6. `game-data.js` must parse. A quick check after editing it by hand:
    `node --check game-data.js`. The dev tool's "Generate merged game-data.js" produces a
    complete file, so prefer that over hand edits.
 
 **Native app:**
 
-6. `npm install` once (creates `node_modules/`).
-7. After **every** change to the root files: `npm run sync` (rebuild `www/`, push into the native
+7. `npm install` once (creates `node_modules/`).
+8. After **every** change to the root files: `npm run sync` (rebuild `www/`, push into the native
    projects).
-8. iOS: `GoogleService-Info.plist` present, open with `npm run open:ios`, build in Xcode.
+9. iOS: `GoogleService-Info.plist` present, open with `npm run open:ios`, build in Xcode.
    Android: add `google-services.json` first if sign-in is needed, then `npm run open:android`.
-9. The `FirebaseAuthentication` provider list in `capacitor.config.ts` must include every
+10. The `FirebaseAuthentication` provider list in `capacitor.config.ts` must include every
    provider you expect to use (it does not infer them from the console).
 
 **Developer tool:**
 
-10. `developer-tool.html` also needs `game-data.js` beside it (it reads the live content to know
+11. `developer-tool.html` also needs `game-data.js` beside it (it reads the live content to know
     existing courses/topics/items) and internet for the Team Queue / Analytics (Firebase).
     It is intentionally excluded from `www/` and should never be shipped in the app.
 
