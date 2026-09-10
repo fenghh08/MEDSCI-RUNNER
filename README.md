@@ -1,6 +1,6 @@
 # Runner Game — study-guide trivia runner
 
-A browser-based, study-guide trivia runner built for our own med school content (MEDS3002, MEDS2003, and whatever we add next). Hit a topic block, answer a multiple-choice question, push through the stages without running out of life — or skip the running entirely and use Study & Practice for untimed, filterable revision.
+A browser-based, study-guide trivia runner built for our own med school content (MEDS3002, MEDS2003, and whatever we add next). Hit a topic block, answer a multiple-choice question, push through the stages without running out of life — or skip the running entirely and use Study & Practice for untimed, filterable revision. New to it? The **🎬 See it in action** button on the landing screen is a short interactive walkthrough of the real game, not slides — it uses the actual canvas, a sample question, and a live look at the HUD.
 
 No build step, no server, no install. Every file here is a plain HTML/JS file — double-click and it runs.
 
