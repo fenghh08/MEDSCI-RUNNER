@@ -678,16 +678,28 @@
     giftChanceMax: 0.85,       // ... rising to this for whoever is last -- falling behind gets you more gifts
     giftCost: 25,              // life spent to buy a grenade or a shield after answering a gift question correctly
     grenadeDamage: 40,         // life an unshielded target loses when a grenade lands (same as a bomb)
+    // ---- Catch-up window ----
+    // The first racer to finish (reason:'finished' -- reached the last
+    // stage) doesn't win outright: everyone else still racing gets this
+    // long to keep answering and try to out-SCORE them before the match
+    // locks in. Only the very first finisher starts the window (a
+    // transaction guards this) -- anyone finishing afterward doesn't
+    // restart or extend it. Whoever has the highest score once it expires
+    // (or once everyone's actually done, if that happens first) wins --
+    // reaching the end first is not itself a win condition.
+    catchUpWindowMs: 30000,
   };
 
 /* ======================================================================
-   LIFE — the "health" resource is themed per Runner-playable course. Change
-   the label/icon here any time — every place it's shown (HUD, pickups,
-   penalties, the bomb warning) reads from this automatically.
+   LIFE — the "health" resource. Same label ("Life") and icon (🩸) across
+   every course now -- LIFE_CONFIG stays keyed by course so a specific
+   course could still be given its own wording later; every place it's
+   shown (HUD, pickups, penalties, the bomb warning) reads from this
+   automatically via lifeCfg() in medsci-runner.html.
    ====================================================================== */
   const LIFE_CONFIG = {
-    'MEDS3002': { label:'Glucose', icon:'🩸' },
-    'MEDS2003': { label:'ATP',     icon:'⚡' },
+    'MEDS3002': { label:'Life', icon:'🩸' },
+    'MEDS2003': { label:'Life', icon:'🩸' },
   };
 
 /* ======================================================================
