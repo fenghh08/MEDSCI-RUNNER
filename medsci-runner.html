@@ -381,7 +381,7 @@
      guess that only fit the original landscape-only HUD sizing. */
   #mpEliminationToast{ position:absolute; top:var(--hud-clearance, 60px); left:50%; transform:translateX(-50%); background:var(--danger);
     color:#fff; font-weight:700; font-size:13px; padding:8px 18px; border-radius:20px; opacity:0; pointer-events:none;
-    transition:opacity .3s, top .3s; z-index:35; white-space:nowrap; }
+    transition:opacity .3s, top .3s; z-index:35; max-width:min(92vw, 380px); text-align:center; line-height:1.4; }
   #mpEliminationToast.show{ opacity:1; top:calc(var(--hud-clearance, 60px) + 15px); }
   .sum-row .sr-top{ display:flex; justify-content:space-between; gap:8px; margin-bottom:3px; }
   .sum-row .sr-verdict.verdict-good{ color:var(--good); } .sum-row .sr-verdict.verdict-bad{ color:var(--danger); }
@@ -3104,7 +3104,7 @@
   function updateGiftHUD(){
     if(!mp.active){ giftHudLine.style.display = 'none'; return; }
     giftHudLine.style.display = 'block';
-    giftHudLine.textContent = `🛡 ×${mp.shields}${mp.giftsUnlocked ? ' · 🎁 gifts live' : ''}`;
+    giftHudLine.textContent = `🛡 ×${mp.shields}`;
   }
   // Incoming grenades queue up until the run is actually 'running' (never
   // mid-question or mid-countdown), then freeze the track, warn, offer a
@@ -3130,13 +3130,21 @@
     syncHudVisibility();
     grenadeWarnWrap.style.display = 'block';
     grenadeFromText.textContent = `${g.fromName || 'A rival'} threw a grenade at you.`;
-    grenadeShieldText.textContent = mp.shields > 0
+    const hasShields = mp.shields > 0;
+    grenadeShieldText.textContent = hasShields
       ? `You have ${mp.shields} shield${mp.shields===1?'':'s'} left.`
-      : `You have no shields — brace for −${GAME_CONFIG.grenadeDamage} ${lifeCfg().label}.`;
-    grenadeApplyShieldBtn.style.display = mp.shields > 0 ? 'inline-block' : 'none';
-    grenadeBraceBtn.textContent = mp.shields > 0 ? "Don't apply — brace!" : 'Brace!';
+      : `You have no shields — bracing for −${GAME_CONFIG.grenadeDamage} ${lifeCfg().label}…`;
+    grenadeApplyShieldBtn.style.display = hasShields ? 'inline-block' : 'none';
+    // No shields means there's nothing to actually choose between -- don't
+    // make the player click through a decision that isn't one. Hide both
+    // buttons and resolve it as an unshielded hit on its own after a beat.
+    grenadeBraceBtn.style.display = hasShields ? 'inline-block' : 'none';
+    grenadeBraceBtn.textContent = "Don't apply — brace!";
     grenadeOverlay.classList.add('active');
     SoundFX.wrong();
+    if(!hasShields){
+      setTimeout(()=>{ if(screenState==='grenade') resolveGrenade(false); }, 1400);
+    }
   }
   function resolveGrenade(useShield){
     if(screenState!=='grenade') return;
@@ -5085,6 +5093,7 @@
       // Drops the just-spawned gift block right in front of you on your
       // current lane, so you don't have to actually steer into it --
       // handy for automated checks of what happens after.
+      showToast(text){ mpShowEliminationToast(text); return 'shown'; },
       forceGiftCollision(){
         const g = entities.find(e=>e.type==='gift' && !e.hit);
         if(!g) return 'No un-hit gift block on screen -- call spawnGift() first.';
