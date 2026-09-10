@@ -10,16 +10,17 @@ Applies to: **Runner**, **Custom run**, and **Group Race** (all three share the 
 
 ---
 
-## 1. Life (Glucose / ATP)
+## 1. Life
 
-"Life" is the resource shown top-left of the HUD. It's called **Glucose 🩸** in MEDS3002 and
-**ATP ⚡** in MEDS2003 (`LIFE_CONFIG`); the mechanics are identical.
+"Life" is the resource shown top-left of the HUD, labelled **Life 🩸** in every course
+(`LIFE_CONFIG` is still keyed per course, so a specific course could be given its own wording
+later, but right now every entry — and the fallback in `lifeCfg()` — reads the same).
 
 | Event | Change | Config key | Where |
 |---|---|---|---|
 | Run starts | set to **100** | `startingGlucose` | `resetRunState()` |
 | Collect a drifting yellow pickup | **+5** | `glucosePickupValue` | collision in `update()` |
-| Every 3rd correct answer in a row (streak bonus) | **+10** | `streakBonusAmount`, gated by `streakBonusAppliesToLife` | `answerMCQ()` |
+| Every 3rd correct answer in a row (streak bonus) | **+0 as currently set** (`streakBonusAmount`, gated by `streakBonusAppliesToLife` — was 10 in an earlier build; see the note in section 2) | `answerMCQ()` |
 | Wrong MCQ answer | **−40** | `wrongAnswerPenalty` | `answerMCQ()` |
 | MCQ timer runs out | **−40** (counted exactly like a wrong answer) | `wrongAnswerPenalty` | `answerMCQ(isTimeout)` |
 | Touch a 💣 bomb | **−40**, instantly, no question | `bombDamage` | collision in `update()` |
@@ -35,8 +36,8 @@ Rules around it:
 - **Nothing drains life over time.** Speed ramps up as you survive (section 4) but simply
   existing costs nothing.
 - **Gift purchases can't kill you.** The shop only sells while life is strictly above 25.
-- **Life feeds the score** at 1 point per unit (section 2), so pickups are worth +5 score each
-  and every wrong answer effectively costs 35 + 40 = 75 points.
+- **Life currently contributes 0 to the score** (`scoreLifeWeight` is set to 0 — see the note in
+  section 2). Pickups still restore life for survival purposes, just not for score right now.
 - In Group Race, life is synced to the room after every answer, and the value used for the final
   score is `max(0, life)`.
 
@@ -50,10 +51,14 @@ One formula, used for the HUD score box, the end-of-run screen, and Group Race r
 ```
 score = correct   × 50      scoreCorrectWeight
       − wrong     × 35      scoreIncorrectWeight
-      + life      × 1       scoreLifeWeight      (life floored at 0)
+      + life      × 0       scoreLifeWeight      (currently zeroed — life doesn't affect score right now)
       + stageIdx  × 300     stageWeight          (0-based: Stage I = 0, II = 300, III = 600)
       + streak bonuses × 150   streakBonusScoreAmount
 ```
+
+> **Heads up:** `scoreLifeWeight` and `streakBonusAmount` are both set to `0` in the current
+> `game-data.js` (an earlier version of this document, and an earlier build, had them at `1` and
+> `10`). If that's not intentional, they're both one-line tunables in `GAME_CONFIG`.
 
 Notes:
 
@@ -70,9 +75,9 @@ A worked example, one full Stage I on MEDS3002 (needs 12 correct answers):
 |---|---|
 | 12 correct, 2 wrong | 12×50 − 2×35 = **+530** |
 | Streak bonuses (say the 12 correct came as runs of 3, 5, 4 → 4 bonuses) | 4×150 = **+600** |
-| Life at that moment (100 − 2×40 + 6 pickups×5 + 4 bonuses×10 = 90) | **+90** |
+| Life at that moment — currently worth **+0** regardless (`scoreLifeWeight`) | **+0** |
 | Now standing on Stage II | **+300** |
-| **Score** | **1520** |
+| **Score** | **1430** |
 
 ---
 
@@ -80,7 +85,8 @@ A worked example, one full Stage I on MEDS3002 (needs 12 correct answers):
 
 - `streak` counts consecutive **correct** answers. It resets to 0 on any wrong answer or timeout.
 - Every time `streak` hits a multiple of **3** (`streakBonusEvery`), a bonus fires:
-  +150 score, +10 life, a 🔥 popup, and the verdict line changes to "Correct — 🔥 3 in a row!".
+  +150 score, +0 life (`streakBonusAmount` is currently 0), a 🔥 popup, and the verdict line
+  changes to "Correct — 🔥 3 in a row!".
 - Because it fires on every multiple, a 9-answer streak pays out three times (at 3, 6, 9).
 - The counter carries across stages within a run. It also ticks in Practice mode (for the
   "in a row" message) but awards nothing there.
@@ -166,6 +172,22 @@ Regardless of mode, each answered MCQ (and each self-graded SAQ) does two extra 
 ---
 
 ## 7. Group Race specifics
+
+### Winning: reaching the end first isn't enough
+
+Finishing all stages doesn't win the race by itself — it starts a **30-second catch-up window**
+(`catchUpWindowMs`) for everyone else still racing:
+
+- The moment the **first** racer finishes, a gold banner tells every other still-racing client
+  "🏁 \<name\> finished! Xs left to out-score them." Only the first finisher starts this — anyone
+  who finishes afterward doesn't restart or extend it.
+- Everyone still racing keeps playing normally for those 30 real seconds — more correct answers,
+  more streak bonuses, more stage progress, all still count.
+- When the window runs out, anyone still racing is locked in right where they stand (mid-question
+  or not) and marked done with reason `timeup` (shown as ⌛ on the leaderboard).
+- The match is still decided purely by **score** (section 2) once everyone is done, exactly as
+  before — the first finisher can still lose if someone else's score overtakes them in that
+  window.
 
 ### Gifts: grenades and shields
 
