@@ -15,34 +15,48 @@
     --mono:'SF Mono','JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
     --display:'Georgia','Iowan Old Style',serif;
     /* The in-game HUD (#hud, stall/elimination toasts, racer leaderboard)
-       floats on top of the canvas, which -- unlike the rest of the UI --
-       never re-themes (see the note below): it's always the dark "vessel"
-       look. So the HUD's own text needs to always stay legible against that
-       same dark backdrop too, in EITHER page theme -- these are deliberately
-       never overridden in the light block below, unlike --hud-ink/--hud-dim
-       themselves. (Reported from a real device: in light mode, the HUD was
-       inheriting the light theme's dark ink color and going near-invisible
-       against the still-dark canvas underneath it.) */
+       floats over the canvas. The canvas is drawn from CANVAS_PALETTES in
+       the script (keyed by the same theme), so these overlay colors are
+       re-themed in lockstep with it below -- the HUD must always contrast
+       with whatever the track behind it looks like, never with the page. */
     --ov-ink:#ffe9ef; --ov-dim:#c98a9c; --ov-danger:#ff3b5c; --ov-bg:#1c0710;
+    --hud-block-bg:rgba(13,3,8,.55); --backdrop:rgba(4,1,3,.9);
   }
-  /* Light mode only re-themes the surrounding UI chrome (menus, modals,
-     buttons) via these variable overrides -- the in-game canvas keeps its
-     dark "vessel" look in both themes, and the HUD that floats on top of it
-     is pinned to the always-dark --ov-* variables above for the same reason.
-     The canvas's own draw calls use literal hex colors tuned for a dark
-     backdrop (glowing cells read best against darkness), not these CSS
-     variables, so it's unaffected either way; retheming it would mean
-     redesigning contrast for every entity with no way to verify it live.
-     Brand accents (membrane/danger/good) are deepened here rather than
-     reused as-is, since the dark-mode values are tuned for glow-on-black and
-     read as low-contrast text on a light page. */
+  /* Light mode re-themes everything: the menus/modals through these
+     variables, AND the run itself -- drawVessel/drawEntity read the matching
+     CANVAS_PALETTES.light entry every frame (reported: "the entire game
+     should be light mode, the runner was still dark lanes"). Brand accents
+     (membrane/danger/good) are deepened rather than reused as-is, since the
+     dark-mode values are tuned for glow-on-black and read as low-contrast
+     text on a light page. */
   :root[data-theme="light"]{
     color-scheme: light;
     --bg-0:#ffe3ea; --bg-1:#fffbfc;
     --membrane:#d6106a; --hud-ink:#3a0d1c; --hud-dim:#8a5568; --danger:#c81a3f; --good:#0f9e78;
     --panel:#ffffff; --panel-line:rgba(214,16,106,.22);
     --hairline-strong:rgba(58,13,28,.25); --hairline-soft:rgba(58,13,28,.18); --chip-bg:rgba(58,13,28,.06);
+    --ov-ink:#3a0d1c; --ov-dim:#8a5568; --ov-danger:#c81a3f; --ov-bg:#fff1f5;
+    --hud-block-bg:rgba(255,255,255,.72); --backdrop:rgba(255,236,242,.93);
   }
+  /* Optional reading fonts (Customise → Reading font). OpenDyslexic is
+     fetched from a CDN with font-display:swap, so offline (or in the native
+     app without a connection) it silently falls back to the next fonts in
+     the stack rather than blocking anything. */
+  @font-face{ font-family:'OpenDyslexic'; font-weight:400; font-style:normal; font-display:swap;
+    src:url('https://cdn.jsdelivr.net/gh/antijingoist/open-dyslexic@master/otf/OpenDyslexic-Regular.otf') format('opentype'); }
+  @font-face{ font-family:'OpenDyslexic'; font-weight:700; font-style:normal; font-display:swap;
+    src:url('https://cdn.jsdelivr.net/gh/antijingoist/open-dyslexic@master/otf/OpenDyslexic-Bold.otf') format('opentype'); }
+  @font-face{ font-family:'OpenDyslexic'; font-weight:400; font-style:italic; font-display:swap;
+    src:url('https://cdn.jsdelivr.net/gh/antijingoist/open-dyslexic@master/otf/OpenDyslexic-Italic.otf') format('opentype'); }
+  :root[data-font="dyslexic"]{
+    --mono:'OpenDyslexic','Comic Sans MS','Verdana','Trebuchet MS',sans-serif;
+    --display:'OpenDyslexic','Comic Sans MS','Verdana','Trebuchet MS',sans-serif;
+    letter-spacing:.02em; word-spacing:.08em;
+  }
+  :root[data-font="sans"]{
+    --mono:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  }
+  .customize-opt .cf-sample{ display:block; font-size:19px; line-height:1.2; color:var(--hud-ink); padding:8px 12px 2px; text-transform:none; }
   *{box-sizing:border-box;}
   html,body{ margin:0;height:100%; background:radial-gradient(ellipse at 50% 0%, var(--bg-1), var(--bg-0) 70%);
     color:var(--hud-ink); font-family:var(--mono); display:flex;align-items:center;justify-content:center;
@@ -92,7 +106,7 @@
     padding:14px 16px; pointer-events:none; z-index:22; color:var(--ov-ink); }
   #hudLeft{ display:flex; gap:8px; align-items:flex-start; }
   #hudRightCol{ display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
-  .hud-block{ background:rgba(13,3,8,.55); backdrop-filter:blur(4px); border:1px solid rgba(255,93,143,.25);
+  .hud-block{ background:var(--hud-block-bg); backdrop-filter:blur(4px); border:1px solid rgba(255,93,143,.25);
     border-radius:10px; padding:8px 12px; pointer-events:auto; }
   .hud-label{ font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--ov-dim); margin-bottom:2px; }
   .hud-value{ font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; }
@@ -102,7 +116,7 @@
   .topic-chips{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; max-width:340px; }
   .topic-chip{ font-size:10px; padding:3px 8px; border-radius:12px; border:1px solid; white-space:nowrap; }
   #hudRight{ display:flex;flex-direction:column;align-items:flex-end;gap:6px; pointer-events:auto; }
-  .icon-btn{ background:rgba(13,3,8,.55); border:1px solid rgba(255,93,143,.3); color:var(--ov-ink);
+  .icon-btn{ background:var(--hud-block-bg); border:1px solid rgba(255,93,143,.3); color:var(--ov-ink);
     border-radius:8px; width:34px;height:34px; font-size:15px; cursor:pointer; }
   .icon-btn.inactive{ opacity:.35; pointer-events:none; }
 
@@ -213,7 +227,7 @@
 
   #infoModal, #manualModal, #mcqModal, #scenarioOverlay, #summaryModal, #scoreInfoModal{
     position:absolute; inset:0; display:none; align-items:flex-start; justify-content:safe center;
-    background:rgba(4,1,3,.9); z-index:20; padding:18px; padding-top:var(--hud-clearance, 20px); }
+    background:var(--backdrop); z-index:20; padding:18px; padding-top:var(--hud-clearance, 20px); }
   #infoModal.active, #manualModal.active, #mcqModal.active, #scenarioOverlay.active, #summaryModal.active, #scoreInfoModal.active{ display:flex; }
   /* Extra top padding so EVERY one of these clears the HUD (now floating
      above the modal backdrop at z-index:22 -- see #hud) instead of the
@@ -227,6 +241,18 @@
      fixed guess could never stay correct for all of those at once; 20px is
      just the fallback for the brief moment before the first measurement
      runs (updateTopInset() also runs once at load, so this rarely matters). */
+  /* Only the HUD pieces that horizontally overlap these two centred cards
+     count (see --hud-clearance-card in updateTopInset) -- everything else
+     keeps the full-HUD clearance above. */
+  #mcqModal, #scoreInfoModal{ padding-top:var(--hud-clearance-card, 20px); }
+  /* A 520px card with 13px options is fine on a phone but reads cramped on
+     a laptop/desktop (reported on Windows) -- give it a bit more room there. */
+  @media (min-width:900px) and (min-height:600px){
+    #mcqPanelCard{ max-width:600px !important; }
+    .mcq-prompt{ font-size:17px; }
+    .mcq-option{ font-size:14px; padding:11px 36px 11px 14px; }
+    .mcq-explain{ font-size:13.5px; }
+  }
   .panel-card{ background:var(--panel); border:1px solid var(--panel-line); border-radius:16px; max-width:520px;
     width:100%; max-height:92%; overflow-y:auto; padding:22px; text-align:left; position:relative; }
   .panel-close{ position:absolute; top:12px; right:12px; background:none; border:none; color:var(--hud-dim);
@@ -257,25 +283,11 @@
   .saq-graded{ font-size:12px; color:var(--good); font-weight:700; }
   .p-chips{ display:flex; gap:6px; flex-wrap:wrap; }
   .p-chip{ font-size:11px; padding:3px 9px; border-radius:20px; border:1px solid var(--panel-line); color:var(--hud-dim); }
-  .img-strip{ display:flex; gap:8px; overflow-x:auto; margin-bottom:10px; }
-  .img-box{ flex-shrink:0; width:180px; }
-  .img-box img{ width:180px; height:130px; object-fit:cover; border-radius:8px; border:1px solid var(--panel-line);
-    background:var(--bg-1); display:block; cursor:zoom-in; transition:opacity .15s; }
-  .img-box img:hover{ opacity:.85; }
   #mpCountdownOverlay{ position:absolute; inset:0; display:none; align-items:center; justify-content:center;
-    background:rgba(4,1,3,.94); z-index:25; }
+    background:var(--backdrop); z-index:25; }
   #mpCountdownOverlay.active{ display:flex; }
   #mpCountdownText{ font-family:var(--display); font-style:italic; font-size:140px; color:var(--membrane);
     text-shadow:0 0 40px rgba(255,93,143,.6); }
-  #lightboxModal{ position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center;
-    background:rgba(4,1,3,.96); z-index:30; padding:30px; }
-  #lightboxModal.active{ display:flex; }
-  #lightboxModal img{ max-width:90%; max-height:82%; object-fit:contain; border-radius:8px; cursor:zoom-out;
-    box-shadow:0 20px 60px -10px rgba(0,0,0,.8); }
-  #lightboxCap{ color:var(--hud-dim); font-size:12px; margin-top:12px; text-align:center; max-width:600px; }
-  .img-box .img-cap{ font-size:10px; color:var(--hud-dim); margin-top:3px; line-height:1.3; }
-  .img-placeholder{ width:180px; height:130px; border:1px dashed var(--panel-line); border-radius:8px;
-    display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--hud-dim); text-align:center; padding:8px; }
 
   /* MCQ */
   .mcq-cat{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; margin-bottom:4px; }
@@ -364,6 +376,14 @@
     #controls-mobile.in-run{display:flex;}
     .cancer-grid{grid-template-columns:1fr;}
   }
+  @media (orientation:landscape){
+    /* Racers leaderboard BESIDE the icon buttons rather than under them --
+       stacked, the two made the HUD ~290px tall during a Group Race, and
+       the HUD's full height is what the track has to give up (see
+       updateTopInset). Portrait keeps the stack: there's no horizontal
+       room for it next to the life block on a phone. */
+    #hudRightCol{ flex-direction:row-reverse; align-items:flex-start; }
+  }
   @media (orientation:portrait){
     /* The fixed 2:1 shape above is landscape-tuned -- forcing it on a
        narrow portrait phone squashes #stageEl's height down to roughly
@@ -416,7 +436,7 @@
       <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ov-dim);">Resuming</div>
     </div>
     <div id="stallWarning" style="display:none;position:absolute;top:var(--hud-clearance, 70px);left:50%;transform:translateX(-50%);z-index:6;
-      background:rgba(13,3,8,.85);backdrop-filter:blur(4px);border:1px solid var(--ov-danger);border-radius:10px;
+      background:var(--hud-block-bg);backdrop-filter:blur(4px);border:1px solid var(--ov-danger);border-radius:10px;
       padding:8px 16px;font-size:12px;color:var(--ov-ink);text-align:center;pointer-events:none;
       max-width:min(90vw, 420px);"></div>
 
@@ -445,10 +465,6 @@
           <span class="cc-icon">🎯</span><span class="cc-name">Custom run</span>
           <span class="cc-blurb">Pick your own question mix.</span>
         </button>
-        <button class="pick-card" id="learningPathModeCard" style="margin:10px auto 0;max-width:460px;display:block;text-align:center;">
-          <span class="cc-icon">🧭</span><span class="cc-name">Learning Path</span>
-          <span class="cc-blurb">One lecture, level by level.</span>
-        </button>
         <button class="pick-card" id="reviewModeCard" style="margin:10px auto 0;max-width:460px;display:block;text-align:center;">
           <span class="cc-icon">📅</span><span class="cc-name">Review</span>
           <span class="cc-blurb" id="reviewModeBlurb">Spaced repetition, questions you've already studied.</span>
@@ -471,7 +487,9 @@
             <div class="p-sub">2. Face</div>
             <div id="customizeFaceRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
             <div class="p-sub">3. Accessory</div>
-            <div id="customizeAccessoryRow" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+            <div id="customizeAccessoryRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;"></div>
+            <div class="p-sub">4. Reading font <span style="color:var(--hud-dim);font-weight:400;text-transform:none;letter-spacing:0;">(applies straight away, everywhere)</span></div>
+            <div id="customizeFontRow" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
           </div>
         </div>
         <div class="btn-row" style="margin-top:18px;">
@@ -562,23 +580,6 @@
           <div class="p-sub" style="margin-top:0;">✍️ Short-answer questions due</div>
           <p class="desc" style="margin:-4px 0 8px;font-size:11.5px;">These can't be replayed through the multiple-choice review above — tap one to open its page and grade yourself directly.</p>
           <div id="reviewSaqDueList"></div>
-        </div>
-      </div>
-      <div id="learningPathCourseView" style="display:none;">
-        <h2>Learning Path</h2>
-        <p class="desc">Pick a course, then a lecture — you'll see its learning outcome(s) before you start, then work through identify → understand → apply → case study.</p>
-        <div class="cancer-grid" id="learningPathCourseGrid" style="max-width:400px;margin:0 auto 16px;"></div>
-        <div class="btn-row">
-          <button class="secondary" id="learningPathCourseBackBtn">← Back</button>
-        </div>
-      </div>
-      <div id="learningPathLectureView" style="display:none;">
-        <h2 id="learningPathLectureTitle">—</h2>
-        <p class="desc">Pick a lecture to see its learning outcome(s) and start.</p>
-        <div class="cancer-grid" id="learningPathLectureGrid" style="max-width:460px;margin:0 auto 16px;"></div>
-        <p class="desc" id="learningPathLectureEmpty" style="display:none;color:var(--hud-dim);">No learning outcomes added yet for this course — check back soon.</p>
-        <div class="btn-row">
-          <button class="secondary" id="learningPathLectureBackBtn">← Back</button>
         </div>
       </div>
       <div id="mpSetupView" style="display:none;">
@@ -751,12 +752,6 @@
     </div>
 
     <!-- STUDY GUIDE -->
-    <!-- IMAGE LIGHTBOX -->
-    <div id="lightboxModal">
-      <button class="panel-close" id="lightboxClose" style="top:14px;right:18px;font-size:22px;">✕</button>
-      <img id="lightboxImg" src="" alt="">
-      <div id="lightboxCap"></div>
-    </div>
 
     <div id="infoModal">
       <div class="panel-card" style="max-width:760px;">
@@ -782,7 +777,6 @@
         <div class="item-grid" id="guideItemGrid"></div>
         <div id="itemDetailWrap" style="display:none;">
           <button class="secondary" id="itemBackBtn" style="margin-bottom:12px;">← All topics</button>
-          <div class="img-strip" id="itemImages"></div>
           <div class="p-cat" id="itemCat">—</div>
           <h3 class="p-name" id="itemName">—</h3>
           <div class="p-desc" id="itemCourse" style="margin-top:-6px;color:var(--hud-dim);font-size:11.5px;"></div>
@@ -808,6 +802,9 @@
             <div id="itemQuizResult" class="p-desc" style="margin-top:8px;color:var(--good);display:none;"></div>
           </div>
           <div id="itemRefsWrap" style="display:none;"><div class="p-sub">References</div><ul class="p-facts" id="itemRefs"></ul></div>
+          <!-- Images are linked out to their source rather than embedded, so
+               nothing copyrighted is redistributed inside the game itself. -->
+          <div id="itemImagesWrap" style="display:none;"><div class="p-sub">Images</div><ul class="p-facts" id="itemImages"></ul></div>
           <div id="itemContributeWrap" style="margin:18px 0 6px;padding-top:14px;border-top:1px solid var(--panel-line);text-align:left;">
             <div class="p-sub" style="margin-top:0;">🤝 Contribute</div>
             <p class="p-desc" style="margin:-4px 0 10px;font-size:11.5px;">Suggest a fun fact, add a note or study tip, or flag something that looks wrong — a maintainer reviews everything before it's added.</p>
@@ -910,6 +907,44 @@
     syncPush('playerCustomization', c);
   }
 
+  // ---------- reading font ----------
+  // A device/accessibility preference, so it applies immediately on pick
+  // (no Save needed) and, like the theme, follows a signed-in player across
+  // devices. 'default' clears the attribute so the base :root stack applies.
+  const FONT_OPTIONS = [
+    { id:'default',  label:'Default',           sample:'Aa Bb' },
+    { id:'dyslexic', label:'Dyslexia-friendly', sample:'Aa Bb' },
+    { id:'sans',     label:'Sans-serif',        sample:'Aa Bb' },
+  ];
+  let currentFont = (function(){
+    try { const saved = localStorage.getItem('font'); return FONT_OPTIONS.some(o=>o.id===saved) ? saved : 'default'; } catch(e){ return 'default'; }
+  })();
+  function applyFont(font){
+    if(!FONT_OPTIONS.some(o=>o.id===font)) font = 'default';
+    currentFont = font;
+    if(font==='default') delete document.documentElement.dataset.font;
+    else document.documentElement.dataset.font = font;
+    try { localStorage.setItem('font', font); } catch(e){ /* fine — just won't persist */ }
+    syncPush('font', font);
+    if(customizeFontRow) renderFontRow();
+  }
+  function renderFontRow(){
+    customizeFontRow.innerHTML = '';
+    FONT_OPTIONS.forEach(o=>{
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'customize-opt' + (o.id===currentFont ? ' active' : '');
+      const sample = document.createElement('span'); sample.className = 'cf-sample'; sample.textContent = o.sample;
+      // Preview each option in its own face, not the currently-applied one.
+      sample.style.fontFamily = o.id==='dyslexic' ? "'OpenDyslexic','Comic Sans MS','Verdana',sans-serif"
+        : o.id==='sans' ? "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif"
+        : "'SF Mono','JetBrains Mono',ui-monospace,Menlo,Consolas,monospace";
+      b.appendChild(sample);
+      const label = document.createElement('span'); label.textContent = o.label; label.style.textTransform = 'none'; b.appendChild(label);
+      b.addEventListener('click', ()=> applyFont(o.id));
+      customizeFontRow.appendChild(b);
+    });
+  }
+
   // ---------- light/dark theme ----------
   // Defaults to dark (the tuned, tested look) rather than following the
   // OS's color-scheme preference — this app has a deliberate dark "vessel"
@@ -919,12 +954,20 @@
   let currentTheme = (function(){
     try { const saved = localStorage.getItem('theme'); return saved === 'light' ? 'light' : 'dark'; } catch(e){ return 'dark'; }
   })();
+  // Floater popups are queued with CSS-variable colors ('var(--danger)'),
+  // which Canvas2D can't parse -- resolveCanvasColor() (in the drawing code
+  // below) resolves them to the current theme's real value through this.
+  const _cssColorCache = {};
   function applyTheme(theme){
     currentTheme = theme;
     document.documentElement.dataset.theme = theme;
     if(themeToggleBtn) themeToggleBtn.textContent = theme==='light' ? '☀️ Light' : '🌙 Dark';
     try { localStorage.setItem('theme', theme); } catch(e){ /* fine — just won't persist */ }
     syncPush('theme', theme);
+    for(const k in _cssColorCache) delete _cssColorCache[k]; // resolved var(--x) colors differ per theme
+    // Repaint the idle track so the new palette shows the moment a run
+    // starts (the loop only redraws while 'running'). No-op before init.
+    if(window.__runnerInitDone && screenState!=='running'){ drawVessel(); drawPlayer(); }
   }
   // Browsers block audio until a real user gesture happens on the page —
   // creating the AudioContext eagerly at load time would just leave it
@@ -1116,6 +1159,7 @@
     saveSrsState(mergeSrsState(loadSrsState(), remote.srsState));
     savePlayerCustomization(remote.playerCustomization || playerCustomization);
     applyTheme(remote.theme || currentTheme);
+    applyFont(remote.font || currentFont);
     if(customizeView.style.display === 'block') renderCustomizeScreen();
     if(reviewView.style.display === 'block') refreshReviewScreen();
   }
@@ -1144,7 +1188,7 @@
    ====================================================================== */
   const {
     COURSES, GAME_CONFIG, LIFE_CONFIG, THEMES,
-    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES, LEARNING_PATH_CONFIG,
+    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES,
   } = window.RUNNER_DATA;
 
   // Topics are authored per-course now (each carries its own label/icon/
@@ -1158,22 +1202,6 @@
     Object.entries(course.topics).forEach(([topicId, t])=>{
       TOPICS[topicId] = { label:t.label, icon:t.icon, color:t.color };
     });
-  });
-
-  // The "Learning Path" mode reuses this same TOPICS lookup for its stage
-  // requirement chips, HUD, and topic-block rendering, but keyed by
-  // cognitive level ('identify'/'understand'/'apply'/'case') instead of a
-  // real topic id -- see buildLearningPathConfig() below. Registering them
-  // here means every existing TOPICS[...] call site keeps working with zero
-  // changes anywhere else.
-  const LEVEL_TOPIC_META = {
-    identify:   { icon:'🔍', color:'#7fd1ff' },
-    understand: { icon:'💡', color:'#ffd54d' },
-    apply:      { icon:'🛠️', color:'#8dffb0' },
-    case:       { icon:'🩺', color:'#ff9ecf' },
-  };
-  LEARNING_PATH_CONFIG.levels.forEach(level=>{
-    TOPICS[level] = { label:LEARNING_PATH_CONFIG.levelLabels[level], ...LEVEL_TOPIC_META[level] };
   });
 
   // Items/questions store a compact course:'MEDS3002', class:'L14' pair
@@ -1266,34 +1294,6 @@
     });
   });
 
-  // QUESTIONS_BY_COURSE_CLASS_LEVEL powers the "Learning Path" mode: every
-  // question, indexed by its resolved course + class (lecture) and its own
-  // `level` ('identify'/'understand'/'apply'/'case', untagged -> 'identify'
-  // -- see the game-data.js schema comment). Built once here from
-  // ALL_QUESTIONS' already-resolved course/class, alongside (not replacing)
-  // QUESTIONS_BY_THEME_TOPIC, so every existing mode keeps reading from that
-  // untouched.
-  const QUESTIONS_BY_COURSE_CLASS_LEVEL = {};
-  ALL_QUESTIONS.forEach(q=>{
-    if(!q.course || !q.class) return;
-    const level = LEARNING_PATH_CONFIG.levels.includes(q.level) ? q.level : 'identify';
-    const byClass = (QUESTIONS_BY_COURSE_CLASS_LEVEL[q.course] = QUESTIONS_BY_COURSE_CLASS_LEVEL[q.course] || {});
-    const byLevel = (byClass[q.class] = byClass[q.class] || {});
-    (byLevel[level] = byLevel[level] || []).push(q);
-  });
-
-  // Only lectures with BOTH an authored `outcomes` array AND at least one
-  // indexed question show up in the Learning Path picker -- everything else
-  // just hasn't been set up for this mode yet (see game-data.js COURSES).
-  function lecturesWithLearningPathContent(courseId){
-    const course = COURSES[courseId];
-    if(!course) return [];
-    const byClass = QUESTIONS_BY_COURSE_CLASS_LEVEL[courseId] || {};
-    return Object.entries(course.classes)
-      .filter(([classKey, cls])=> (cls.outcomes||[]).length && byClass[classKey] && Object.keys(byClass[classKey]).length)
-      .map(([classKey, cls])=> ({ classKey, ...cls }));
-  }
-
   function lifeCfg(){ return LIFE_CONFIG[currentCancerId] || { label:'Life', icon:'❤️' }; }
 
 /* ======================================================================
@@ -1376,7 +1376,18 @@
   // replacing what used to be a fixed, landscape-tuned 104px guess. Called
   // whenever the HUD's visibility OR content (chip count/wrapping) changes.
   function updateTopInset(){
-    topInset = (hud.style.display==='flex') ? Math.ceil(hud.getBoundingClientRect().height) + 8 : 0;
+    const stageRect = stageEl.getBoundingClientRect();
+    const hudCss = (hud.style.display==='flex') ? hud.getBoundingClientRect().height : 0;
+    // The HUD is measured in CSS px, but the canvas draws on its own fixed
+    // 960x480 grid (landscape) -- on a desktop monitor the stage is shown
+    // at ~750-1000 CSS px tall, so applying the CSS height 1:1 as canvas
+    // units inflated the carve-out by up to 2x (a 290px race HUD ate 60%
+    // of the track, squashing all three lanes into the bottom third --
+    // reported on Mac and Windows). Convert through the real on-screen
+    // scale, and cap it so the track can never collapse below ~2/3 of the
+    // canvas however tall the HUD gets (it'll overlap a little instead).
+    const unitsPerCssPx = stageRect.height ? H / stageRect.height : 1;
+    topInset = hudCss ? Math.min(Math.ceil(hudCss * unitsPerCssPx) + 8, Math.round(H * 0.36)) : 0;
     laneH = (H - topInset) / LANES;
     // 160 = the original landscape laneH (480/3) with no HUD carve-out at
     // all -- SCALE lives here, not in resizeCanvasForPortrait, because
@@ -1388,7 +1399,25 @@
     // just portrait -- previously a tall HUD (e.g. 4 wrapped topic chips)
     // could cover the top lane in landscape too; this fixes that case too.
     SCALE = laneH/160;
-    document.documentElement.style.setProperty('--hud-clearance', (topInset + 16) + 'px');
+    // CSS-side clearance stays in CSS px (it pads DOM elements, not the canvas).
+    document.documentElement.style.setProperty('--hud-clearance', (hudCss ? Math.ceil(hudCss) + 16 : 20) + 'px');
+    // The question/score cards are centred and at most ~520-600px wide: on a
+    // wide screen they don't sit under the HUD's left block or right column
+    // at all, so only the HUD parts that actually overlap them horizontally
+    // need clearing. Gives the question card the full stage height on a
+    // desktop/laptop instead of squeezing it under an empty strip (reported
+    // on Windows laptops as "questions too squeezy and small").
+    let cardClear = 0;
+    if(hudCss){
+      const cardMax = window.matchMedia('(min-width:900px) and (min-height:600px)').matches ? 600 : 520;
+      const cardW = Math.min(cardMax, stageRect.width - 36);
+      const cardL = stageRect.left + (stageRect.width - cardW)/2, cardR = cardL + cardW;
+      [hudLeft, hudRightCol].forEach(el=>{
+        const r = el.getBoundingClientRect();
+        if(r.width && r.right > cardL && r.left < cardR) cardClear = Math.max(cardClear, r.bottom - stageRect.top);
+      });
+    }
+    document.documentElement.style.setProperty('--hud-clearance-card', (cardClear ? Math.ceil(cardClear) + 16 : 20) + 'px');
   }
   // Resizes the canvas's actual drawing buffer to match #stageEl's real
   // on-screen box, but ONLY in portrait -- in landscape this always resets
@@ -1424,6 +1453,12 @@
 
   // ---------- DOM refs ----------
   const hud = document.getElementById('hud');
+  const hudLeft = document.getElementById('hudLeft');
+  const hudRightCol = document.getElementById('hudRightCol');
+  // The HUD's height changes without any stage resize -- racers joining the
+  // leaderboard, topic chips wrapping onto a new row -- so re-measure the
+  // carve-out whenever the HUD itself changes size, not just on resize.
+  new ResizeObserver(()=> updateTopInset()).observe(hud);
   const controlsMobile = document.getElementById('controls-mobile');
   const lifeLabel = document.getElementById('lifeLabel');
   const glucoseVal = document.getElementById('glucoseVal');
@@ -1463,6 +1498,7 @@
   const customizeColorRow = document.getElementById('customizeColorRow');
   const customizeFaceRow = document.getElementById('customizeFaceRow');
   const customizeAccessoryRow = document.getElementById('customizeAccessoryRow');
+  const customizeFontRow = document.getElementById('customizeFontRow');
   const customizeRandomizeBtn = document.getElementById('customizeRandomizeBtn');
   const customizeBackBtn = document.getElementById('customizeBackBtn');
   const customizeSaveBtn = document.getElementById('customizeSaveBtn');
@@ -1504,16 +1540,6 @@
   const reviewDayDetailWrap = document.getElementById('reviewDayDetailWrap');
   const reviewDayDetailTitle = document.getElementById('reviewDayDetailTitle');
   const reviewDayDetailList = document.getElementById('reviewDayDetailList');
-
-  const learningPathModeCard = document.getElementById('learningPathModeCard');
-  const learningPathCourseView = document.getElementById('learningPathCourseView');
-  const learningPathCourseGrid = document.getElementById('learningPathCourseGrid');
-  const learningPathCourseBackBtn = document.getElementById('learningPathCourseBackBtn');
-  const learningPathLectureView = document.getElementById('learningPathLectureView');
-  const learningPathLectureTitle = document.getElementById('learningPathLectureTitle');
-  const learningPathLectureGrid = document.getElementById('learningPathLectureGrid');
-  const learningPathLectureEmpty = document.getElementById('learningPathLectureEmpty');
-  const learningPathLectureBackBtn = document.getElementById('learningPathLectureBackBtn');
 
   const pauseScreen = document.getElementById('pauseScreen');
   const pauseStatus = document.getElementById('pauseStatus');
@@ -1581,10 +1607,6 @@
   const itemDetailWrap = document.getElementById('itemDetailWrap');
   const itemBackBtn = document.getElementById('itemBackBtn');
   const itemImages = document.getElementById('itemImages');
-  const lightboxModal = document.getElementById('lightboxModal');
-  const lightboxImg = document.getElementById('lightboxImg');
-  const lightboxCap = document.getElementById('lightboxCap');
-  const lightboxClose = document.getElementById('lightboxClose');
   const itemCat = document.getElementById('itemCat');
   const itemName = document.getElementById('itemName');
   const itemCourse = document.getElementById('itemCourse');
@@ -1623,6 +1645,7 @@
   const contributeSubmitBtn = document.getElementById('contributeSubmitBtn');
   const contributeStatus = document.getElementById('contributeStatus');
   const itemRefsWrap = document.getElementById('itemRefsWrap');
+  const itemImagesWrap = document.getElementById('itemImagesWrap');
   const itemRefs = document.getElementById('itemRefs');
 
   const manualModal = document.getElementById('manualModal');
@@ -1668,23 +1691,12 @@
   let customPoolByTopic = null;  // { topicId: [question, ...] } — the filtered pool
   const CUSTOM_THEME_META = { label:'Custom run', icon:'🎯' };
 
-  // ---------- Learning Path run state ----------
-  // Same trick as Custom run above, but the "topic" key fed into
-  // stages/requirements is a cognitive level ('identify'/'understand'/
-  // 'apply'/'case') instead of a real topic, scoped to one lecture's
-  // questions -- see buildLearningPathConfig(). currentCancerId is set to
-  // the literal string 'learningpath'.
-  let learningPathStages = null;         // generated array, same shape as STAGES.cancer
-  let learningPathPoolByLevel = null;    // { level: [question, ...] } — this lecture's pool
-  let learningPathThemeMeta = null;      // { label, icon } — set per-lecture when a run starts
   function currentStages(){
     if(currentCancerId==='custom') return customStages;
-    if(currentCancerId==='learningpath') return learningPathStages;
     return STAGES[currentCancerId];
   }
   function currentThemeMeta(){
     if(currentCancerId==='custom') return CUSTOM_THEME_META;
-    if(currentCancerId==='learningpath') return learningPathThemeMeta;
     return THEMES[currentCancerId];
   }
 
@@ -1731,7 +1743,6 @@
     if(!questionQueues[key] || questionQueues[key].length===0){
       let source;
       if(cancerId==='custom' && customPoolByTopic) source = customPoolByTopic[topicId] || [];
-      else if(cancerId==='learningpath' && learningPathPoolByLevel) source = learningPathPoolByLevel[topicId] || [];
       else source = QUESTIONS_BY_THEME_TOPIC[cancerId]?.[topicId] || [];
       questionQueues[key] = shuffle(source);
     }
@@ -1973,83 +1984,6 @@
       ? `${due} due today — spaced repetition on questions you've already studied.`
       : `Spaced repetition, questions you've already studied.`;
   }
-
-  // ---------- learning path (lecture-scoped, cognitive-level progression) ----------
-  // Same synthetic-stage trick as buildCustomRunConfig() above, but scoped to
-  // ONE lecture's questions and keyed by cognitive level instead of topic --
-  // see the LEVEL_TOPIC_META/TOPICS registration and the currentCancerId===
-  // 'learningpath' branches in currentStages()/currentThemeMeta()/
-  // nextQuestion(). Levels with zero matching questions for this lecture are
-  // skipped rather than shown as an empty stage.
-  const LEARNING_PATH_ROMAN = ['I','II','III','IV'];
-  function buildLearningPathConfig(courseId, classKey){
-    const byLevel = (QUESTIONS_BY_COURSE_CLASS_LEVEL[courseId] || {})[classKey] || {};
-    const cls = COURSES[courseId].classes[classKey];
-    const levelsWithContent = LEARNING_PATH_CONFIG.levels.filter(lv => (byLevel[lv]||[]).length > 0);
-    const stages = levelsWithContent.map((level, i)=>{
-      // The first stage carries the lecture's learning outcome(s) + intro
-      // blurb -- shown by the existing showStageScenario() screen before any
-      // questions, which is exactly the "outcome before questions" flow this
-      // mode exists for. Kept as a separate `learningOutcomes` array (rather
-      // than folded into `scenario` as plain text) so showStageScenario()
-      // can render them as a clearly-labeled bullet list instead of one
-      // run-on paragraph. Later stages get a short per-level transition
-      // line instead, same as before.
-      const learningOutcomes = i===0 ? (cls.outcomes||[]) : null;
-      const scenario = i===0 ? (cls.intro||'') : (LEARNING_PATH_CONFIG.levelBlurbs[level] || '');
-      return { n:i+1, roman: LEARNING_PATH_ROMAN[i] || String(i+1), requirements: { [level]: LEARNING_PATH_CONFIG.perLevelQuota }, scenario, learningOutcomes };
-    });
-    return { stages, byLevel };
-  }
-  function renderLearningPathCourseGrid(){
-    learningPathCourseGrid.innerHTML = Object.entries(THEMES).map(([id,t])=>
-      `<button class="pick-card" data-course="${id}"><span class="cc-icon">${iconHTML(t.icon,20)}</span><span class="cc-name">${t.label}</span></button>`
-    ).join('');
-    learningPathCourseGrid.querySelectorAll('[data-course]').forEach(btn=>{
-      btn.addEventListener('click', ()=> openLearningPathLectures(btn.dataset.course));
-    });
-  }
-  function openLearningPathLectures(courseId){
-    const lectures = lecturesWithLearningPathContent(courseId);
-    learningPathLectureTitle.innerHTML = `${iconHTML(THEMES[courseId].icon,20)} ${THEMES[courseId].label}`;
-    if(!lectures.length){
-      learningPathLectureGrid.innerHTML = '';
-      learningPathLectureEmpty.style.display = 'block';
-    } else {
-      learningPathLectureEmpty.style.display = 'none';
-      learningPathLectureGrid.innerHTML = lectures.map(l=>
-        `<button class="pick-card" data-class="${l.classKey}"><span class="cc-name">${l.classKey} · ${l.label}</span></button>`
-      ).join('');
-      learningPathLectureGrid.querySelectorAll('[data-class]').forEach(btn=>{
-        btn.addEventListener('click', ()=> startLearningPathRun(courseId, btn.dataset.class));
-      });
-    }
-    learningPathCourseView.style.display = 'none';
-    learningPathLectureView.style.display = 'block';
-  }
-  function startLearningPathRun(courseId, classKey){
-    const { stages, byLevel } = buildLearningPathConfig(courseId, classKey);
-    if(!stages.length){ toastCustom('No questions tagged for this lecture yet.'); return; }
-    currentCancerId = 'learningpath';
-    learningPathStages = stages;
-    learningPathPoolByLevel = byLevel;
-    learningPathThemeMeta = { label: `${THEMES[courseId].label} · ${classKey}`, icon: THEMES[courseId].icon };
-    learningPathLectureView.style.display = 'none';
-    startRun();
-  }
-  learningPathModeCard.addEventListener('click', ()=>{
-    cancerPickView.style.display = 'none';
-    learningPathCourseView.style.display = 'block';
-    renderLearningPathCourseGrid();
-  });
-  learningPathCourseBackBtn.addEventListener('click', ()=>{
-    learningPathCourseView.style.display = 'none';
-    cancerPickView.style.display = 'block';
-  });
-  learningPathLectureBackBtn.addEventListener('click', ()=>{
-    learningPathLectureView.style.display = 'none';
-    learningPathCourseView.style.display = 'block';
-  });
 
   // ---------- study & practice mode ----------
   let practiceSelectedTheme = null;
@@ -2301,17 +2235,7 @@
     const c = currentThemeMeta();
     scenarioIcon.innerHTML = iconHTML(c.icon,40);
     scenarioStageLabel.textContent = `STAGE ${st.roman}`;
-    // Learning Path's first stage carries real learning outcomes -- render
-    // them as a clearly-labeled bullet list instead of folding them into
-    // one run-on paragraph. Every other stage (Runner/Custom run/etc) has
-    // no `learningOutcomes` at all, so this is a no-op there.
-    if(st.learningOutcomes && st.learningOutcomes.length){
-      const items = st.learningOutcomes.map(o=>`<li>${escapeHtml(o)}</li>`).join('');
-      const introHtml = st.scenario ? `<p style="margin:10px 0 0;">${escapeHtml(st.scenario)}</p>` : '';
-      scenarioText.innerHTML = `<div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--hud-dim);margin-bottom:6px;">Learning Outcomes</div><ul style="margin:0;padding-left:20px;">${items}</ul>${introHtml}`;
-    } else {
-      scenarioText.textContent = st.scenario;
-    }
+    scenarioText.textContent = st.scenario;
     scenarioReqs.innerHTML = Object.keys(st.requirements).map(t=>{
       const meta = TOPICS[t];
       return `<span class="req-chip" style="color:${meta.color};border-color:${meta.color}77">${iconHTML(meta.icon,14)} ${meta.label} × ${st.requirements[t]}</span>`;
@@ -2490,7 +2414,6 @@
       }
       return;
     }
-    if(lightboxModal.classList.contains('active')){ if(e.key==='Escape') closeLightbox(); return; }
     if(infoModal.classList.contains('active')){ if(e.key==='Escape') guideClose.click(); return; }
     if(manualModal.classList.contains('active')){ if(e.key==='Escape') manualClose.click(); return; }
     if(summaryModal.classList.contains('active')){ if(e.key==='Escape') summaryClose.click(); return; }
@@ -3053,21 +2976,47 @@
     for(const f of floaters){ f.y -= dt*40; f.life -= dt*0.9; }
     floaters = floaters.filter(f=>f.life>0);
   }
-  // Cached once and reused every frame -- creating a CanvasGradient is not
+  // Track colors per page theme. The canvas can't read CSS variables, so
+  // drawVessel/drawEntity look these up every frame instead -- toggling
+  // ☀️/🌙 re-themes the run itself, not just the menus around it. Light
+  // mode deepens the yellow pickup and darkens topic-block outlines, since
+  // glow-on-black values wash out against a pale background.
+  const CANVAS_PALETTES = {
+    dark:  { bg:'#1c0710', laneLine:'rgba(255,93,143,.10)', laneDash:'rgba(255,93,143,.16)', wall:'#3a0d1c', wallFade:'rgba(58,13,28,0)',
+             glucoseGlow:'rgba(255,210,63,.35)', glucose:'#ffd23f', glucoseRing:null,
+             topicGlowAlpha:'40', topicFillAlpha:'2b', topicStrokeDarken:0 },
+    light: { bg:'#fff1f5', laneLine:'rgba(214,16,106,.16)', laneDash:'rgba(214,16,106,.28)', wall:'#f6c3d4', wallFade:'rgba(246,195,212,0)',
+             glucoseGlow:'rgba(235,160,0,.28)', glucose:'#f2b400', glucoseRing:'#a6720a',
+             topicGlowAlpha:'30', topicFillAlpha:'5c', topicStrokeDarken:0.22 },
+  };
+  function canvasPalette(){ return CANVAS_PALETTES[currentTheme] || CANVAS_PALETTES.dark; }
+  function resolveCanvasColor(c){
+    if(!c || !c.startsWith('var(')) return c;
+    const key = currentTheme + '|' + c;
+    if(!_cssColorCache[key]){
+      const v = getComputedStyle(document.documentElement).getPropertyValue(c.slice(4,-1).trim()).trim();
+      _cssColorCache[key] = v || '#ffffff';
+    }
+    return _cssColorCache[key];
+  }
+  // Cached and reused every frame -- creating a CanvasGradient is not
   // free, and drawVessel used to build these two from scratch 60x/sec.
-  let vesselGradTop = null, vesselGradBottom = null;
+  // Rebuilt when the theme flips, since the colors come from the palette.
+  let vesselGradTop = null, vesselGradBottom = null, vesselGradTheme = null;
   function drawVessel(){
-    ctx.fillStyle = '#1c0710'; ctx.fillRect(0,0,W,H);
-    ctx.strokeStyle = 'rgba(255,93,143,.10)'; ctx.lineWidth = 2;
+    const pal = canvasPalette();
+    ctx.fillStyle = pal.bg; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle = pal.laneLine; ctx.lineWidth = 2;
     for(let i=1;i<LANES;i++){ ctx.beginPath(); ctx.moveTo(0, topInset+laneH*i); ctx.lineTo(W, topInset+laneH*i); ctx.stroke(); }
-    ctx.strokeStyle = 'rgba(255,93,143,.16)'; ctx.lineWidth = 3; ctx.setLineDash([26,18]);
+    ctx.strokeStyle = pal.laneDash; ctx.lineWidth = 3; ctx.setLineDash([26,18]);
     for(let i=0;i<LANES;i++){ ctx.beginPath(); ctx.moveTo(-bgOffset, laneY(i)); ctx.lineTo(W, laneY(i)); ctx.stroke(); }
     ctx.setLineDash([]);
-    if(!vesselGradTop){
+    if(!vesselGradTop || vesselGradTheme!==currentTheme){
+      vesselGradTheme = currentTheme;
       vesselGradTop = ctx.createLinearGradient(0,0,0,40);
-      vesselGradTop.addColorStop(0,'#3a0d1c'); vesselGradTop.addColorStop(1,'rgba(58,13,28,0)');
+      vesselGradTop.addColorStop(0,pal.wall); vesselGradTop.addColorStop(1,pal.wallFade);
       vesselGradBottom = ctx.createLinearGradient(0,H-40,0,H);
-      vesselGradBottom.addColorStop(0,'rgba(58,13,28,0)'); vesselGradBottom.addColorStop(1,'#3a0d1c');
+      vesselGradBottom.addColorStop(0,pal.wallFade); vesselGradBottom.addColorStop(1,pal.wall);
     }
     ctx.fillStyle = vesselGradTop; ctx.fillRect(0,0,W,40);
     ctx.fillStyle = vesselGradBottom; ctx.fillRect(0,H-40,W,40);
@@ -3175,10 +3124,12 @@
       // Cheap two-layer glow instead of ctx.shadowBlur -- shadowBlur is one
       // of the more expensive Canvas2D ops, and with several of these on
       // screen at once every frame it was a real source of the slowdown.
-      ctx.fillStyle = 'rgba(255,210,63,.35)';
+      const pal = canvasPalette();
+      ctx.fillStyle = pal.glucoseGlow;
       ctx.beginPath(); ctx.arc(e.x, y, e.r+5, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#ffd23f';
+      ctx.fillStyle = pal.glucose;
       ctx.beginPath(); ctx.arc(e.x, y, e.r, 0, Math.PI*2); ctx.fill();
+      if(pal.glucoseRing){ ctx.strokeStyle = pal.glucoseRing; ctx.lineWidth = 2; ctx.stroke(); }
       return;
     }
     if(e.type==='bomb'){
@@ -3212,12 +3163,12 @@
     // players reported not being able to see them to hit them. Same
     // cheap-layered-glow approach as glucose/bombs above, just tuned
     // brighter/wider so the topic's own color actually shows up.
-    const meta = TOPICS[e.topic]; const w=70*SCALE,h=44*SCALE;
-    ctx.fillStyle = meta.color+'40';
+    const meta = TOPICS[e.topic]; const w=70*SCALE,h=44*SCALE; const pal = canvasPalette();
+    ctx.fillStyle = meta.color+pal.topicGlowAlpha;
     roundRect(ctx, e.x-w/2-7, y-h/2-7, w+14, h+14, 14); ctx.fill();
-    ctx.fillStyle = meta.color+'2b';
+    ctx.fillStyle = meta.color+pal.topicFillAlpha;
     roundRect(ctx, e.x-w/2, y-h/2, w, h, 10); ctx.fill();
-    ctx.strokeStyle = meta.color; ctx.lineWidth = 3;
+    ctx.strokeStyle = pal.topicStrokeDarken ? darkenColor(meta.color, pal.topicStrokeDarken) : meta.color; ctx.lineWidth = 3;
     roundRect(ctx, e.x-w/2, y-h/2, w, h, 10); ctx.stroke();
     // Icon only, no topic-name label -- bigger and centred in the block so
     // it reads instantly while lane-hopping instead of needing to be read.
@@ -3227,7 +3178,7 @@
     ctx.textAlign='center';
     for(const f of floaters){
       ctx.globalAlpha = Math.max(0,f.life);
-      ctx.fillStyle = f.color; ctx.font = 'bold 14px monospace';
+      ctx.fillStyle = resolveCanvasColor(f.color); ctx.font = 'bold 14px monospace';
       ctx.fillText(f.text, f.x, f.y);
       ctx.globalAlpha = 1;
     }
@@ -3323,7 +3274,7 @@
       card.className = 'item-card';
       card.style.color = meta.color;
       card.dataset.search = `${item.label} ${item.description||''} ${(item.hashtags||[]).join(' ')}`.toLowerCase();
-      card.innerHTML = `<div class="ic-name">${item.label}</div><div class="ic-hint">${item.images && item.images.length ? '🖼 has image' : 'tap for details'}</div>`;
+      card.innerHTML = `<div class="ic-name">${item.label}</div><div class="ic-hint">${item.images && item.images.length ? '🖼 image link' : 'tap for details'}</div>`;
       card.addEventListener('click', ()=> openItemDetail(guideActiveTopic, id, item));
       guideItemGrid.appendChild(card);
     });
@@ -3582,18 +3533,16 @@
       itemRefs.innerHTML = item.refs.map(r=> r.url ? `<li><a href="${r.url}" target="_blank" rel="noopener" style="color:var(--membrane)">${r.label}</a></li>` : `<li>${r.label}</li>`).join('');
       itemRefsWrap.style.display = 'block';
     } else { itemRefsWrap.style.display = 'none'; }
-    itemImages.innerHTML = '';
+    // Images are links to where the picture lives (a textbook figure, a
+    // journal, a diagram on a site), listed alongside References, rather
+    // than copies embedded in the game -- keeps copyrighted figures out of
+    // the repo while still pointing people at them.
     if(item.images && item.images.length){
-      item.images.forEach(img=>{
-        const box = document.createElement('div');
-        box.className = 'img-box';
-        box.innerHTML = `<img src="${img.url}" alt="${img.caption||item.label}"><div class="img-cap">${img.caption||''}</div>`;
-        box.querySelector('img').addEventListener('click', ()=> openLightbox(img.url, img.caption||item.label));
-        itemImages.appendChild(box);
-      });
-    } else {
-      itemImages.innerHTML = `<div class="img-placeholder">No image added yet</div>`;
-    }
+      itemImages.innerHTML = item.images.map(img=> img.url
+        ? `<li><a href="${escapeHtml(img.url)}" target="_blank" rel="noopener" style="color:var(--membrane)">🖼 ${escapeHtml(img.caption||item.label)}</a></li>`
+        : `<li>🖼 ${escapeHtml(img.caption||'')}</li>`).join('');
+      itemImagesWrap.style.display = 'block';
+    } else { itemImagesWrap.style.display = 'none'; itemImages.innerHTML = ''; }
     itemBackBtn.textContent = (guideMode==='course' || guideMode==='tag') ? '← Back' : (guideMode==='search' ? '← Back to results' : '← All topics');
     itemBackBtn.onclick = ()=>{
       stopReadAloud();
@@ -3808,17 +3757,6 @@
     }
   });
 
-  // ---------- image lightbox ----------
-  function openLightbox(url, caption){
-    lightboxImg.src = url;
-    lightboxImg.alt = caption || '';
-    lightboxCap.textContent = caption || '';
-    lightboxModal.classList.add('active');
-  }
-  function closeLightbox(){ lightboxModal.classList.remove('active'); lightboxImg.src = ''; }
-  lightboxClose.addEventListener('click', closeLightbox);
-  lightboxModal.addEventListener('click', (e)=>{ if(e.target===lightboxModal) closeLightbox(); });
-  lightboxImg.addEventListener('click', closeLightbox);
   guideBtn.addEventListener('click', ()=> openStudyGuide(null, null, null));
   studyGuideBtnMenu.addEventListener('click', ()=> openStudyGuide(null, null, null));
   studyGuideFromPauseBtn.addEventListener('click', ()=> openStudyGuide(null, null, null));
@@ -3851,6 +3789,7 @@
 
   // ---------- manual / dev guide ----------
   applyTheme(currentTheme);
+  applyFont(currentFont);
   themeToggleBtn.addEventListener('click', ()=> applyTheme(currentTheme==='light' ? 'dark' : 'light'));
   // Native (packaged iOS/Android) can't use the web popup flow at all --
   // Google blocks its OAuth popup inside an embedded WebView. Capacitor's
@@ -3879,6 +3818,14 @@
         if(isNativeApp()) await window.Capacitor.Plugins.FirebaseAuthentication.signOut();
         await fbSignOut(fbAuth);
       } catch(err){ console.warn('[Runner Game] Sign-out failed.', err); }
+      return;
+    }
+    // Google only allows sign-in from a real https:// address it knows
+    // about (or the native app) -- a copy opened straight off the desktop
+    // (file://) fails every time with auth/unauthorized-domain, so say so
+    // up front instead of opening a popup that just errors (reported).
+    if(!isNativeApp() && location.protocol==='file:'){
+      alert("Google sign-in isn't available when the game is opened as a file from your computer (file://) — Google only allows it from a hosted web address or the phone app.\n\nEverything else works without signing in; sign-in only adds cross-device sync of your progress and settings.");
       return;
     }
     try {
@@ -3914,7 +3861,14 @@
       // Surfaced directly, not just to the console -- on a real device
       // there's no console to check, and this was genuinely hard to
       // diagnose blind through pasted log excerpts.
-      alert('Sign-in failed: ' + (err && (err.errorMessage || err.message) || err));
+      const code = err && err.code;
+      if(code==='auth/unauthorized-domain'){
+        alert("Sign-in failed: this web address isn't on the Google sign-in allow-list for this app yet (auth/unauthorized-domain). Ask the maintainer to add it in Firebase → Authentication → Settings → Authorized domains. Everything else works without signing in.");
+      } else if(code==='auth/popup-closed-by-user' || code==='auth/cancelled-popup-request'){
+        // They closed the popup themselves -- not an error worth a dialog.
+      } else {
+        alert('Sign-in failed: ' + (err && (err.errorMessage || err.message) || err));
+      }
     }
   });
   manualBtn.addEventListener('click', ()=> manualModal.classList.add('active'));
@@ -3964,6 +3918,7 @@
     }
     renderOptRow(customizeFaceRow, CUSTOMIZE_FACES, 'face', drawCellFace);
     renderOptRow(customizeAccessoryRow, CUSTOMIZE_ACCESSORIES, 'accessory', drawCellAccessory);
+    renderFontRow();
   }
   customizeBtnMenu.addEventListener('click', ()=>{
     customizeDraft = { ...playerCustomization };
@@ -4388,7 +4343,10 @@
     const ranked = mpRankedRoster(roster);
     mpLeaderboardPanel.innerHTML = ranked.map((p,i)=>{
       const isMe = p.pid===mp.playerId;
-      const status = p.done ? '💀' : (p.finishedWin ? '🏆' : `S${p.stageRoman||'I'}`);
+      // `done` is set for EVERY way a race ends (finished, eliminated, quit),
+      // so it has to be checked together with the reason -- previously a
+      // finisher also matched the bare `done` test first and showed 💀.
+      const status = p.done ? ({ finished:'🏆', 'last-standing':'🏁', ended:'🚪' }[p.doneReason] || (p.finishedWin ? '🏆' : '💀')) : `S${p.stageRoman||'I'}`;
       return `<div class="lb-row${isMe?' me':''}"><span><span class="lb-rank">#${i+1}</span>${p.name}${isMe?' (you)':''}</span><span>${status} · ${p.score}</span></div>`;
     }).join('');
   }
@@ -4397,7 +4355,17 @@
       if(pid===mp.playerId) return; // don't toast your own elimination — you already see your own screen change
       if(p.done && !mp.knownDone.has(pid)){
         mp.knownDone.add(pid);
-        mpShowEliminationToast(`💀 ${p.name} is out!`);
+        // Word it by WHY they're done -- `done` also covers reaching the
+        // last stage, and this used to announce the eventual winner as
+        // "out" (reported: "Stephanie is out!" over the Race over screen
+        // that named her the winner). Nothing to announce once the final
+        // result is already up.
+        if(mp.finished) return;
+        const reason = p.doneReason || (p.finishedWin ? 'finished' : 'eliminated');
+        const text = (reason==='finished' || reason==='last-standing') ? `🏁 ${p.name} finished!`
+          : reason==='ended' ? `🚪 ${p.name} left the race`
+          : `💀 ${p.name} is out!`;
+        mpShowEliminationToast(text);
       }
     });
   }
@@ -4576,7 +4544,7 @@
   }
 
   // ---------- init ----------
-  const GAME_VERSION = '2026-09-03-hud-chip-width-fix'; // bump this string whenever you send friends a new copy of the file
+  const GAME_VERSION = '2026-09-10-track-size-light-run-fonts'; // bump this string whenever you send friends a new copy of the file
   console.log('[Runner Game] version', GAME_VERSION);
   document.getElementById('versionTag').textContent = `version ${GAME_VERSION}`;
   manualGlucoseText.innerHTML = `You start with ${GAME_CONFIG.startingGlucose} life. Collect drifting pickups (+${GAME_CONFIG.glucosePickupValue} each) to top it up. Answering a question <b>wrong costs ${GAME_CONFIG.wrongAnswerPenalty}</b>. A rare 💣 bomb costs <b>${GAME_CONFIG.bombDamage}</b> instantly on contact — no question, just avoid it. If life drops below zero, the run ends. (Glucose for Cancer, ATP for Biochemistry — the name changes per theme.)`;
@@ -4585,6 +4553,7 @@
   updateTopInset();
   drawVessel();
   drawPlayer();
+  window.__runnerInitDone = true;
 </script>
 </body>
 </html>
