@@ -2979,7 +2979,7 @@
       SoundFX.wrong();
     }
     mcqExplain.textContent = q.explanation;
-    if(correct && mcqIsGift && quizMode==='runner' && mp.active) renderGiftShop();
+    if(correct && mcqIsGift && quizMode==='runner') renderGiftShop();
     mcqFeedback.style.display = 'block';
     if(quizMode==='runner') updateHUD();
     recordSrsAnswer(q.itemId, q.id, correct);
@@ -3052,6 +3052,7 @@
   // right now at the racer just ahead of or just behind you) or a shield
   // (kept; blocks one incoming grenade). Buying is always optional.
   function renderGiftShop(){
+    mcqGiftShop.style.display = 'block'; // built its content below -- was never actually un-hidden, so the shop silently never appeared after a correct gift answer
     const cost = GAME_CONFIG.giftCost;
     const life = lifeCfg().label;
     const canAfford = glucose > cost; // never let a purchase itself end the run
@@ -5039,15 +5040,57 @@
   // console -- lets anyone see the grenade/shield sequence in a solo run
   // without needing a second racer to throw one.
   if(new URLSearchParams(location.search).has('debug')){
+    // Seeds just enough fake Group Race state for the gift shop's
+    // ranking-based UI (chance-for-me, the two "throw at" targets) to have
+    // real racers to show, WITHOUT touching Firebase -- every write path
+    // (mpSyncMyState, throwGrenade) already no-ops when mp.roomCode is
+    // unset, so this stays inert even though mp.active reads true. Never
+    // runs if a genuine race is already underway (mp.roomCode set).
+    function fakeSoloRaceContext(){
+      if(mp.roomCode) return; // a real race is running -- don't touch it
+      mp.active = true;
+      if(!mp.playerId) mp.playerId = 'debug-me';
+      if(!mp.roster[mp.playerId] || Object.keys(mp.roster).length < 3){
+        // mpRankedRoster recomputes score from these raw stat fields via
+        // mpScore() -- a literal `score` key (what an earlier version of
+        // this seeded) is ignored, which silently tied all three at 0 and
+        // hid one of the two "throw at" targets.
+        mp.roster = {
+          [mp.playerId]: { name:'You (debug)', correctCount:myCorrectCount, incorrectCount:myIncorrectCount, glucose:Math.max(0,glucose), stageIndex, bonusScore:myBonusScore, done:false },
+          'debug-ahead':  { name:'Debug Ahead',  correctCount:20, incorrectCount:0, glucose:100, stageIndex:2, bonusScore:0, done:false },
+          'debug-behind': { name:'Debug Behind', correctCount:0,  incorrectCount:5, glucose:10,  stageIndex:0, bonusScore:0, done:false },
+        };
+      }
+      updateGiftHUD();
+    }
     window.__runnerDebug = {
       // simulateGrenade(shieldsHeld): during a run, stages an incoming grenade as if a rival threw it.
       simulateGrenade(shields){
         if(screenState!=='running') return 'Start a run first (Runner or Custom run), then call this while it is running.';
+        fakeSoloRaceContext();
         mp.shields = Math.max(0, shields|0);
+        updateGiftHUD();
         showIncomingGrenade({ fromName:'Debug rival' });
         return 'Incoming grenade staged.';
       },
-      spawnGift(){ if(screenState!=='running') return 'Start a run first.'; spawnGiftBlock(); return 'Gift block spawned.'; },
+      // spawnGift(): also fakes two rival racers (see fakeSoloRaceContext)
+      // so answering it correctly shows the real shop with real "throw at"
+      // targets, not just a shield-only preview.
+      spawnGift(){
+        if(screenState!=='running') return 'Start a run first.';
+        fakeSoloRaceContext();
+        spawnGiftBlock();
+        return 'Gift block spawned -- steer into it, answer correctly, and the shop (shield or grenade, with two fake targets) will show under the explanation.';
+      },
+      // Drops the just-spawned gift block right in front of you on your
+      // current lane, so you don't have to actually steer into it --
+      // handy for automated checks of what happens after.
+      forceGiftCollision(){
+        const g = entities.find(e=>e.type==='gift' && !e.hit);
+        if(!g) return 'No un-hit gift block on screen -- call spawnGift() first.';
+        g.lane = player.targetLane; g.x = PLAYER_X + 20;
+        return 'Moved onto your lane -- it should open next frame.';
+      },
     };
     console.log('[Runner Game] debug helpers: window.__runnerDebug.simulateGrenade(shields), .spawnGift()');
   }
