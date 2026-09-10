@@ -661,7 +661,7 @@
     bombSpawnBaseMs: 800,        // bomb spawn interval — base + random(0..rand) -- widened alongside obstacleSpawn* above
     bombSpawnRandMs: 1600,
     scoreCorrectWeight: 50,    // Group Race ranking score = correct*this - incorrect*this + life*this + stageIndex*stageWeight
-    scoreIncorrectWeight: 50,
+    scoreIncorrectWeight: 35,
     scoreLifeWeight: 0,
     stageWeight: 300,          // added per stage reached (stageIndex is 0-based, so Stage I contributes 0)
     streakBonusEvery: 3,       // award a bonus every Nth correct answer IN A ROW (resets to 0 on any wrong answer)
