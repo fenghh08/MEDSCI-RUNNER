@@ -40,6 +40,8 @@
   .tab{ font-family:var(--mono); font-size:13px; padding:9px 18px; border-radius:20px;
     border:1px solid var(--panel-line); background:var(--panel); color:var(--hud-dim); cursor:pointer; }
   .tab.active{ background:var(--membrane); color:#1a0508; border-color:var(--membrane); font-weight:700; }
+  .tab #queueTabBadge{ color:var(--membrane); font-weight:700; }
+  .tab.active #queueTabBadge{ color:#1a0508; }
 
   .layout{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:20px; align-items:start; }
   @media (max-width:880px){ .layout{ grid-template-columns:1fr; } }
@@ -109,7 +111,10 @@
     border-radius:8px; padding:8px 10px; font-size:11px; margin-bottom:12px; line-height:1.5; display:none; }
   .files-needed.show{ display:block; }
 
-  .batch{ margin-top:26px; }
+  .batch{ background:var(--panel); border:1px solid var(--panel-line); border-radius:14px; padding:20px; margin-top:20px; }
+  .batch:first-child{ margin-top:0; }
+  .csv-picker-note{ background:rgba(255,93,143,.08); border:1px solid var(--panel-line); border-radius:10px;
+    padding:10px 14px; font-size:11.5px; line-height:1.6; color:var(--hud-ink); margin-top:18px; }
   .batch h2{ font-family:var(--display); font-style:italic; font-weight:400; font-size:20px; margin:0 0 4px; }
   .batch .card-sub{ color:var(--hud-dim); font-size:11.5px; margin:0 0 14px; }
   .batch-item{ background:var(--panel); border:1px solid var(--panel-line); border-radius:10px; padding:10px 14px;
@@ -241,6 +246,8 @@
     <button class="tab active" id="tabItem">📄 New item</button>
     <button class="tab" id="tabQuestion">❓ New question</button>
     <button class="tab" id="tabCourse">📚 New course</button>
+    <button class="tab" id="tabQueue">👥 Team queue<span id="queueTabBadge"></span></button>
+    <button class="tab" id="tabMaintainer">🛠 Maintainer</button>
   </div>
 
   <!-- ================= STRUCTURE BROWSER ================= -->
@@ -601,8 +608,12 @@
       </div>
     </div>
 
+    <div class="csv-picker-note">
+      <b>Two ways to bulk-import questions — pick one:</b> adding several questions to <b>one item you already picked</b>? Use the card below. Adding or editing questions across <b>many items, topics, or lectures</b> in a single paste? Skip down to the second card instead.
+    </div>
+
     <div class="card" style="margin-top:16px;">
-      <h2>📄 Bulk-add questions from CSV — for one existing item at a time</h2>
+      <h2>📄 Bulk-add to ONE item</h2>
       <p class="card-sub">Pick the item these questions belong to, then paste CSV text (with a header row) covering just the question fields — course/topic/item are already fixed by your pick above, so the CSV doesn't need to repeat them. Columns, any order, matched by name: <b>prompt, optionA, optionB, optionC, optionD, correct</b> (A/B/C/D), <b>explanation, hashtags</b> (separate multiple with a semicolon). Each valid row becomes its own entry in the queue below, exactly as if you'd added it one at a time.</p>
       <p class="card-sub">Prefer filling this in as a spreadsheet? Use the <a href="https://docs.google.com/spreadsheets/d/1BlL64j0qI--hMyGCwRw3hcRho6tvo_-CfkiIAf01ZG4/edit?usp=sharing" target="_blank" rel="noopener" style="color:var(--membrane);">question-adding template sheet</a> — fill it in, <i>File → Download → Comma Separated Values (.csv)</i>, then paste the contents here.</p>
       <label class="field">
@@ -621,7 +632,7 @@
     </div>
 
     <div class="card" style="margin-top:16px;">
-      <h2>📄 Add or edit questions by lecture — mixed courses/topics/items in one paste</h2>
+      <h2>📄 Bulk-add/edit across MANY items or lectures</h2>
       <p class="card-sub">For a whole lecture's worth of questions at once, even when they land on different items, topics, or courses — course/topic/item are given per row instead of picked once. <b>If a row's <code>questionId</code> matches a question exported below, that question is updated in place</b> (its course/lecture/topic/item columns are ignored — it stays exactly where it already lives, so a stray edit can't accidentally move it). <b>A blank <code>questionId</code> creates a new question</b>, and <b>if its item doesn't already exist, the item is created automatically</b> too. Add optional <code>description</code>, <code>mechanism</code>, and <code>funfacts</code> (semicolon-separated) columns to fill a new item in fully instead of leaving it as a bare label — only the first row for a given item needs them. A row's <code>lecture</code> column (e.g. <code>L12</code>) sets that specific lecture as the citation for any new item it creates — leave it blank to fall back to the Course &amp; class default below instead. <b>Nothing is ever deleted by this import</b>, even if a row is removed — deleting stays a deliberate action elsewhere in this tool.</p>
       <p class="card-sub">Prefer a spreadsheet? The <a href="https://docs.google.com/spreadsheets/d/1BlL64j0qI--hMyGCwRw3hcRho6tvo_-CfkiIAf01ZG4/edit?usp=sharing" target="_blank" rel="noopener" style="color:var(--membrane);">question-adding template sheet</a> works here too — just add the same columns as the export below before the existing ones, fill those in per row, then export and paste as usual.</p>
       <label class="field">
@@ -745,17 +756,20 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   </div>
 
   <!-- ================= TEAM QUEUE ================= -->
-  <div class="batch">
-    <h2>Team queue — synced live with everyone else</h2>
-    <p class="card-sub" id="queueSubtext">Add several items/questions/courses above — they show up here for everyone working on this, in real time. Once Eason's merged something into game-data.js, remove it here so the queue doesn't pile up.</p>
-    <div id="batchList"></div>
-    <div class="btn-row">
-      <button class="primary" id="batchCopyAll">Copy entire queue</button>
-      <button class="secondary" id="batchDownload">Download as .txt</button>
+  <div id="queueSection" style="display:none;">
+    <div class="batch">
+      <h2>Team queue — synced live with everyone else</h2>
+      <p class="card-sub" id="queueSubtext">Add several items/questions/courses above — they show up here for everyone working on this, in real time. Once Eason's merged something into game-data.js, remove it here so the queue doesn't pile up.</p>
+      <div id="batchList"></div>
+      <div class="btn-row">
+        <button class="primary" id="batchCopyAll">Copy entire queue</button>
+        <button class="secondary" id="batchDownload">Download as .txt</button>
+      </div>
     </div>
   </div>
 
-  <!-- ================= MAINTAINER: MERGE INTO game-data.js ================= -->
+  <!-- ================= MAINTAINER: MERGE INTO game-data.js + ANALYTICS ================= -->
+  <div id="maintainerSection" style="display:none;">
   <div class="batch" style="border-color:var(--good);">
     <h2>🛠 Merge the queue into a ready-to-paste game-data.js</h2>
     <p class="card-sub">For whoever actually maintains game-data.js. Takes everything currently in the queue above and folds it into a full copy of the game data — courses, topics, and items included — so you copy once and replace the whole file, instead of finding and pasting each section by hand. Nothing here writes to any file directly; you still paste the result over game-data.js yourself.</p>
@@ -810,6 +824,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       </div>
       <div id="analyticsTableWrap" style="margin-top:12px;overflow-x:auto;"></div>
     </div>
+  </div>
   </div>
 </div>
 
@@ -2795,18 +2810,27 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   const itemSection = document.getElementById('itemSection');
   const questionSection = document.getElementById('questionSection');
   const courseSection = document.getElementById('courseSection');
+  const tabQueue = document.getElementById('tabQueue');
+  const tabMaintainer = document.getElementById('tabMaintainer');
+  const queueSection = document.getElementById('queueSection');
+  const maintainerSection = document.getElementById('maintainerSection');
+  const queueTabBadge = document.getElementById('queueTabBadge');
   function showTab(which){
-    [tabStructure,tabItem,tabQuestion,tabCourse].forEach(t=>t.classList.remove('active'));
-    [structureSection,itemSection,questionSection,courseSection].forEach(s=>s.style.display='none');
+    [tabStructure,tabItem,tabQuestion,tabCourse,tabQueue,tabMaintainer].forEach(t=>t.classList.remove('active'));
+    [structureSection,itemSection,questionSection,courseSection,queueSection,maintainerSection].forEach(s=>s.style.display='none');
     if(which==='structure'){ tabStructure.classList.add('active'); structureSection.style.display='block'; renderStructureList(); }
     if(which==='item'){ tabItem.classList.add('active'); itemSection.style.display='block'; }
     if(which==='question'){ tabQuestion.classList.add('active'); questionSection.style.display='block'; }
     if(which==='course'){ tabCourse.classList.add('active'); courseSection.style.display='block'; }
+    if(which==='queue'){ tabQueue.classList.add('active'); queueSection.style.display='block'; }
+    if(which==='maintainer'){ tabMaintainer.classList.add('active'); maintainerSection.style.display='block'; }
   }
   tabStructure.addEventListener('click', ()=>showTab('structure'));
   tabItem.addEventListener('click', ()=>showTab('item'));
   tabQuestion.addEventListener('click', ()=>showTab('question'));
   tabCourse.addEventListener('click', ()=>showTab('course'));
+  tabQueue.addEventListener('click', ()=>showTab('queue'));
+  tabMaintainer.addEventListener('click', ()=>showTab('maintainer'));
 
   // ================= STRUCTURE BROWSER =================
   const structureList = document.getElementById('structureList');
@@ -3236,7 +3260,12 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       renderBatch();
     }
   }
+  function updateQueueTabBadge(){
+    const n = Object.keys(batch).length;
+    queueTabBadge.textContent = n ? ` (${n})` : '';
+  }
   function renderBatch(){
+    updateQueueTabBadge();
     const entries = Object.entries(batch).sort((a,b)=> (a[1].createdAt||0) - (b[1].createdAt||0));
     if(!entries.length){
       batchList.innerHTML = `<p class="batch-empty">Nothing in the queue yet — fill in a form above and click "Add to batch".</p>`;

@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import FirebaseCore
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,6 +8,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Required before any Firebase SDK call (Auth included) -- without
+        // this, GoogleService-Info.plist being present in the project isn't
+        // enough on its own, the native SDK never actually reads it.
+        FirebaseApp.configure()
         // Override point for customization after application launch.
         return true
     }

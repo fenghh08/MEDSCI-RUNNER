@@ -430,6 +430,7 @@
           <button class="secondary" id="courseListBtnMenu">🎓 Browse by lecture</button>
           <button class="secondary" id="customizeBtnMenu">🎨 Customise</button>
           <button class="secondary" id="themeToggleBtn">🌙 Dark</button>
+          <button class="secondary" id="signInBtn" style="display:none;">👤 Sign in</button>
         </div>
         <div class="cancer-grid" id="cancerGrid"></div>
         <button class="pick-card" id="practiceModeCard" style="margin:10px auto 0;max-width:460px;display:block;text-align:center;">
@@ -816,19 +817,25 @@
               <button class="secondary" id="contributeFlagBtn" style="font-size:12px;padding:6px 14px;">🚩 Flag an issue</button>
             </div>
             <div id="contributeFormWrap" style="display:none;margin-top:12px;max-width:380px;">
-              <label class="field">
-                <span class="fl-label" id="contributeFormLabel">Your fun fact</span>
-                <textarea id="contributeFormText" rows="3" style="width:100%;font-family:var(--mono);font-size:13px;background:var(--bg-1);color:var(--hud-ink);border:1px solid var(--panel-line);border-radius:8px;padding:8px 10px;resize:vertical;"></textarea>
-              </label>
-              <label class="field">
-                <span class="fl-label">Your name (optional)</span>
-                <input type="text" id="contributeNameInput" placeholder="e.g. Eason" style="width:100%;font-family:var(--mono);font-size:13px;background:var(--bg-1);color:var(--hud-ink);border:1px solid var(--panel-line);border-radius:8px;padding:8px 10px;">
-              </label>
-              <div class="btn-row" style="justify-content:flex-start;">
-                <button class="secondary" id="contributeCancelBtn">Cancel</button>
-                <button class="primary" id="contributeSubmitBtn">Submit</button>
+              <div id="contributeInputWrap">
+                <label class="field">
+                  <span class="fl-label" id="contributeFormLabel">Your fun fact</span>
+                  <textarea id="contributeFormText" rows="3" style="width:100%;font-family:var(--mono);font-size:13px;background:var(--bg-1);color:var(--hud-ink);border:1px solid var(--panel-line);border-radius:8px;padding:8px 10px;resize:vertical;"></textarea>
+                </label>
+                <label class="field">
+                  <span class="fl-label">Your name (optional)</span>
+                  <input type="text" id="contributeNameInput" placeholder="e.g. Eason" style="width:100%;font-family:var(--mono);font-size:13px;background:var(--bg-1);color:var(--hud-ink);border:1px solid var(--panel-line);border-radius:8px;padding:8px 10px;">
+                </label>
+                <div class="btn-row" style="justify-content:flex-start;">
+                  <button class="secondary" id="contributeCancelBtn">Cancel</button>
+                  <button class="primary" id="contributeSubmitBtn">Submit</button>
+                </div>
+                <p class="p-desc" id="contributeStatus" style="margin:8px 0 0;font-size:11.5px;"></p>
               </div>
-              <p class="p-desc" id="contributeStatus" style="margin:8px 0 0;font-size:11.5px;"></p>
+              <div id="contributeSuccessWrap" style="display:none;text-align:center;padding:14px 10px;">
+                <p class="p-desc" style="margin:0 0 12px;color:var(--good);font-size:13px;font-weight:700;">✓ Saved — a maintainer will review this.</p>
+                <button class="secondary" id="contributeDoneBtn">Done</button>
+              </div>
             </div>
           </div>
         </div>
@@ -900,6 +907,7 @@
   function savePlayerCustomization(c){
     playerCustomization = c;
     try { localStorage.setItem('playerCustomization', JSON.stringify(c)); } catch(e){ /* fine — just won't persist across a reload in browsers that block file:// storage */ }
+    syncPush('playerCustomization', c);
   }
 
   // ---------- light/dark theme ----------
@@ -916,6 +924,7 @@
     document.documentElement.dataset.theme = theme;
     if(themeToggleBtn) themeToggleBtn.textContent = theme==='light' ? '☀️ Light' : '🌙 Dark';
     try { localStorage.setItem('theme', theme); } catch(e){ /* fine — just won't persist */ }
+    syncPush('theme', theme);
   }
   // Browsers block audio until a real user gesture happens on the page —
   // creating the AudioContext eagerly at load time would just leave it
@@ -992,8 +1001,11 @@
    whether Group Race is actually usable.
    ====================================================================== */
   let initializeApp, getDatabase, ref, set, get, fbUpdate, onValue, off, runTransaction, onDisconnect, remove, fbPush;
-  let fbApp, fbdb;
+  let getAuth, initializeAuth, GoogleAuthProvider, signInWithPopup, signInWithCredential, fbSignOut, onAuthStateChanged, browserLocalPersistence;
+  let fbApp, fbdb, fbAuth;
   let firebaseReady = false;
+  let authReady = false; // separate from firebaseReady -- an auth-SDK failure must never disable Group Race/contributions/analytics, which only need the database
+  let currentUser = null;
   let serverTimeOffset = 0;
   function serverNow(){ return Date.now() + serverTimeOffset; }
 
@@ -1028,8 +1040,101 @@
     } catch(err){
       console.warn('[Runner Game] Group Race is unavailable — could not reach the Firebase SDK (no internet, or gstatic.com is blocked on this network). Solo Runner, Study & Practice, and Custom run are unaffected.', err);
       firebaseReady = false;
+      return; // no fbApp to hang auth off of either -- nothing left to try below
+    }
+    // Auth is loaded and initialized independently of the block above --
+    // a failure here (SDK blocked, etc.) only means sign-in/sync stay
+    // unavailable, it must NOT affect firebaseReady or anything that only
+    // needs the database (Group Race, contributions, analytics all work
+    // fully signed-out).
+    try {
+      const authMod = await import('https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js');
+      ({ getAuth, initializeAuth, GoogleAuthProvider, signInWithPopup, signInWithCredential, signOut: fbSignOut, onAuthStateChanged, browserLocalPersistence } = authMod);
+      // getAuth() on native proactively loads a hidden auth-handshake
+      // iframe (https://<authDomain>/__/auth/iframe) as part of its own
+      // init, needed only for popup/redirect flows -- that handshake can
+      // never complete from Capacitor's capacitor://localhost origin, so
+      // it just hangs forever, and because Auth queues every other call
+      // (setPersistence, signInWithCredential, ...) behind its own init
+      // promise, EVERYTHING hung behind it, not just that one request.
+      // initializeAuth() lets native skip the popup/redirect resolver
+      // entirely (native sign-in never uses it anyway -- that's the whole
+      // point of the plugin) and set localStorage persistence in the same
+      // step, so nothing here ever waits on that handshake. The web path
+      // keeps plain getAuth() since signInWithPopup there genuinely needs
+      // the resolver.
+      fbAuth = isNativeApp()
+        ? initializeAuth(fbApp, { persistence: browserLocalPersistence })
+        : getAuth(fbApp);
+      authReady = true;
+      signInBtn.style.display = 'inline-block';
+      onAuthStateChanged(fbAuth, handleAuthStateChanged);
+    } catch(err){
+      console.warn('[Runner Game] Sign-in is unavailable — could not reach the Firebase Auth SDK. Everything else, including Group Race, is unaffected.', err);
+      authReady = false;
     }
   })();
+
+  /* ======================================================================
+     ACCOUNT SYNC — srsState/playerCustomization/theme follow a signed-in
+     player across devices, at `users/<uid>/sync/<key>` in the same
+     Realtime Database Group Race already uses. Google web sign-in only for
+     now (works in a browser tab; the packaged app needs a native Google
+     Sign-In plugin instead, since Google blocks its OAuth popup inside an
+     embedded WebView -- not handled here). Signing out never touches
+     localStorage -- everything keeps working exactly as before sync
+     existed, just un-synced again.
+     ====================================================================== */
+  let syncListenerRef = null;
+  // No-op whenever signed out -- every local setter below calls this
+  // unconditionally, so "sync while signed in, don't otherwise" lives in
+  // exactly one place rather than being an if-check scattered at each
+  // call site.
+  function syncPush(key, value){
+    if(!currentUser || !firebaseReady) return;
+    set(ref(fbdb, `users/${currentUser.uid}/sync/${key}`), value).catch(()=>{});
+  }
+  // srsState is a growing dictionary keyed by itemId::qId, and every entry
+  // already carries lastSeen -- merging per-entry by whichever side is
+  // newer is what actually protects review history if someone studied
+  // offline on one device before their next sync, instead of one whole
+  // device's history clobbering the other's on every update.
+  function mergeSrsState(local, remote){
+    const merged = { ...(local||{}) };
+    Object.entries(remote||{}).forEach(([key, rEntry])=>{
+      const lEntry = merged[key];
+      if(!lEntry || (rEntry.lastSeen||0) > (lEntry.lastSeen||0)) merged[key] = rEntry;
+    });
+    return merged;
+  }
+  // Runs once right after sign-in (with whatever was already at
+  // users/<uid>/sync) and again on every live update from another device.
+  // Reuses the exact same setter functions normal local saves use, so
+  // "persist locally + push to Firebase" only has one implementation.
+  function applySyncedData(remote){
+    remote = remote || {};
+    saveSrsState(mergeSrsState(loadSrsState(), remote.srsState));
+    savePlayerCustomization(remote.playerCustomization || playerCustomization);
+    applyTheme(remote.theme || currentTheme);
+    if(customizeView.style.display === 'block') renderCustomizeScreen();
+    if(reviewView.style.display === 'block') refreshReviewScreen();
+  }
+  function handleAuthStateChanged(user){
+    currentUser = user;
+    if(syncListenerRef){ off(syncListenerRef); syncListenerRef = null; }
+    if(user){
+      console.log('[SignInDebug] 4: handleAuthStateChanged fired with user', user.uid);
+      signInBtn.textContent = `👤 ${(user.displayName||'Signed in').split(' ')[0]}`;
+      const path = ref(fbdb, `users/${user.uid}/sync`);
+      get(path).then(snap=>{
+        applySyncedData(snap.val());
+        syncListenerRef = path;
+        onValue(path, snap2=> applySyncedData(snap2.val()));
+      }).catch(()=>{});
+    } else {
+      signInBtn.textContent = '👤 Sign in';
+    }
+  }
 
 /* ======================================================================
    CONTENT — everything data-shaped (topics, courses, themes, questions,
@@ -1352,6 +1457,7 @@
   const courseListBtnMenu = document.getElementById('courseListBtnMenu');
   const customizeBtnMenu = document.getElementById('customizeBtnMenu');
   const themeToggleBtn = document.getElementById('themeToggleBtn');
+  const signInBtn = document.getElementById('signInBtn');
   const customizeView = document.getElementById('customizeView');
   const customizePreviewCanvas = document.getElementById('customizePreviewCanvas');
   const customizeColorRow = document.getElementById('customizeColorRow');
@@ -1507,6 +1613,9 @@
   const contributeNoteBtn = document.getElementById('contributeNoteBtn');
   const contributeFlagBtn = document.getElementById('contributeFlagBtn');
   const contributeFormWrap = document.getElementById('contributeFormWrap');
+  const contributeInputWrap = document.getElementById('contributeInputWrap');
+  const contributeSuccessWrap = document.getElementById('contributeSuccessWrap');
+  const contributeDoneBtn = document.getElementById('contributeDoneBtn');
   const contributeFormLabel = document.getElementById('contributeFormLabel');
   const contributeFormText = document.getElementById('contributeFormText');
   const contributeNameInput = document.getElementById('contributeNameInput');
@@ -2546,6 +2655,7 @@
   }
   function saveSrsState(state){
     try { localStorage.setItem('srsState', JSON.stringify(state)); } catch(e){ /* fine -- just won't persist across a reload in browsers that block file:// storage */ }
+    syncPush('srsState', state);
   }
   // Called from answerMCQ() for EVERY question answered anywhere in the
   // game (Runner, Group Race, Study & Practice all funnel through it) --
@@ -3346,6 +3456,8 @@
     contributeMode = mode;
     contributeFormText.value = '';
     contributeStatus.textContent = '';
+    contributeInputWrap.style.display = 'block';
+    contributeSuccessWrap.style.display = 'none';
     contributeFormLabel.textContent = mode==='fact' ? 'Your fun fact' : mode==='note' ? 'Your note or study tip' : "What's wrong?";
     contributeFormText.placeholder = mode==='flag' ? 'e.g. "This explanation doesn’t match the mechanism described above."' : '';
     contributeFormWrap.style.display = 'block';
@@ -3360,6 +3472,7 @@
   contributeNoteBtn.addEventListener('click', ()=> openContributeForm('note'));
   contributeFlagBtn.addEventListener('click', ()=> openContributeForm('flag'));
   contributeCancelBtn.addEventListener('click', closeContributeForm);
+  contributeDoneBtn.addEventListener('click', closeContributeForm);
   contributeSubmitBtn.addEventListener('click', async ()=>{
     if(!currentItemDetail || !contributeMode) return;
     const text = contributeFormText.value.trim();
@@ -3394,8 +3507,8 @@
       entry.contributorName = name;
       entry.createdAt = Date.now();
       await fbPush(ref(fbdb, 'contributions'), entry);
-      contributeStatus.textContent = '✓ Thanks — a maintainer will review this.';
-      setTimeout(closeContributeForm, 1500);
+      contributeInputWrap.style.display = 'none';
+      contributeSuccessWrap.style.display = 'block';
     } catch(err){
       contributeStatus.textContent = 'Couldn’t submit — check your connection and try again.';
     } finally {
@@ -3739,6 +3852,71 @@
   // ---------- manual / dev guide ----------
   applyTheme(currentTheme);
   themeToggleBtn.addEventListener('click', ()=> applyTheme(currentTheme==='light' ? 'dark' : 'light'));
+  // Native (packaged iOS/Android) can't use the web popup flow at all --
+  // Google blocks its OAuth popup inside an embedded WebView. Capacitor's
+  // native runtime auto-registers every installed plugin onto
+  // window.Capacitor.Plugins at runtime inside the real app shell (no
+  // import/bundler needed, same reasoning as the dynamic Firebase SDK
+  // imports above), so this only needs a plain runtime check -- in a
+  // normal browser tab window.Capacitor is simply undefined and this
+  // always falls through to the existing signInWithPopup path.
+  // @capacitor-firebase/authentication keeps the web Firebase Auth SDK's
+  // own state in sync automatically once a native sign-in completes, so
+  // handleAuthStateChanged()/applySyncedData() below need no changes at
+  // all to support this -- they already just react to "signed in."
+  function isNativeApp(){
+    return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  }
+  signInBtn.addEventListener('click', async ()=>{
+    if(!authReady) return;
+    if(currentUser){
+      if(!confirm('Sign out? Your progress stays saved on this device either way — signing out never deletes anything local.')) return;
+      try {
+        // The native plugin's own sign-out only clears its OWN (separate)
+        // native session -- it doesn't touch the web Firebase Auth SDK's
+        // state, so that has to be signed out explicitly too, on both
+        // platforms, or onAuthStateChanged below would never fire.
+        if(isNativeApp()) await window.Capacitor.Plugins.FirebaseAuthentication.signOut();
+        await fbSignOut(fbAuth);
+      } catch(err){ console.warn('[Runner Game] Sign-out failed.', err); }
+      return;
+    }
+    try {
+      if(isNativeApp()){
+        // signInWithGoogle() only completes the sign-in on the NATIVE
+        // Firebase Auth SDK, a separate session from the web/JS SDK
+        // running in this WebView (which is what onAuthStateChanged,
+        // handleAuthStateChanged, and every sync function are wired to).
+        // The returned OAuth credential has to be handed to the web SDK
+        // explicitly via signInWithCredential -- without this the native
+        // sign-in silently "succeeds" but the UI/sync layer never learns
+        // about it, which is exactly the bug this comment is here to
+        // prevent reintroducing.
+        const result = await window.Capacitor.Plugins.FirebaseAuthentication.signInWithGoogle();
+        const idToken = result && result.credential && result.credential.idToken;
+        const accessToken = result && result.credential && result.credential.accessToken;
+        console.log('[SignInDebug] 1: native result', { hasUser: !!(result && result.user), idToken, accessToken });
+        if(!idToken && !accessToken) throw new Error('No credential returned from native Google sign-in.');
+        const cred = GoogleAuthProvider.credential(idToken || null, accessToken || null);
+        console.log('[SignInDebug] 2: calling signInWithCredential with', cred);
+        // A hang here (network stall reaching Firebase's token endpoint,
+        // or the promise never settling for some other reason) would
+        // otherwise look identical to silence -- race it against a timeout
+        // so that failure mode becomes a visible, debuggable error too.
+        const timeout = new Promise((_, reject)=> setTimeout(()=> reject(new Error('signInWithCredential timed out after 10s')), 10000));
+        const cred_result = await Promise.race([signInWithCredential(fbAuth, cred), timeout]);
+        console.log('[SignInDebug] 3: signInWithCredential resolved', cred_result && cred_result.user && cred_result.user.uid, 'fbAuth.currentUser=', fbAuth && fbAuth.currentUser);
+      } else {
+        await signInWithPopup(fbAuth, new GoogleAuthProvider());
+      }
+    } catch(err){
+      console.warn('[Runner Game] Sign-in failed or was cancelled.', err);
+      // Surfaced directly, not just to the console -- on a real device
+      // there's no console to check, and this was genuinely hard to
+      // diagnose blind through pasted log excerpts.
+      alert('Sign-in failed: ' + (err && (err.errorMessage || err.message) || err));
+    }
+  });
   manualBtn.addEventListener('click', ()=> manualModal.classList.add('active'));
   manualClose.addEventListener('click', ()=> manualModal.classList.remove('active'));
   manualFromPauseBtn.addEventListener('click', ()=> manualModal.classList.add('active'));
