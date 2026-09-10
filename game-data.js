@@ -668,6 +668,16 @@
     streakBonusAmount: 0,     // life gained when a streak bonus triggers
     streakBonusAppliesToLife: true, // set false to stop the streak bonus from also topping up life -- the life-award code below stays intact either way, this just gates it
     streakBonusScoreAmount: 150, // flat score points awarded when a streak bonus triggers (on top of the usual correct/incorrect/life/stage weights)
+    speedPresets: { slow:0.75, normal:1, fast:1.25 }, // Customise → Game speed: multiplies baseSpeed/maxSpeed (a Group Race uses the host's pick for everyone)
+    bombIntervalByDifficulty: { easy:1.5, medium:1, hard:0.7 }, // bomb spawn interval multiplier per stage difficulty (easy = fewer bombs)
+    // ---- Group Race gifts (grenades & shields) ----
+    giftUnlockShare: 0.2,      // gift questions start once this share of racers has reached Stage II
+    giftSpawnBaseMs: 7000,     // a gift-question block is ROLLED for every base + random(0..rand) ms ...
+    giftSpawnRandMs: 6000,
+    giftChanceMin: 0.3,        // ... and appears with this chance for the racer in 1st place ...
+    giftChanceMax: 0.85,       // ... rising to this for whoever is last -- falling behind gets you more gifts
+    giftCost: 25,              // life spent to buy a grenade or a shield after answering a gift question correctly
+    grenadeDamage: 40,         // life an unshielded target loses when a grenade lands (same as a bomb)
   };
 
 /* ======================================================================
@@ -4621,29 +4631,30 @@
 
 /* ======================================================================
    STAGES — per course. Each stage has correct-answer requirements (reset
-   each stage) and a narrative shown on the transition screen before that
-   stage begins.
+   each stage), a difficulty ('easy'/'medium'/'hard' — questions tagged with
+   it are served first, and bomb frequency scales with it), and a narrative
+   shown on the transition screen before that stage begins.
    ====================================================================== */
   const STAGES = {
     'MEDS3002': [
       /* "scenario" is patient-facing narrative — this is also where a real
-         case study can be dropped in later (per stage). */
-      { n:1, roman:'I', requirements:{ genetics:3, immunology:3, pharmacology:3, oncology:3 },
+         case study can be dropped in later (per stage). Three stages, one
+         per difficulty: questions tagged with the stage's difficulty are
+         served first, untagged ones count as medium. */
+      { n:1, roman:'I', difficulty:'easy', requirements:{ genetics:3, immunology:3, pharmacology:3, oncology:3 },
         scenario:"Patient presents with fatigue and unexplained bruising. Bloodwork shows an abnormal white cell count — the care team orders genetic testing to find out exactly what's driving it." },
-      { n:2, roman:'II', requirements:{ genetics:5, immunology:10 },
-        scenario:"The genetic picture is in. Now the patient's own immune system is in the fight — how well it can recognise and respond to the disease will shape what comes next." },
-      { n:3, roman:'III', requirements:{ genetics:3, immunology:8, pharmacology:10 },
-        scenario:"With the genetics and immunology understood, the patient starts treatment. Which drugs will actually work against this specific leukemia?" },
-      { n:4, roman:'IV', requirements:{ genetics:3, immunology:5, pharmacology:7, oncology:10 },
+      { n:2, roman:'II', difficulty:'medium', requirements:{ genetics:4, immunology:8, pharmacology:5 },
+        scenario:"The genetic picture is in. Now the patient's own immune system is in the fight and treatment is about to start — how well the body recognises the disease, and which drugs will actually work against it, shape what comes next." },
+      { n:3, roman:'III', difficulty:'hard', requirements:{ genetics:3, immunology:6, pharmacology:8, oncology:8 },
         scenario:"The patient is now deep into treatment. Staging, complications, and what happens next define the road ahead." },
     ],
     // Deliberately short right now — MEDS2003 only has a handful of
     // seed questions so far. Expand requirements as you add more content
     // (see the contributor tool or dev notes).
     'MEDS2003': [
-      { n:1, roman:'I', requirements:{ metabolism:2 },
+      { n:1, roman:'I', difficulty:'easy', requirements:{ metabolism:2 },
         scenario:"You're tracing how a cell fuels itself — starting with how it handles glucose and energy production." },
-      { n:2, roman:'II', requirements:{ metabolism:1, molecularBiology:1 },
+      { n:2, roman:'II', difficulty:'medium', requirements:{ metabolism:1, molecularBiology:1 },
         scenario:"From metabolism to the molecular machinery that reads and copies the genome — the next layer of the picture." },
     ],
   };
