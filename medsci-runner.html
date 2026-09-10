@@ -144,7 +144,13 @@
     background:var(--backdrop); padding:14px 18px; text-align:center; }
   #tutorialCaptionBar .tc-title{ font-family:var(--display); font-style:italic; font-size:17px; color:var(--ov-ink); margin:0 0 4px; }
   #tutorialCaptionBar .tc-caption{ font-size:12.5px; line-height:1.5; color:var(--ov-dim); max-width:520px; margin:0 auto 10px; }
+  #tutorialCaptionBar .tc-stage-chips{ display:none; gap:8px; justify-content:center; flex-wrap:wrap; margin:0 0 10px; }
   #tutorialCaptionBar .tc-dots{ display:flex; gap:5px; justify-content:center; margin-bottom:10px; }
+  /* Spotlight: the HUD element(s) a step is talking about stay full
+     brightness, everything else in the HUD dims and desaturates -- makes
+     it obvious at a glance which number the caption below is pointing at. */
+  .hud-block, .hud-block *{ transition:opacity .25s, filter .25s; }
+  .tc-dim{ opacity:.32; filter:grayscale(85%); }
   #tutorialCaptionBar .tc-dot{ width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,.25); }
   #tutorialCaptionBar .tc-dot.on{ background:var(--membrane); }
   #tutorialCloseBtn{ position:absolute; top:12px; right:14px; z-index:25; background:var(--hud-block-bg); border:1px solid rgba(255,93,143,.3);
@@ -483,6 +489,7 @@
     <div id="tutorialCaptionBar">
       <div class="tc-title" id="tutorialTitle">—</div>
       <div class="tc-caption" id="tutorialCaption"></div>
+      <div class="tc-stage-chips" id="tutorialStageChips"></div>
       <div class="tc-dots" id="tutorialDots"></div>
       <div class="btn-row" style="justify-content:center;">
         <button class="secondary" id="tutorialBackBtn">← Back</button>
@@ -1658,6 +1665,7 @@
   const tutorialTitle = document.getElementById('tutorialTitle');
   const tutorialCaption = document.getElementById('tutorialCaption');
   const tutorialDots = document.getElementById('tutorialDots');
+  const tutorialStageChips = document.getElementById('tutorialStageChips');
   const tutorialBackBtn = document.getElementById('tutorialBackBtn');
   const tutorialSkipBtn = document.getElementById('tutorialSkipBtn');
   const tutorialNextBtn = document.getElementById('tutorialNextBtn');
@@ -2607,13 +2615,45 @@
       demo:{ type:'glucose', lane:0, outcome:'collect' } },
     { title:'Bombs', caption:()=>`Spiky and red means danger. Touching one costs ${GAME_CONFIG.bombDamage} life instantly — no question, no warning. You don't have to do anything to avoid it — just don't be in its lane, like the cell isn't here.`,
       demo:{ type:'bomb', lane:0, outcome:'avoid', stayLane:1 } },
-    { title:'Life', caption:()=>`Life is your health, shown top-left. You start at ${GAME_CONFIG.startingGlucose}. A wrong answer or a timeout costs ${GAME_CONFIG.wrongAnswerPenalty}, a bomb costs ${GAME_CONFIG.bombDamage} — same amount either way. A pickup gives back ${GAME_CONFIG.glucosePickupValue}. In Group Race, buying a grenade or a shield costs ${GAME_CONFIG.giftCost} life too. Run out (below zero) and the run ends.`, showHud:true },
-    { title:'Score', caption:()=>`Score is a completely separate number, used to rank Group Race. A correct answer is +${GAME_CONFIG.scoreCorrectWeight}, a wrong one is −${GAME_CONFIG.scoreIncorrectWeight}, reaching a new stage is +${GAME_CONFIG.stageWeight}, and every ${GAME_CONFIG.streakBonusEvery} correct answers in a row banks a +${GAME_CONFIG.streakBonusScoreAmount} streak bonus. Life and score don't affect each other — losing life doesn't cost you score, and score can't buy back life.`, showHud:true },
+    { title:'Life', caption:()=>`This number, on its own, is your health. You start at ${GAME_CONFIG.startingGlucose}. A wrong answer or a timeout costs ${GAME_CONFIG.wrongAnswerPenalty}, a bomb costs ${GAME_CONFIG.bombDamage} — same amount either way. A pickup gives back ${GAME_CONFIG.glucosePickupValue}. In Group Race, buying a grenade or a shield costs ${GAME_CONFIG.giftCost} life too. Run out (below zero) and the run ends.`, showHud:true, spotlight:['life'] },
+    { title:'Questions this stage', caption:'These chips are the questions you still need to answer — one per topic. The number is how many you\'ve already answered correctly out of how many this stage needs from that topic. Clear every chip to move to the next stage.', showHud:true, spotlight:['stage'] },
+    { title:'Stages get harder', caption:()=>{
+        const stages = STAGES[RUNNABLE_THEMES[0]] || [];
+        const diffLabel = { easy:'🟢 Easy', medium:'🟡 Medium', hard:'🔴 Hard' };
+        const names = stages.map(st=>`Stage ${st.roman} (${diffLabel[st.difficulty]||'—'})`).join(' → ');
+        return `There are ${stages.length} stages: ${names}. Each one needs more correct answers per topic than the last, and bombs come more often too. Clear the chips from the last page to move on to the next stage.`;
+      }, stageChips:true },
+    { title:'Score', caption:()=>`This number is completely separate from life, used to rank Group Race. A correct answer is +${GAME_CONFIG.scoreCorrectWeight}, a wrong one is −${GAME_CONFIG.scoreIncorrectWeight}, reaching a new stage is +${GAME_CONFIG.stageWeight}, and every ${GAME_CONFIG.streakBonusEvery} correct answers in a row banks a +${GAME_CONFIG.streakBonusScoreAmount} streak bonus. Life and score don't affect each other — losing life doesn't cost you score, and score can't buy back life.`, showHud:true, spotlight:['score'] },
     { title:'Group Race extras', caption:'Racing friends adds gold 🎁 gift blocks — answered just like a topic block. Get it right and you can spend life on a grenade to throw at a rival, or a shield to block one coming your way.',
       demo:{ type:'gift', lane:2, outcome:'collect' } },
     { title:"You're ready", caption:'Pick a mode below and give it a run — you can reopen this any time from the menu.', final:true },
   ];
   function resolveCaption(step){ return typeof step.caption==='function' ? step.caption() : step.caption; }
+  // Dims/desaturates every HUD group NOT named in `keep`, so whichever
+  // number the caption is talking about is the only thing still at full
+  // brightness. Always called (even with keep=null, meaning "dim nothing")
+  // so a step that doesn't need it can't accidentally inherit a previous
+  // step's dimming -- and closeTutorial() calls it once more on the way
+  // out so these real, shared HUD elements never stay dimmed into an
+  // actual run afterward.
+  function applyHudSpotlight(keep){
+    const groups = { life:[lifeLabel, glucoseVal], stage:[stageLine, topicChips], score:[scoreHudBlock] };
+    Object.entries(groups).forEach(([name, els])=>{
+      const on = !keep || keep.includes(name);
+      els.forEach(el=> el.classList.toggle('tc-dim', !on));
+    });
+  }
+  function renderTutorialStageChips(step){
+    if(!step.stageChips){ tutorialStageChips.style.display = 'none'; tutorialStageChips.innerHTML = ''; return; }
+    const stages = STAGES[RUNNABLE_THEMES[0]] || [];
+    const diffMeta = { easy:['🟢','var(--good)'], medium:['🟡','#ffd54d'], hard:['🔴','var(--danger)'] };
+    tutorialStageChips.innerHTML = stages.map(st=>{
+      const total = Object.values(st.requirements).reduce((a,b)=>a+b, 0);
+      const [icon, color] = diffMeta[st.difficulty] || ['⚪','var(--hud-dim)'];
+      return `<span class="req-chip" style="color:${color};border-color:${color}77">${icon} Stage ${st.roman} · ${total} correct answers</span>`;
+    }).join('');
+    tutorialStageChips.style.display = 'flex';
+  }
   function openTutorial(){
     tutorialActive = true;
     tutorialStep = 0;
@@ -2635,6 +2675,7 @@
     tutorialCloseBtn.style.display = 'none';
     tutorialMcqModal.classList.remove('active');
     hud.style.display = 'none'; hud.style.pointerEvents = '';
+    applyHudSpotlight(null); // these are the SAME real HUD elements a run uses -- never leave them dimmed
     document.body.classList.remove('in-run');
     bottomInset = 0;
     updateTopInset();
@@ -2762,6 +2803,8 @@
       }).join('');
       mpOpponentPanel.style.display = 'none';
     }
+    applyHudSpotlight(step.spotlight); // no-op-safe even when the HUD is hidden -- keeps state consistent for whenever it's next shown
+    renderTutorialStageChips(step);
     // While the mock question is up, the caption bar's own Back/Skip/Next
     // would sit BEHIND the question card's full-stage backdrop -- visible
     // through it (translucent) but not actually clickable, since the
@@ -5447,10 +5490,12 @@
       // A read-only peek at module-scoped tutorial/canvas state for
       // automated checks -- nothing here mutates anything.
       tutorialSnapshot(){
-        return { step: tutorialStep, title: tutorialTitle.textContent, caption: tutorialCaption.textContent,
+        return { step: tutorialStep, totalSteps: TUTORIAL_STEPS.length, title: tutorialTitle.textContent, caption: tutorialCaption.textContent,
           playerTargetLane: player.targetLane, bottomInset, topInset, laneH, H, W,
           entityCount: tutorialEntities.length, entityX: tutorialEntities[0] && Math.round(tutorialEntities[0].x),
-          hudDisplay: hud.style.display };
+          hudDisplay: hud.style.display,
+          dimLife: lifeLabel.classList.contains('tc-dim'), dimStage: stageLine.classList.contains('tc-dim'), dimScore: scoreHudBlock.classList.contains('tc-dim'),
+          stageChipsVisible: tutorialStageChips.style.display==='flex', stageChipsHtml: tutorialStageChips.innerHTML };
       },
       // simulateGrenade(shieldsHeld): during a run, stages an incoming grenade as if a rival threw it.
       simulateGrenade(shields){
