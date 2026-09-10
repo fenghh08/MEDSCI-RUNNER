@@ -45,22 +45,44 @@ THEMES
          └─ <topic>
              └─ items
                  └─ <item>
-                     ├─ label, description, mechanism, funFacts, hashtags, images, refs
+                     ├─ label, description, mechanism, funFacts, notes, activeRecall, saq, hashtags, images, refs
                      ├─ course, class            (optional — inherited by nested questions by default)
                      └─ questions[]              (each optionally overriding course/class)
 ```
 
+`notes` is the same shape as `funFacts` (an array of strings) -- it's
+where player-contributed notes/tips land, kept separate from the curated
+`funFacts` list. `saq` is an array of `{prompt, modelAnswer}` pairs --
+self-graded short-answer questions shown on the item's study-guide page
+only (not in Runner/Group Race, which are timed and MCQ-scored): the
+student attempts it, reveals the model answer, then marks themselves right
+or wrong. That self-grade feeds the same spaced-repetition scheduler MCQ
+answers do (see "Review" on the landing screen) -- it just can't be
+replayed through the MCQ modal, so a due SAQ shows as a direct link to its
+item page instead of queuing into a review session.
+
 ## Adding content
 
-Two ways in, both landing in the same place:
+Three ways in, all landing in the same shared queue:
 
-### 1. `developer-tool.html` — one at a time, with a live preview
+### 1. The game itself -- small suggestions from any player
+
+Open an item's study-guide page in `medsci-runner.html` and scroll to the
+"Contribute" section: a player can suggest a fun fact, add a note/tip, or
+flag something that looks wrong, right from the app -- no separate tool
+needed. These write into the exact same Firebase queue `developer-tool.html`
+reads below, so they show up for review the same way anything else added
+there does. Nothing a player submits is ever visible to other players
+directly -- it only becomes real content once a maintainer reviews and
+merges it.
+
+### 2. `developer-tool.html` — one at a time, with a live preview
 
 Open it, pick **New item**, **New question**, or **New theme**. Every field mirrors the real game's styling in a live preview panel, so what you see is what it'll actually look like — not a guess. Existing content (theme/topic/course/hashtag) is picked from dropdowns wherever possible, so typos can't silently create a near-duplicate category.
 
 **Editing or deleting** existing content also lives here — check "I'm editing an existing item" and pick it from the dropdown to prefill the form, or use the delete controls to remove a question or an entire item. Both are gated behind the maintainer PIN (see below) since they're the two genuinely destructive actions in the tool.
 
-### 2. CSV import — for bulk-adding questions to one existing item
+### 3. CSV import — for bulk-adding questions to one existing item
 
 Inside the New Question tab, there's a "Bulk-add questions from CSV" section: pick the item once, paste CSV text (`prompt,optionA,optionB,optionC,optionD,correct,explanation,hashtags`), and every valid row becomes its own queue entry — no re-clicking through the same dropdowns forty times. A Google Sheets template matching this exact format is included in the project files for anyone who'd rather fill in a spreadsheet and export it than type into a web form.
 
@@ -75,6 +97,8 @@ At the bottom of `developer-tool.html` is a **maintainer section**, locked behin
 Once unlocked: **Generate merged game-data.js** takes everything currently in the queue and folds it into a complete, ready-to-paste copy of the file — themes, topics, and items included. It's validated as real JavaScript before it's ever shown to you, so a broken merge fails loudly with an error instead of silently corrupting the file. Copy or download the result, replace `game-data.js`, and push.
 
 The merge only touches `COURSES`, `TOPICS`, and `THEMES` — everything else in the file (`GAME_CONFIG`, `LIFE_CONFIG`, `STAGES`, header comments) is carried through from a template, untouched, every time. That template only needs manual refreshing if you've hand-edited one of those sections directly, bypassing the tool entirely — routine content merges never touch it.
+
+Further down, past the same PIN gate, is **Analytics** — aggregate correct/wrong counts per question, collected from every player answering anywhere in the game (Runner, Group Race, Study & Practice, Review), sorted by miss rate. No per-player data, just counts per question — it's meant to answer "which questions are people actually struggling with," not to track anyone individually.
 
 ## Distributing updates
 

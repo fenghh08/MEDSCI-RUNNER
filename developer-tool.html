@@ -72,6 +72,10 @@
   .list-editor .list-row input, .list-editor .list-row textarea{ flex:1; }
   .list-editor .list-row.ref-row input.ref-label{ flex:2; }
   .list-editor .list-row.ref-row input.ref-url{ flex:2; }
+  .list-editor .list-row.saq-row{ flex-direction:column; align-items:stretch; background:var(--bg-1);
+    border:1px solid var(--panel-line); border-radius:8px; padding:8px; gap:6px; }
+  .list-editor .list-row.saq-row textarea{ min-height:44px; }
+  .list-editor .list-row.saq-row .list-remove{ align-self:flex-end; }
   .list-editor .list-row.img-row input.img-cap{ flex:2; }
   .list-editor .list-row.img-row input.img-file{ flex:2; }
   .list-editor .list-row.img-row .img-pick{ flex:none; width:34px; height:34px; border:1px dashed var(--panel-line);
@@ -89,6 +93,10 @@
   pre.code-out{ background:var(--bg-1); border:1px solid var(--panel-line); border-radius:10px; padding:12px;
     font-size:10.5px; line-height:1.55; overflow-x:auto; white-space:pre; color:var(--hud-ink); margin:0 0 12px; max-height:360px; overflow-y:auto; }
   .btn-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .analytics-table{ width:100%; border-collapse:collapse; font-size:12px; }
+  .analytics-table th{ text-align:left; padding:6px 8px; border-bottom:1px solid var(--panel-line); color:var(--hud-dim); font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; }
+  .analytics-table td{ padding:6px 8px; border-bottom:1px solid var(--panel-line); vertical-align:top; }
+  .analytics-table tbody tr:hover{ background:var(--bg-1); }
   button.primary{ font-family:var(--mono); background:linear-gradient(135deg,var(--membrane),#c22a5c);
     color:#1a0508; font-weight:700; border:none; padding:10px 20px; border-radius:24px; font-size:12.5px; cursor:pointer; }
   button.secondary, a.secondary{ font-family:var(--mono); background:transparent; color:var(--hud-ink);
@@ -362,9 +370,19 @@
           <div class="list-editor" id="i_funFacts"></div>
         </label>
         <label class="field">
+          <span class="fl-label">Notes / tips</span>
+          <span class="fl-help">Player-contributed notes and study tips -- separate from the curated fun facts above.</span>
+          <div class="list-editor" id="i_notes"></div>
+        </label>
+        <label class="field">
           <span class="fl-label">Active recall prompts</span>
           <span class="fl-help">Open-ended questions shown below the item on the study-guide page, for a student to self-test from memory -- not MCQs, no options or answer given. E.g. "What are the three mechanisms of X?"</span>
           <div class="list-editor" id="i_activeRecall"></div>
+        </label>
+        <label class="field">
+          <span class="fl-label">Self-graded SAQs</span>
+          <span class="fl-help">Short-answer questions with a model answer, shown on the item's study-guide page only (not in Runner/Group Race) -- the student attempts it, reveals the model answer, then marks themselves right or wrong.</span>
+          <div class="list-editor" id="i_saq"></div>
         </label>
         <label class="field">
           <span class="fl-label">Hashtags</span>
@@ -779,6 +797,20 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       </details>
     </div>
   </div>
+
+  <!-- ================= MAINTAINER: ANALYTICS ================= -->
+  <div class="batch" style="border-color:var(--good);">
+    <h2>📊 Analytics — which questions get missed the most</h2>
+    <p class="card-sub">Aggregate correct/wrong counts per question, collected from every player's answers across every mode (Runner, Group Race, Study &amp; Practice, Review). No per-player data is stored -- just counts per question.</p>
+    <div id="analyticsLockNote" style="color:var(--hud-dim);font-size:12px;">🔒 Unlock maintainer mode above to view this.</div>
+    <div id="analyticsContent" style="display:none;">
+      <div class="btn-row">
+        <button class="secondary" id="analyticsRefreshBtn">🔄 Refresh</button>
+        <span id="analyticsStatus" style="font-size:12px;color:var(--hud-dim);margin-left:8px;"></span>
+      </div>
+      <div id="analyticsTableWrap" style="margin-top:12px;overflow-x:auto;"></div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -793,7 +825,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
      only disables live sync; every form, the live preview, and a
      local-only queue all still work fully offline.
      ====================================================================== */
-  let fbRef, fbPush, fbSet, fbOnValue, fbRemove, fbOff;
+  let fbRef, fbPush, fbSet, fbOnValue, fbRemove, fbOff, fbGet;
   let fbApp, fbdb;
   let firebaseReady = false;
   const firebaseConfig = {
@@ -813,7 +845,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       fbApp = appMod.initializeApp(firebaseConfig);
       fbdb = dbMod.getDatabase(fbApp);
       fbRef = dbMod.ref; fbPush = dbMod.push; fbSet = dbMod.set;
-      fbOnValue = dbMod.onValue; fbRemove = dbMod.remove; fbOff = dbMod.off;
+      fbOnValue = dbMod.onValue; fbRemove = dbMod.remove; fbOff = dbMod.off; fbGet = dbMod.get;
       firebaseReady = true;
       syncBanner.className = 'sync-banner ok';
       syncBanner.textContent = '🟢 Synced — everyone sees this queue live';
@@ -882,9 +914,14 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   let maintainerUnlocked = safeSessionGet('maintainerUnlocked') === 'yes';
   const maintainerLockGate = document.getElementById('maintainerLockGate');
   const maintainerLockedContent = document.getElementById('maintainerLockedContent');
+  const analyticsLockNote = document.getElementById('analyticsLockNote');
+  const analyticsContent = document.getElementById('analyticsContent');
   function applyMaintainerLockUI(){
     maintainerLockGate.style.display = maintainerUnlocked ? 'none' : 'block';
     maintainerLockedContent.style.display = maintainerUnlocked ? 'block' : 'none';
+    analyticsLockNote.style.display = maintainerUnlocked ? 'none' : 'block';
+    analyticsContent.style.display = maintainerUnlocked ? 'block' : 'none';
+    if(maintainerUnlocked) loadAnalytics();
   }
   applyMaintainerLockUI();
   document.getElementById('maintainerUnlockBtn').addEventListener('click', ()=>{
@@ -911,6 +948,72 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     toast('Unlock maintainer mode first (Team Queue section, near the bottom)');
     return false;
   }
+
+  // ======================================================================
+  // ANALYTICS — aggregate correct/wrong counts per question, written by
+  // medsci-runner.html's answerMCQ() (every mode: Runner, Group Race,
+  // Study & Practice, Review) to Firebase path `stats/<itemId>::<qId>`.
+  // Read-only here, gated behind the same maintainer unlock as the merge
+  // section above (no separate PIN prompt) since "which questions people
+  // get wrong" is internal-team info, not something to expose to a casual
+  // opener of this file.
+  // ======================================================================
+  const analyticsRefreshBtn = document.getElementById('analyticsRefreshBtn');
+  const analyticsStatus = document.getElementById('analyticsStatus');
+  const analyticsTableWrap = document.getElementById('analyticsTableWrap');
+  function buildItemIndex(){
+    const idx = {};
+    Object.entries(RD.THEMES).forEach(([themeId, theme])=>{
+      Object.entries(theme.topics).forEach(([topicId, topic])=>{
+        Object.entries(topic.items).forEach(([itemId, item])=>{
+          idx[itemId] = { themeId, topicId, item };
+        });
+      });
+    });
+    return idx;
+  }
+  function loadAnalytics(){
+    if(!firebaseReady){ analyticsStatus.textContent = 'Not connected — check your internet connection and hit Refresh.'; return; }
+    analyticsStatus.textContent = 'Loading…';
+    fbGet(fbRef(fbdb, 'stats')).then(snap=>{
+      const stats = snap.val() || {};
+      const idx = buildItemIndex();
+      const rows = Object.entries(stats).map(([key, s])=>{
+        const sep = key.lastIndexOf('::');
+        const itemId = sep>=0 ? key.slice(0, sep) : key;
+        const qId = sep>=0 ? key.slice(sep+2) : '';
+        const entry = idx[itemId];
+        const isSaq = qId.startsWith('saq');
+        const q = (!isSaq && entry) ? (entry.item.questions||[]).find(q=>q.id===qId) : null;
+        const saqEntry = (isSaq && entry) ? entry.item.saq?.[Number(qId.slice(3))] : null;
+        const prompt = q ? q.prompt : saqEntry ? saqEntry.prompt : '(question not found — possibly deleted or edited since)';
+        const correct = s.correct||0, wrong = s.wrong||0, total = correct+wrong;
+        return {
+          itemLabel: entry ? entry.item.label : itemId, prompt, correct, wrong, total,
+          missRate: total ? wrong/total : 0,
+        };
+      }).filter(r=>r.total>0).sort((a,b)=> b.missRate - a.missRate || b.total - a.total);
+      renderAnalyticsTable(rows);
+      analyticsStatus.textContent = `${rows.length} question${rows.length===1?'':'s'} with answer data.`;
+    }).catch(err=>{
+      analyticsStatus.textContent = 'Failed to load — check your connection and try again.';
+      console.warn('[Analytics] load failed', err);
+    });
+  }
+  function renderAnalyticsTable(rows){
+    if(!rows.length){ analyticsTableWrap.innerHTML = '<p class="card-sub">No answer data recorded yet.</p>'; return; }
+    analyticsTableWrap.innerHTML = `<table class="analytics-table">
+      <thead><tr><th>Item</th><th>Question</th><th>Correct</th><th>Wrong</th><th>Miss rate</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td>${esc2(r.itemLabel)}</td>
+        <td>${esc2((r.prompt||'').slice(0,90))}${(r.prompt||'').length>90?'…':''}</td>
+        <td>${r.correct}</td>
+        <td>${r.wrong}</td>
+        <td>${Math.round(r.missRate*100)}%</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  }
+  analyticsRefreshBtn.addEventListener('click', loadAnalytics);
 
   // ======================================================================
   // GITHUB UPDATE CHECK — a manual, read-only sanity check: "is the
@@ -1136,6 +1239,34 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     container._getValues = () => [...container.querySelectorAll('.list-row.ref-row')]
       .map(r => ({ label:r.querySelector('.ref-label').value.trim(), url:r.querySelector('.ref-url').value.trim() }))
       .filter(r=>r.label);
+  }
+  // Self-graded short-answer questions -- shown on an item's study-guide
+  // page (never in Runner/Group Race, which are timed and MCQ-scored, and
+  // self-grading doesn't fit that). Each pair needs a prompt AND a model
+  // answer, so this is stacked (prompt on top, answer below) rather than
+  // side-by-side like makeRefList -- both fields are often multi-sentence.
+  function makeSaqList(container, onChange, initialValues){
+    container.innerHTML = '';
+    function addRow(prompt, modelAnswer){
+      const row = document.createElement('div');
+      row.className = 'list-row saq-row';
+      row.innerHTML = `<textarea class="saq-prompt" placeholder="Question, e.g. Outline the mechanism of…"></textarea>
+        <textarea class="saq-answer" placeholder="Model answer -- shown to the student after they attempt it"></textarea>
+        <button class="list-remove" type="button">✕ Remove this SAQ</button>`;
+      row.querySelector('.saq-prompt').value = prompt||'';
+      row.querySelector('.saq-answer').value = modelAnswer||'';
+      row.querySelectorAll('textarea').forEach(t=>t.addEventListener('input', onChange));
+      row.querySelector('.list-remove').addEventListener('click', ()=>{ row.remove(); onChange(); });
+      container.insertBefore(row, addBtn);
+    }
+    const addBtn = document.createElement('button');
+    addBtn.className = 'list-add'; addBtn.type = 'button'; addBtn.textContent = '+ Add another SAQ';
+    addBtn.addEventListener('click', ()=>{ addRow(); onChange(); });
+    container.appendChild(addBtn);
+    if(initialValues && initialValues.length) initialValues.forEach(s=>addRow(s.prompt, s.modelAnswer));
+    container._getValues = () => [...container.querySelectorAll('.list-row.saq-row')]
+      .map(r => ({ prompt:r.querySelector('.saq-prompt').value.trim(), modelAnswer:r.querySelector('.saq-answer').value.trim() }))
+      .filter(s=>s.prompt && s.modelAnswer);
   }
   function makeImageList(container, onChange, initialValues){
     container.innerHTML = '';
@@ -1472,7 +1603,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   const i_description = document.getElementById('i_description');
   const i_mechanism = document.getElementById('i_mechanism');
   const i_funFactsEl = document.getElementById('i_funFacts');
+  const i_notesEl = document.getElementById('i_notes');
   const i_activeRecallEl = document.getElementById('i_activeRecall');
+  const i_saqEl = document.getElementById('i_saq');
   const i_hashtagsEl = document.getElementById('i_hashtags');
   const i_refsEl = document.getElementById('i_refs');
   const i_imagesEl = document.getElementById('i_images');
@@ -1496,7 +1629,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   });
   [i_newTopicLabel, i_newTopicIcon, i_label, i_description, i_mechanism].forEach(el=>el.addEventListener('input', renderItem));
   makeTextList(i_funFactsEl, 'A short interesting fact…', renderItem);
+  makeTextList(i_notesEl, 'A note or study tip…', renderItem);
   makeTextList(i_activeRecallEl, 'e.g. What are the three mechanisms of…?', renderItem);
+  makeSaqList(i_saqEl, renderItem);
   makeTextList(i_hashtagsEl, 'e.g. Leukemia', renderItem, null, 'knownHashtagsList');
   makeRefList(i_refsEl, renderItem);
   makeImageList(i_imagesEl, renderItem);
@@ -1571,7 +1706,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     i_description.value = item.description || '';
     i_mechanism.value = item.mechanism || '';
     makeTextList(i_funFactsEl, 'A short interesting fact…', renderItem, item.funFacts||[]);
+    makeTextList(i_notesEl, 'A note or study tip…', renderItem, item.notes||[]);
     makeTextList(i_activeRecallEl, 'e.g. What are the three mechanisms of…?', renderItem, item.activeRecall||[]);
+    makeSaqList(i_saqEl, renderItem, item.saq||[]);
     makeTextList(i_hashtagsEl, 'e.g. Leukemia', renderItem, item.hashtags||[], 'knownHashtagsList');
     makeRefList(i_refsEl, renderItem, item.refs||[]);
     makeImageList(i_imagesEl, renderItem, item.images||[]);
@@ -1603,7 +1740,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     i_theme.disabled = false; i_topic.disabled = false;
     i_label.value=''; i_description.value=''; i_mechanism.value='';
     makeTextList(i_funFactsEl, 'A short interesting fact…', renderItem);
+    makeTextList(i_notesEl, 'A note or study tip…', renderItem);
     makeTextList(i_activeRecallEl, 'e.g. What are the three mechanisms of…?', renderItem);
+    makeSaqList(i_saqEl, renderItem);
     makeTextList(i_hashtagsEl, 'e.g. Leukemia', renderItem, null, 'knownHashtagsList');
     makeRefList(i_refsEl, renderItem);
     makeImageList(i_imagesEl, renderItem);
@@ -1636,7 +1775,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
         description: i_description.value.trim(),
         mechanism: i_mechanism.value.trim(),
         funFacts: i_funFactsEl._getValues(),
+        notes: i_notesEl._getValues(),
         activeRecall: i_activeRecallEl._getValues(),
+        saq: i_saqEl._getValues(),
         hashtags: i_hashtagsEl._getValues(),
         course: courseInfo.course, class: courseInfo.class, relatedCourseOverride: courseInfo.relatedCourseOverride, courseInfo,
         addCourseSnippet: courseInfo.addCourseSnippet, addClassSnippet: courseInfo.addClassSnippet,
@@ -1660,7 +1801,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       description: i_description.value.trim(),
       mechanism: i_mechanism.value.trim(),
       funFacts: i_funFactsEl._getValues(),
+      notes: i_notesEl._getValues(),
       activeRecall: i_activeRecallEl._getValues(),
+      saq: i_saqEl._getValues(),
       hashtags: i_hashtagsEl._getValues(),
       course: courseInfo.course, class: courseInfo.class, relatedCourseOverride: courseInfo.relatedCourseOverride, courseInfo,
       addCourseSnippet: courseInfo.addCourseSnippet, addClassSnippet: courseInfo.addClassSnippet,
@@ -1694,7 +1837,11 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     if(o.addClassSnippet) out += o.addClassSnippet + '\n\n';
     const imagesStr = o.images.length ? `[\n${o.images.map(im=>`      { url:'${im.url}', caption:'${esc(im.caption)}' },`).join('\n')}\n    ]` : '[]';
     const factsStr = o.funFacts.length ? o.funFacts.map(f=>`'${esc(f)}'`).join(', ') : '';
+    const notesStr = (o.notes||[]).length ? o.notes.map(f=>`'${esc(f)}'`).join(', ') : '';
     const recallStr = o.activeRecall.length ? o.activeRecall.map(f=>`'${esc(f)}'`).join(', ') : '';
+    const saqStr = (o.saq||[]).length
+      ? `[\n${o.saq.map(s=>`      { prompt:'${esc(s.prompt)}', modelAnswer:'${esc(s.modelAnswer)}' },`).join('\n')}\n    ]`
+      : '';
     const hashtagsStr = o.hashtags.length ? `[${o.hashtags.map(h=>`'${esc(h)}'`).join(', ')}]` : '[]';
     const refsStr = o.refs.length ? `[${o.refs.map(r=>`{ label:'${esc(r.label)}'${r.url?`, url:'${esc(r.url)}'`:''} }`).join(', ')}]` : '[]';
     out += o.editingItemId
@@ -1704,7 +1851,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     out += `  description:'${esc(o.description)}',\n`;
     if(o.mechanism) out += `  mechanism:'${esc(o.mechanism)}',\n`;
     out += `  funFacts:[${factsStr}],\n`;
+    if(notesStr) out += `  notes:[${notesStr}],\n`;
     out += `  activeRecall:[${recallStr}],\n`;
+    if(saqStr) out += `  saq:${saqStr},\n`;
     out += `  refs:${refsStr},\n`;
     out += `  hashtags:${hashtagsStr}`;
     // A "spans several classes" free-text override (see initCourseClassPicker)
@@ -1723,7 +1872,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const topicMeta = RD.TOPICS[o.topicId] || (o.usingNewTopic ? { label:o.newTopicLabel||o.topicId, icon:o.newTopicIcon } : { label:o.topicId });
     const courseStr = o.course ? courseDisplayString(o.course, o.class) : '';
     const factsHtml = o.funFacts.length ? `<div class="p-sub">Fun facts</div><ul class="p-facts">${o.funFacts.map(f=>`<li>${esc(f).replace(/\\'/g,"'")}</li>`).join('')}</ul>` : '';
+    const notesHtml = (o.notes||[]).length ? `<div class="p-sub">Notes / tips</div><ul class="p-facts">${o.notes.map(f=>`<li>${esc(f).replace(/\\'/g,"'")}</li>`).join('')}</ul>` : '';
     const recallHtml = o.activeRecall.length ? `<div class="p-sub">🧠 Active recall</div><ul class="p-facts">${o.activeRecall.map(f=>`<li>${esc(f).replace(/\\'/g,"'")}</li>`).join('')}</ul>` : '';
+    const saqHtml = (o.saq||[]).length ? `<div class="p-sub">✍️ Self-graded SAQs</div><ul class="p-facts">${o.saq.map(s=>`<li><b>${esc(s.prompt).replace(/\\'/g,"'")}</b><br><span style="opacity:.75;">${esc(s.modelAnswer).replace(/\\'/g,"'")}</span></li>`).join('')}</ul>` : '';
     const mechHtml = o.mechanism ? `<div class="p-sub">Mechanism</div><p class="p-desc">${o.mechanism}</p>` : '';
     // Contributor.html only ever has a filename typed in, not the actual
     // image file, so this can't render the real picture — it shows a
@@ -1744,7 +1895,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       <p class="p-desc">${o.description || '<span style="opacity:.6;">(add a description)</span>'}</p>
       ${mechHtml}
       ${factsHtml}
+      ${notesHtml}
       ${recallHtml}
+      ${saqHtml}
       ${refsHtml}
     `;
   }
@@ -2676,7 +2829,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const qCount = (full.questions||[]).length;
     const searchBlob = `${full.label} ${full.description||''} ${full.mechanism||''} ${(full.hashtags||[]).join(' ')} ${(full.questions||[]).map(q=>q.prompt+' '+q.explanation).join(' ')}`.toLowerCase();
     const factsHtml = (full.funFacts||[]).length ? `<div class="p-sub">Fun facts</div><ul class="p-facts">${full.funFacts.map(f=>`<li>${esc2(f)}</li>`).join('')}</ul>` : '';
+    const notesHtml = (full.notes||[]).length ? `<div class="p-sub">Notes / tips</div><ul class="p-facts">${full.notes.map(f=>`<li>${esc2(f)}</li>`).join('')}</ul>` : '';
     const recallHtml = (full.activeRecall||[]).length ? `<div class="p-sub">🧠 Active recall</div><ul class="p-facts">${full.activeRecall.map(f=>`<li>${esc2(f)}</li>`).join('')}</ul>` : '';
+    const saqHtml = (full.saq||[]).length ? `<div class="p-sub">✍️ Self-graded SAQs</div><ul class="p-facts">${full.saq.map(s=>`<li><b>${esc2(s.prompt)}</b><br><span style="opacity:.75;">${esc2(s.modelAnswer)}</span></li>`).join('')}</ul>` : '';
     const mechHtml = full.mechanism ? `<div class="p-sub">Mechanism</div><p>${esc2(full.mechanism)}</p>` : '';
     const hashtagsHtml = (full.hashtags||[]).length ? `<div class="p-sub">Hashtags</div><div class="p-chips">${full.hashtags.map(h=>`<span class="p-chip">#${esc2(h)}</span>`).join('')}</div>` : '';
     const imagesNote = (full.images||[]).length ? `<div class="p-sub">Images</div><p>${full.images.length} image(s) attached</p>` : '';
@@ -2696,7 +2851,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
           <p>${esc2(full.description||'')}</p>
           ${mechHtml}
           ${factsHtml}
+          ${notesHtml}
           ${recallHtml}
+          ${saqHtml}
           ${hashtagsHtml}
           ${imagesNote}
           <button type="button" class="struct-edit-link" data-edit-item="${it.id}">✏️ Edit this item</button>
@@ -3086,7 +3243,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       return;
     }
     batchList.innerHTML = '';
-    const icons = { item:'📄', question:'❓', course:'📚', topic:'🗂️', 'edit-item':'✏️', 'delete-item':'🗑', 'delete-question':'🗑', lectureOutcomes:'🧭' };
+    const icons = { item:'📄', question:'❓', course:'📚', topic:'🗂️', 'edit-item':'✏️', 'delete-item':'🗑', 'delete-question':'🗑', lectureOutcomes:'🧭', 'flag-item':'🚩' };
     entries.forEach(([key, entry])=>{
       const row = document.createElement('div');
       row.className = 'queue-item';
@@ -3436,7 +3593,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const out = { label:o.label, images:o.images||[], description:o.description };
     if(o.mechanism) out.mechanism = o.mechanism;
     out.funFacts = o.funFacts||[];
+    out.notes = o.notes||[];
     out.activeRecall = o.activeRecall||[];
+    out.saq = o.saq||[];
     out.refs = o.refs||[];
     out.hashtags = o.hashtags||[];
     if(o.relatedCourseOverride) out.relatedCourse = o.relatedCourseOverride;
@@ -3553,6 +3712,14 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     let appliedCount = 0, skippedNoData = 0;
     const mergedKeys = [];
     entries.forEach(entry=>{
+      // A flag is a maintainer-facing "please look at this" note, not
+      // content to merge -- applyEntry() already no-ops on it (no matching
+      // branch), but without this early return it would still count toward
+      // appliedCount and land in mergedKeys, so the "remove merged entries"
+      // cleanup button would silently delete an unreviewed flag the next
+      // time ANY unrelated batch gets merged. Skip it here so it only ever
+      // leaves the queue when a maintainer removes it by hand.
+      if(entry.type === 'flag-item') return;
       if(!entry.data){ skippedNoData++; return; }
       applyEntry(entry, courses, themes);
       appliedCount++;

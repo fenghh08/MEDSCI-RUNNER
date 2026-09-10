@@ -149,6 +149,23 @@
 
   .topic-tabs{ display:flex; gap:6px; flex-wrap:wrap; justify-content:center; margin-bottom:14px; }
   .checks{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px; }
+  /* Generic month-grid calendar -- renderMonthCalendar() below takes a
+     plain date->count map, so this isn't styled specifically for spaced
+     repetition and could back a different due-date/count visualization
+     later without changes here. */
+  .month-cal-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:12.5px; font-weight:700; }
+  .month-cal{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .month-cal-dow{ font-size:9.5px; color:var(--hud-dim); text-align:center; text-transform:uppercase; letter-spacing:.05em; padding-bottom:4px; }
+  .month-cal-day{ aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    border-radius:8px; border:1px solid var(--panel-line); font-size:11px; background:var(--panel); color:var(--hud-ink); }
+  .month-cal-day.empty{ border-color:transparent; background:none; }
+  .month-cal-day.today{ border-color:var(--membrane); border-width:2px; }
+  .month-cal-day .mc-count{ font-size:9.5px; color:var(--membrane); font-weight:700; }
+  /* Selected (last-clicked) day, distinct from .today so tapping a
+     different date doesn't get confused with the always-marked "today"
+     outline -- a day can be both at once (today gets clicked). */
+  .month-cal-day.selected{ background:var(--membrane); border-color:var(--membrane); }
+  .month-cal-day.selected, .month-cal-day.selected .mc-count{ color:#1a0508; }
   .checks label{ display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--hud-ink); cursor:pointer;
     padding:7px 10px; border:1px solid var(--panel-line); border-radius:8px; background:var(--panel); }
   .checks label:hover{ border-color:var(--membrane); }
@@ -156,6 +173,14 @@
   .filter-section-head{ display:flex; justify-content:space-between; align-items:baseline; margin:14px 0 8px; }
   .filter-section-head .p-sub{ margin:0; }
   .filter-select-toggle{ font-size:11px; color:var(--membrane); cursor:pointer; text-decoration:underline; background:none; border:none; font-family:inherit; padding:0; }
+  /* mpNameInput/mpCodeInput etc. already use these class names but relied
+     entirely on their own inline style="" -- these classes had no matching
+     rule anywhere in this file (only developer-tool.html defines them).
+     Adding the same small rules it already has means new forms (like the
+     contribution one below) don't need everything inlined. */
+  label.field{ display:block; margin-bottom:14px; text-align:left; }
+  label.field .fl-label{ display:block; font-size:11.5px; font-weight:700; letter-spacing:.03em; margin-bottom:3px; color:var(--hud-ink); }
+  label.field .fl-help{ display:block; font-size:10.5px; color:var(--hud-dim); margin-bottom:6px; line-height:1.4; }
   select{ font-family:var(--mono); font-size:13px; background:var(--bg-1); color:var(--hud-ink);
     border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px; width:100%; }
   select:focus{ outline:none; border-color:var(--membrane); }
@@ -225,6 +250,11 @@
   .p-desc{ font-size:13px; line-height:1.55; margin:0 0 12px; color:var(--hud-ink); }
   .p-sub{ font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--hud-dim); margin:14px 0 6px; }
   .p-facts{ margin:0; padding-left:18px; font-size:12.5px; line-height:1.6; color:var(--hud-ink); }
+  .saq-card{ background:var(--bg-1); border:1px solid var(--panel-line); border-radius:10px; padding:12px 14px; margin-bottom:10px; }
+  .saq-prompt{ font-size:13px; line-height:1.5; margin:0 0 8px; color:var(--hud-ink); }
+  .saq-answer{ font-size:12.5px; line-height:1.55; color:var(--hud-dim); background:var(--panel); border-radius:8px; padding:8px 10px; margin:8px 0; }
+  .saq-grade-row{ display:flex; gap:8px; align-items:center; }
+  .saq-graded{ font-size:12px; color:var(--good); font-weight:700; }
   .p-chips{ display:flex; gap:6px; flex-wrap:wrap; }
   .p-chip{ font-size:11px; padding:3px 9px; border-radius:20px; border:1px solid var(--panel-line); color:var(--hud-dim); }
   .img-strip{ display:flex; gap:8px; overflow-x:auto; margin-bottom:10px; }
@@ -418,6 +448,10 @@
           <span class="cc-icon">🧭</span><span class="cc-name">Learning Path</span>
           <span class="cc-blurb">One lecture, level by level.</span>
         </button>
+        <button class="pick-card" id="reviewModeCard" style="margin:10px auto 0;max-width:460px;display:block;text-align:center;">
+          <span class="cc-icon">📅</span><span class="cc-name">Review</span>
+          <span class="cc-blurb" id="reviewModeBlurb">Spaced repetition, questions you've already studied.</span>
+        </button>
       </div>
       <div id="customizeView" style="display:none;">
         <h2>Customise Your Cell</h2>
@@ -506,6 +540,27 @@
         <div class="btn-row">
           <button class="secondary" id="customBackBtn">← Back</button>
           <button class="primary" id="customStartBtn">🎯 Start custom run</button>
+        </div>
+      </div>
+      <div id="reviewView" style="display:none;">
+        <h2>Review</h2>
+        <p class="desc">Questions you've already studied, resurfaced on a schedule — answer wrong and it comes back sooner, answer right and it comes back later.</p>
+        <p class="desc" id="reviewLastStudied" style="font-size:11px;margin-top:-10px;"></p>
+        <div id="reviewCalendar" style="max-width:320px;margin:0 auto 16px;"></div>
+        <p class="desc" style="font-size:11px;margin:-10px 0 10px;">Tap a day to see what's due (or scheduled) then.</p>
+        <div id="reviewDayDetailWrap" style="display:none;max-width:420px;margin:0 auto 16px;text-align:left;">
+          <div class="p-sub" style="margin-top:0;" id="reviewDayDetailTitle">—</div>
+          <div id="reviewDayDetailList"></div>
+        </div>
+        <p class="desc" id="reviewDueCount" style="color:var(--hud-dim);"></p>
+        <div class="btn-row">
+          <button class="secondary" id="reviewBackBtn">← Back</button>
+          <button class="primary" id="reviewStartBtn">📅 Start review</button>
+        </div>
+        <div id="reviewSaqDueWrap" style="display:none;max-width:420px;margin:18px auto 0;text-align:left;">
+          <div class="p-sub" style="margin-top:0;">✍️ Short-answer questions due</div>
+          <p class="desc" style="margin:-4px 0 8px;font-size:11.5px;">These can't be replayed through the multiple-choice review above — tap one to open its page and grade yourself directly.</p>
+          <div id="reviewSaqDueList"></div>
         </div>
       </div>
       <div id="learningPathCourseView" style="display:none;">
@@ -735,10 +790,16 @@
           <p class="p-desc" id="itemDesc"></p>
           <div id="itemMechWrap"><div class="p-sub" style="margin-top:0;">Mechanism</div><p class="p-desc" id="itemMech"></p></div>
           <div id="itemFactsWrap"><div class="p-sub">Fun facts</div><ul class="p-facts" id="itemFacts"></ul></div>
+          <div id="itemNotesWrap" style="display:none;"><div class="p-sub">Notes / tips</div><ul class="p-facts" id="itemNotes"></ul></div>
           <div id="itemRecallWrap" style="display:none;">
             <div class="p-sub">🧠 Active recall</div>
             <p class="p-desc" style="margin-top:-4px;">Test yourself!</p>
             <ul class="p-facts" id="itemRecall"></ul>
+          </div>
+          <div id="itemSaqWrap" style="display:none;">
+            <div class="p-sub">✍️ Short-answer questions</div>
+            <p class="p-desc" style="margin-top:-4px;">Attempt it, reveal the model answer, then mark yourself.</p>
+            <div id="itemSaqList"></div>
           </div>
           <div id="itemQuizWrap" style="display:none;margin:16px 0;text-align:center;">
             <button class="primary" id="itemQuizBtn">🧠 Test yourself</button>
@@ -746,6 +807,30 @@
             <div id="itemQuizResult" class="p-desc" style="margin-top:8px;color:var(--good);display:none;"></div>
           </div>
           <div id="itemRefsWrap" style="display:none;"><div class="p-sub">References</div><ul class="p-facts" id="itemRefs"></ul></div>
+          <div id="itemContributeWrap" style="margin:18px 0 6px;padding-top:14px;border-top:1px solid var(--panel-line);text-align:left;">
+            <div class="p-sub" style="margin-top:0;">🤝 Contribute</div>
+            <p class="p-desc" style="margin:-4px 0 10px;font-size:11.5px;">Suggest a fun fact, add a note or study tip, or flag something that looks wrong — a maintainer reviews everything before it's added.</p>
+            <div class="btn-row" style="justify-content:flex-start;">
+              <button class="secondary" id="contributeFactBtn" style="font-size:12px;padding:6px 14px;">💡 Suggest a fun fact</button>
+              <button class="secondary" id="contributeNoteBtn" style="font-size:12px;padding:6px 14px;">📝 Add a note/tip</button>
+              <button class="secondary" id="contributeFlagBtn" style="font-size:12px;padding:6px 14px;">🚩 Flag an issue</button>
+            </div>
+            <div id="contributeFormWrap" style="display:none;margin-top:12px;max-width:380px;">
+              <label class="field">
+                <span class="fl-label" id="contributeFormLabel">Your fun fact</span>
+                <textarea id="contributeFormText" rows="3" style="width:100%;font-family:var(--mono);font-size:13px;background:var(--bg-1);color:var(--hud-ink);border:1px solid var(--panel-line);border-radius:8px;padding:8px 10px;resize:vertical;"></textarea>
+              </label>
+              <label class="field">
+                <span class="fl-label">Your name (optional)</span>
+                <input type="text" id="contributeNameInput" placeholder="e.g. Eason" style="width:100%;font-family:var(--mono);font-size:13px;background:var(--bg-1);color:var(--hud-ink);border:1px solid var(--panel-line);border-radius:8px;padding:8px 10px;">
+              </label>
+              <div class="btn-row" style="justify-content:flex-start;">
+                <button class="secondary" id="contributeCancelBtn">Cancel</button>
+                <button class="primary" id="contributeSubmitBtn">Submit</button>
+              </div>
+              <p class="p-desc" id="contributeStatus" style="margin:8px 0 0;font-size:11.5px;"></p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -906,7 +991,7 @@
    fully offline, and firebaseReady below tells the rest of the file
    whether Group Race is actually usable.
    ====================================================================== */
-  let initializeApp, getDatabase, ref, set, get, fbUpdate, onValue, off, runTransaction, onDisconnect, remove;
+  let initializeApp, getDatabase, ref, set, get, fbUpdate, onValue, off, runTransaction, onDisconnect, remove, fbPush;
   let fbApp, fbdb;
   let firebaseReady = false;
   let serverTimeOffset = 0;
@@ -926,7 +1011,7 @@
       const appMod = await import('https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js');
       const dbMod = await import('https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js');
       ({ initializeApp } = appMod);
-      ({ getDatabase, ref, set, get, update: fbUpdate, onValue, off, runTransaction, onDisconnect, remove } = dbMod);
+      ({ getDatabase, ref, set, get, update: fbUpdate, onValue, off, runTransaction, onDisconnect, remove, push: fbPush } = dbMod);
       fbApp = initializeApp(firebaseConfig);
       fbdb = getDatabase(fbApp);
       firebaseReady = true;
@@ -1300,6 +1385,20 @@
   const customBackBtn = document.getElementById('customBackBtn');
   const customStartBtn = document.getElementById('customStartBtn');
 
+  const reviewModeCard = document.getElementById('reviewModeCard');
+  const reviewModeBlurb = document.getElementById('reviewModeBlurb');
+  const reviewView = document.getElementById('reviewView');
+  const reviewCalendar = document.getElementById('reviewCalendar');
+  const reviewDueCount = document.getElementById('reviewDueCount');
+  const reviewLastStudied = document.getElementById('reviewLastStudied');
+  const reviewBackBtn = document.getElementById('reviewBackBtn');
+  const reviewStartBtn = document.getElementById('reviewStartBtn');
+  const reviewSaqDueWrap = document.getElementById('reviewSaqDueWrap');
+  const reviewSaqDueList = document.getElementById('reviewSaqDueList');
+  const reviewDayDetailWrap = document.getElementById('reviewDayDetailWrap');
+  const reviewDayDetailTitle = document.getElementById('reviewDayDetailTitle');
+  const reviewDayDetailList = document.getElementById('reviewDayDetailList');
+
   const learningPathModeCard = document.getElementById('learningPathModeCard');
   const learningPathCourseView = document.getElementById('learningPathCourseView');
   const learningPathCourseGrid = document.getElementById('learningPathCourseGrid');
@@ -1395,11 +1494,25 @@
   const itemFacts = document.getElementById('itemFacts');
   const itemRecallWrap = document.getElementById('itemRecallWrap');
   const itemRecall = document.getElementById('itemRecall');
+  const itemSaqWrap = document.getElementById('itemSaqWrap');
+  const itemSaqList = document.getElementById('itemSaqList');
   const itemQuizWrap = document.getElementById('itemQuizWrap');
   const itemQuizBtn = document.getElementById('itemQuizBtn');
   const itemQuizResult = document.getElementById('itemQuizResult');
   const itemQuizBlockedNote = document.getElementById('itemQuizBlockedNote');
   const itemReadAloudBtn = document.getElementById('itemReadAloudBtn');
+  const itemNotesWrap = document.getElementById('itemNotesWrap');
+  const itemNotes = document.getElementById('itemNotes');
+  const contributeFactBtn = document.getElementById('contributeFactBtn');
+  const contributeNoteBtn = document.getElementById('contributeNoteBtn');
+  const contributeFlagBtn = document.getElementById('contributeFlagBtn');
+  const contributeFormWrap = document.getElementById('contributeFormWrap');
+  const contributeFormLabel = document.getElementById('contributeFormLabel');
+  const contributeFormText = document.getElementById('contributeFormText');
+  const contributeNameInput = document.getElementById('contributeNameInput');
+  const contributeCancelBtn = document.getElementById('contributeCancelBtn');
+  const contributeSubmitBtn = document.getElementById('contributeSubmitBtn');
+  const contributeStatus = document.getElementById('contributeStatus');
   const itemRefsWrap = document.getElementById('itemRefsWrap');
   const itemRefs = document.getElementById('itemRefs');
 
@@ -1527,7 +1640,7 @@
 
   function showScreen(name){
     [landingScreen, pauseScreen, overScreen].forEach(s=>s.classList.remove('active'));
-    if(name==='landing') landingScreen.classList.add('active');
+    if(name==='landing'){ landingScreen.classList.add('active'); refreshReviewModeCardBlurb(); }
     if(name==='paused') pauseScreen.classList.add('active');
     if(name==='over') overScreen.classList.add('active');
   }
@@ -1649,6 +1762,108 @@
   // just reuses the existing course-filter "no matches" pattern (an alert)
   // rather than introducing new UI.
   function toastCustom(msg){ alert(msg); }
+
+  // ---------- review (spaced repetition) ----------
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DOW_LABELS = ['S','M','T','W','T','F','S'];
+  // Generic month-grid renderer -- takes a plain Map<'YYYY-MM-DD', number>,
+  // doesn't know anything about spaced repetition. The review screen below
+  // is just its first caller; a different date/count dataset could reuse
+  // this unchanged if one ever comes up.
+  function renderMonthCalendar(container, monthDate, countsByDate, opts){
+    opts = opts || {};
+    const year = monthDate.getFullYear(), month = monthDate.getMonth();
+    const firstDow = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month+1, 0).getDate();
+    const todayKey = todayStr();
+    let html = `<div class="month-cal-head">${MONTH_NAMES[month]} ${year}</div><div class="month-cal">`;
+    html += DOW_LABELS.map(d=>`<div class="month-cal-dow">${d}</div>`).join('');
+    for(let i=0;i<firstDow;i++) html += `<div class="month-cal-day empty"></div>`;
+    for(let day=1; day<=daysInMonth; day++){
+      const key = year + '-' + String(month+1).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+      const count = countsByDate.get(key) || 0;
+      const isToday = key === todayKey;
+      html += `<div class="month-cal-day${isToday?' today':''}" data-date="${key}">${day}${count?`<span class="mc-count">${count}</span>`:''}</div>`;
+    }
+    container.innerHTML = html;
+    if(opts.onDayClick){
+      container.querySelectorAll('.month-cal-day[data-date]').forEach(el=>{
+        el.addEventListener('click', ()=>{
+          container.querySelectorAll('.month-cal-day.selected').forEach(s=>s.classList.remove('selected'));
+          el.classList.add('selected');
+          opts.onDayClick(el.dataset.date);
+        });
+      });
+    }
+  }
+  // Set right before jumping from the Review screen into the study guide
+  // (from either the SAQ-due list or a calendar day's detail list) so
+  // guideClose's handler knows to land back on Review instead of the
+  // generic landing screen once the study guide closes.
+  let reviewReturnPending = false;
+  function refreshReviewScreen(){
+    const dueMcq = getDueQuestions();
+    const dueSaq = getDueSaqEntries();
+    const total = dueMcq.length + dueSaq.length;
+    reviewLastStudied.textContent = lastReviewedText();
+    reviewDayDetailWrap.style.display = 'none';
+    renderMonthCalendar(reviewCalendar, new Date(), dueCountsForMonth(new Date()), { onDayClick: showReviewDayDetail });
+    reviewDueCount.textContent = total
+      ? `${dueMcq.length} question${dueMcq.length===1?'':'s'} due today${dueSaq.length ? `, plus ${dueSaq.length} short-answer question${dueSaq.length===1?'':'s'} below` : ''}.`
+      : `Nothing due today — answer a few questions elsewhere in the app to start building your review queue.`;
+    reviewStartBtn.disabled = dueMcq.length === 0;
+    reviewModeBlurb.textContent = total
+      ? `${total} due today — spaced repetition on questions you've already studied.`
+      : `Spaced repetition, questions you've already studied.`;
+    if(dueSaq.length){
+      reviewSaqDueWrap.style.display = 'block';
+      reviewSaqDueList.innerHTML = dueSaq.map((d,i)=>
+        `<button type="button" class="pick-card" data-saq-idx="${i}" style="text-align:left;padding:10px 14px;margin-bottom:6px;display:block;width:100%;">
+          <span class="cc-name" style="font-size:13px;">${escapeHtml(d.item.label)}</span><br>
+          <span class="cc-blurb">${escapeHtml((d.item.saq[d.saqIndex].prompt||'').slice(0,80))}${(d.item.saq[d.saqIndex].prompt||'').length>80?'…':''}</span>
+        </button>`).join('');
+      reviewSaqDueList.querySelectorAll('[data-saq-idx]').forEach(btn=>{
+        const d = dueSaq[Number(btn.dataset.saqIdx)];
+        btn.addEventListener('click', ()=>{
+          reviewReturnPending = true;
+          reviewView.style.display = 'none';
+          openStudyGuide(themeForTopic(d.topicId), d.topicId, d.itemId);
+        });
+      });
+    } else {
+      reviewSaqDueWrap.style.display = 'none';
+      reviewSaqDueList.innerHTML = '';
+    }
+  }
+  reviewModeCard.addEventListener('click', ()=>{
+    cancerPickView.style.display = 'none';
+    reviewView.style.display = 'block';
+    refreshReviewScreen();
+  });
+  reviewBackBtn.addEventListener('click', ()=>{
+    reviewView.style.display = 'none';
+    cancerPickView.style.display = 'block';
+  });
+  reviewStartBtn.addEventListener('click', ()=>{
+    if(reviewStartBtn.disabled) return;
+    const due = getDueQuestions();
+    if(!due.length) return;
+    practiceQueue = shuffle(due.map(q=>({ q, topic: q.topic })));
+    practiceCorrect = 0; practiceAnswered = 0; streak = 0;
+    practiceTimed = false;
+    activeQuestionTheme = due[0].theme;
+    quizMode = 'practice';
+    screenState = 'mcq';
+    syncHudVisibility();
+    reviewView.style.display = 'none';
+    advancePractice();
+  });
+  function refreshReviewModeCardBlurb(){
+    const due = dueCountToday();
+    reviewModeBlurb.textContent = due
+      ? `${due} due today — spaced repetition on questions you've already studied.`
+      : `Spaced repetition, questions you've already studied.`;
+  }
 
   // ---------- learning path (lecture-scoped, cognitive-level progression) ----------
   // Same synthetic-stage trick as buildCustomRunConfig() above, but scoped to
@@ -2309,6 +2524,223 @@
     presentQuestion(q, entity.topic);
     mcqPracticeBar.style.display = 'none';
   }
+  // ---------- spaced repetition ----------
+  // Simple Leitner boxes, not full SM-2 -- a correct answer moves a
+  // question up one box (reviewed less often), a wrong answer drops it
+  // straight back to box 0 (due again immediately). Deliberately much
+  // simpler than a floating-point ease-factor scheduler: one interval
+  // table, easy to retune, still gives a real spaced effect.
+  const SRS_INTERVAL_DAYS = [0, 1, 3, 7, 16, 35]; // index = box
+  function srsKeyFor(itemId, qId){ return itemId + '::' + qId; }
+  function todayStr(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function dateStrPlusDays(days){
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function loadSrsState(){
+    try { return JSON.parse(localStorage.getItem('srsState')) || {}; } catch(e){ return {}; }
+  }
+  function saveSrsState(state){
+    try { localStorage.setItem('srsState', JSON.stringify(state)); } catch(e){ /* fine -- just won't persist across a reload in browsers that block file:// storage */ }
+  }
+  // Called from answerMCQ() for EVERY question answered anywhere in the
+  // game (Runner, Group Race, Study & Practice all funnel through it) --
+  // this is what lets ordinary play, not just a dedicated review session,
+  // feed the scheduler.
+  function recordSrsAnswer(itemId, qId, correct){
+    if(!itemId || !qId) return; // defensive -- every real question has both, but don't let a malformed one crash answering
+    const state = loadSrsState();
+    const key = srsKeyFor(itemId, qId);
+    const prevBox = state[key] ? state[key].box : 0;
+    const box = correct ? Math.min(prevBox+1, SRS_INTERVAL_DAYS.length-1) : 0;
+    state[key] = { box, dueDate: dateStrPlusDays(SRS_INTERVAL_DAYS[box]), lastSeen: Date.now() };
+    saveSrsState(state);
+  }
+  // Aggregate-only correct/wrong counts per question, written to Firebase
+  // (the same project Group Race uses) so the maintainer tool's Analytics
+  // section can surface "which questions get missed the most" across every
+  // player, not just this device. No per-player data -- just a running
+  // count on `stats/<itemId>::<qId>`. Uses a transaction (not a plain
+  // read-then-write) since many players can answer the same question at
+  // nearly the same time; a transaction is what keeps concurrent
+  // increments from clobbering each other. Silently does nothing if
+  // Group Race's Firebase connection never came up -- this is a nice-to-
+  // have, not something that should ever block answering a question.
+  function recordQuestionStat(itemId, qId, correct){
+    if(!firebaseReady || !itemId || !qId) return;
+    runTransaction(ref(fbdb, `stats/${itemId}::${qId}`), current => {
+      const c = current || {};
+      if(correct) c.correct = (c.correct||0) + 1;
+      else c.wrong = (c.wrong||0) + 1;
+      return c;
+    }).catch(()=>{});
+  }
+  // Every ALL_QUESTIONS entry whose srsState is due today or earlier --
+  // "due" deliberately excludes anything never answered yet (spaced
+  // repetition re-surfaces things you've studied, it doesn't introduce new
+  // content -- that's what Runner/Practice/Custom run are already for).
+  function getDueQuestions(){
+    const state = loadSrsState();
+    const today = todayStr();
+    return ALL_QUESTIONS.filter(q=>{
+      const s = state[srsKeyFor(q.itemId, q.id)];
+      return s && s.dueDate <= today;
+    });
+  }
+  // Every SAQ (across every item) whose srsState is due -- SAQ entries have
+  // no id of their own, just an index within item.saq (see renderItemSaq()),
+  // so this walks THEMES directly rather than matching against ALL_QUESTIONS.
+  function getDueSaqEntries(){
+    const state = loadSrsState();
+    const today = todayStr();
+    const results = [];
+    Object.values(THEMES).forEach(theme=>{
+      Object.entries(theme.topics).forEach(([topicId, topic])=>{
+        Object.entries(topic.items).forEach(([itemId, item])=>{
+          (item.saq||[]).forEach((s,i)=>{
+            const st = state[srsKeyFor(itemId, 'saq'+i)];
+            if(st && st.dueDate <= today) results.push({ itemId, topicId, item, saqIndex:i });
+          });
+        });
+      });
+    });
+    return results;
+  }
+  // Total due count includes SAQ entries even though "Start review" below
+  // only queues MCQ questions -- SAQ self-grading (renderItemSaq) updates
+  // the exact same srsState, it just can't be replayed through the MCQ
+  // modal, so due SAQs surface as direct links to their item page instead
+  // (see refreshReviewScreen()).
+  function dueCountToday(){ return getDueQuestions().length + getDueSaqEntries().length; }
+  // Most recent lastSeen across every tracked question/SAQ -- srsState only
+  // ever gets touched by recordSrsAnswer(), which fires from answering
+  // anywhere in the app (not just a dedicated Review session), so this is
+  // effectively "last time you engaged with anything review-tracked."
+  function lastReviewedText(){
+    const state = loadSrsState();
+    const timestamps = Object.values(state).map(s=>s.lastSeen).filter(Boolean);
+    if(!timestamps.length) return '';
+    const d = new Date(Math.max(...timestamps));
+    const dateStr = d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+    const timeStr = d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
+    return `Last studied ${dateStr} at ${timeStr}`;
+  }
+  // Counts entries scheduled for each day of the given month -- anything
+  // overdue (dueDate <= today) is folded into TODAY's count rather than
+  // shown on its own stale past date, matching how the review queue itself
+  // treats overdue items as "due now".
+  function dueCountsForMonth(monthDate){
+    const state = loadSrsState();
+    const today = todayStr();
+    const counts = new Map();
+    Object.values(state).forEach(s=>{
+      const bucket = s.dueDate <= today ? today : s.dueDate;
+      if(!bucket.startsWith(monthDate.getFullYear()+'-'+String(monthDate.getMonth()+1).padStart(2,'0'))) return;
+      counts.set(bucket, (counts.get(bucket)||0) + 1);
+    });
+    return counts;
+  }
+  // Full detail (label + prompt, not just a count) for every question/SAQ
+  // bucketed onto one specific calendar date -- same overdue-folds-into-
+  // today rule as dueCountsForMonth(), so clicking today's cell shows
+  // exactly what "Start review" would queue (plus any due SAQs). Walks
+  // THEMES directly (like getDueSaqEntries()) rather than ALL_QUESTIONS,
+  // since it needs to resolve both MCQ and SAQ entries from the same
+  // srsState blob uniformly.
+  function itemsScheduledForDate(dateStr){
+    const state = loadSrsState();
+    const today = todayStr();
+    const results = [];
+    Object.values(THEMES).forEach(theme=>{
+      Object.entries(theme.topics).forEach(([topicId, topic])=>{
+        Object.entries(topic.items).forEach(([itemId, item])=>{
+          (item.questions||[]).forEach(q=>{
+            const s = state[srsKeyFor(itemId, q.id)];
+            if(!s) return;
+            const bucket = s.dueDate <= today ? today : s.dueDate;
+            if(bucket === dateStr) results.push({ type:'mcq', itemId, topicId, label:item.label, prompt:q.prompt });
+          });
+          (item.saq||[]).forEach((sq,i)=>{
+            const s = state[srsKeyFor(itemId, 'saq'+i)];
+            if(!s) return;
+            const bucket = s.dueDate <= today ? today : s.dueDate;
+            if(bucket === dateStr) results.push({ type:'saq', itemId, topicId, label:item.label, prompt:sq.prompt });
+          });
+        });
+      });
+    });
+    return results;
+  }
+  function showReviewDayDetail(dateStr){
+    const entries = itemsScheduledForDate(dateStr);
+    const isToday = dateStr === todayStr();
+    reviewDayDetailWrap.style.display = 'block';
+    reviewDayDetailTitle.textContent = isToday ? `Due today (${entries.length})` : `Scheduled for ${dateStr} (${entries.length})`;
+    if(!entries.length){
+      reviewDayDetailList.innerHTML = `<p class="desc" style="margin:0;font-size:11.5px;">Nothing scheduled for this day yet.</p>`;
+      return;
+    }
+    reviewDayDetailList.innerHTML = entries.map((e,i)=>
+      `<button type="button" class="pick-card" data-day-idx="${i}" style="text-align:left;padding:8px 12px;margin-bottom:5px;display:block;width:100%;">
+        <span class="cc-name" style="font-size:12.5px;">${e.type==='saq'?'✍️ ':''}${escapeHtml(e.label)}</span><br>
+        <span class="cc-blurb">${escapeHtml((e.prompt||'').slice(0,80))}${(e.prompt||'').length>80?'…':''}</span>
+      </button>`).join('');
+    reviewDayDetailList.querySelectorAll('[data-day-idx]').forEach(btn=>{
+      const e = entries[Number(btn.dataset.dayIdx)];
+      btn.addEventListener('click', ()=>{
+        reviewReturnPending = true;
+        reviewView.style.display = 'none';
+        openStudyGuide(themeForTopic(e.topicId), e.topicId, e.itemId);
+      });
+    });
+  }
+  // ---------- self-graded SAQ ----------
+  // Item-page only (never Runner/Group Race, which are timed/MCQ-scored --
+  // self-grading doesn't fit that). Grading feeds the SAME spaced-repetition
+  // scheduler MCQ answers do, keyed by itemId + a synthetic 'saq<index>' id
+  // (SAQ entries have no id of their own, just an index within item.saq).
+  function renderItemSaq(item, itemId){
+    if(!item.saq || !item.saq.length){ itemSaqWrap.style.display='none'; itemSaqList.innerHTML=''; return; }
+    itemSaqWrap.style.display = 'block';
+    itemSaqList.innerHTML = item.saq.map((s,i)=>`
+      <div class="saq-card" data-idx="${i}">
+        <p class="saq-prompt">${escapeHtml(s.prompt)}</p>
+        <button class="secondary saq-show-btn" type="button" style="font-size:12px;padding:6px 14px;">Show answer</button>
+        <div class="saq-answer" style="display:none;">${escapeHtml(s.modelAnswer)}</div>
+        <div class="saq-grade-row" style="display:none;">
+          <span style="font-size:11.5px;color:var(--hud-dim);">Did you get it right?</span>
+          <button class="secondary saq-right-btn" type="button" style="font-size:12px;padding:5px 12px;">✓ Yes</button>
+          <button class="secondary saq-wrong-btn" type="button" style="font-size:12px;padding:5px 12px;">✗ No</button>
+        </div>
+        <div class="saq-graded" style="display:none;"></div>
+      </div>
+    `).join('');
+    itemSaqList.querySelectorAll('.saq-card').forEach(card=>{
+      const idx = card.dataset.idx;
+      const showBtn = card.querySelector('.saq-show-btn');
+      const answerEl = card.querySelector('.saq-answer');
+      const gradeRow = card.querySelector('.saq-grade-row');
+      const gradedEl = card.querySelector('.saq-graded');
+      showBtn.addEventListener('click', ()=>{
+        answerEl.style.display = 'block';
+        gradeRow.style.display = 'flex';
+        showBtn.style.display = 'none';
+      });
+      function grade(correct){
+        recordSrsAnswer(itemId, 'saq'+idx, correct);
+        recordQuestionStat(itemId, 'saq'+idx, correct);
+        gradeRow.style.display = 'none';
+        gradedEl.style.display = 'block';
+        gradedEl.textContent = correct ? '✓ Marked correct — scheduled for review later.' : '✗ Marked incorrect — scheduled for review soon.';
+      }
+      card.querySelector('.saq-right-btn').addEventListener('click', ()=> grade(true));
+      card.querySelector('.saq-wrong-btn').addEventListener('click', ()=> grade(false));
+    });
+  }
   function answerMCQ(chosenIndex, isTimeout){
     if(mcqAnswered) return;
     mcqAnswered = true;
@@ -2363,6 +2795,8 @@
     mcqExplain.textContent = q.explanation;
     mcqFeedback.style.display = 'block';
     if(quizMode==='runner') updateHUD();
+    recordSrsAnswer(q.itemId, q.id, correct);
+    recordQuestionStat(q.itemId, q.id, correct);
     sessionLog.push({
       mode: quizMode, theme: activeQuestionTheme, stage: quizMode==='runner' ? currentStages()[stageIndex].n : null,
       topic: pendingTopic, itemId: q.itemId,
@@ -2842,7 +3276,11 @@
     if(itemQuizBtn.disabled) return;
     if(!currentItemDetail || !currentItemDetail.item.questions || !currentItemDetail.item.questions.length) return;
     const { topicId, itemId, item } = currentItemDetail;
-    practiceQueue = shuffle(item.questions.map(q=>({ q, topic: topicId })));
+    // Raw item.questions[] entries don't carry their own itemId (it's only
+    // implicit from nesting in game-data.js) -- inject it so sessionLog and
+    // spaced-repetition scheduling (both keyed by itemId+question id) work
+    // correctly for a "Test yourself" session same as every other mode.
+    practiceQueue = shuffle(item.questions.map(q=>({ q: {...q, itemId}, topic: topicId })));
     practiceCorrect = 0; practiceAnswered = 0; streak = 0;
     practiceTimed = false; // a quick self-test from the study guide, not a timed drill
     activeQuestionTheme = themeForTopic(topicId) || guideActiveTheme;
@@ -2874,8 +3312,99 @@
     itemReadAloudBtn.textContent = '⏹ Stop reading';
     window.speechSynthesis.speak(utter);
   });
+  // ---------- community contributions (fun fact / note / flag) ----------
+  // Writes into the SAME Firebase "contributions" queue developer-tool.html
+  // already reads, displays, and merges -- nothing here publishes directly,
+  // a maintainer still reviews and merges everything by hand, same as any
+  // other queue entry.
+  //
+  // A fun fact or note is submitted as an ordinary 'edit-item' entry, the
+  // exact same shape developer-tool.html's own "Edit this item" flow
+  // produces -- because the merge step (applyEntry/itemDataObject there)
+  // does a FULL FIELD REPLACE of the item, not an incremental patch,
+  // whatever's in the submitted funFacts/notes array becomes the item's
+  // ENTIRE array. So this has to resubmit the item's whole current field
+  // set with just the one new fact/note appended, not the new text alone --
+  // otherwise merging a contributed fun fact would silently wipe out every
+  // fun fact already on the item.
+  function cloneItemForContribution(item, itemId, topicId, theme){
+    return {
+      editingItemId: itemId, itemId, theme, topicId, usingNewTopic:false,
+      label: item.label, description: item.description, mechanism: item.mechanism || '',
+      images: item.images || [], funFacts: item.funFacts || [], notes: item.notes || [],
+      activeRecall: item.activeRecall || [], refs: item.refs || [], hashtags: item.hashtags || [],
+      course: item.course || '', class: item.class || '', relatedCourseOverride: item.relatedCourse || null,
+      existingQuestions: item.questions || [],
+    };
+  }
+  function contributorDisplayName(){
+    return contributeNameInput.value.trim() || 'Anonymous';
+  }
+  try { contributeNameInput.value = localStorage.getItem('medsciContributorName') || ''; } catch(e){ /* fine -- just won't be remembered */ }
+  let contributeMode = null; // 'fact' | 'note' | 'flag'
+  function openContributeForm(mode){
+    contributeMode = mode;
+    contributeFormText.value = '';
+    contributeStatus.textContent = '';
+    contributeFormLabel.textContent = mode==='fact' ? 'Your fun fact' : mode==='note' ? 'Your note or study tip' : "What's wrong?";
+    contributeFormText.placeholder = mode==='flag' ? 'e.g. "This explanation doesn’t match the mechanism described above."' : '';
+    contributeFormWrap.style.display = 'block';
+    contributeFormText.focus();
+  }
+  function closeContributeForm(){
+    contributeMode = null;
+    contributeFormWrap.style.display = 'none';
+    contributeStatus.textContent = '';
+  }
+  contributeFactBtn.addEventListener('click', ()=> openContributeForm('fact'));
+  contributeNoteBtn.addEventListener('click', ()=> openContributeForm('note'));
+  contributeFlagBtn.addEventListener('click', ()=> openContributeForm('flag'));
+  contributeCancelBtn.addEventListener('click', closeContributeForm);
+  contributeSubmitBtn.addEventListener('click', async ()=>{
+    if(!currentItemDetail || !contributeMode) return;
+    const text = contributeFormText.value.trim();
+    if(!text) return;
+    if(!firebaseReady){
+      contributeStatus.textContent = 'Needs an internet connection to submit — try again once you’re online.';
+      return;
+    }
+    const { topicId, itemId, item } = currentItemDetail;
+    const theme = themeForTopic(topicId);
+    const name = contributorDisplayName();
+    try { localStorage.setItem('medsciContributorName', contributeNameInput.value.trim()); } catch(e){ /* fine -- just won't be remembered */ }
+    contributeSubmitBtn.disabled = true;
+    try{
+      let entry;
+      if(contributeMode === 'flag'){
+        entry = {
+          type: 'flag-item', title: item.label, note: text.length>120 ? text.slice(0,117)+'…' : text,
+          data: { theme, topicId, itemId, reason: text },
+        };
+      } else {
+        const clone = cloneItemForContribution(item, itemId, topicId, theme);
+        if(contributeMode === 'fact') clone.funFacts = [...clone.funFacts, text];
+        else clone.notes = [...clone.notes, text];
+        entry = {
+          type: 'edit-item', title: item.label,
+          note: `${contributeMode==='fact' ? '+ fun fact' : '+ note'} via ${name}`,
+          code: `// ${contributeMode==='fact' ? 'Fun fact' : 'Note'} suggested for "${item.label}" by ${name}:\n// "${text}"`,
+          data: clone,
+        };
+      }
+      entry.contributorName = name;
+      entry.createdAt = Date.now();
+      await fbPush(ref(fbdb, 'contributions'), entry);
+      contributeStatus.textContent = '✓ Thanks — a maintainer will review this.';
+      setTimeout(closeContributeForm, 1500);
+    } catch(err){
+      contributeStatus.textContent = 'Couldn’t submit — check your connection and try again.';
+    } finally {
+      contributeSubmitBtn.disabled = false;
+    }
+  });
   function openItemDetail(topicId, itemId, item){
     stopReadAloud(); // switching items mid-speech would otherwise overlap the old and new text
+    closeContributeForm(); // switching items mid-draft would otherwise submit against the wrong item
     currentItemDetail = { topicId, itemId, item };
     itemReadAloudBtn.style.display = canReadAloud ? 'inline-block' : 'none';
     const meta = TOPICS[topicId];
@@ -2913,10 +3442,12 @@
     itemDesc.textContent = item.description || '';
     if(item.mechanism){ itemMech.textContent = item.mechanism; itemMechWrap.style.display='block'; } else { itemMechWrap.style.display='none'; }
     if(item.funFacts && item.funFacts.length){ itemFacts.innerHTML = item.funFacts.map(f=>`<li>${f}</li>`).join(''); itemFactsWrap.style.display='block'; } else { itemFactsWrap.style.display='none'; }
+    if(item.notes && item.notes.length){ itemNotes.innerHTML = item.notes.map(f=>`<li>${f}</li>`).join(''); itemNotesWrap.style.display='block'; } else { itemNotesWrap.style.display='none'; }
     // Plain recall PROMPTS, not MCQs -- no options, no answer checking. The
     // point is to make the student actively try to explain/recall the item
     // from memory after reading it, not to quiz them here and now.
     if(item.activeRecall && item.activeRecall.length){ itemRecall.innerHTML = item.activeRecall.map(q=>`<li>${escapeHtml(q)}</li>`).join(''); itemRecallWrap.style.display='block'; } else { itemRecallWrap.style.display='none'; }
+    renderItemSaq(item, itemId);
     itemQuizResult.style.display = 'none';
     if(item.questions && item.questions.length){
       const n = item.questions.length;
@@ -3149,7 +3680,20 @@
     if(guideActiveUnit){ openCourseList(); return; }
     openStudyGuide(guideActiveTheme, guideActiveTopic, null);
   });
-  guideClose.addEventListener('click', ()=>{ stopReadAloud(); infoModal.classList.remove('active'); });
+  guideClose.addEventListener('click', ()=>{
+    stopReadAloud();
+    infoModal.classList.remove('active');
+    // If this study guide visit was opened by jumping from the Review
+    // calendar/day-detail (or the SAQ-due list), land back on Review
+    // instead of the generic landing screen -- otherwise leave whatever
+    // was already showing underneath the modal untouched, same as before.
+    if(reviewReturnPending){
+      reviewReturnPending = false;
+      cancerPickView.style.display = 'none';
+      reviewView.style.display = 'block';
+      refreshReviewScreen();
+    }
+  });
 
   // ---------- image lightbox ----------
   function openLightbox(url, caption){
@@ -3859,6 +4403,7 @@
   document.getElementById('versionTag').textContent = `version ${GAME_VERSION}`;
   manualGlucoseText.innerHTML = `You start with ${GAME_CONFIG.startingGlucose} life. Collect drifting pickups (+${GAME_CONFIG.glucosePickupValue} each) to top it up. Answering a question <b>wrong costs ${GAME_CONFIG.wrongAnswerPenalty}</b>. A rare 💣 bomb costs <b>${GAME_CONFIG.bombDamage}</b> instantly on contact — no question, just avoid it. If life drops below zero, the run ends. (Glucose for Cancer, ATP for Biochemistry — the name changes per theme.)`;
   buildCancerGrid();
+  refreshReviewModeCardBlurb();
   updateTopInset();
   drawVessel();
   drawPlayer();
