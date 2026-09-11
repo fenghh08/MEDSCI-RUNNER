@@ -100,7 +100,7 @@ Everything is one JSON tree. The paths the code reads and writes:
 | `rooms/<CODE>/players/<targetId>/incoming/<pushKey>` | A racer who buys a grenade | The targeted racer (via the same room listener) | `{ fromName, fromId, at }` — one thrown grenade. The target removes the key once it has played out, so it never replays. |
 | `stats/<itemId>::<qId>` | The game, every time any player answers (a transaction that increments `correct` or `wrong`) | `developer-tool.html` → Analytics tab | Aggregate per-question correct/wrong counts, used for the miss-rate table |
 | `contributions/<pushKey>` | The game's "Contribute" section on an item page, the ⚠️ **Report question** button under any answered question, and the dev tool's "Add to batch" | `developer-tool.html` → Team Queue | Suggested fun facts / notes / flags / question reports (`flag-question`, with the reason, prompt and ids) / new items+questions, waiting for a maintainer to review and merge into `game-data.js` |
-| `users/<uid>/sync/<key>` | The game, whenever a **signed-in** player changes something syncable | The game, on sign-in and live afterwards | `theme`, `font`, `gameSpeed`, `playerCustomization`, `srsState` (spaced-repetition history, merged per-entry by newest `lastSeen`) |
+| `users/<uid>/sync/<key>` | The game, whenever a **signed-in** player changes something syncable | The game, on sign-in and live afterwards | `theme`, `font`, `gameSpeed`, `lang` (interface language), `playerCustomization`, `srsState` (spaced-repetition history, merged per-entry by newest `lastSeen`) |
 | `.info/serverTimeOffset` | Firebase itself | The game | Clock offset between this device and Firebase's servers, so the Group Race countdown is the same on every device even if someone's clock is wrong |
 
 Nothing a player submits ever appears to other players directly — content only becomes real
@@ -269,11 +269,20 @@ Security Rules, and the Auth "Authorized domains" list — all live in the Fireb
 4. Sign-in specifically needs the page to be served from an **authorized https domain**, never
    `file://`.
 5. Debug helpers: add `?debug=1` to the game's URL and `window.__runnerDebug` appears in the
-   console with `simulateGrenade(shields)` and `spawnGift()` for previewing Group Race gifts in
-   a solo run. Nothing else changes; without the parameter the object doesn't exist.
+   console with `simulateGrenade(shields)`, `spawnGift()`, `tutorialSnapshot()`,
+   `setLanguage('ja')` and `tx('Stage II · Life 12')` (translate a string the way the UI
+   would). The dev tool has the same idea as `window.__devToolDebug`. Nothing else changes;
+   without the parameter the objects don't exist.
 6. `game-data.js` must parse. A quick check after editing it by hand:
    `node --check game-data.js`. The dev tool's "Generate merged game-data.js" produces a
    complete file, so prefer that over hand edits.
+
+**Website (GitHub Pages):**
+
+6b. The repo is served as a static site from the `main` branch root — see section 8. The only
+   files that exist for it are `index.html` (a redirect to `medsci-runner.html`, keeping any
+   `?query` and `#hash`) and the empty `.nojekyll`. Sign-in on the site needs
+   `fenghh08.github.io` in Firebase's authorized domains.
 
 **Native app:**
 
@@ -304,3 +313,81 @@ Security Rules, and the Auth "Authorized domains" list — all live in the Fireb
 | Phone app shows old content | `www/` not rebuilt — run `npm run sync` |
 | Xcode can't find CapacitorFirebaseAuthentication | `node_modules/` missing — run `npm install` |
 | Android sign-in does nothing | `android/app/google-services.json` is absent |
+
+---
+
+## 8. Hosting — GitHub Pages
+
+The game is a static site already (plain files, no server code), so the cheapest possible host
+is GitHub Pages: GitHub serves the repository's files over https at
+`https://fenghh08.github.io/MEDSCI-RUNNER/`. Enable it once under **Settings → Pages →
+Deploy from a branch → main / (root)**; after that every `git push` to `main` redeploys within
+a minute or two (the *Actions* tab shows the "pages build and deployment" run).
+
+Two small files make it work:
+
+- **`index.html`** — Pages opens `index.html` at the site root, but the game is
+  `medsci-runner.html`. `index.html` is nothing but a redirect: a `<meta http-equiv="refresh">`
+  for browsers with scripts off, plus `location.replace('medsci-runner.html' + location.search
+  + location.hash)` so `?debug=1` survives the hop. `replace` (not `href=`) keeps the redirect
+  out of the back-button history.
+- **`.nojekyll`** — GitHub runs the Jekyll site generator over Pages content by default, which
+  silently drops any file or folder whose name starts with `_`. The empty `.nojekyll` file turns
+  that off so the repo is served byte-for-byte.
+
+Why https matters here: Google sign-in only works on an origin Firebase has been told to trust
+(`file://` has no origin at all), so the hosted copy is the first place sign-in and cross-device
+sync actually work for testers. Add `fenghh08.github.io` under **Firebase console →
+Authentication → Settings → Authorized domains**. Nothing else changes between the local and
+hosted copy — same files, same Firebase project, same `game-data.js`.
+
+`www/`, `ios/`, `android/`, `node_modules/` and `developer-tool.html` are in the repo too, so
+they are technically reachable on the site; that's harmless (the tool is a maintainer page
+anyway, and the PIN was never security — see 2.4), but don't put anything there you wouldn't
+want public.
+
+---
+
+## 9. Interface languages (i18n)
+
+The UI can switch to 繁體中文, 简体中文, 日本語 and 한국어; study content stays English by
+design (it's course material — a machine pass isn't good enough, and the questions are what
+the exams are in). Everything lives inside `medsci-runner.html`, in the "languages" section
+right after the theme code.
+
+**The dictionaries are keyed by the English string itself.** `I18N['ja']['📖 How to play'] ===
+'📖 遊び方'`. There are no invented ids like `menu.howToPlay`, so the source stays readable and
+a missing translation just falls back to English rather than showing a bare key. Strings that
+contain a value use `{holes}`: `'Stage {n} · {life} {v}'`.
+
+**Two ways text gets translated:**
+
+1. `t(key, vars)` — for strings the code builds, especially ones containing HTML:
+   `t('You ended the run on <b>Stage {stage}</b> …', { stage, v, life, score })`.
+   Only a dozen call sites needed this (the over-screen and Group Race result texts, the gift
+   shop, the manual's life paragraph).
+2. **A DOM walker plus a `MutationObserver`.** `applyLanguage()` walks every text node and
+   `placeholder`/`title` attribute under `<body>` and runs it through `tx(text)`. From then on
+   the observer (`childList` + `characterData` + `attributes`) does the same for anything
+   rendered later — question cards, the study guide, HUD updates, toasts — so hundreds of
+   `textContent = '…'` sites in the code never had to change. `tx()` tries an exact key first,
+   then the `{hole}` keys compiled into anchored regexes (`^Stage ([\s\S]+) · ([\s\S]+?) ([\s\S]+?)$`),
+   longest literal first, so `"Stage II · Life 12"` finds its template and the captured
+   `"Life"` is looked up again to become `"ライフ"`. Each node remembers its English original in
+   a `WeakMap`, so switching languages (or back to English) re-derives from that instead of
+   translating a translation; if the code later rewrites the node in English (a score changed),
+   the new text is adopted as the new original.
+   - `data-i18n-html="manual.objective"` marks paragraphs with inline `<span class="kbd">`
+     markup, swapped as one HTML unit under that key.
+   - `data-no-i18n` opts a subtree out (the language `<select>` itself).
+   - Canvas text (the floating `+2 Life` popups) isn't DOM, so it's translated when queued.
+
+**Persistence:** `localStorage.lang`, plus `users/<uid>/sync/lang` when signed in, applied by
+the same `applySyncedData()` path as theme/font/speed. `document.documentElement.lang` is set
+too, which is what makes the browser pick correct CJK glyphs and hyphenation.
+
+**Adding a string:** write the English in the code as usual. If it has no value inside it, add
+one row per language to the dictionaries and you're done — the walker finds it. If it has a
+value, use `{name}` holes in the key and either let the pattern matcher catch it (plain text
+node) or call `t()` (HTML). The scratch script that generated the dictionaries keeps one row per
+string with all four translations, so a new row is one line.
