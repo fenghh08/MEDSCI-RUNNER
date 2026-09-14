@@ -195,6 +195,16 @@
   table.cols th, table.cols td{ text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
   table.cols th{ color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
   table.cols code{ white-space:nowrap; }
+  /* the pasteable question-import grid -- a real editable table, not a preview */
+  table.grid-import{ width:auto; border:1px solid var(--line); }
+  table.grid-import th, table.grid-import td{ border:1px solid var(--line); padding:0; white-space:nowrap; }
+  table.grid-import th{ padding:6px 8px; background:var(--bg-1); font-size:11px; text-transform:none; letter-spacing:0; }
+  table.grid-import td input{ display:block; width:110px; border:none; background:transparent; font-family:var(--mono);
+    font-size:12px; padding:5px 7px; color:var(--ink); }
+  table.grid-import td.grid-wide input{ width:220px; }
+  table.grid-import td input:focus{ outline:2px solid var(--accent); outline-offset:-2px; }
+  table.grid-import td.grid-remove-cell{ text-align:center; padding:0 6px; }
+  table.grid-import td.grid-remove-cell button{ font-size:11px; padding:3px 7px; }
   .step-num{ display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--accent-soft); color:var(--accent); font-weight:700; font-size:12px; margin-right:8px; }
   .callout{ background:var(--info-soft); border:1px solid #c9d7f5; border-radius:10px; padding:10px 14px; font-size:13px; margin-bottom:14px; }
   .callout.warn{ background:var(--warn-soft); border-color:#f6d5a5; }
@@ -396,6 +406,11 @@
           <div class="card">
             <h2>Multiple-choice question</h2>
             <p class="card-sub">Asked in the game when a player hits this topic. Every question belongs to one item.</p>
+            <label class="switch" style="margin-bottom:12px;"><input type="checkbox" id="q_editModeToggle"> ✏️ Edit an existing question instead of adding a new one</label>
+            <div class="new-block" id="q_editPickerBlock">
+              <label class="field" style="margin-bottom:6px;"><span class="fl-label">Which question?</span><select id="q_editQuestionSelect"></select></label>
+              <span class="fl-help">Only lists questions already in game-data.js — one added earlier this session isn't mergeable yet, so there's nothing to edit until it's merged.</span>
+            </div>
             <div class="row2">
               <label class="field"><span class="fl-label">Course <span class="req">*</span></span><select id="q_theme"></select></label>
               <label class="field"><span class="fl-label">Topic <span class="req">*</span></span><select id="q_topic"></select></label>
@@ -504,6 +519,7 @@
       </div>
       <div class="chips" id="csvChips">
         <button class="chip active" data-pane="csv-lecture">❓ Questions (any items / lectures)</button>
+        <button class="chip" data-pane="csv-grid">🧮 Paste into a table</button>
         <button class="chip" data-pane="csv-one">❓ Questions → one item</button>
         <button class="chip" data-pane="csv-items">📄 Items</button>
         <button class="chip" data-pane="csv-outcomes">🧭 Learning outcomes</button>
@@ -533,6 +549,25 @@
               <tr><td><code>description</code>, <code>mechanism</code>, <code>funfacts</code></td><td>no</td><td>Fill in on a new item's first row to author it fully instead of a bare label.</td></tr>
             </table>
           </div></details>
+        </div>
+      </div>
+
+      <div class="subpane" data-pane="csv-grid">
+        <div class="card">
+          <h2>Paste directly from Google Sheets / Excel</h2>
+          <p class="card-sub">Same columns as the CSV tab above, but as an editable table — no need to export to CSV first. Select a range in your spreadsheet, copy, click a cell here, and paste: it fills in as many cells as you copied, growing the table if needed. Fix anything by hand, add or remove rows, then check &amp; queue exactly like the CSV tab.</p>
+          <div style="overflow-x:auto;max-width:100%;">
+            <table class="cols grid-import" id="gridImportTable">
+              <thead><tr id="gridImportHeaderRow"></tr></thead>
+              <tbody id="gridImportBody"></tbody>
+            </table>
+          </div>
+          <div class="btn-row" style="margin-top:8px;">
+            <button type="button" id="grid_addRowBtn">+ Add row</button>
+            <button type="button" id="grid_clearBtn">Clear table</button>
+          </div>
+          <div id="grid_preview" class="status" style="margin:10px 0;"></div>
+          <div class="btn-row"><button class="primary" id="grid_parseBtn">Check &amp; add all to queue</button></div>
         </div>
       </div>
 
@@ -707,8 +742,8 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-11-redesign'; // bump when handing teammates a new copy
-  const GAME_VERSION_FOR_CHECK = '2026-09-10-gifts-3-stages-speed'; // the game version this copy of the tool shipped with
+  const TOOL_VERSION = '2026-09-15-paste-grid-import'; // bump when handing teammates a new copy
+  const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
   const RD = window.RUNNER_DATA;
@@ -877,14 +912,16 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       return (cap && url) ? { url, caption:cap } : null;
     }).filter(Boolean);
   }
-  function makeOptionList(container, onChange){
+  // initialOptions/initialCorrectIndex prefill for editing an existing
+  // question -- omit both for the normal blank 2-option starting state.
+  function makeOptionList(container, onChange, initialOptions, initialCorrectIndex){
     container.innerHTML = '';
     let count = 0;
-    function addRow(){
+    function addRow(value, checked){
       count++;
       const row = document.createElement('div');
       row.className = 'list-row opt-row';
-      row.innerHTML = `<input type="radio" name="correctOpt" title="Correct answer" ${count===1?'checked':''}><input type="text" placeholder="Option ${count}"><button class="list-remove" type="button" title="Remove">✕</button>`;
+      row.innerHTML = `<input type="radio" name="correctOpt" title="Correct answer" ${checked?'checked':''}><input type="text" placeholder="Option ${count}" value="${esc2(value||'')}"><button class="list-remove" type="button" title="Remove">✕</button>`;
       row.querySelector('input[type=text]').addEventListener('input', onChange);
       row.querySelector('input[type=radio]').addEventListener('change', onChange);
       row.querySelector('.list-remove').addEventListener('click', ()=>{
@@ -897,7 +934,8 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     addBtn.className = 'list-add'; addBtn.type = 'button'; addBtn.textContent = '+ Add option';
     addBtn.addEventListener('click', ()=>{ if(container.querySelectorAll('.list-row').length>=6){ toast('Max 6 options'); return; } addRow(); onChange(); });
     container.appendChild(addBtn);
-    addRow(); addRow();
+    if(initialOptions && initialOptions.length) initialOptions.forEach((val,i)=> addRow(val, i===(initialCorrectIndex||0)));
+    else { addRow('', true); addRow('', false); }
     container._getData = () => {
       const rows = [...container.querySelectorAll('.list-row.opt-row')];
       const options = rows.map(r=>r.querySelector('input[type=text]').value.trim());
@@ -1268,6 +1306,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   const q_hashtagsEl = document.getElementById('q_hashtags');
   const q_codeOut = document.getElementById('q_codeOut');
   const q_previewCard = document.getElementById('q_previewCard');
+  const q_editModeToggle = document.getElementById('q_editModeToggle');
+  const q_editPickerBlock = document.getElementById('q_editPickerBlock');
+  const q_editQuestionSelect = document.getElementById('q_editQuestionSelect');
   fillThemeSelect(q_theme); fillTopicSelect(q_topic, q_theme.value);
   q_theme.addEventListener('change', ()=>{ fillTopicSelect(q_topic, q_theme.value); refreshQuestionItemSelect(); renderQuestion(); });
   q_topic.addEventListener('change', ()=>{ refreshQuestionItemSelect(); renderQuestion(); });
@@ -1278,6 +1319,67 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   makeTextList(q_hashtagsEl, 'e.g. Leukemia', renderQuestion, null, 'knownHashtagsList');
   makeOptionList(q_optionsEl, renderQuestion);
   const q_coursePicker = initCourseClassPicker('q', renderQuestion);
+
+  // ---- edit an existing question (mirrors the item form's edit flow above) ----
+  let editingQuestionId = null, editingQuestionLoc = null; // {theme,topic,itemId} of the question being edited
+  // Only walks the CURRENTLY LOADED game-data.js -- a question added to the
+  // queue earlier this session isn't in RD.THEMES yet (it only lands there
+  // once a maintainer merges), so it isn't editable until then either.
+  function allQuestionsFlat(){
+    const out = [];
+    Object.entries(RD.THEMES).forEach(([themeId, theme])=> Object.entries(theme.topics).forEach(([topicId, topic])=> Object.entries(topic.items).forEach(([itemId, item])=>{
+      (item.questions||[]).forEach(q=> out.push({ qId:q.id, itemLabel:item.label, prompt:q.prompt, themeId, topicId, itemId }));
+    })));
+    return out;
+  }
+  function refreshEditQuestionSelect(){
+    const current = q_editQuestionSelect.value;
+    const byItem = {};
+    allQuestionsFlat().forEach(q=> (byItem[q.itemLabel] = byItem[q.itemLabel]||[]).push(q));
+    q_editQuestionSelect.innerHTML = Object.keys(byItem).sort((a,b)=>a.localeCompare(b)).map(itemLabel=>
+      `<optgroup label="${esc2(itemLabel)}">${byItem[itemLabel].map(q=>`<option value="${esc2(q.qId)}">${esc2(q.prompt.slice(0,60))}${q.prompt.length>60?'…':''}</option>`).join('')}</optgroup>`
+    ).join('');
+    if([...q_editQuestionSelect.options].some(o=>o.value===current)) q_editQuestionSelect.value = current;
+  }
+  refreshEditQuestionSelect();
+  function loadQuestionForEditing(qId){
+    const loc = findQuestionLocation(qId);
+    if(!loc) return;
+    editingQuestionId = qId; editingQuestionLoc = { theme:loc.theme, topic:loc.topic, itemId:loc.itemId };
+    q_theme.value = loc.theme; fillTopicSelect(q_topic, loc.theme); q_topic.value = loc.topic;
+    q_theme.disabled = true; q_topic.disabled = true;
+    refreshQuestionItemSelect(); q_itemSelect.value = loc.itemId; q_itemSelect.disabled = true;
+    q_customItemToggle.style.display = 'none'; q_customItemBlock.classList.remove('show');
+    const q = loc.question;
+    q_prompt.value = q.prompt || '';
+    makeOptionList(q_optionsEl, renderQuestion, q.options||[], q.correctIndex||0);
+    q_explanation.value = q.explanation || '';
+    q_difficulty.value = q.difficulty || 'medium';
+    makeTextList(q_hashtagsEl, 'e.g. Leukemia', renderQuestion, q.hashtags||[], 'knownHashtagsList');
+    q_coursePicker.resetNewBlocks();
+    const qCourseSel = document.getElementById('q_course'), qClassSel = document.getElementById('q_class');
+    if(!q.course && q.relatedCourse){ q_coursePicker.prefillSpans(q.relatedCourse); }
+    else { qCourseSel.value = q.course || ''; qCourseSel.dispatchEvent(new Event('change')); qClassSel.value = q.class || ''; }
+    renderQuestion();
+  }
+  function resetQuestionFormToNew(){
+    editingQuestionId = null; editingQuestionLoc = null;
+    q_editModeToggle.checked = false; q_editPickerBlock.classList.remove('show');
+    q_theme.disabled = false; q_topic.disabled = false; q_itemSelect.disabled = false;
+    q_customItemToggle.style.display = ''; q_customItemBlock.classList.remove('show');
+    q_prompt.value=''; q_explanation.value=''; q_customItemId.value=''; _qSuffix = null;
+    q_difficulty.value = 'medium';
+    makeTextList(q_hashtagsEl, 'e.g. Leukemia', renderQuestion, null, 'knownHashtagsList');
+    makeOptionList(q_optionsEl, renderQuestion);
+    q_coursePicker.resetNewBlocks();
+    renderQuestion();
+  }
+  q_editModeToggle.addEventListener('change', ()=>{
+    if(q_editModeToggle.checked){ q_editPickerBlock.classList.add('show'); refreshEditQuestionSelect(); if(q_editQuestionSelect.value) loadQuestionForEditing(q_editQuestionSelect.value); }
+    else resetQuestionFormToNew();
+  });
+  q_editQuestionSelect.addEventListener('change', ()=> loadQuestionForEditing(q_editQuestionSelect.value));
+
   function refreshQuestionItemSelect(){
     const items = KNOWN_ITEMS.filter(it=>it.theme===q_theme.value && it.topic===q_topic.value);
     q_itemSelect.innerHTML = items.length ? items.map(it=>`<option value="${it.id}">${it.label}</option>`).join('') : `<option value="">(no items in this topic yet — add one first, or use the link below)</option>`;
@@ -1289,14 +1391,22 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const usingCustom = q_customItemBlock.classList.contains('show');
     const { options, correctIndex } = q_optionsEl._getData();
     const courseInfo = q_coursePicker.resolve();
-    return {
-      theme: q_theme.value, topic: q_topic.value,
-      itemId: usingCustom ? (q_customItemId.value.trim()||'unknown-item') : (q_itemSelect.value||'unknown-item'),
-      qId: 'q-' + q_topic.value + '-' + randSuffixStable(),
+    const common = {
       prompt: q_prompt.value.trim() || 'Untitled question?', options: options.filter(Boolean), correctIndex,
       explanation: q_explanation.value.trim() || '(add an explanation)', difficulty: q_difficulty.value, hashtags: q_hashtagsEl._getValues(),
       course: courseInfo.course, class: courseInfo.class, relatedCourseOverride: courseInfo.relatedCourseOverride, courseInfo,
       addCourseSnippet: courseInfo.addCourseSnippet, addClassSnippet: courseInfo.addClassSnippet,
+    };
+    if(editingQuestionId){
+      // theme/topic/itemId come from where the question actually lives, not
+      // the (disabled but still holding matching values) selects -- same
+      // reasoning as buildItemObject()'s editingItemId branch above.
+      return { ...common, theme: editingQuestionLoc.theme, topic: editingQuestionLoc.topic, itemId: editingQuestionLoc.itemId, qId: editingQuestionId, editingQuestionId };
+    }
+    return {
+      ...common, theme: q_theme.value, topic: q_topic.value,
+      itemId: usingCustom ? (q_customItemId.value.trim()||'unknown-item') : (q_itemSelect.value||'unknown-item'),
+      qId: 'q-' + q_topic.value + '-' + randSuffixStable(), editingQuestionId: null,
     };
   }
   function questionCodeString(o){
@@ -1312,7 +1422,10 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     let tail = '';
     if(o.relatedCourseOverride) tail = `,\n  relatedCourse:'${escMultiline(o.relatedCourseOverride)}'`;
     else if(differsFromItem) tail = `,\n  course:'${o.course}'${o.class?`,\n  class:'${o.class}'`:''}`;
-    return `${pre}// -> THEMES.${o.theme}.topics.${o.topic}.items.${o.itemId}.questions in game-data.js\n{ id:'${o.qId}', prompt:'${esc(o.prompt)}',\n  options:[${optsStr}], correctIndex:${o.correctIndex},\n  explanation:'${esc(o.explanation)}'${difficultyStr}${hashtagsStr}${tail} },`;
+    const header = o.editingQuestionId
+      ? `// REPLACE THEMES.${o.theme}.topics.${o.topic}.items.${o.itemId}.questions[id='${o.qId}'] in game-data.js (edit)\n`
+      : `// -> THEMES.${o.theme}.topics.${o.topic}.items.${o.itemId}.questions in game-data.js\n`;
+    return `${pre}${header}{ id:'${o.qId}', prompt:'${esc(o.prompt)}',\n  options:[${optsStr}], correctIndex:${o.correctIndex},\n  explanation:'${esc(o.explanation)}'${difficultyStr}${hashtagsStr}${tail} },`;
   }
   function renderQuestionPreview(o){
     const topicMeta = RD.TOPICS[o.topic] || { label:o.topic };
@@ -1332,15 +1445,10 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     if(!q_explanation.value.trim()){ toast('Add an explanation first'); q_explanation.focus(); return; }
     if(o.itemId==='unknown-item'){ toast('Pick which item this question is about'); return; }
     q_coursePicker.commit(o.courseInfo);
-    pushToQueue({ type:'question', title:o.prompt.slice(0,50), code:questionCodeString(o), note:`${(KNOWN_THEMES.find(t=>t.id===o.theme)||{}).label||o.theme} · ${o.topic}`, data:o });
+    pushToQueue({ type: o.editingQuestionId ? 'edit-question' : 'question', title:o.prompt.slice(0,50), code:questionCodeString(o), note:`${o.editingQuestionId?'✏️ Edit · ':''}${(KNOWN_THEMES.find(t=>t.id===o.theme)||{}).label||o.theme} · ${o.topic}`, data:o });
     refreshCourseSelects(); renderStructureList();
-    toast('Added to the queue');
-    q_prompt.value=''; q_explanation.value=''; q_customItemId.value=''; _qSuffix = null;
-    makeTextList(q_hashtagsEl, 'e.g. Leukemia', renderQuestion, null, 'knownHashtagsList');
-    makeOptionList(q_optionsEl, renderQuestion);
-    q_customItemBlock.classList.remove('show'); q_itemSelect.disabled = false;
-    q_coursePicker.resetNewBlocks();
-    renderQuestion();
+    toast(o.editingQuestionId ? 'Edit added to the queue' : 'Added to the queue');
+    resetQuestionFormToNew();
   });
   function jumpToNewQuestionForItem(itemId){
     const known = KNOWN_ITEMS.find(it=>it.id===itemId);
@@ -1654,8 +1762,11 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   lec_class.addEventListener('change', renderLecPreview);
   fillLecCourseSelect();
   // Pure: never touches KNOWN_ITEMS. decidedThisBatch only dedupes within one parse.
-  function parseLectureQuestions(){
-    const rows = parseCSV(lec_textarea.value);
+  // rows is optional -- omit it to read straight from the CSV textarea (the
+  // original call shape); the pasteable grid below passes its own rows
+  // built the same way parseCSV() would (header row + string arrays).
+  function parseLectureQuestions(rows){
+    rows = rows || parseCSV(lec_textarea.value);
     if(rows.length < 2) return { valid:[], newItems:[], errors:['Paste a header row plus at least one question row.'] };
     const idx = headerIndex(rows, ['questionid','course','lecture','topic','item','prompt','optiona','optionb','optionc','optiond','correct','explanation','hashtags','difficulty','description','mechanism','funfacts']);
     const missingCols = ['course','topic','item','prompt','optiona','optionb','optionc','optiond','correct','explanation'].filter(k=>idx[k]<0);
@@ -1701,9 +1812,10 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     }
     return { valid, newItems, errors };
   }
-  function renderLecPreview(){
-    if(!lec_textarea.value.trim()){ lec_preview.innerHTML = ''; return; }
-    const { valid, newItems, errors } = parseLectureQuestions();
+  // Shared by both the CSV textarea and the pasteable grid below -- same
+  // parsed shape (valid/newItems/errors), just rendered into whichever
+  // preview element belongs to the input method that produced it.
+  function buildLectureImportPreviewHtml(valid, newItems, errors){
     let html = '';
     if(valid.length){
       const editCount = valid.filter(v=>v.isEdit).length, newCount = valid.length - editCount;
@@ -1716,21 +1828,114 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       if(existingCount > 0) html += `<div style="margin-top:6px;">Questions also added to <b>${existingCount}</b> existing item${existingCount===1?'':'s'}.</div>`;
     }
     if(errors.length) html += `<div class="status bad" style="margin-top:6px;">⚠️ ${esc2(errors.join(' '))}</div>`;
-    lec_preview.innerHTML = html;
+    return html;
+  }
+  // Also shared by both -- queues everything a parse produced, with only the
+  // "created by ___" wording differing so the queue makes clear which input
+  // method a row came from.
+  function commitLectureImport(valid, newItems, sourceLabel){
+    if(!valid.length) return false;
+    newItems.forEach(o=>{
+      KNOWN_ITEMS.push({ id:o.itemId, theme:o.theme, topic:o.topicId, label:o.label, course:o.course, class:o.class });
+      pushToQueue({ type:'item', title:o.label, code:itemCodeString(o), note:`${(KNOWN_THEMES.find(t=>t.id===o.theme)||{}).label||o.theme} · ${o.topicId} · created by ${sourceLabel}`, data:o });
+    });
+    valid.forEach(o=> pushToQueue({ type: o.isEdit?'edit-question':'question', title:o.prompt.slice(0,50), code:questionCodeString(o), note:`${o.isEdit?'✏️ Edit':'🆕 New'} · ${(KNOWN_THEMES.find(t=>t.id===o.theme)||{}).label||o.theme} · ${o.topic} · via ${sourceLabel}`, data:o }));
+    refreshAllPickers();
+    const editCount = valid.filter(v=>v.isEdit).length, newCount = valid.length - editCount;
+    toast(`Added ${newCount} new question${newCount===1?'':'s'}, ${editCount} update${editCount===1?'':'s'}${newItems.length?`, and ${newItems.length} new item${newItems.length===1?'':'s'}`:''} to the queue`);
+    return true;
+  }
+  function renderLecPreview(){
+    if(!lec_textarea.value.trim()){ lec_preview.innerHTML = ''; return; }
+    const { valid, newItems, errors } = parseLectureQuestions();
+    lec_preview.innerHTML = buildLectureImportPreviewHtml(valid, newItems, errors);
   }
   lec_textarea.addEventListener('input', renderLecPreview);
   document.getElementById('lec_parseBtn').addEventListener('click', ()=>{
     const { valid, newItems, errors } = parseLectureQuestions();
-    if(!valid.length){ toast(errors[0] || 'Nothing to add'); return; }
-    newItems.forEach(o=>{
-      KNOWN_ITEMS.push({ id:o.itemId, theme:o.theme, topic:o.topicId, label:o.label, course:o.course, class:o.class });
-      pushToQueue({ type:'item', title:o.label, code:itemCodeString(o), note:`${(KNOWN_THEMES.find(t=>t.id===o.theme)||{}).label||o.theme} · ${o.topicId} · created by CSV import`, data:o });
-    });
-    valid.forEach(o=> pushToQueue({ type: o.isEdit?'edit-question':'question', title:o.prompt.slice(0,50), code:questionCodeString(o), note:`${o.isEdit?'✏️ Edit':'🆕 New'} · ${(KNOWN_THEMES.find(t=>t.id===o.theme)||{}).label||o.theme} · ${o.topic} · via CSV`, data:o }));
-    refreshAllPickers();
-    const editCount = valid.filter(v=>v.isEdit).length, newCount = valid.length - editCount;
-    toast(`Added ${newCount} new question${newCount===1?'':'s'}, ${editCount} update${editCount===1?'':'s'}${newItems.length?`, and ${newItems.length} new item${newItems.length===1?'':'s'}`:''} to the queue`);
+    if(!commitLectureImport(valid, newItems, 'CSV import')){ toast(errors[0] || 'Nothing to add'); return; }
     lec_textarea.value = ''; lec_preview.textContent = '';
+  });
+
+  // ---- pasteable question-import grid: same columns/parsing as the CSV
+  // tab above, but as a real editable table you can paste a whole copied
+  // spreadsheet range into at once (see handleGridPaste) instead of
+  // formatting to CSV text first. ----
+  const GRID_COLUMNS = [
+    ['questionid','Question ID'], ['course','Course'], ['lecture','Lecture'], ['topic','Topic'], ['item','Item'],
+    ['prompt','Prompt'], ['optiona','Option A'], ['optionb','Option B'], ['optionc','Option C'], ['optiond','Option D'],
+    ['correct','Correct'], ['explanation','Explanation'], ['hashtags','Hashtags'], ['difficulty','Difficulty'],
+    ['description','Description'], ['mechanism','Mechanism'], ['funfacts','Fun facts'],
+  ];
+  const GRID_WIDE_COLS = new Set(['prompt','explanation','description','mechanism']);
+  const gridHeaderRow = document.getElementById('gridImportHeaderRow');
+  const gridBody = document.getElementById('gridImportBody');
+  const grid_preview = document.getElementById('grid_preview');
+  gridHeaderRow.innerHTML = GRID_COLUMNS.map(([,label])=>`<th>${esc2(label)}</th>`).join('') + '<th></th>';
+  function addGridRow(){
+    const tr = document.createElement('tr');
+    tr.innerHTML = GRID_COLUMNS.map(([key])=>`<td${GRID_WIDE_COLS.has(key)?' class="grid-wide"':''}><input type="text"></td>`).join('')
+      + `<td class="grid-remove-cell"><button type="button" class="subtle" title="Remove row">✕</button></td>`;
+    tr.querySelectorAll('input').forEach(inp=>{
+      inp.addEventListener('input', renderGridPreview);
+      inp.addEventListener('paste', handleGridPaste);
+    });
+    tr.querySelector('button').addEventListener('click', ()=>{ tr.remove(); renderGridPreview(); });
+    gridBody.appendChild(tr);
+    return tr;
+  }
+  function resetGrid(startingRows){
+    gridBody.innerHTML = '';
+    for(let i=0; i<(startingRows||6); i++) addGridRow();
+  }
+  resetGrid();
+  document.getElementById('grid_addRowBtn').addEventListener('click', ()=> addGridRow());
+  document.getElementById('grid_clearBtn').addEventListener('click', ()=>{ resetGrid(); renderGridPreview(); });
+  // A single value (no tab, no newline) just pastes normally into the one
+  // cell -- only a multi-cell copy (from a real spreadsheet range) gets
+  // intercepted and spread across cells, starting at whichever cell you
+  // clicked, growing the table with extra rows if the paste needs them.
+  // Pasted columns past the last one here are silently ignored.
+  function handleGridPaste(e){
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    if(!text.includes('\t') && !text.includes('\n')) return;
+    e.preventDefault();
+    const startTr = e.target.closest('tr');
+    const startCol = [...startTr.children].indexOf(e.target.closest('td'));
+    const startRowIdx = [...gridBody.children].indexOf(startTr);
+    const lines = text.replace(/\r/g,'').split('\n');
+    if(lines.length > 1 && lines[lines.length-1] === '') lines.pop(); // trailing newline from a sheet copy
+    lines.forEach((line, rOffset)=>{
+      const values = line.split('\t');
+      let tr = gridBody.children[startRowIdx + rOffset];
+      if(!tr) tr = addGridRow();
+      values.forEach((val, cOffset)=>{
+        const col = startCol + cOffset;
+        if(col >= GRID_COLUMNS.length) return;
+        const input = tr.children[col]?.querySelector('input');
+        if(input) input.value = val;
+      });
+    });
+    renderGridPreview();
+  }
+  function readGridRows(){
+    const header = GRID_COLUMNS.map(([key])=>key);
+    const body = [...gridBody.querySelectorAll('tr')].map(tr=> [...tr.querySelectorAll('input')].map(inp=>inp.value));
+    return [header, ...body];
+  }
+  function gridHasContent(){
+    return [...gridBody.querySelectorAll('input')].some(inp=>inp.value.trim());
+  }
+  function renderGridPreview(){
+    if(!gridHasContent()){ grid_preview.innerHTML = ''; return; }
+    const { valid, newItems, errors } = parseLectureQuestions(readGridRows());
+    grid_preview.innerHTML = buildLectureImportPreviewHtml(valid, newItems, errors);
+  }
+  document.getElementById('grid_parseBtn').addEventListener('click', ()=>{
+    const { valid, newItems, errors } = parseLectureQuestions(readGridRows());
+    if(!commitLectureImport(valid, newItems, 'pasted table')){ toast(errors[0] || 'Nothing to add'); return; }
+    resetGrid();
+    grid_preview.innerHTML = '';
   });
   document.getElementById('lec_exportBtn').addEventListener('click', ()=>{
     const rows = [['questionId','course','lecture','topic','item','prompt','optionA','optionB','optionC','optionD','correct','explanation','hashtags','difficulty','description','mechanism','funfacts']];
@@ -1815,6 +2020,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   }
   function wireEditButtons(container){
     container.querySelectorAll('[data-edit-item]').forEach(btn=> btn.addEventListener('click', e=>{ e.preventDefault(); showTab('add'); showPane('add','item'); i_editModeToggle.checked = true; i_editModeToggle.dispatchEvent(new Event('change')); i_editItemSelect.value = btn.dataset.editItem; i_editItemSelect.dispatchEvent(new Event('change')); }));
+    container.querySelectorAll('[data-edit-question]').forEach(btn=> btn.addEventListener('click', e=>{ e.preventDefault(); showTab('add'); showPane('add','question'); q_editModeToggle.checked = true; q_editModeToggle.dispatchEvent(new Event('change')); q_editQuestionSelect.value = btn.dataset.editQuestion; q_editQuestionSelect.dispatchEvent(new Event('change')); }));
     container.querySelectorAll('[data-add-question]').forEach(btn=> btn.addEventListener('click', e=>{ e.preventDefault(); jumpToNewQuestionForItem(btn.dataset.addQuestion); }));
     container.querySelectorAll('[data-delete-question]').forEach(btn=> btn.addEventListener('click', e=>{
       e.preventDefault();
@@ -1993,10 +2199,17 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     if(entry.type === 'flag-item') return `<div class="qi-detail-label">Reported issue</div><div class="qi-detail-text">${esc2(entry.data?.reason || entry.note || '(no reason given)')}</div>`;
     if(entry.type === 'flag-question'){
       const d = entry.data || {};
+      // Re-derive location from the live content rather than trusting the
+      // report's own stored theme/topicId/itemId (also confirms the
+      // question hasn't since been deleted) -- lets a working "jump
+      // straight to this question" button skip the item-level fallback.
+      const loc = d.qId ? findQuestionLocation(d.qId) : null;
+      const editBtn = loc ? `<button type="button" class="struct-edit-link" data-edit-question="${esc2(d.qId)}">✏️ Edit this question</button>`
+        : (d.itemId ? `<button type="button" class="struct-edit-link" data-edit-item="${esc2(d.itemId)}">✏️ Open this item to fix it</button>` : '');
       return `<div class="qi-detail-label">Reported issue</div><div class="qi-detail-text">${esc2(d.reason||entry.note||'(no reason given)')}</div>`
         + (d.prompt ? `<div class="qi-detail-label">Question</div><div class="qi-detail-text">${esc2(d.prompt)}</div>` : '')
         + `<div class="qi-detail-label">Where</div><div class="qi-detail-text">${esc2([d.theme, d.topicId, d.itemId, d.qId].filter(Boolean).join(' → ') || '(unknown)')}</div>`
-        + (d.itemId ? `<button type="button" class="struct-edit-link" data-edit-item="${esc2(d.itemId)}">✏️ Open this item to fix it</button>` : '');
+        + editBtn;
     }
     return `<div class="qi-detail-label">Generated code</div><pre class="code-out" style="margin:0;max-height:220px;">${esc2(entry.code || '(no code recorded for this entry)')}</pre>`;
   }
@@ -2049,7 +2262,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   // through from a template. The built-in one below was extracted from
   // game-data.js when this tool was generated; "Refresh from GitHub"
   // replaces it with the latest committed copy.
-  const DEFAULT_TEMPLATE = {"before": "/* ============================================================================\n   game-data.js — all game CONTENT for Runner Game (cancer-runner-group.html)\n   and the Contributor tool (contributor.html) live in this one file.\n\n   Nothing in here is executable game logic — it's just numbers, labels and\n   study-guide content. The game and the contributor tool both load this file\n   as a plain <script> (NOT type=\"module\", so it still works when you just\n   double-click the .html file — no local server needed) and read everything\n   off `window.RUNNER_DATA`.\n\n   HOW TO ADD CONTENT\n   -------------------\n   • Easiest: open contributor.html, fill in the form, it writes the object\n     literal for you in the exact shape below — paste it in.\n   • By hand: follow the shape of an existing entry and keep the same keys.\n\n   SHAPE OVERVIEW\n   ---------------\n   COURSES        — real university courses (e.g. MEDS3002), each broken into\n                     Classes/lectures (individual lectures, e.g. \"L14\"). This\n                     is ALSO the top level of THEMES below now -- a course\n                     code like 'MEDS3002' is both a playable top-level group\n                     AND (via `course`/`class` on an item/question) a lecture\n                     citation, which is why an item's own course usually\n                     matches its top-level THEMES key but doesn't have to.\n                     A class/lecture can optionally carry `outcomes` (an\n                     array of learning-outcome strings) — shown as a bullet\n                     list at the top of that lecture in \"Browse by lecture\".\n   THEMES         — Course (e.g. \"MEDS3002\") → Topic → study-guide Item.\n                     Topics are specific to their course now -- each one\n                     carries its own `label`/`icon`/`color` inline instead of\n                     pointing at a shared taxonomy. Each item can point at a\n                     COURSES entry via `course` + `class`, and carries its own\n                     `questions` array — the MCQs players get asked about\n                     that item (each with its own `difficulty`, one of\n                     'easy'/'medium'/'hard', optional). A question only\n                     needs its own `course`/`class` (or, rarely, a literal\n                     `relatedCourse` string) if it genuinely differs from its\n                     item's — most just inherit the item's.\n   STAGES         — Course → ordered list of Runner-mode stages.\n   RUNNABLE_THEMES— which course ids have a STAGES entry (playable in Runner\n                     mode vs. Study & Practice-only).\n   GAME_CONFIG    — every tunable gameplay number.\n   LIFE_CONFIG    — per-course label/icon for the \"life\" resource.\n   COMPLETE_SCENARIO — text shown after the last stage.\n   ============================================================================ */\n(function(){\n\n/* ======================================================================\n   COURSES — real university courses, broken into Classes (individual\n   lectures). Items and questions reference these via `course` (the course\n   code, e.g. 'MEDS3002') + `class` (the class key, e.g. 'L14') instead of\n   writing the whole label out by hand every time. The display string\n   (\"MEDS3002 · L14 · Cancer Hallmarks\") is generated automatically — see\n   courseDisplayString() in cancer-runner-group.html.\n   ====================================================================== */\n                  ", "betweenCoursesThemes": "\n\n/* ======================================================================\n   GAME_CONFIG — every tunable number lives here in one place.\n   ====================================================================== */\n  const GAME_CONFIG = {\n    baseSpeed: 600,            // px/s at Stage I\n    speedRampPerStage: 40,     // added per stage index (0-based) — one-time bump on stage change\n    speedRampPerSecond: 10,    // added continuously for every second survived — this is what makes it feel gradual\n    maxSpeed: 1000,             // speed never exceeds this\n    startingGlucose: 100,\n    glucosePickupValue: 5,     // gained per life pickup collected\n    wrongAnswerPenalty: 40,    // life lost per wrong MCQ answer\n    postAnswerPauseMs: 2000,   // brief freeze after clicking Continue, before the run resumes -- gives a beat to\n                               // get oriented instead of getting dropped straight back next to whatever piled up\n    obstacleSpawnBaseMs: 500,  // topic-block spawn interval = base + random(0..rand) -- widened per playtester\n                               // feedback that questions/obstacles were coming at the player too frequently\n    obstacleSpawnRandMs: 700,\n    glucoseSpawnBaseMs: 550,   // life-pickup spawn interval = base + random(0..rand)\n    glucoseSpawnRandMs: 300,\n    initialObstacleDelayMs: 1200, // delay before the very first topic block spawns\n    initialGlucoseDelayMs: 500,   // delay before the very first life pickup spawns\n    bombDamage: 40,               // life lost when a bomb is hit (instant, no question)\n    bombIcon: '💣',                // swap for 'icons/bomb.png' (or any path/URL -- see the ICONS comment\n                                   // in medsci-runner.html) to use your own image instead of the emoji\n    bombSpawnBaseMs: 800,        // bomb spawn interval — base + random(0..rand) -- widened alongside obstacleSpawn* above\n    bombSpawnRandMs: 1600,\n    scoreCorrectWeight: 50,    // Group Race ranking score = correct*this - incorrect*this + life*this + stageIndex*stageWeight\n    scoreIncorrectWeight: 35,\n    scoreLifeWeight: 0,\n    stageWeight: 300,          // added per stage reached (stageIndex is 0-based, so Stage I contributes 0)\n    streakBonusEvery: 3,       // award a bonus every Nth correct answer IN A ROW (resets to 0 on any wrong answer)\n    streakBonusAmount: 0,     // life gained when a streak bonus triggers\n    streakBonusAppliesToLife: true, // set false to stop the streak bonus from also topping up life -- the life-award code below stays intact either way, this just gates it\n    streakBonusScoreAmount: 150, // flat score points awarded when a streak bonus triggers (on top of the usual correct/incorrect/life/stage weights)\n    speedPresets: { slow:0.75, normal:1, fast:1.25 }, // Customise → Game speed: multiplies baseSpeed/maxSpeed (a Group Race uses the host's pick for everyone)\n    bombIntervalByDifficulty: { easy:1.5, medium:1, hard:0.7 }, // bomb spawn interval multiplier per stage difficulty (easy = fewer bombs)\n    // ---- Group Race gifts (grenades & shields) ----\n    giftUnlockShare: 0.2,      // gift questions start once this share of racers has reached Stage II\n    giftSpawnBaseMs: 7000,     // a gift-question block is ROLLED for every base + random(0..rand) ms ...\n    giftSpawnRandMs: 6000,\n    giftChanceMin: 0.3,        // ... and appears with this chance for the racer in 1st place ...\n    giftChanceMax: 0.85,       // ... rising to this for whoever is last -- falling behind gets you more gifts\n    giftCost: 25,              // life spent to buy a grenade or a shield after answering a gift question correctly\n    grenadeDamage: 40,         // life an unshielded target loses when a grenade lands (same as a bomb)\n    // ---- Catch-up window ----\n    // The first racer to finish (reason:'finished' -- reached the last\n    // stage) doesn't win outright: everyone else still racing gets this\n    // long to keep answering and try to out-SCORE them before the match\n    // locks in. Only the very first finisher starts the window (a\n    // transaction guards this) -- anyone finishing afterward doesn't\n    // restart or extend it. Whoever has the highest score once it expires\n    // (or once everyone's actually done, if that happens first) wins --\n    // reaching the end first is not itself a win condition.\n    catchUpWindowMs: 30000,\n  };\n\n/* ======================================================================\n   LIFE — the \"health\" resource. Same label (\"Life\") and icon (🩸) across\n   every course now -- LIFE_CONFIG stays keyed by course so a specific\n   course could still be given its own wording later; every place it's\n   shown (HUD, pickups, penalties, the bomb warning) reads from this\n   automatically via lifeCfg() in medsci-runner.html.\n   ====================================================================== */\n  const LIFE_CONFIG = {\n    'MEDS3002': { label:'Life', icon:'🩸' },\n    'MEDS2003': { label:'Life', icon:'🩸' },\n  };\n\n/* ======================================================================\n   THEMES — Course -> Topic -> Item. Each item can carry \"hashtags\" (which\n   cancer type / sub-area it belongs to, e.g. ['Leukemia']), course + class\n   fields pointing into COURSES above (e.g. course:'MEDS3002', class:'L14'),\n   and its own \"questions\" array — the MCQs players get asked when they hit\n   this item's topic in Runner mode or match it in Study & Practice. A\n   question only needs its own course/class if it genuinely differs from\n   its item's (e.g. a question spanning several classes at once) — most\n   questions just inherit the item's.\n   ====================================================================== */\n                  ", "afterThemes": "\n\n/* ======================================================================\n   STAGES — per course. Each stage has correct-answer requirements (reset\n   each stage), a difficulty ('easy'/'medium'/'hard' — questions tagged with\n   it are served first, and bomb frequency scales with it), and a narrative\n   shown on the transition screen before that stage begins.\n   ====================================================================== */\n  const STAGES = {\n    'MEDS3002': [\n      /* \"scenario\" is patient-facing narrative — this is also where a real\n         case study can be dropped in later (per stage). Three stages, one\n         per difficulty: questions tagged with the stage's difficulty are\n         served first, untagged ones count as medium. */\n      { n:1, roman:'I', difficulty:'easy', requirements:{ genetics:3, immunology:3, pharmacology:3, oncology:3 },\n        scenario:\"Patient presents with fatigue and unexplained bruising. Bloodwork shows an abnormal white cell count — the care team orders genetic testing to find out exactly what's driving it.\" },\n      { n:2, roman:'II', difficulty:'medium', requirements:{ genetics:4, immunology:8, pharmacology:5 },\n        scenario:\"The genetic picture is in. Now the patient's own immune system is in the fight and treatment is about to start — how well the body recognises the disease, and which drugs will actually work against it, shape what comes next.\" },\n      { n:3, roman:'III', difficulty:'hard', requirements:{ genetics:3, immunology:6, pharmacology:8, oncology:8 },\n        scenario:\"The patient is now deep into treatment. Staging, complications, and what happens next define the road ahead.\" },\n    ],\n    // Deliberately short right now — MEDS2003 only has a handful of\n    // seed questions so far. Expand requirements as you add more content\n    // (see the contributor tool or dev notes).\n    'MEDS2003': [\n      { n:1, roman:'I', difficulty:'easy', requirements:{ metabolism:2 },\n        scenario:\"You're tracing how a cell fuels itself — starting with how it handles glucose and energy production.\" },\n      { n:2, roman:'II', difficulty:'medium', requirements:{ metabolism:1, molecularBiology:1 },\n        scenario:\"From metabolism to the molecular machinery that reads and copies the genome — the next layer of the picture.\" },\n    ],\n  };\n  const COMPLETE_SCENARIO = \"You've worked through the full case — review your answers below, or start again to reinforce what you've learned. (Real case studies coming soon.)\";\n\n  const RUNNABLE_THEMES = ['MEDS3002', 'MEDS2003']; // course ids with a matching STAGES config, playable in Runner mode\n\n\n  window.RUNNER_DATA = {\n    COURSES, GAME_CONFIG, LIFE_CONFIG, THEMES,\n    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES,\n  };\n\n})();\n"};
+  const DEFAULT_TEMPLATE = {"before": "/* ============================================================================\n   game-data.js — all game CONTENT for Runner Game (cancer-runner-group.html)\n   and the Contributor tool (contributor.html) live in this one file.\n\n   Nothing in here is executable game logic — it's just numbers, labels and\n   study-guide content. The game and the contributor tool both load this file\n   as a plain <script> (NOT type=\"module\", so it still works when you just\n   double-click the .html file — no local server needed) and read everything\n   off `window.RUNNER_DATA`.\n\n   HOW TO ADD CONTENT\n   -------------------\n   • Easiest: open contributor.html, fill in the form, it writes the object\n     literal for you in the exact shape below — paste it in.\n   • By hand: follow the shape of an existing entry and keep the same keys.\n\n   SHAPE OVERVIEW\n   ---------------\n   COURSES        — real university courses (e.g. MEDS3002), each broken into\n                     Classes/lectures (individual lectures, e.g. \"L14\"). This\n                     is ALSO the top level of THEMES below now -- a course\n                     code like 'MEDS3002' is both a playable top-level group\n                     AND (via `course`/`class` on an item/question) a lecture\n                     citation, which is why an item's own course usually\n                     matches its top-level THEMES key but doesn't have to.\n                     A class/lecture can optionally carry `outcomes` (an\n                     array of learning-outcome strings) — shown as a bullet\n                     list at the top of that lecture in \"Browse by lecture\".\n   THEMES         — Course (e.g. \"MEDS3002\") → Topic → study-guide Item.\n                     Topics are specific to their course now -- each one\n                     carries its own `label`/`icon`/`color` inline instead of\n                     pointing at a shared taxonomy. Each item can point at a\n                     COURSES entry via `course` + `class`, and carries its own\n                     `questions` array — the MCQs players get asked about\n                     that item (each with its own `difficulty`, one of\n                     'easy'/'medium'/'hard', optional). A question only\n                     needs its own `course`/`class` (or, rarely, a literal\n                     `relatedCourse` string) if it genuinely differs from its\n                     item's — most just inherit the item's.\n   STAGES         — Course → ordered list of Runner-mode stages.\n   RUNNABLE_THEMES— which course ids have a STAGES entry (playable in Runner\n                     mode vs. Study & Practice-only).\n   GAME_CONFIG    — every tunable gameplay number.\n   LIFE_CONFIG    — per-course label/icon for the \"life\" resource.\n   COMPLETE_SCENARIO — text shown after the last stage.\n   ============================================================================ */\n(function(){\n\n/* ======================================================================\n   COURSES — real university courses, broken into Classes (individual\n   lectures). Items and questions reference these via `course` (the course\n   code, e.g. 'MEDS3002') + `class` (the class key, e.g. 'L14') instead of\n   writing the whole label out by hand every time. The display string\n   (\"MEDS3002 · L14 · Cancer Hallmarks\") is generated automatically — see\n   courseDisplayString() in cancer-runner-group.html.\n   ====================================================================== */\n                  ", "betweenCoursesThemes": "\n\n/* ======================================================================\n   GAME_CONFIG — every tunable number lives here in one place.\n   ====================================================================== */\n  const GAME_CONFIG = {\n    baseSpeed: 600,            // px/s at Stage I\n    speedRampPerStage: 40,     // added per stage index (0-based) — one-time bump on stage change\n    speedRampPerSecond: 10,    // added continuously for every second survived — this is what makes it feel gradual\n    maxSpeed: 1000,             // speed never exceeds this\n    startingGlucose: 100,\n    glucosePickupValue: 5,     // gained per life pickup collected\n    wrongAnswerPenalty: 40,    // life lost per wrong MCQ answer\n    postAnswerPauseMs: 2000,   // brief freeze after clicking Continue, before the run resumes -- gives a beat to\n                               // get oriented instead of getting dropped straight back next to whatever piled up\n    obstacleSpawnBaseMs: 500,  // topic-block spawn interval = base + random(0..rand) -- widened per playtester\n                               // feedback that questions/obstacles were coming at the player too frequently\n    obstacleSpawnRandMs: 700,\n    glucoseSpawnBaseMs: 550,   // life-pickup spawn interval = base + random(0..rand)\n    glucoseSpawnRandMs: 300,\n    initialObstacleDelayMs: 1200, // delay before the very first topic block spawns\n    initialGlucoseDelayMs: 500,   // delay before the very first life pickup spawns\n    bombDamage: 40,               // life lost when a bomb is hit (instant, no question)\n    bombIcon: '💣',                // swap for 'icons/bomb.png' (or any path/URL -- see the ICONS comment\n                                   // in medsci-runner.html) to use your own image instead of the emoji\n    bombSpawnBaseMs: 800,        // bomb spawn interval — base + random(0..rand) -- widened alongside obstacleSpawn* above\n    bombSpawnRandMs: 1600,\n    scoreCorrectWeight: 50,    // Group Race ranking score = correct*this - incorrect*this + life*this + stageIndex*stageWeight\n    scoreIncorrectWeight: 35,\n    scoreLifeWeight: 0,\n    stageWeight: 300,          // added per stage reached (stageIndex is 0-based, so Stage I contributes 0)\n    streakBonusEvery: 3,       // award a bonus every Nth correct answer IN A ROW (resets to 0 on any wrong answer)\n    streakBonusAmount: 0,     // life gained when a streak bonus triggers\n    streakBonusAppliesToLife: true, // set false to stop the streak bonus from also topping up life -- the life-award code below stays intact either way, this just gates it\n    streakBonusScoreAmount: 150, // flat score points awarded when a streak bonus triggers (on top of the usual correct/incorrect/life/stage weights)\n    speedPresets: { slow:0.75, normal:1, fast:1.25 }, // Customise → Game speed: multiplies baseSpeed/maxSpeed (a Group Race uses the host's pick for everyone)\n    bombIntervalByDifficulty: { easy:1.5, medium:1, hard:0.7 }, // bomb spawn interval multiplier per stage difficulty (easy = fewer bombs)\n    // ---- Group Race gifts (grenades & shields) ----\n    giftUnlockShare: 0.2,      // gift questions start once this share of racers has reached Stage II\n    giftSpawnBaseMs: 7000,     // a gift-question block is ROLLED for every base + random(0..rand) ms ...\n    giftSpawnRandMs: 6000,\n    giftChanceMin: 0.3,        // ... and appears with this chance for the racer in 1st place ...\n    giftChanceMax: 0.85,       // ... rising to this for whoever is last -- falling behind gets you more gifts\n    giftCost: 25,              // life spent to buy a grenade or a shield after answering a gift question correctly\n    grenadeDamage: 40,         // life an unshielded target loses when a grenade lands (same as a bomb)\n    // ---- Catch-up window ----\n    // Two things can start this window, whichever happens first: (a) a racer\n    // finishes all stages (reason:'finished'), or (b) a racer becomes the\n    // LAST ONE STILL RACING because everyone else is done, for any reason\n    // (reason:'last-standing') -- instead of instantly locking that survivor\n    // in, they get this long for one final stretch to set the best score.\n    // Only the very first qualifying event starts the window (a transaction\n    // guards this) -- anything after that doesn't restart or extend it.\n    // Whoever has the highest score once it expires (or once everyone's\n    // actually done, if that happens first) wins -- reaching the end first,\n    // or simply being the one left standing, is not itself a win condition.\n    catchUpWindowMs: 45000,\n  };\n\n/* ======================================================================\n   LIFE — the \"health\" resource. Same label (\"Life\") and icon (🩸) across\n   every course now -- LIFE_CONFIG stays keyed by course so a specific\n   course could still be given its own wording later; every place it's\n   shown (HUD, pickups, penalties, the bomb warning) reads from this\n   automatically via lifeCfg() in medsci-runner.html.\n   ====================================================================== */\n  const LIFE_CONFIG = {\n    'MEDS3002': { label:'Life', icon:'🩸' },\n    'MEDS2003': { label:'Life', icon:'🩸' },\n  };\n\n/* ======================================================================\n   THEMES — Course -> Topic -> Item. Each item can carry \"hashtags\" (which\n   cancer type / sub-area it belongs to, e.g. ['Leukemia']), course + class\n   fields pointing into COURSES above (e.g. course:'MEDS3002', class:'L14'),\n   and its own \"questions\" array — the MCQs players get asked when they hit\n   this item's topic in Runner mode or match it in Study & Practice. A\n   question only needs its own course/class if it genuinely differs from\n   its item's (e.g. a question spanning several classes at once) — most\n   questions just inherit the item's.\n   ====================================================================== */\n                  ", "afterThemes": "\n\n/* ======================================================================\n   STAGES — per course. Each stage has correct-answer requirements (reset\n   each stage), a difficulty ('easy'/'medium'/'hard' — questions tagged with\n   it are served first, and bomb frequency scales with it), and a narrative\n   shown on the transition screen before that stage begins.\n   ====================================================================== */\n  const STAGES = {\n    'MEDS3002': [\n      /* \"scenario\" is patient-facing narrative — this is also where a real\n         case study can be dropped in later (per stage). Three stages, one\n         per difficulty: questions tagged with the stage's difficulty are\n         served first, untagged ones count as medium. */\n      { n:1, roman:'I', difficulty:'easy', requirements:{ genetics:3, immunology:3, pharmacology:3, oncology:3 },\n        scenario:\"Patient presents with fatigue and unexplained bruising. Bloodwork shows an abnormal white cell count — the care team orders genetic testing to find out exactly what's driving it.\" },\n      { n:2, roman:'II', difficulty:'medium', requirements:{ genetics:4, immunology:8, pharmacology:5 },\n        scenario:\"The genetic picture is in. Now the patient's own immune system is in the fight and treatment is about to start — how well the body recognises the disease, and which drugs will actually work against it, shape what comes next.\" },\n      { n:3, roman:'III', difficulty:'hard', requirements:{ genetics:3, immunology:6, pharmacology:8, oncology:8 },\n        scenario:\"The patient is now deep into treatment. Staging, complications, and what happens next define the road ahead.\" },\n    ],\n    // Deliberately short right now — MEDS2003 only has a handful of\n    // seed questions so far. Expand requirements as you add more content\n    // (see the contributor tool or dev notes).\n    'MEDS2003': [\n      { n:1, roman:'I', difficulty:'easy', requirements:{ metabolism:2 },\n        scenario:\"You're tracing how a cell fuels itself — starting with how it handles glucose and energy production.\" },\n      { n:2, roman:'II', difficulty:'medium', requirements:{ metabolism:1, molecularBiology:1 },\n        scenario:\"From metabolism to the molecular machinery that reads and copies the genome — the next layer of the picture.\" },\n    ],\n  };\n  const COMPLETE_SCENARIO = \"You've worked through the full case — review your answers below, or start again to reinforce what you've learned. (Real case studies coming soon.)\";\n\n  const RUNNABLE_THEMES = ['MEDS3002', 'MEDS2003']; // course ids with a matching STAGES config, playable in Runner mode\n\n\n  window.RUNNER_DATA = {\n    COURSES, GAME_CONFIG, LIFE_CONFIG, THEMES,\n    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES,\n  };\n\n})();\n"};
   function isValidTemplateShape(t){ return !!(t && typeof t.before==='string' && typeof t.betweenCoursesThemes==='string' && typeof t.afterThemes==='string'); }
   function loadTemplate(){
     try { const stored = localStorage.getItem('gameDataTemplate'); if(stored){ const parsed = JSON.parse(stored); if(isValidTemplateShape(parsed)) return parsed; localStorage.removeItem('gameDataTemplate'); } } catch(e){}

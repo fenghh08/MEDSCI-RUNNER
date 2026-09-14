@@ -679,15 +679,17 @@
     giftCost: 25,              // life spent to buy a grenade or a shield after answering a gift question correctly
     grenadeDamage: 40,         // life an unshielded target loses when a grenade lands (same as a bomb)
     // ---- Catch-up window ----
-    // The first racer to finish (reason:'finished' -- reached the last
-    // stage) doesn't win outright: everyone else still racing gets this
-    // long to keep answering and try to out-SCORE them before the match
-    // locks in. Only the very first finisher starts the window (a
-    // transaction guards this) -- anyone finishing afterward doesn't
-    // restart or extend it. Whoever has the highest score once it expires
-    // (or once everyone's actually done, if that happens first) wins --
-    // reaching the end first is not itself a win condition.
-    catchUpWindowMs: 30000,
+    // Two things can start this window, whichever happens first: (a) a racer
+    // finishes all stages (reason:'finished'), or (b) a racer becomes the
+    // LAST ONE STILL RACING because everyone else is done, for any reason
+    // (reason:'last-standing') -- instead of instantly locking that survivor
+    // in, they get this long for one final stretch to set the best score.
+    // Only the very first qualifying event starts the window (a transaction
+    // guards this) -- anything after that doesn't restart or extend it.
+    // Whoever has the highest score once it expires (or once everyone's
+    // actually done, if that happens first) wins -- reaching the end first,
+    // or simply being the one left standing, is not itself a win condition.
+    catchUpWindowMs: 45000,
   };
 
 /* ======================================================================
@@ -700,6 +702,7 @@
   const LIFE_CONFIG = {
     'MEDS3002': { label:'Life', icon:'🩸' },
     'MEDS2003': { label:'Life', icon:'🩸' },
+    'MEDS3003': { label:'Life', icon:'🩸' },
   };
 
 /* ======================================================================
@@ -4669,10 +4672,27 @@
       { n:2, roman:'II', difficulty:'medium', requirements:{ metabolism:1, molecularBiology:1 },
         scenario:"From metabolism to the molecular machinery that reads and copies the genome — the next layer of the picture." },
     ],
+    // First-pass split across the 7 topics -- roughly follows the course's
+    // own lecture order (L2 mass spec -> L3-4 gene therapy -> L5-6 ATTR ->
+    // L7-8 nanoparticles/vesicles -> L9-12 auditory/biosensors) rather than
+    // requiring all 7 every stage, which would make each stage huge. Per-
+    // topic counts are kept well under each topic's real question pool
+    // (smallest is extracellularVesicles at 10) so there's room for variety
+    // without heavy repetition. Adjust freely -- this is a starting point,
+    // not a tuned design; STAGES isn't touched by the dev tool's merge, so
+    // changes here are a direct hand-edit.
+    'MEDS3003': [
+      { n:1, roman:'I', difficulty:'easy', requirements:{ massSpectrometry:3, geneTherapyStrategies:3, attrAmyloidosis:3 },
+        scenario:"A newborn's blood spot flags an abnormal metabolite on mass spectrometry screening. While the diagnosis is confirmed, the care team is already mapping out whether a gene therapy or a targeted protein-stabilising drug could treat the defect directly." },
+      { n:2, roman:'II', difficulty:'medium', requirements:{ geneTherapyStrategies:5, attrAmyloidosis:5, nanoparticleDelivery:5, extracellularVesicles:3 },
+        scenario:"An older patient with progressive nerve and heart symptoms is diagnosed with ATTR amyloidosis. Treatment only works if it reaches the right tissue — nanoparticle carriers, and the body's own extracellular vesicles, both become part of the delivery problem." },
+      { n:3, roman:'III', difficulty:'hard', requirements:{ massSpectrometry:4, nanoparticleDelivery:4, auditorySystem:6, biosensors:6 },
+        scenario:"With treatment underway, care shifts to monitoring: implantable biosensors track how well it's working, while a parallel case of hearing loss shows the same advanced-therapeutics toolkit — engineered proteins, targeted delivery, implanted devices — applied to the auditory system." },
+    ],
   };
   const COMPLETE_SCENARIO = "You've worked through the full case — review your answers below, or start again to reinforce what you've learned. (Real case studies coming soon.)";
 
-  const RUNNABLE_THEMES = ['MEDS3002', 'MEDS2003']; // course ids with a matching STAGES config, playable in Runner mode
+  const RUNNABLE_THEMES = ['MEDS3002', 'MEDS2003', 'MEDS3003']; // course ids with a matching STAGES config, playable in Runner mode
 
 
   window.RUNNER_DATA = {
