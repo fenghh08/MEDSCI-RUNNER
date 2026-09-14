@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<!-- GitHub Pages entry point. The game itself lives in medsci-runner.html
+     (one source of truth, also what the phone app wraps) -- this page only
+     forwards there, so the hosted address can stay short:
+       https://fenghh08.github.io/MEDSCI-RUNNER/
+     Query strings (e.g. ?debug=1) are carried across. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Run Morris Run!</title>
+<meta http-equiv="refresh" content="0; url=medsci-runner.html">
+<script>location.replace('medsci-runner.html' + location.search + location.hash);</script>
+<style>body{font-family:system-ui,sans-serif;background:#0d0308;color:#ffe9ef;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style>
+</head>
+<body><p>Loading the game… <a href="medsci-runner.html" style="color:#ff5d8f">open it directly</a> if nothing happens.</p></body>
+</html>
