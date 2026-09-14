@@ -1,6 +1,6 @@
 # Runner Game — study-guide trivia runner
 
-A browser-based, study-guide trivia runner built for our own med school content (MEDS3002, MEDS2003, and whatever we add next). Hit a topic block, answer a multiple-choice question, push through the stages without running out of life — or skip the running entirely and use Study & Practice for untimed, filterable revision. New to it? The **🎬 See it in action** button on the landing screen is a short interactive walkthrough of the real game, not slides — it uses the actual canvas, a sample question, and a live look at the HUD.
+A browser-based, study-guide trivia runner built for our own med school content (MEDS3002, MEDS2003, MEDS3003, and whatever we add next). Hit a topic block, answer a multiple-choice question, push through the stages without running out of life — or skip the running entirely and use Study & Practice for untimed, filterable revision. New to it? The **🎬 See it in action** button on the landing screen is a short interactive walkthrough of the real game, not slides — it uses the actual canvas, a sample question, and a live look at the HUD.
 
 No build step, no server, no install. Every file here is a plain HTML/JS file — double-click and it runs. It's also published as a website (see **Running it**), and the interface can be switched to 繁體中文 / 简体中文 / 日本語 / 한국어 from the 🌐 menu on the landing screen (the study content itself stays in English).
 
@@ -89,9 +89,9 @@ merges it.
 Open it next to `game-data.js`, type your name at the top (it's attached to everything you queue), and use the tabs on the left:
 
 - **Browse** — the whole content tree (course → lecture → item → questions) with a search box, an "incomplete items" summary, and ✏️ buttons that jump straight into editing anything.
-- **Add** — one form each for an **item**, a **question**, a **topic**, a **course**, and **learning outcomes**. Every field renders in a preview panel styled like the real game, so what you see is what players will see. Existing courses/topics/items are picked from dropdowns, so a typo can't silently create a near-duplicate category. Editing is the same form with "I'm editing an existing item/question" ticked; deleting is a button on the same page. Edits and deletes ask for the maintainer PIN.
+- **Add** — one form each for an **item**, a **question**, a **topic**, a **course**, and **learning outcomes**. Every field renders in a preview panel styled like the real game, so what you see is what players will see. Existing courses/topics/items are picked from dropdowns, so a typo can't silently create a near-duplicate category. Editing is the same form with "I'm editing an existing item/question" ticked — it prefills every field with the real content, and submitting queues an update in place rather than a duplicate. Deleting (an item, or one question from an item) is a separate button on the same page and asks for the maintainer PIN; editing itself doesn't.
 - **CSV import** — see below.
-- **Team queue** — everything queued by anyone, live, with filters for content vs. reports/flags. Delete what's wrong, leave the rest for the maintainer.
+- **Team queue** — everything queued by anyone, live, with filters for content vs. reports/flags. A reported question has an **"Edit this question"** button that jumps straight into the Add form with that exact question already loaded, ready to fix and resubmit. Delete what's wrong, leave the rest for the maintainer.
 - **Maintainer** — PIN-locked: merge the queue into a new `game-data.js`, refresh the template, analytics, and a "is this folder up to date with GitHub?" check.
 
 The small **i** buttons next to each heading open a short note on how that part actually works (how the queue syncs through Firebase, how the merge validates its output, why ids are generated the way they are…). The **🎓 Take the tour** button walks through the tabs once.
@@ -99,6 +99,8 @@ The small **i** buttons next to each heading open a short note on how that part 
 ### 3. CSV import — for bulk work
 
 The CSV tab has four importers, each with a column reference right above its paste box: a **whole lecture** (items *and* their questions in one sheet), **questions for one existing item**, **items only**, and **learning outcomes**. Rows are checked before anything is queued — a bad row is listed with its line number rather than silently skipped — and each tab can also **export** the current content in the same format, so the easiest way to get a template is to export first. A Google Sheets → *File → Download → CSV* export pastes straight in.
+
+Don't want to export to CSV first? The **"🧮 Paste into a table"** tab next to it is the same columns as an actual editable table — select a range in Google Sheets or Excel, copy, click a cell, and paste: it fills in every cell you copied at once (growing the table if the paste needs more rows), so there's no formatting-to-CSV step at all. Fix anything by hand, add/remove rows, then check & queue exactly like the CSV tab.
 
 ### The shared queue
 
