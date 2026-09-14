@@ -96,8 +96,9 @@ Everything is one JSON tree. The paths the code reads and writes:
 
 | Path | Written by | Read by | What it holds |
 |---|---|---|---|
-| `rooms/<CODE>` | Group Race host (creates), every racer (updates own player) | Every racer in that room, live via `onValue` | `status` (waiting/countdown/finished), `countdownAt`, `theme` + filters, `speed` (host's Game speed pick), `raceEndsAt` (set once by the first racer to finish — starts the 30s catch-up window for everyone else), `players/<playerId>` (name, glucose, stage, correct/incorrect counts, `shields`, `done`, `doneReason` incl. `timeup`, …), `winner` |
+| `rooms/<CODE>` | Group Race host (creates), every racer (updates own player) | Every racer in that room, live via `onValue` | `status` (waiting/countdown/finished), `countdownAt`, `theme` + filters, `speed` (host's Game speed pick), `raceEndsAt`/`raceEndsReason`/`raceEndsByName` (set once, by a transaction, by whichever happens first — a racer finishing, or a racer becoming the sole survivor with everyone else done — starts the shared 45s catch-up window), `players/<playerId>` (name, glucose, stage, correct/incorrect counts, `shields`, `done`, `doneReason` incl. `timeup`, …), `winner` |
 | `rooms/<CODE>/players/<targetId>/incoming/<pushKey>` | A racer who buys a grenade | The targeted racer (via the same room listener) | `{ fromName, fromId, at }` — one thrown grenade. The target removes the key once it has played out, so it never replays. |
+| `rooms/<CODE>/players/<throwerId>/grenadeResults/<pushKey>` | The target, once a grenade resolves | The original thrower (via the same room listener) | `{ targetName, shielded, at }` — tells the thrower whether it was blocked or landed, as a toast. The thrower removes the key once shown, so it never replays. |
 | `stats/<itemId>::<qId>` | The game, every time any player answers (a transaction that increments `correct` or `wrong`) | `developer-tool.html` → Analytics tab | Aggregate per-question correct/wrong counts, used for the miss-rate table |
 | `contributions/<pushKey>` | The game's "Contribute" section on an item page, the ⚠️ **Report question** button under any answered question, and the dev tool's "Add to batch" | `developer-tool.html` → Team Queue | Suggested fun facts / notes / flags / question reports (`flag-question`, with the reason, prompt and ids) / new items+questions, waiting for a maintainer to review and merge into `game-data.js` |
 | `users/<uid>/sync/<key>` | The game, whenever a **signed-in** player changes something syncable | The game, on sign-in and live afterwards | `theme`, `font`, `gameSpeed`, `lang` (interface language), `playerCustomization`, `srsState` (spaced-repetition history, merged per-entry by newest `lastSeen`) |
@@ -271,8 +272,13 @@ Security Rules, and the Auth "Authorized domains" list — all live in the Fireb
 5. Debug helpers: add `?debug=1` to the game's URL and `window.__runnerDebug` appears in the
    console with `simulateGrenade(shields)`, `spawnGift()`, `tutorialSnapshot()`,
    `setLanguage('ja')` and `tx('Stage II · Life 12')` (translate a string the way the UI
-   would). The dev tool has the same idea as `window.__devToolDebug`. Nothing else changes;
-   without the parameter the objects don't exist.
+   would), `testCatchUp(seconds, name, reason)` (preview the catch-up banner for either
+   `'finished'` or `'last-standing'` without a real room), `simulateGrenadeResult(shielded,
+   name)` (preview the toast a thrower sees once their grenade resolves), and
+   `simulateLastStanding()` (fakes everyone else being done and confirms
+   `mpAutoWinIfLastStanding` hands off to the catch-up window instead of instantly ending the
+   run). The dev tool has the same idea as `window.__devToolDebug`. Nothing else changes; without the
+   parameter the objects don't exist.
 6. `game-data.js` must parse. A quick check after editing it by hand:
    `node --check game-data.js`. The dev tool's "Generate merged game-data.js" produces a
    complete file, so prefer that over hand edits.

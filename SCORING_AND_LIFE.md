@@ -173,21 +173,31 @@ Regardless of mode, each answered MCQ (and each self-graded SAQ) does two extra 
 
 ## 7. Group Race specifics
 
-### Winning: reaching the end first isn't enough
+### Winning: reaching the end first isn't enough — and neither is being the last one standing
 
-Finishing all stages doesn't win the race by itself — it starts a **30-second catch-up window**
-(`catchUpWindowMs`) for everyone else still racing:
+Two different events can start the same **45-second catch-up window** (`catchUpWindowMs`) for
+whoever's still racing — whichever happens first:
 
-- The moment the **first** racer finishes, a gold banner tells every other still-racing client
-  "🏁 \<name\> finished! Xs left to out-score them." Only the first finisher starts this — anyone
-  who finishes afterward doesn't restart or extend it.
-- Everyone still racing keeps playing normally for those 30 real seconds — more correct answers,
+- **Someone finishes all stages.** A gold banner tells every other still-racing client "🏁
+  \<name\> finished! Xs left to out-score them."
+- **You become the last racer still going**, because everyone else is done — for any reason
+  (finished, died, quit, or their own catch-up time ran out). Instead of instantly locking you in
+  wherever you happen to be, you get this same 45 seconds for one final stretch: the banner reads
+  "🏁 You're the last one racing! Xs left to set the best score." If you finish or die on your own
+  before the window is up, your run just ends right then, same as any solo run.
+
+Either way:
+
+- Only the very first qualifying event starts the window — anything that happens afterward
+  (another finisher, or becoming the sole survivor a second time in some edge case) doesn't
+  restart or extend it.
+- Everyone still racing keeps playing normally for those 45 real seconds — more correct answers,
   more streak bonuses, more stage progress, all still count.
 - When the window runs out, anyone still racing is locked in right where they stand (mid-question
   or not) and marked done with reason `timeup` (shown as ⌛ on the leaderboard).
 - The match is still decided purely by **score** (section 2) once everyone is done, exactly as
-  before — the first finisher can still lose if someone else's score overtakes them in that
-  window.
+  before — whoever triggered the window can still lose if someone else's score overtakes them in
+  that time.
 
 ### Gifts: grenades and shields
 
@@ -213,6 +223,10 @@ Finishing all stages doesn't win the race by itself — it starts a **30-second 
   cell and the explosion bursts off it: *Blocked!*, no damage. Without one, the starburst lands
   on the cell: **−40 life** (`grenadeDamage`), red flash. Then a 1.5 s count and the run
   continues. If the hit takes life below zero, the run ends as usual.
+- **Telling the thrower what happened.** Once the target's grenade resolves, a toast tells the
+  *thrower* the outcome too — "🛡 \<name\> blocked your grenade!" or "💥 \<name\> got hit by your
+  grenade!" — via `players/<thrower>/grenadeResults`. Throwing used to be fire-and-forget with no
+  feedback at all; this closes that loop without changing anything about the throw or the hit.
 - **Previewing it solo.** Open the game with `?debug=1` on the URL, start any run, and in the
   browser console call `__runnerDebug.simulateGrenade(1)` (the number is how many shields you
   hold) or `__runnerDebug.spawnGift()`.
