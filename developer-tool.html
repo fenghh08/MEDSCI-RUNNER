@@ -275,6 +275,7 @@
   <nav class="sidenav">
     <div class="nav-title">Work</div>
     <button id="tabStructure" data-tab="structure">📖 <span>Browse content</span></button>
+    <button id="tabQuestionBank" data-tab="questionbank">🗃️ <span>Question bank</span></button>
     <button id="tabAdd" data-tab="add" class="active">✚ <span>Add content</span></button>
     <button id="tabCsv" data-tab="csv">📄 <span>Import CSV</span></button>
     <div class="nav-title">Review</div>
@@ -314,6 +315,26 @@
       </div></details>
     </section>
     <datalist id="knownHashtagsList"></datalist>
+
+    <!-- ================= QUESTION BANK ================= -->
+    <section data-section="questionbank">
+      <div class="section-head">
+        <h2>Question bank <button class="info-btn" data-info="questionbank" title="How this works">i</button></h2>
+        <p>Every question already in <code>game-data.js</code> as one flat, filterable list — pick a course, topic or lecture instead of expanding items one at a time under Browse content.</p>
+      </div>
+      <div class="card">
+        <div class="row2" style="margin-bottom:10px;">
+          <label class="field"><span class="fl-label">Course</span><select id="bank_course"></select></label>
+          <label class="field"><span class="fl-label">Topic</span><select id="bank_topic"></select></label>
+        </div>
+        <div class="row2" style="margin-bottom:10px;">
+          <label class="field"><span class="fl-label">Lecture</span><select id="bank_lecture"></select></label>
+          <label class="field"><span class="fl-label">Search</span><input type="text" id="bank_search" placeholder="🔍 Prompt or item name…"></label>
+        </div>
+        <div id="bank_count" class="card-sub" style="margin-bottom:8px;"></div>
+        <div id="bank_list"></div>
+      </div>
+    </section>
 
     <!-- ================= ADD ================= -->
     <section data-section="add" class="active">
@@ -410,6 +431,7 @@
             <div class="new-block" id="q_editPickerBlock">
               <label class="field" style="margin-bottom:6px;"><span class="fl-label">Which question?</span><select id="q_editQuestionSelect"></select></label>
               <span class="fl-help">Only lists questions already in game-data.js — one added earlier this session isn't mergeable yet, so there's nothing to edit until it's merged.</span>
+              <button type="button" class="danger" id="q_deleteQuestionBtn" style="display:none;margin-top:8px;">🗑 Delete this question (🔒 PIN)</button>
             </div>
             <div class="row2">
               <label class="field"><span class="fl-label">Course <span class="req">*</span></span><select id="q_theme"></select></label>
@@ -742,7 +764,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-15-paste-grid-import'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-15-question-bank-and-queue-edit'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -1109,6 +1131,8 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   let editingItemId = null, editingItemTheme = null, editingItemTopic = null;
   let editingItemQuestions = null; // carried through untouched so an edit never silently drops questions
   let removedQuestionIds = new Set();
+  let editingItemQueueKey = null; // set while resuming a queued (not-yet-merged) item/edit-item entry
+  let editingItemFixedNewId = null; // a brand-new item's itemId is otherwise re-randomised on every buildItemObject() call (see below) -- fixes it to the id it was originally queued under while resuming, so resubmitting doesn't orphan any questions already queued against it
   function refreshEditItemSelect(){
     const current = i_editItemSelect.value;
     i_editItemSelect.innerHTML = KNOWN_ITEMS
@@ -1168,8 +1192,46 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     i_addQuestionQuickLink.style.display = 'inline-block';
     renderItem();
   }
+  // Prefills the item form from an existing QUEUE entry's own data (not
+  // merged game-data.js) so you can fix something you already queued
+  // without it turning into a duplicate. Mirrors loadItemForEditing(), just
+  // sourced from o (the same shape buildItemObject() produces) instead of
+  // RD.THEMES. If o.editingItemId is set, this queued entry is itself an
+  // edit of already-merged content -- that nested state carries straight
+  // through unchanged.
+  function loadItemFromQueueEntry(key, o){
+    editingItemQueueKey = key;
+    editingItemFixedNewId = o.editingItemId ? null : o.itemId;
+    editingItemId = o.editingItemId || null;
+    editingItemTheme = o.editingItemId ? o.theme : null;
+    editingItemTopic = o.editingItemId ? o.topicId : null;
+    editingItemQuestions = o.editingItemId ? (o.existingQuestions || []) : null;
+    removedQuestionIds = new Set();
+    renderExistingQuestionsList();
+    // i_editPickerBlock (which the delete button lives inside) only matters
+    // when this queued entry is itself an edit of already-merged content --
+    // a brand-new not-yet-merged item has nothing to "delete" that way, so
+    // the only removal path for it is Remove from the Team Queue.
+    i_editModeToggle.checked = !!o.editingItemId;
+    i_editPickerBlock.classList.toggle('show', !!o.editingItemId);
+    if(o.editingItemId){ refreshEditItemSelect(); i_editItemSelect.value = o.editingItemId; }
+    document.getElementById('i_deleteItemBtn').style.display = o.editingItemId ? 'inline-block' : 'none';
+    document.getElementById('i_existingQuestionsWrap').style.display = o.editingItemId ? 'block' : 'none';
+    i_theme.value = o.theme; fillTopicSelect(i_topic, o.theme);
+    if(o.usingNewTopic){ i_newTopicBlock.classList.add('show'); i_newTopicLabel.value = o.newTopicLabel||''; i_newTopicIcon.value = o.newTopicIcon||'📋'; }
+    else { i_newTopicBlock.classList.remove('show'); i_topic.value = o.topicId; }
+    i_theme.disabled = !!o.editingItemId; i_topic.disabled = !!o.editingItemId;
+    i_label.value = o.label || ''; i_description.value = o.description || ''; i_mechanism.value = o.mechanism || '';
+    buildItemListEditors(o);
+    const courseSel = document.getElementById('i_course'), classSel = document.getElementById('i_class');
+    if(!o.course && o.relatedCourseOverride){ i_coursePicker.prefillSpans(o.relatedCourseOverride); }
+    else { i_coursePicker.resetNewBlocks(); courseSel.value = o.course || ''; courseSel.dispatchEvent(new Event('change')); classSel.value = o.class || ''; }
+    i_addQuestionQuickLink.style.display = o.editingItemId ? 'inline-block' : 'none';
+    renderItem();
+  }
   function resetItemFormToNew(){
     editingItemId = null; editingItemTheme = null; editingItemTopic = null; editingItemQuestions = null;
+    editingItemQueueKey = null; editingItemFixedNewId = null;
     removedQuestionIds = new Set();
     document.getElementById('i_existingQuestionsWrap').style.display = 'none';
     document.getElementById('i_deleteItemBtn').style.display = 'none';
@@ -1206,7 +1268,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const topicId = usingNewTopic ? (slugify(i_newTopicLabel.value)||'newtopic') : i_topic.value;
     const baseSlug = slugify(i_label.value);
     // underscore, not hyphen -- the id is used as a bare object key in the generated code
-    return { ...common, theme: i_theme.value, topicId, usingNewTopic, editingItemId:null, newTopicLabel: i_newTopicLabel.value.trim(), newTopicIcon: i_newTopicIcon.value.trim() || '📋', itemId: baseSlug + '_' + randSuffix(), baseSlug };
+    return { ...common, theme: i_theme.value, topicId, usingNewTopic, editingItemId:null, newTopicLabel: i_newTopicLabel.value.trim(), newTopicIcon: i_newTopicIcon.value.trim() || '📋', itemId: editingItemFixedNewId || (baseSlug + '_' + randSuffix()), baseSlug };
   }
   // Re-emits an item's EXISTING questions as code so an edit (which REPLACES the whole block) never drops them.
   function serializeQuestionsArray(questions){
@@ -1277,16 +1339,17 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     if(!i_description.value.trim()){ toast('Add a description first'); i_description.focus(); return; }
     const o = buildItemObject();
     i_coursePicker.commit(o.courseInfo);
-    if(o.editingItemId){
-      const existing = KNOWN_ITEMS.find(it=>it.id===o.itemId);
-      if(existing){ existing.label = o.label; existing.course = o.course; existing.class = o.class; }
-    } else {
+    const existingKnown = KNOWN_ITEMS.find(it=>it.id===o.itemId);
+    if(existingKnown){ existingKnown.label = o.label; existingKnown.theme = o.theme; existingKnown.topic = o.topicId; existingKnown.course = o.course; existingKnown.class = o.class; }
+    else {
       KNOWN_ITEMS.push({ id:o.itemId, theme:o.theme, topic:o.topicId, label:o.label, course:o.course, class:o.class });
       if(o.usingNewTopic && !KNOWN_TOPICS[o.topicId]) KNOWN_TOPICS[o.topicId] = { label:o.newTopicLabel||o.topicId, theme:o.theme };
     }
-    pushToQueue({ type: o.editingItemId ? 'edit-item' : 'item', title:o.label, code:itemCodeString(o), note:`${o.editingItemId?'✏️ Edit · ':''}${(KNOWN_THEMES.find(t=>t.id===o.theme)||{}).label||o.theme} · ${o.topicId}`, data:o });
+    const entry = { type: o.editingItemId ? 'edit-item' : 'item', title:o.label, code:itemCodeString(o), note:`${o.editingItemId?'✏️ Edit · ':''}${(KNOWN_THEMES.find(t=>t.id===o.theme)||{}).label||o.theme} · ${o.topicId}`, data:o };
+    if(editingItemQueueKey) updateQueueEntry(editingItemQueueKey, entry);
+    else pushToQueue(entry);
     refreshAllPickers();
-    toast(o.editingItemId ? 'Edit added to the queue' : 'Added to the queue');
+    toast(editingItemQueueKey ? 'Queued entry updated' : (o.editingItemId ? 'Edit added to the queue' : 'Added to the queue'));
     resetItemFormToNew();
   });
 
@@ -1322,15 +1385,77 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
 
   // ---- edit an existing question (mirrors the item form's edit flow above) ----
   let editingQuestionId = null, editingQuestionLoc = null; // {theme,topic,itemId} of the question being edited
+  let editingQuestionQueueKey = null; // set while resuming a queued (not-yet-merged) question/edit-question entry
+  let editingQuestionFixedNewId = null; // fixes a brand-new question's qId to what it was originally queued under while resuming (randSuffixStable() alone can't survive a form reset in between)
   // Only walks the CURRENTLY LOADED game-data.js -- a question added to the
   // queue earlier this session isn't in RD.THEMES yet (it only lands there
   // once a maintainer merges), so it isn't editable until then either.
-  function allQuestionsFlat(){
+  // Full-detail flat index of every question, walking the same three-level
+  // structure findQuestionLocation() does -- the single source both the
+  // question-edit picker (a thin slice of this) and the Question Bank page
+  // (needs the rest: difficulty, course/lecture) are built from.
+  function allQuestionsRich(){
     const out = [];
     Object.entries(RD.THEMES).forEach(([themeId, theme])=> Object.entries(theme.topics).forEach(([topicId, topic])=> Object.entries(topic.items).forEach(([itemId, item])=>{
-      (item.questions||[]).forEach(q=> out.push({ qId:q.id, itemLabel:item.label, prompt:q.prompt, themeId, topicId, itemId }));
+      (item.questions||[]).forEach(q=> out.push({
+        qId:q.id, prompt:q.prompt, difficulty:q.difficulty||'medium', options:q.options, correctIndex:q.correctIndex,
+        themeId, topicId, itemId, itemLabel:item.label,
+        course: q.course || item.course || '', class: q.class || item.class || '',
+      }));
     })));
     return out;
+  }
+  function allQuestionsFlat(){
+    return allQuestionsRich().map(q=>({ qId:q.qId, itemLabel:q.itemLabel, prompt:q.prompt, themeId:q.themeId, topicId:q.topicId, itemId:q.itemId }));
+  }
+
+  // ---- Question bank: a flat, filterable view of every question, instead
+  // of expanding each item one at a time under Browse content ----
+  function fillBankCourseSelect(){
+    document.getElementById('bank_course').innerHTML = '<option value="">All courses</option>' + KNOWN_THEMES.map(t=>`<option value="${t.id}">${esc2(t.label)}</option>`).join('');
+  }
+  function fillBankTopicSelect(){
+    const courseId = document.getElementById('bank_course').value;
+    const topics = Object.entries(KNOWN_TOPICS).filter(([id,t])=> !courseId || t.theme===courseId);
+    document.getElementById('bank_topic').innerHTML = '<option value="">All topics</option>' + topics.map(([id,t])=>`<option value="${id}">${esc2(t.label)}</option>`).join('');
+  }
+  function fillBankLectureSelect(){
+    const courseId = document.getElementById('bank_course').value;
+    const sel = document.getElementById('bank_lecture');
+    const classes = (RD.COURSES[courseId] || {}).classes;
+    if(!courseId || !classes){ sel.innerHTML = '<option value="">All lectures</option>'; sel.disabled = true; return; }
+    sel.disabled = false;
+    sel.innerHTML = '<option value="">All lectures</option>' + Object.entries(classes).map(([k,v])=>`<option value="${k}">${esc2(k)} — ${esc2(v.label)}</option>`).join('');
+  }
+  document.getElementById('bank_course').addEventListener('change', ()=>{ fillBankTopicSelect(); fillBankLectureSelect(); renderQuestionBank(); });
+  document.getElementById('bank_topic').addEventListener('change', renderQuestionBank);
+  document.getElementById('bank_lecture').addEventListener('change', renderQuestionBank);
+  document.getElementById('bank_search').addEventListener('input', renderQuestionBank);
+  function renderQuestionBank(){
+    const courseId = document.getElementById('bank_course').value;
+    const topicId = document.getElementById('bank_topic').value;
+    const lectureKey = document.getElementById('bank_lecture').value;
+    const search = document.getElementById('bank_search').value.trim().toLowerCase();
+    let rows = allQuestionsRich();
+    if(courseId) rows = rows.filter(r=>r.themeId===courseId);
+    if(topicId) rows = rows.filter(r=>r.topicId===topicId);
+    if(lectureKey) rows = rows.filter(r=>r.class===lectureKey);
+    if(search) rows = rows.filter(r=> r.prompt.toLowerCase().includes(search) || r.itemLabel.toLowerCase().includes(search));
+    document.getElementById('bank_count').textContent = `${rows.length} question${rows.length===1?'':'s'}`;
+    const diffColor = { easy:'var(--good)', medium:'#caa33b', hard:'var(--danger)' };
+    const bankList = document.getElementById('bank_list');
+    bankList.innerHTML = rows.map(r=>{
+      const themeLabel = (KNOWN_THEMES.find(t=>t.id===r.themeId)||{}).label || r.themeId;
+      const topicLabel = (KNOWN_TOPICS[r.topicId]||{}).label || r.topicId;
+      return `<div class="queue-item"><div class="qi-row">
+        <div><div class="qi-label">${esc2(r.prompt.slice(0,90))}${r.prompt.length>90?'…':''}</div>
+        <div class="qi-meta">${esc2(themeLabel)} · ${esc2(topicLabel)} · <b>${esc2(r.itemLabel)}</b>${r.class?` · ${esc2(r.class)}`:''} · <span style="color:${diffColor[r.difficulty]||'inherit'}">${esc2(r.difficulty)}</span></div></div>
+        <div class="qi-actions">
+          <button type="button" class="struct-edit-link" data-edit-question="${esc2(r.qId)}">✏️ Edit</button>
+          <button type="button" class="danger struct-edit-link" data-delete-question="${esc2(r.itemId)}::${esc2(r.themeId)}::${esc2(r.topicId)}::${esc2(r.qId)}">🗑 Delete</button>
+        </div></div></div>`;
+    }).join('') || '<p class="batch-empty">No questions match these filters.</p>';
+    wireEditButtons(bankList);
   }
   function refreshEditQuestionSelect(){
     const current = q_editQuestionSelect.value;
@@ -1360,11 +1485,40 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const qCourseSel = document.getElementById('q_course'), qClassSel = document.getElementById('q_class');
     if(!q.course && q.relatedCourse){ q_coursePicker.prefillSpans(q.relatedCourse); }
     else { qCourseSel.value = q.course || ''; qCourseSel.dispatchEvent(new Event('change')); qClassSel.value = q.class || ''; }
+    document.getElementById('q_deleteQuestionBtn').style.display = 'inline-block';
+    renderQuestion();
+  }
+  function loadQuestionFromQueueEntry(key, o){
+    editingQuestionQueueKey = key;
+    editingQuestionFixedNewId = o.editingQuestionId ? null : o.qId;
+    editingQuestionId = o.editingQuestionId || null;
+    editingQuestionLoc = o.editingQuestionId ? { theme:o.theme, topic:o.topic, itemId:o.itemId } : null;
+    // q_editPickerBlock (which the delete button lives inside) only matters
+    // when this queued entry is itself an edit of already-merged content --
+    // same reasoning as the item form's queue-resume above.
+    q_editModeToggle.checked = !!o.editingQuestionId;
+    q_editPickerBlock.classList.toggle('show', !!o.editingQuestionId);
+    if(o.editingQuestionId){ refreshEditQuestionSelect(); q_editQuestionSelect.value = o.editingQuestionId; }
+    document.getElementById('q_deleteQuestionBtn').style.display = o.editingQuestionId ? 'inline-block' : 'none';
+    q_theme.value = o.theme; fillTopicSelect(q_topic, o.theme); q_topic.value = o.topic;
+    q_theme.disabled = !!o.editingQuestionId; q_topic.disabled = !!o.editingQuestionId;
+    refreshQuestionItemSelect(); q_itemSelect.value = o.itemId; q_itemSelect.disabled = !!o.editingQuestionId;
+    q_customItemToggle.style.display = o.editingQuestionId ? 'none' : ''; q_customItemBlock.classList.remove('show');
+    q_prompt.value = o.prompt || '';
+    makeOptionList(q_optionsEl, renderQuestion, o.options||[], o.correctIndex||0);
+    q_explanation.value = o.explanation || '';
+    q_difficulty.value = o.difficulty || 'medium';
+    makeTextList(q_hashtagsEl, 'e.g. Leukemia', renderQuestion, o.hashtags||[], 'knownHashtagsList');
+    const qCourseSel = document.getElementById('q_course'), qClassSel = document.getElementById('q_class');
+    if(!o.course && o.relatedCourseOverride){ q_coursePicker.prefillSpans(o.relatedCourseOverride); }
+    else { q_coursePicker.resetNewBlocks(); qCourseSel.value = o.course || ''; qCourseSel.dispatchEvent(new Event('change')); qClassSel.value = o.class || ''; }
     renderQuestion();
   }
   function resetQuestionFormToNew(){
     editingQuestionId = null; editingQuestionLoc = null;
+    editingQuestionQueueKey = null; editingQuestionFixedNewId = null;
     q_editModeToggle.checked = false; q_editPickerBlock.classList.remove('show');
+    document.getElementById('q_deleteQuestionBtn').style.display = 'none';
     q_theme.disabled = false; q_topic.disabled = false; q_itemSelect.disabled = false;
     q_customItemToggle.style.display = ''; q_customItemBlock.classList.remove('show');
     q_prompt.value=''; q_explanation.value=''; q_customItemId.value=''; _qSuffix = null;
@@ -1379,6 +1533,21 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     else resetQuestionFormToNew();
   });
   q_editQuestionSelect.addEventListener('change', ()=> loadQuestionForEditing(q_editQuestionSelect.value));
+  document.getElementById('q_deleteQuestionBtn').addEventListener('click', ()=>{
+    if(!requireMaintainerUnlock()) return;
+    if(!editingQuestionId || !editingQuestionLoc) return;
+    const loc = editingQuestionLoc;
+    const known = KNOWN_ITEMS.find(it=>it.id===loc.itemId);
+    const promptPreview = q_prompt.value.slice(0,60);
+    if(!confirm(`Delete this question from "${known?known.label:loc.itemId}"?\n\n"${promptPreview}"\n\nThis can't be undone once merged.`)) return;
+    pushToQueue({ type:'delete-question', title: promptPreview,
+      code:`// DELETE question ${editingQuestionId} from THEMES.${loc.theme}.topics.${loc.topic}.items.${loc.itemId}.questions in game-data.js`,
+      note:`DELETE question · ${(KNOWN_THEMES.find(t=>t.id===loc.theme)||{}).label||loc.theme} · ${loc.topic}`,
+      data:{ theme:loc.theme, topicId:loc.topic, itemId:loc.itemId, questionId:editingQuestionId } });
+    toast('Question queued for deletion');
+    resetQuestionFormToNew();
+    renderStructureList();
+  });
 
   function refreshQuestionItemSelect(){
     const items = KNOWN_ITEMS.filter(it=>it.theme===q_theme.value && it.topic===q_topic.value);
@@ -1406,7 +1575,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     return {
       ...common, theme: q_theme.value, topic: q_topic.value,
       itemId: usingCustom ? (q_customItemId.value.trim()||'unknown-item') : (q_itemSelect.value||'unknown-item'),
-      qId: 'q-' + q_topic.value + '-' + randSuffixStable(), editingQuestionId: null,
+      qId: editingQuestionFixedNewId || ('q-' + q_topic.value + '-' + randSuffixStable()), editingQuestionId: null,
     };
   }
   function questionCodeString(o){
@@ -1445,9 +1614,11 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     if(!q_explanation.value.trim()){ toast('Add an explanation first'); q_explanation.focus(); return; }
     if(o.itemId==='unknown-item'){ toast('Pick which item this question is about'); return; }
     q_coursePicker.commit(o.courseInfo);
-    pushToQueue({ type: o.editingQuestionId ? 'edit-question' : 'question', title:o.prompt.slice(0,50), code:questionCodeString(o), note:`${o.editingQuestionId?'✏️ Edit · ':''}${(KNOWN_THEMES.find(t=>t.id===o.theme)||{}).label||o.theme} · ${o.topic}`, data:o });
+    const entry = { type: o.editingQuestionId ? 'edit-question' : 'question', title:o.prompt.slice(0,50), code:questionCodeString(o), note:`${o.editingQuestionId?'✏️ Edit · ':''}${(KNOWN_THEMES.find(t=>t.id===o.theme)||{}).label||o.theme} · ${o.topic}`, data:o };
+    if(editingQuestionQueueKey) updateQueueEntry(editingQuestionQueueKey, entry);
+    else pushToQueue(entry);
     refreshCourseSelects(); renderStructureList();
-    toast(o.editingQuestionId ? 'Edit added to the queue' : 'Added to the queue');
+    toast(editingQuestionQueueKey ? 'Queued entry updated' : (o.editingQuestionId ? 'Edit added to the queue' : 'Added to the queue'));
     resetQuestionFormToNew();
   });
   function jumpToNewQuestionForItem(itemId){
@@ -2190,6 +2361,17 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       fbPush(fbRef(fbdb, 'contributions'), entry).catch(err=>{ console.warn('[Content Tool] Could not write to the shared queue — saving locally instead.', err); batch[`local-${++_localKeyN}`] = entry; renderBatch(); });
     } else { batch[`local-${++_localKeyN}`] = entry; renderBatch(); }
   }
+  // Overwrites an existing queue entry in place (same key) instead of
+  // adding a new one -- used when resuming an edit of something already
+  // queued, so fixing a typo doesn't leave a duplicate sitting alongside it.
+  // Keeps the entry's original queue position (createdAt) if known.
+  function updateQueueEntry(key, entry){
+    entry.contributorName = currentContributorName();
+    entry.createdAt = (batch[key] && batch[key].createdAt) || Date.now();
+    if(firebaseReady && !key.startsWith('local-')){
+      fbSet(fbRef(fbdb, `contributions/${key}`), entry).catch(()=>{ batch[key] = entry; renderBatch(); });
+    } else { batch[key] = entry; renderBatch(); }
+  }
   function removeFromQueue(key){
     if(firebaseReady && !key.startsWith('local-')) fbRemove(fbRef(fbdb, `contributions/${key}`));
     else { delete batch[key]; renderBatch(); }
@@ -2222,14 +2404,25 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     if(!entries.length){ batchList.innerHTML = `<p class="batch-empty">${all.length ? 'Nothing matches this filter.' : 'Nothing in the queue yet — add something from "Add content" or "Import CSV".'}</p>`; return; }
     batchList.innerHTML = '';
     const icons = { item:'📄', question:'❓', 'edit-question':'✏️', course:'📚', topic:'🗂️', 'edit-item':'✏️', 'delete-item':'🗑', 'delete-question':'🗑', lectureOutcomes:'🧭', 'flag-item':'🚩', 'flag-question':'⚠️' };
+    // Only these have an actual form to resume editing in -- course/topic/
+    // outcomes/delete-*/flag-* stay Remove-only for now.
+    const resumableForm = { item:'item', 'edit-item':'item', question:'question', 'edit-question':'question' };
     entries.forEach(([key, entry])=>{
       const row = document.createElement('div');
       row.className = 'queue-item' + (isReport(entry) ? ' qi-report' : '');
       row.dataset.key = key;
+      const formKind = resumableForm[entry.type];
       row.innerHTML = `<div class="qi-row"><div><div class="qi-label">${icons[entry.type]||'📄'} <b>${esc2(entry.title)}</b> — ${esc2(entry.note||'')}</div><div class="qi-meta">by ${esc2(entry.contributorName||'Anonymous')}${entry.createdAt?' · '+new Date(entry.createdAt).toLocaleString():''}</div></div>
-        <div class="qi-actions"><button class="qi-toggle" type="button">${expandedKeys.has(key)?'▴ Hide':'▾ Details'}</button><button class="subtle list-remove" type="button" title="Remove from the queue (after merging)">✕</button></div></div>
+        <div class="qi-actions"><button class="qi-toggle" type="button">${expandedKeys.has(key)?'▴ Hide':'▾ Details'}</button>${formKind?'<button class="subtle qi-edit" type="button" title="Edit this queued entry">✏️ Edit</button>':''}<button class="subtle list-remove" type="button" title="Remove from the queue (after merging)">✕</button></div></div>
         <div class="qi-details" style="display:${expandedKeys.has(key)?'block':'none'};">${queueDetailHtml(entry)}</div>`;
       row.querySelector('.qi-toggle').addEventListener('click', e=>{ const d = row.querySelector('.qi-details'); const open = d.style.display !== 'block'; d.style.display = open ? 'block' : 'none'; e.currentTarget.textContent = open ? '▴ Hide' : '▾ Details'; });
+      if(formKind) row.querySelector('.qi-edit').addEventListener('click', ()=>{
+        if(!requireMaintainerUnlock()) return;
+        const live = batch[key]; if(!live) return; // could have been merged/removed by someone else in the meantime
+        showTab('add'); showPane('add', formKind);
+        if(formKind==='item') loadItemFromQueueEntry(key, live.data);
+        else loadQuestionFromQueueEntry(key, live.data);
+      });
       row.querySelector('.list-remove').addEventListener('click', ()=>{
         if(!requireMaintainerUnlock()) return;
         const entry = batch[key];
@@ -2466,6 +2659,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     document.querySelectorAll('.sidenav [data-tab]').forEach(b=> b.classList.toggle('active', b.dataset.tab===which));
     document.querySelectorAll('section[data-section]').forEach(s=> s.classList.toggle('active', s.dataset.section===which));
     if(which==='structure') renderStructureList();
+    if(which==='questionbank'){ fillBankCourseSelect(); fillBankTopicSelect(); fillBankLectureSelect(); renderQuestionBank(); }
     window.scrollTo({ top:0 });
   }
   function showPane(section, pane){
@@ -2486,6 +2680,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       <p>The flow of a contribution: fill in a form here → it becomes a small JavaScript object → it's pushed to a shared Firebase queue → the maintainer merges the queue into a fresh <code>game-data.js</code> → that file is committed and the game reads it on next load.</p>
       <ul><li>Forms and preview: plain DOM + template literals.</li><li>Shared queue: Firebase Realtime Database (a JSON tree with live listeners).</li><li>Merge: clone the data, apply each queued change, serialise back to source text, syntax-check it.</li></ul>
       <p>Click any <span class="info-btn" style="pointer-events:none;">i</span> around the tool for the specific piece.</p>` },
+    questionbank: { title:'One flat list, not a tree', tags:['Array.map/filter','no re-fetch'], body:`
+      <p>Browse content is a tree — course → topic → item → questions — great for seeing structure, slower for "just find this one question." The bank builds one flat array up front (<code>allQuestionsRich()</code>, every question with its course/topic/item/lecture/difficulty attached) and every filter dropdown or the search box just re-runs <code>.filter()</code> over that same array — no re-reading <code>game-data.js</code>, so it stays instant even with hundreds of questions.</p>
+      <p>✏️ Edit and 🗑 Delete on each row are the exact same actions as everywhere else in the tool (the question form's edit mode, and the merge-side <code>delete-question</code> entry type) — this page is just a faster way to find the row to click.</p>`, file:'developer-tool.html — allQuestionsRich(), renderQuestionBank()' },
     structure: { title:'Where the data comes from', tags:['<script>','file://','window global'], body:`
       <p>This page can't <code>fetch()</code> a file sitting next to it: browsers block that for pages opened from disk (<code>file://</code>). So <code>game-data.js</code> is loaded the old-fashioned way — a plain <code>&lt;script src&gt;</code> tag in the <code>&lt;head&gt;</code>. The file wraps everything in a function and publishes one global:</p>
       <pre>(function(){
