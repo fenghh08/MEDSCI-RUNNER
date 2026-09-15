@@ -362,10 +362,10 @@
               <button type="button" class="link-btn" id="i_addQuestionQuickLink" style="display:none;">➕ Skip editing — just add a question to this item</button>
               <div id="i_existingQuestionsWrap" style="display:none;margin-top:10px;">
                 <span class="fl-label">This item's existing questions</span>
-                <span class="fl-help">Remove any that shouldn't be here — deleted only once this edit is merged. You'll be asked for a reason.</span>
+                <span class="fl-help">Remove any that shouldn't be here — deleted only once this edit is merged. 🔒 Maintainer PIN + a reason required.</span>
                 <div id="i_existingQuestionsList"></div>
               </div>
-              <button type="button" class="danger" id="i_deleteItemBtn" style="display:none;margin-top:8px;">🗑 Request deletion (needs a reason)</button>
+              <button type="button" class="danger" id="i_deleteItemBtn" style="display:none;margin-top:8px;">🗑 Delete this item and all its questions (🔒 PIN + reason)</button>
             </div>
             <div class="row2">
               <label class="field"><span class="fl-label">Course <span class="req">*</span></span><select id="i_theme"></select></label>
@@ -431,7 +431,7 @@
             <div class="new-block" id="q_editPickerBlock">
               <label class="field" style="margin-bottom:6px;"><span class="fl-label">Which question?</span><select id="q_editQuestionSelect"></select></label>
               <span class="fl-help">Only lists questions already in game-data.js — one added earlier this session isn't mergeable yet, so there's nothing to edit until it's merged.</span>
-              <button type="button" class="danger" id="q_deleteQuestionBtn" style="display:none;margin-top:8px;">🗑 Request deletion (needs a reason)</button>
+              <button type="button" class="danger" id="q_deleteQuestionBtn" style="display:none;margin-top:8px;">🗑 Delete this question (🔒 PIN + reason)</button>
             </div>
             <div class="row2">
               <label class="field"><span class="fl-label">Course <span class="req">*</span></span><select id="q_theme"></select></label>
@@ -764,7 +764,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-16-request-deletion-no-pin'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-16-deletion-pin-plus-reason'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -1165,6 +1165,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       return `<div class="q-existing-row${removed?' removed':''}"><span>${esc2(q.prompt.slice(0,70))}${q.prompt.length>70?'…':''}</span><button type="button" class="danger" style="margin:0;padding:4px 10px;" data-toggle-remove="${q.id}">${removed?'↺ Undo':'✕ Remove'}</button></div>`;
     }).join('');
     list.querySelectorAll('[data-toggle-remove]').forEach(btn=> btn.addEventListener('click', ()=>{
+      if(!requireMaintainerUnlock()) return;
       const id = btn.dataset.toggleRemove;
       if(removedQuestionIds.has(id)){
         removedQuestionIds.delete(id); delete removedQuestionReasons[id];
@@ -1178,6 +1179,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     }));
   }
   document.getElementById('i_deleteItemBtn').addEventListener('click', ()=>{
+    if(!requireMaintainerUnlock()) return;
     if(!editingItemId) return;
     const known = KNOWN_ITEMS.find(it=>it.id===editingItemId);
     const qCount = (editingItemQuestions||[]).length;
@@ -1557,6 +1559,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   });
   q_editQuestionSelect.addEventListener('change', ()=> loadQuestionForEditing(q_editQuestionSelect.value));
   document.getElementById('q_deleteQuestionBtn').addEventListener('click', ()=>{
+    if(!requireMaintainerUnlock()) return;
     if(!editingQuestionId || !editingQuestionLoc) return;
     const loc = editingQuestionLoc;
     const known = KNOWN_ITEMS.find(it=>it.id===loc.itemId);
@@ -2194,7 +2197,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const searchBlob = `${full.label} ${full.description||''} ${full.mechanism||''} ${(full.hashtags||[]).join(' ')} ${(full.questions||[]).map(q=>q.prompt+' '+q.explanation).join(' ')}`.toLowerCase();
     const ul = (title, arr, fn) => (arr||[]).length ? `<div class="p-sub">${title}</div><ul class="p-facts">${arr.map(fn).join('')}</ul>` : '';
     const questionsHtml = qCount
-      ? `<div class="p-sub">Questions (${qCount})</div>` + full.questions.map(q=>`<div class="struct-q"><div class="struct-q-prompt">${esc2(q.prompt)}</div>${q.options.map((op,i)=>`<div class="struct-q-opt${i===q.correctIndex?' correct':''}">${i===q.correctIndex?'✓':'·'} ${esc2(op)}</div>`).join('')}<div class="struct-q-explain">${esc2(q.explanation)}</div><button type="button" class="danger struct-edit-link" data-delete-question="${it.id}::${it.theme}::${it.topic}::${esc2(q.id)}">🗑 Request deletion</button></div>`).join('')
+      ? `<div class="p-sub">Questions (${qCount})</div>` + full.questions.map(q=>`<div class="struct-q"><div class="struct-q-prompt">${esc2(q.prompt)}</div>${q.options.map((op,i)=>`<div class="struct-q-opt${i===q.correctIndex?' correct':''}">${i===q.correctIndex?'✓':'·'} ${esc2(op)}</div>`).join('')}<div class="struct-q-explain">${esc2(q.explanation)}</div><button type="button" class="danger struct-edit-link" data-delete-question="${it.id}::${it.theme}::${it.topic}::${esc2(q.id)}">🗑 Delete (🔒 PIN)</button></div>`).join('')
       : `<div class="struct-empty" style="margin:8px 0 0;">— no questions yet for this item —</div>`;
     const html = `<details class="struct-item-toggle" data-search="${searchBlob.replace(/"/g,'&quot;')}">
         <summary>${esc2(it.label)}${subtitle?` <span class="struct-course">· ${esc2(subtitle)}</span>`:''} <span class="struct-qbadge">${qCount} Q${qCount===1?'':'s'}</span></summary>
@@ -2207,7 +2210,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
           ${ul('✍️ Short-answer questions', full.saq, s=>`<li><b>${esc2(s.prompt)}</b><br><span style="opacity:.7;">${esc2(s.modelAnswer)}</span></li>`)}
           ${(full.hashtags||[]).length ? `<div class="p-sub">Hashtags</div><div class="p-chips">${full.hashtags.map(h=>`<span class="p-chip">#${esc2(h)}</span>`).join('')}</div>` : ''}
           ${(full.images||[]).length ? `<div class="p-sub">Images</div><p>${full.images.length} image link${full.images.length===1?'':'s'}</p>` : ''}
-          <div class="btn-row" style="margin-top:8px;"><button type="button" class="struct-edit-link" data-edit-item="${it.id}">✏️ Edit</button><button type="button" class="struct-edit-link" data-add-question="${it.id}">➕ Add a question</button><button type="button" class="danger struct-edit-link" data-delete-item="${it.id}">🗑 Request deletion</button></div>
+          <div class="btn-row" style="margin-top:8px;"><button type="button" class="struct-edit-link" data-edit-item="${it.id}">✏️ Edit</button><button type="button" class="struct-edit-link" data-add-question="${it.id}">➕ Add a question</button><button type="button" class="danger struct-edit-link" data-delete-item="${it.id}">🗑 Delete (🔒 PIN)</button></div>
           ${questionsHtml}
         </div></details>`;
     return { html, qCount };
@@ -2218,6 +2221,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     container.querySelectorAll('[data-add-question]').forEach(btn=> btn.addEventListener('click', e=>{ e.preventDefault(); jumpToNewQuestionForItem(btn.dataset.addQuestion); }));
     container.querySelectorAll('[data-delete-question]').forEach(btn=> btn.addEventListener('click', e=>{
       e.preventDefault();
+      if(!requireMaintainerUnlock()) return;
       const [itemId, theme, topicId, questionId] = btn.dataset.deleteQuestion.split('::');
       const known = KNOWN_ITEMS.find(it=>it.id===itemId), full = RD.THEMES[theme]?.topics[topicId]?.items[itemId], q = full?.questions?.find(q=>q.id===questionId);
       const promptPreview = q ? q.prompt.slice(0,60) : questionId;
@@ -2235,6 +2239,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     }));
     container.querySelectorAll('[data-delete-item]').forEach(btn=> btn.addEventListener('click', e=>{
       e.preventDefault();
+      if(!requireMaintainerUnlock()) return;
       showTab('add'); showPane('add','item');
       i_editModeToggle.checked = true; i_editModeToggle.dispatchEvent(new Event('change'));
       i_editItemSelect.value = btn.dataset.deleteItem; i_editItemSelect.dispatchEvent(new Event('change'));
