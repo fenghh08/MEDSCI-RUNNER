@@ -445,7 +445,7 @@
             <div class="new-block" id="q_customItemBlock"><input type="text" id="q_customItemId" placeholder="e.g. ibrutinib_ab12 — the id shown on the item form"></div>
             <label class="field" style="margin-top:10px;"><span class="fl-label">Question <span class="req">*</span></span><textarea id="q_prompt" placeholder="e.g. Ibrutinib works by inhibiting which enzyme?"></textarea></label>
             <label class="field"><span class="fl-label">Answer options <span class="req">*</span></span><span class="fl-help">Tick the correct one. 2 to 6 options.</span><div class="list-editor" id="q_options"></div></label>
-            <label class="field"><span class="fl-label">Explanation <span class="req">*</span></span><span class="fl-help">Shown after answering, right or wrong.</span><textarea id="q_explanation" placeholder="Why the correct answer is correct."></textarea></label>
+            <label class="field"><span class="fl-label">Explanation</span><span class="fl-help">Optional — shown after answering, right or wrong.</span><textarea id="q_explanation" placeholder="Why the correct answer is correct."></textarea></label>
             <div class="row2">
               <label class="field"><span class="fl-label">Difficulty</span><select id="q_difficulty"><option value="easy">🟢 Easy</option><option value="medium" selected>🟡 Medium</option><option value="hard">🔴 Hard</option></select></label>
               <label class="field"><span class="fl-label">Hashtags</span><div class="list-editor" id="q_hashtags"></div></label>
@@ -569,9 +569,9 @@
               <tr><td><code>questionId</code></td><td>no</td><td>Blank = new question. A real id (from the export) = update that question in place; its course/lecture/topic/item columns are then ignored so it can't be moved by accident.</td></tr>
               <tr><td><code>course</code>, <code>topic</code>, <code>item</code></td><td>yes</td><td>Course code or name, topic id or name, item name. An unknown item is created.</td></tr>
               <tr><td><code>lecture</code></td><td>no</td><td>e.g. <code>L12</code> — the lecture a newly created item is filed under. <code>L01</code>/<code>l1</code> also work.</td></tr>
-              <tr><td><code>prompt</code>, <code>optionA–D</code>, <code>correct</code>, <code>explanation</code></td><td>yes</td><td><code>correct</code> is A, B, C or D.</td></tr>
-              <tr><td><code>hashtags</code>, <code>difficulty</code></td><td>no</td><td>Semicolon-separated tags; easy / medium / hard.</td></tr>
-              <tr><td><code>description</code>, <code>mechanism</code>, <code>funfacts</code></td><td>no</td><td>Fill in on a new item's first row to author it fully instead of a bare label.</td></tr>
+              <tr><td><code>prompt</code>, <code>optionA–D</code>, <code>correct</code></td><td>yes</td><td><code>correct</code> is A, B, C or D.</td></tr>
+              <tr><td><code>explanation</code>, <code>hashtags</code>, <code>difficulty</code></td><td>no</td><td>Semicolon-separated tags; easy / medium / hard.</td></tr>
+              <tr><td><code>description</code>, <code>mechanism</code>, <code>funfacts</code></td><td>no</td><td>These describe the <b>item</b>, not the question — only used on a new item's first row, to author it fully instead of a bare label. Ignored on every other row.</td></tr>
             </table>
           </div></details>
         </div>
@@ -580,7 +580,7 @@
       <div class="subpane active" data-pane="csv-grid">
         <div class="card">
           <h2>Paste directly from Google Sheets / Excel</h2>
-          <p class="card-sub">Same columns as the CSV tab above, but as an editable table — no need to export to CSV first. Select a range in your spreadsheet, copy, click a cell here, and paste: it fills in as many cells as you copied, growing the table if needed. Fix anything by hand, add or remove rows, then check &amp; queue exactly like the CSV tab.</p>
+          <p class="card-sub">Same columns as the CSV tab above, but as an editable table — no need to export to CSV first. Select a range in your spreadsheet, copy, click a cell here, and paste: it fills in as many cells as you copied, growing the table if needed. Fix anything by hand, add or remove rows, then check &amp; queue exactly like the CSV tab. Every row is a question — <b>Description/Mechanism/Fun facts describe the item</b>, not the question, so only fill those in on a row that's introducing a brand-new item; they're ignored on every other row.</p>
           <div style="overflow-x:auto;max-width:100%;">
             <table class="cols grid-import" id="gridImportTable">
               <thead><tr id="gridImportHeaderRow"></tr></thead>
@@ -608,8 +608,8 @@
           <div class="btn-row"><button class="primary" id="csv_parseBtn">Check &amp; add all to queue</button></div>
           <details class="more" style="margin-top:14px;"><summary>Column reference</summary><div>
             <table class="cols"><tr><th>Column</th><th>Required</th><th>Notes</th></tr>
-              <tr><td><code>prompt</code>, <code>optionA–D</code>, <code>correct</code>, <code>explanation</code></td><td>yes</td><td><code>correct</code> is A, B, C or D.</td></tr>
-              <tr><td><code>hashtags</code>, <code>difficulty</code></td><td>no</td><td>Semicolon-separated tags; easy / medium / hard.</td></tr>
+              <tr><td><code>prompt</code>, <code>optionA–D</code>, <code>correct</code></td><td>yes</td><td><code>correct</code> is A, B, C or D.</td></tr>
+              <tr><td><code>explanation</code>, <code>hashtags</code>, <code>difficulty</code></td><td>no</td><td>Semicolon-separated tags; easy / medium / hard.</td></tr>
             </table>
           </div></details>
         </div>
@@ -772,7 +772,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-17-queue-removal-flag-and-stats'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-17-optional-explanation'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -1631,7 +1631,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const courseInfo = q_coursePicker.resolve();
     const common = {
       prompt: q_prompt.value.trim() || 'Untitled question?', options: options.filter(Boolean), correctIndex,
-      explanation: q_explanation.value.trim() || '(add an explanation)', difficulty: q_difficulty.value, hashtags: q_hashtagsEl._getValues(),
+      explanation: q_explanation.value.trim(), difficulty: q_difficulty.value, hashtags: q_hashtagsEl._getValues(),
       course: courseInfo.course, class: courseInfo.class, relatedCourseOverride: courseInfo.relatedCourseOverride, courseInfo,
       addCourseSnippet: courseInfo.addCourseSnippet, addClassSnippet: courseInfo.addClassSnippet,
     };
@@ -1681,7 +1681,6 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     if(!q_prompt.value.trim()){ toast('Write the question first'); q_prompt.focus(); return; }
     const o = buildQuestionObject();
     if(o.options.length < 2){ toast('Fill in at least two answer options'); return; }
-    if(!q_explanation.value.trim()){ toast('Add an explanation first'); q_explanation.focus(); return; }
     if(o.itemId==='unknown-item'){ toast('Pick which item this question is about'); return; }
     q_coursePicker.commit(o.courseInfo);
     const entry = { type: o.editingQuestionId ? 'edit-question' : 'question', title:o.prompt.slice(0,50), code:questionCodeString(o), note:`${o.editingQuestionId?'✏️ Edit · ':''}${(KNOWN_THEMES.find(t=>t.id===o.theme)||{}).label||o.theme} · ${o.topic}`, data:o };
@@ -1953,7 +1952,6 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     if(options.some(o=>!o)){ errors.push(`Row ${rowNum}: needs all four options, skipped.`); return null; }
     const correctIndex = 'ABCD'.indexOf(correctLetter);
     if(correctIndex<0){ errors.push(`Row ${rowNum}: correct must be A, B, C or D (got "${correctLetter}"), skipped.`); return null; }
-    if(!explanation){ errors.push(`Row ${rowNum}: missing explanation, skipped.`); return null; }
     return { prompt, options, correctIndex, explanation, hashtags, difficulty };
   }
   function parseCsvQuestions(){
@@ -1962,7 +1960,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const rows = parseCSV(csv_textarea.value);
     if(rows.length < 2) return { valid:[], errors:['Paste a header row plus at least one question row.'] };
     const idx = headerIndex(rows, ['prompt','optiona','optionb','optionc','optiond','correct','explanation','hashtags','difficulty']);
-    const missingCols = ['prompt','optiona','optionb','optionc','optiond','correct','explanation'].filter(k=>idx[k]<0);
+    const missingCols = ['prompt','optiona','optionb','optionc','optiond','correct'].filter(k=>idx[k]<0);
     if(missingCols.length) return { valid:[], errors:[`Missing required column(s): ${missingCols.join(', ')}.`] };
     const valid = [], errors = [];
     for(let r=1; r<rows.length; r++){
@@ -2015,7 +2013,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     rows = rows || parseCSV(lec_textarea.value);
     if(rows.length < 2) return { valid:[], newItems:[], errors:['Paste a header row plus at least one question row.'] };
     const idx = headerIndex(rows, ['questionid','course','lecture','topic','item','prompt','optiona','optionb','optionc','optiond','correct','explanation','hashtags','difficulty','description','mechanism','funfacts']);
-    const missingCols = ['course','topic','item','prompt','optiona','optionb','optionc','optiond','correct','explanation'].filter(k=>idx[k]<0);
+    const missingCols = ['course','topic','item','prompt','optiona','optionb','optionc','optiond','correct'].filter(k=>idx[k]<0);
     if(missingCols.length) return { valid:[], newItems:[], errors:[`Missing required column(s): ${missingCols.join(', ')}.`] };
     const lecCourseDefault = lec_course.value, lecClassDefault = lec_class.value;
     const valid = [], newItems = [], errors = [], decidedThisBatch = {};
@@ -2112,7 +2110,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     ['questionid','Question ID'], ['course','Course'], ['lecture','Lecture'], ['topic','Topic'], ['item','Item'],
     ['prompt','Prompt'], ['optiona','Option A'], ['optionb','Option B'], ['optionc','Option C'], ['optiond','Option D'],
     ['correct','Correct'], ['explanation','Explanation'], ['hashtags','Hashtags'], ['difficulty','Difficulty'],
-    ['description','Description'], ['mechanism','Mechanism'], ['funfacts','Fun facts'],
+    ['description','Description (new item only)'], ['mechanism','Mechanism (new item only)'], ['funfacts','Fun facts (new item only)'],
   ];
   const GRID_WIDE_COLS = new Set(['prompt','explanation','description','mechanism']);
   const gridHeaderRow = document.getElementById('gridImportHeaderRow');
