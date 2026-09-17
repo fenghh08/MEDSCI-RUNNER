@@ -1746,15 +1746,21 @@
     document.documentElement.style.setProperty('--hud-clearance-card', (cardClear ? Math.ceil(cardClear) + 16 : 20) + 'px');
   }
   // Resizes the canvas's actual drawing buffer to match #stageEl's real
-  // on-screen box, but ONLY in portrait -- in landscape this always resets
-  // straight back to the original fixed 960x480 grid, so desktop/landscape
-  // behavior never changes. laneY() and drawVessel() already read W/H/laneH
-  // live every frame, so they reposition themselves correctly with no
-  // further changes; only the fixed-pixel entity/player sizes need SCALE
-  // applied at their own call sites (see spawnTopicBlock/drawPlayer/etc.).
+  // on-screen box. Always true in portrait; in landscape, only for the
+  // browser/desktop build -- the native app's landscape grid stays pinned
+  // to the original fixed 960x480 exactly as before, untouched, since it's
+  // already tuned and runs well there. The browser build's landscape
+  // window can be 1400+ CSS px wide, and stretching that same 960x480
+  // buffer to fill it is what reads as "blurry, can't see obstacles
+  // clearly" at speed -- resizing the buffer to match fixes that, the same
+  // way it already does for portrait below. laneY() and drawVessel()
+  // already read W/H/laneH live every frame, so they reposition themselves
+  // correctly with no further changes; only the fixed-pixel entity/player
+  // sizes need SCALE applied at their own call sites (see
+  // spawnTopicBlock/drawPlayer/etc.).
   function resizeCanvasForPortrait(){
     const isPortrait = window.matchMedia('(orientation:portrait)').matches;
-    if(!isPortrait){
+    if(!isPortrait && isNativeApp()){
       if(canvas.width===960 && canvas.height===480){ updateTopInset(); return; } // already the default landscape grid
       canvas.width = 960; canvas.height = 480;
       W = 960; H = 480; PLAYER_X = 150;
@@ -3872,7 +3878,10 @@
     // roughly half the width gave players roughly half as long to react,
     // even though nothing about the difficulty was meant to change. Scaling
     // speed by W/960 keeps "time to cross the screen" consistent across
-    // every canvas width, landscape included (where this is exactly 1).
+    // every canvas width -- exactly 1 for the native app's fixed landscape
+    // grid, and correctly >1 for a wide desktop browser window now that
+    // resizeCanvasForPortrait() resizes landscape's buffer to match there
+    // too (see its comment).
     const widthScale = W/960;
     const mult = speedMultiplier(); // Customise → Game speed (host's pick in a Group Race)
     speed = Math.min(GAME_CONFIG.maxSpeed, GAME_CONFIG.baseSpeed + (stageIndex*GAME_CONFIG.speedRampPerStage) + (survivalTime*GAME_CONFIG.speedRampPerSecond)) * widthScale * mult;
@@ -4142,17 +4151,16 @@
       return;
     }
     if(e.type==='gift'){
-      // Gold, pulsing, unmistakably a prize -- same block shape as a topic so
-      // it's obviously something you answer, not something you dodge.
+      // Just the icon with a soft pulsing glow -- no block shape. It used
+      // to be boxed the same as a topic block ("obviously something you
+      // answer, not something you dodge"), but in practice players read
+      // that box as "another question block" and dodged it just like a
+      // risky topic hit instead of grabbing it. A bare glowing icon reads
+      // as a pickup instead.
       const pulse = 0.5 + 0.5*Math.sin(survivalTime*5 + e.x*0.03);
-      const w=70*SCALE, h=44*SCALE;
-      ctx.fillStyle = `rgba(255,213,77,${0.18 + pulse*0.22})`;
-      roundRect(ctx, e.x-w/2-9, y-h/2-9, w+18, h+18, 16); ctx.fill();
-      ctx.fillStyle = 'rgba(255,213,77,.35)';
-      roundRect(ctx, e.x-w/2, y-h/2, w, h, 10); ctx.fill();
-      ctx.strokeStyle = '#ffd54d'; ctx.lineWidth = 3;
-      roundRect(ctx, e.x-w/2, y-h/2, w, h, 10); ctx.stroke();
-      drawIconOnCanvas('🎁', e.x, y, 30*SCALE);
+      ctx.fillStyle = `rgba(255,213,77,${0.25 + pulse*0.35})`;
+      ctx.beginPath(); ctx.arc(e.x, y, e.r + (4 + pulse*6)*SCALE, 0, Math.PI*2); ctx.fill();
+      drawIconOnCanvas('🎁', e.x, y, 34*SCALE);
       return;
     }
     // Topic blocks are the thing the player actually has to steer INTO, so
@@ -5698,7 +5706,7 @@
   }
 
   // ---------- init ----------
-  const GAME_VERSION = '2026-09-16-last-standing-instant-win'; // bump this string whenever you send friends a new copy of the file
+  const GAME_VERSION = '2026-09-17-gift-icon-desktop-blur-fix'; // bump this string whenever you send friends a new copy of the file
   console.log('[Runner Game] version', GAME_VERSION);
   document.getElementById('versionTag').textContent = `version ${GAME_VERSION}`;
   function renderManualLifeText(){
