@@ -1,17 +1,51 @@
 <!DOCTYPE html>
 <!-- GitHub Pages entry point. The game itself lives in medsci-runner.html
-     (one source of truth, also what the phone app wraps) -- this page only
-     forwards there, so the hosted address can stay short:
+     (one source of truth, also what the phone app wraps); the maintainer
+     tool lives in developer-tool.html. This page just links to both, so the
+     hosted address can stay short:
        https://fenghh08.github.io/MEDSCI-RUNNER/
-     Query strings (e.g. ?debug=1) are carried across. -->
+     ?debug=1 (or any query string) on THIS page is carried across to
+     whichever link you click. -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Run Morris Run!</title>
-<meta http-equiv="refresh" content="0; url=medsci-runner.html">
-<script>location.replace('medsci-runner.html' + location.search + location.hash);</script>
-<style>body{font-family:system-ui,sans-serif;background:#0d0308;color:#ffe9ef;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style>
+<style>
+  :root{ --bg:#0d0308; --ink:#ffe9ef; --sub:#c9909f; --accent:#ff5d8f; --card:#1a0a12; --line:#3a1c28; }
+  *{ box-sizing:border-box; }
+  body{ font-family:system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; margin:0;
+    display:flex; align-items:center; justify-content:center; padding:32px 16px; }
+  .wrap{ max-width:420px; width:100%; text-align:center; }
+  h1{ font-size:28px; margin:0 0 6px; }
+  p.tag{ color:var(--sub); margin:0 0 28px; font-size:14px; }
+  a.card{ display:block; text-decoration:none; color:inherit; background:var(--card); border:1px solid var(--line);
+    border-radius:14px; padding:20px 18px; margin-bottom:14px; text-align:left; transition:border-color .15s, transform .15s; }
+  a.card:hover{ border-color:var(--accent); transform:translateY(-1px); }
+  a.card .icon{ font-size:26px; }
+  a.card h2{ font-size:17px; margin:8px 0 4px; color:var(--ink); }
+  a.card p{ font-size:13px; color:var(--sub); margin:0; }
+</style>
 </head>
-<body><p>Loading the game… <a href="medsci-runner.html" style="color:#ff5d8f">open it directly</a> if nothing happens.</p></body>
+<body>
+<div class="wrap">
+  <h1>🏃 Run Morris Run!</h1>
+  <p class="tag">Med-school study-guide trivia runner</p>
+  <a class="card" id="playLink" href="medsci-runner.html">
+    <span class="icon">🎮</span>
+    <h2>Play the game</h2>
+    <p>Runner mode, Group Race, and Study &amp; Practice — the actual game.</p>
+  </a>
+  <a class="card" id="toolLink" href="developer-tool.html">
+    <span class="icon">🧬</span>
+    <h2>Developer tool</h2>
+    <p>Add, edit, or flag study-guide content and questions.</p>
+  </a>
+</div>
+<script>
+  // Carry through anything after the ? or # (e.g. ?debug=1) to whichever link is clicked.
+  const qs = location.search + location.hash;
+  if(qs){ document.getElementById('playLink').href += qs; document.getElementById('toolLink').href += qs; }
+</script>
+</body>
 </html>
