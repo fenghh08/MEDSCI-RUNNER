@@ -2634,7 +2634,7 @@
       scenarioQuitBtn.style.display = 'inline-block';
       scenarioQuitBtn.onclick = ()=>{
         scenarioOverlay.classList.remove('active');
-        if(mp.active) mpTeardown();
+        mpLeaveRaceQuietly();
         quitToMenu();
       };
     } else {
@@ -2725,14 +2725,14 @@
     }
   }
   resumeBtn.addEventListener('click', resumeGame);
-  restartBtn.addEventListener('click', ()=>{ pauseScreen.classList.remove('active'); if(mp.active) mpTeardown(); startRun(); });
-  quitFromPauseBtn.addEventListener('click', ()=>{ if(mp.active) mpTeardown(); quitToMenu(); });
+  restartBtn.addEventListener('click', ()=>{ pauseScreen.classList.remove('active'); mpLeaveRaceQuietly(); startRun(); });
+  quitFromPauseBtn.addEventListener('click', ()=>{ mpLeaveRaceQuietly(); quitToMenu(); });
   endGameFromPauseBtn.addEventListener('click', ()=>{
     pauseScreen.classList.remove('active');
     endRun('ended');
     if(!mp.active) openSummary();
   });
-  quitFromOverBtn.addEventListener('click', ()=>{ if(mp.active) mpTeardown(); quitToMenu(); });
+  quitFromOverBtn.addEventListener('click', ()=>{ mpLeaveRaceQuietly(); quitToMenu(); });
   againBtn.addEventListener('click', ()=>{
     if(mp.active && mp.finished){
       mpTeardown();
@@ -2740,7 +2740,7 @@
       mpModeCard.click();
       return;
     }
-    if(mp.active) mpTeardown();
+    mpLeaveRaceQuietly();
     startRun();
   });
   pauseBtn.addEventListener('click', togglePause);
@@ -2797,7 +2797,7 @@
         return `There are ${stages.length} stages: ${names}. Each one needs more correct answers per topic than the last, and bombs come more often too. Clear the chips from the last page to move on to the next stage.`;
       }, stageChips:true },
     { title:'Score', caption:()=>`This number is completely separate from life, used to rank Group Race. A correct answer is +${GAME_CONFIG.scoreCorrectWeight}, a wrong one is −${GAME_CONFIG.scoreIncorrectWeight}, reaching a new stage is +${GAME_CONFIG.stageWeight}, and every ${GAME_CONFIG.streakBonusEvery} correct answers in a row banks a +${GAME_CONFIG.streakBonusScoreAmount} streak bonus. Life and score don't affect each other — losing life doesn't cost you score, and score can't buy back life.`, showHud:true, spotlight:['score'] },
-    { title:'Group Race extras', caption:'Racing friends adds gold 🎁 gift blocks — answered just like a topic block. Get it right and you can spend life on a grenade to throw at a rival, or a shield to block one coming your way.',
+    { title:'Group Race extras', caption:'Racing friends adds gold 🎁 gift blocks — answered just like a topic block. Get it right and you can spend life on a grenade to throw at everyone else still racing at once, or a shield to block one coming your way.',
       demo:{ type:'gift', lane:2, outcome:'collect' } },
     { title:"You're ready", caption:'Pick a mode below and give it a run — you can reopen this any time from the menu.', final:true },
   ];
@@ -3576,32 +3576,24 @@
 
   // ---------- Group Race gifts: grenade & shield ----------
   // After a correct gift-question answer: spend life on a grenade (thrown
-  // right now at the racer just ahead of or just behind you) or a shield
-  // (kept; blocks one incoming grenade). Buying is always optional.
+  // right now at EVERY rival still racing at once) or a shield (kept;
+  // blocks one incoming grenade). Buying is always optional.
   function renderGiftShop(){
     mcqGiftShop.style.display = 'block'; // built its content below -- was never actually un-hidden, so the shop silently never appeared after a correct gift answer
     const cost = GAME_CONFIG.giftCost;
     const life = lifeCfg().label;
     const canAfford = glucose > cost; // never let a purchase itself end the run
-    const ranked = mpRankedRoster(mp.roster).filter(p=>!p.done);
-    const myIdx = ranked.findIndex(p=>p.pid===mp.playerId);
-    const ahead = myIdx > 0 ? ranked[myIdx-1] : null;
-    const behind = (myIdx >= 0 && myIdx < ranked.length-1) ? ranked[myIdx+1] : null;
-    const targets = [ahead && { ...ahead, rel:'ahead', rank:myIdx }, behind && { ...behind, rel:'behind', rank:myIdx+2 }].filter(Boolean);
+    const targets = mpRankedRoster(mp.roster).filter(p=>!p.done && p.pid!==mp.playerId);
     mcqGiftShopBody.innerHTML = `
       <div style="font-size:12.5px;line-height:1.5;margin-bottom:8px;">${t('Spend <b>{cost} {life}</b> on one of these, or keep your {life} and move on.', { cost, life:tx(life) })}${canAfford ? '' : ` <span style="color:var(--danger)">${t('You need more than {cost} {life} to buy.', { cost, life:tx(life) })}</span>`}</div>
       <div class="btn-row" id="giftChoiceRow">
-        <button type="button" class="secondary" id="giftBuyGrenadeBtn" ${(!canAfford || !targets.length) ? 'disabled' : ''}>💣 Grenade — throw it now</button>
+        <button type="button" class="secondary" id="giftBuyGrenadeBtn" ${(!canAfford || !targets.length) ? 'disabled' : ''}>💣 Grenade — throw at everyone now</button>
         <button type="button" class="secondary" id="giftBuyShieldBtn" ${canAfford ? '' : 'disabled'}>🛡 Shield — keep for later (you have ${mp.shields})</button>
         <button type="button" class="secondary" id="giftDeclineBtn">No thanks</button>
       </div>
-      <div id="giftTargetRow" style="display:none;margin-top:8px;">
-        <div style="font-size:12px;color:var(--hud-dim);margin-bottom:6px;">Throw at:</div>
-        <div class="btn-row">${targets.map(t=>`<button type="button" class="secondary" data-target="${t.pid}" data-rel="${t.rel}">${t.rel==='ahead'?'⬆️':'⬇️'} #${t.rank} ${escapeHtml(t.name)} ${tx('('+t.rel+')')}</button>`).join('')}</div>
-      </div>
       <div id="giftShopStatus" style="font-size:12px;margin-top:8px;color:#ffd54d;"></div>`;
     if(!targets.length) mcqGiftShopBody.querySelector('#giftShopStatus').textContent = 'No rival still racing to throw at — a shield is still on offer.';
-    const done = (msg)=>{ mcqGiftShopBody.querySelector('#giftChoiceRow').style.display = 'none'; mcqGiftShopBody.querySelector('#giftTargetRow').style.display = 'none'; mcqGiftShopBody.querySelector('#giftShopStatus').textContent = msg; };
+    const done = (msg)=>{ mcqGiftShopBody.querySelector('#giftChoiceRow').style.display = 'none'; mcqGiftShopBody.querySelector('#giftShopStatus').textContent = msg; };
     mcqGiftShopBody.querySelector('#giftDeclineBtn').addEventListener('click', ()=> done('Kept your ' + life + '.'));
     mcqGiftShopBody.querySelector('#giftBuyShieldBtn').addEventListener('click', ()=>{
       if(glucose <= cost) return;
@@ -3611,22 +3603,19 @@
       done(`🛡 Shield ready — you now have ${mp.shields}. It'll be offered the moment a grenade comes your way.`);
     });
     mcqGiftShopBody.querySelector('#giftBuyGrenadeBtn').addEventListener('click', ()=>{
-      mcqGiftShopBody.querySelector('#giftTargetRow').style.display = 'block';
-    });
-    mcqGiftShopBody.querySelectorAll('[data-target]').forEach(b=> b.addEventListener('click', ()=>{
-      if(glucose <= cost) return;
-      const target = ranked.find(p=>p.pid===b.dataset.target);
-      if(!target) return;
+      if(glucose <= cost || !targets.length) return;
       glucose -= cost; updateGlucoseUI();
-      throwGrenade(target.pid);
+      throwGrenade(targets.map(t=>t.pid));
       SoundFX.damage();
-      done(`💣 Grenade thrown at ${target.name}! (−${cost} ${life})`);
-      popup(PLAYER_X, player.y-40, `💣 → ${target.name}`, '#ffd54d');
-    }));
+      done(`💣 Grenade thrown at everyone! (−${cost} ${life})`);
+      popup(PLAYER_X, player.y-40, `💣 → Everyone!`, '#ffd54d');
+    });
   }
-  function throwGrenade(targetPid){
+  function throwGrenade(targetPids){
     if(!mp.roomCode) return;
-    fbPush(ref(fbdb, `rooms/${mp.roomCode}/players/${targetPid}/incoming`), { fromName: mp.myName, fromId: mp.playerId, at: serverNow() }).catch(()=>{});
+    targetPids.forEach(pid=>{
+      fbPush(ref(fbdb, `rooms/${mp.roomCode}/players/${pid}/incoming`), { fromName: mp.myName, fromId: mp.playerId, at: serverNow() }).catch(()=>{});
+    });
   }
   function updateGiftHUD(){
     if(!mp.active){ giftHudLine.style.display = 'none'; return; }
@@ -3672,7 +3661,7 @@
     syncHudVisibility();
     mp.pendingGrenade = g; // fromId/fromName -- resolveGrenade() reports back to them once this plays out
     grenadeWarnWrap.style.display = 'block';
-    grenadeFromText.textContent = `${g.fromName || 'A rival'} threw a grenade at you.`;
+    grenadeFromText.innerHTML = `<b style="color:var(--danger);font-size:1.15em;">${escapeHtml(g.fromName || 'A rival')}</b> threw a grenade at you.`;
     const hasShields = mp.shields > 0;
     grenadeShieldText.textContent = hasShields
       ? `You have ${mp.shields} shield${mp.shields===1?'':'s'} left.`
@@ -5641,6 +5630,27 @@
       if(room) mpCheckResolution(room);
     });
   }
+  // For every "leave the race" exit that DOESN'T go through endRun()/
+  // mpMarkDone() (Quit to menu from the pause screen, quitting from the
+  // Stage I briefing) -- mpTeardown() alone only resets MY OWN local
+  // client state, it never touches Firebase. Without this, my roster entry
+  // stayed done:false forever, so whoever was still racing never got an
+  // elimination toast for me and mpAutoWinIfLastStanding/mpCheckResolution
+  // (which both require EVERY roster entry to be done) could never
+  // resolve -- they'd just keep racing alone against a "ghost" opponent
+  // who'd already left. Writes the same done/doneReason/stats shape
+  // mpMarkDone does, just without the local "show me my result" UI side
+  // effects, since I'm leaving without waiting to see it.
+  function mpLeaveRaceQuietly(){
+    if(mp.active && mp.roomCode && mp.playerId && !mp.finished){
+      fbUpdate(ref(fbdb, `rooms/${mp.roomCode}/players/${mp.playerId}`), {
+        done:true, doneReason:'ended',
+        glucose: Math.max(0,glucose), stageIndex, stageRoman: currentStages()[stageIndex].roman,
+        correctCount: myCorrectCount, incorrectCount: myIncorrectCount, bonusScore: myBonusScore,
+      }).catch(()=>{});
+    }
+    if(mp.active) mpTeardown();
+  }
   // Resolves the match once EVERY racer is done (including via
   // mpAutoWinIfLastStanding above). Score = correct*50 - incorrect*35 +
   // life*1 + stage*300 + streak bonuses (see GAME_CONFIG) -- highest score
@@ -5700,7 +5710,7 @@
   }
 
   // ---------- init ----------
-  const GAME_VERSION = '2026-09-17-no-lane-dashes'; // bump this string whenever you send friends a new copy of the file
+  const GAME_VERSION = '2026-09-17-grenade-hits-everyone'; // bump this string whenever you send friends a new copy of the file
   console.log('[Runner Game] version', GAME_VERSION);
   document.getElementById('versionTag').textContent = `version ${GAME_VERSION}`;
   function renderManualLifeText(){
@@ -5720,11 +5730,12 @@
   // without needing a second racer to throw one.
   if(new URLSearchParams(location.search).has('debug')){
     // Seeds just enough fake Group Race state for the gift shop's
-    // ranking-based UI (chance-for-me, the two "throw at" targets) to have
-    // real racers to show, WITHOUT touching Firebase -- every write path
-    // (mpSyncMyState, throwGrenade) already no-ops when mp.roomCode is
-    // unset, so this stays inert even though mp.active reads true. Never
-    // runs if a genuine race is already underway (mp.roomCode set).
+    // ranking-based UI (chance-for-me, the "throw at everyone" grenade
+    // option) to have real racers to show, WITHOUT touching Firebase --
+    // every write path (mpSyncMyState, throwGrenade) already no-ops when
+    // mp.roomCode is unset, so this stays inert even though mp.active reads
+    // true. Never runs if a genuine race is already underway (mp.roomCode
+    // set).
     function fakeSoloRaceContext(){
       if(mp.roomCode) return; // a real race is running -- don't touch it
       mp.active = true;
@@ -5733,7 +5744,7 @@
         // mpRankedRoster recomputes score from these raw stat fields via
         // mpScore() -- a literal `score` key (what an earlier version of
         // this seeded) is ignored, which silently tied all three at 0 and
-        // hid one of the two "throw at" targets.
+        // hid the grenade option (it needs at least one other racer still going).
         mp.roster = {
           [mp.playerId]: { name:'You (debug)', correctCount:myCorrectCount, incorrectCount:myIncorrectCount, glucose:Math.max(0,glucose), stageIndex, bonusScore:myBonusScore, done:false },
           'debug-ahead':  { name:'Debug Ahead',  correctCount:20, incorrectCount:0, glucose:100, stageIndex:2, bonusScore:0, done:false },
@@ -5763,13 +5774,24 @@
         return 'Incoming grenade staged.';
       },
       // spawnGift(): also fakes two rival racers (see fakeSoloRaceContext)
-      // so answering it correctly shows the real shop with real "throw at"
-      // targets, not just a shield-only preview.
+      // so answering it correctly shows the real shop with real racers to
+      // throw the grenade at, not just a shield-only preview.
       spawnGift(){
         if(screenState!=='running') return 'Start a run first.';
         fakeSoloRaceContext();
         spawnGiftBlock();
-        return 'Gift block spawned -- steer into it, answer correctly, and the shop (shield or grenade, with two fake targets) will show under the explanation.';
+        return 'Gift block spawned -- steer into it, answer correctly, and the shop (shield, or a grenade thrown at both fake rivals at once) will show under the explanation.';
+      },
+      // Renders the gift shop straight away (as if a gift question had just
+      // been answered correctly), with fakeSoloRaceContext()'s two rivals as
+      // real throw targets -- skips needing to actually steer into a gift
+      // block and answer it right, for testing the shop UI itself.
+      forceGiftShop(){
+        if(screenState!=='running') return 'Start a run first.';
+        fakeSoloRaceContext();
+        mcqModal.classList.add('active');
+        renderGiftShop();
+        return 'Gift shop rendered.';
       },
       // Drops the just-spawned gift block right in front of you on your
       // current lane, so you don't have to actually steer into it --
