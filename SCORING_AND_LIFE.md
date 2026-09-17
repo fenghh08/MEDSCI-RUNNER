@@ -181,10 +181,13 @@ whoever's still racing — whichever happens first:
 - **Someone finishes all stages.** A gold banner tells every other still-racing client "🏁
   \<name\> finished! Xs left to out-score them."
 - **You become the last racer still going**, because everyone else is done — for any reason
-  (finished, died, quit, or their own catch-up time ran out). Instead of instantly locking you in
-  wherever you happen to be, you get this same 45 seconds for one final stretch: the banner reads
-  "🏁 You're the last one racing! Xs left to set the best score." If you finish or die on your own
-  before the window is up, your run just ends right then, same as any solo run.
+  (finished, died, quit, or their own catch-up time ran out) — **and your current score is
+  actually behind the best score among them.** You get this same 45 seconds for one final
+  stretch to try to overtake it: the banner reads "🏁 You're the last one racing! Xs left to set
+  the best score." If you finish or die on your own before the window is up, your run just ends
+  right then, same as any solo run. If your current score is already *ahead* of everyone who's
+  done, there's nothing left to catch up to — nobody remaining can pass you — so your run ends
+  in a win immediately instead of making you sit through 45 more seconds for no reason.
 
 Either way:
 
