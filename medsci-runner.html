@@ -2039,7 +2039,6 @@
   const STALL_WARNING_AFTER = 10; // seconds
   let speed = GAME_CONFIG.baseSpeed;
   let lastT = 0;
-  let bgOffset = 0;
 
   // ---------- Custom run state ----------
   // A Custom run doesn't use STAGES[currentCancerId]/THEMES[currentCancerId]
@@ -2871,7 +2870,6 @@
   }
   function tutorialFrame(now){
     if(!tutorialActive) return;
-    bgOffset = (bgOffset + 24*(1/60)) % 80; // a gentle idle scroll -- slower than real gameplay, just enough to read as "alive"
     player.wob += (1/60)*6;
     const desiredY = laneY(player.targetLane);
     player.y += (desiredY - player.y) * Math.min(1, (1/60)*10);
@@ -3976,10 +3974,10 @@
   // mode deepens the yellow pickup and darkens topic-block outlines, since
   // glow-on-black values wash out against a pale background.
   const CANVAS_PALETTES = {
-    dark:  { bg:'#1c0710', laneLine:'rgba(255,93,143,.10)', laneDash:'rgba(255,93,143,.16)', wall:'#3a0d1c', wallFade:'rgba(58,13,28,0)',
+    dark:  { bg:'#1c0710', laneLine:'rgba(255,93,143,.10)', wall:'#3a0d1c', wallFade:'rgba(58,13,28,0)',
              glucoseGlow:'rgba(255,210,63,.35)', glucose:'#ffd23f', glucoseRing:null,
              topicGlowAlpha:'40', topicFillAlpha:'2b', topicStrokeDarken:0 },
-    light: { bg:'#fff1f5', laneLine:'rgba(214,16,106,.16)', laneDash:'rgba(214,16,106,.28)', wall:'#f6c3d4', wallFade:'rgba(246,195,212,0)',
+    light: { bg:'#fff1f5', laneLine:'rgba(214,16,106,.16)', wall:'#f6c3d4', wallFade:'rgba(246,195,212,0)',
              glucoseGlow:'rgba(235,160,0,.28)', glucose:'#f2b400', glucoseRing:'#a6720a',
              topicGlowAlpha:'30', topicFillAlpha:'5c', topicStrokeDarken:0.22 },
   };
@@ -4002,9 +4000,6 @@
     ctx.fillStyle = pal.bg; ctx.fillRect(0,0,W,H);
     ctx.strokeStyle = pal.laneLine; ctx.lineWidth = 2;
     for(let i=1;i<LANES;i++){ ctx.beginPath(); ctx.moveTo(0, topInset+laneH*i); ctx.lineTo(W, topInset+laneH*i); ctx.stroke(); }
-    ctx.strokeStyle = pal.laneDash; ctx.lineWidth = 3; ctx.setLineDash([26,18]);
-    for(let i=0;i<LANES;i++){ ctx.beginPath(); ctx.moveTo(-bgOffset, laneY(i)); ctx.lineTo(W, laneY(i)); ctx.stroke(); }
-    ctx.setLineDash([]);
     if(!vesselGradTop || vesselGradTheme!==currentTheme){
       vesselGradTheme = currentTheme;
       vesselGradTop = ctx.createLinearGradient(0,0,0,40);
@@ -4191,7 +4186,6 @@
     }
   }
   function draw(){
-    bgOffset = (bgOffset + speed*(1/60)) % 80;
     drawVessel();
     for(const e of entities) drawEntity(e);
     drawPlayer();
@@ -5706,7 +5700,7 @@
   }
 
   // ---------- init ----------
-  const GAME_VERSION = '2026-09-17-gift-icon-desktop-blur-fix'; // bump this string whenever you send friends a new copy of the file
+  const GAME_VERSION = '2026-09-17-no-lane-dashes'; // bump this string whenever you send friends a new copy of the file
   console.log('[Runner Game] version', GAME_VERSION);
   document.getElementById('versionTag').textContent = `version ${GAME_VERSION}`;
   function renderManualLifeText(){
