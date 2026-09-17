@@ -772,7 +772,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-17-edit-button-on-reports'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-17-attribution-privacy'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -834,8 +834,8 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   const contributorEmailEl = document.getElementById('contributorEmail');
   try { contributorNameEl.value = localStorage.getItem('contributorName') || ''; } catch(e){}
   try { contributorEmailEl.value = localStorage.getItem('contributorEmail') || ''; } catch(e){}
-  contributorNameEl.addEventListener('input', ()=>{ try { localStorage.setItem('contributorName', contributorNameEl.value); } catch(e){} });
-  contributorEmailEl.addEventListener('input', ()=>{ try { localStorage.setItem('contributorEmail', contributorEmailEl.value); } catch(e){} });
+  contributorNameEl.addEventListener('input', ()=>{ try { localStorage.setItem('contributorName', contributorNameEl.value); } catch(e){} renderBatch(); });
+  contributorEmailEl.addEventListener('input', ()=>{ try { localStorage.setItem('contributorEmail', contributorEmailEl.value); } catch(e){} renderBatch(); });
   function currentContributorName(){ return contributorNameEl.value.trim() || 'Anonymous'; }
   function currentContributorEmail(){ return contributorEmailEl.value.trim(); }
   // Blocks a queue submission until both are filled in -- lets a maintainer
@@ -867,7 +867,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   document.getElementById('maintainerUnlockBtn').addEventListener('click', ()=>{
     const input = document.getElementById('maintainerPinInput');
     const err = document.getElementById('maintainerPinError');
-    if(input.value === MAINTAINER_PIN){ maintainerUnlocked = true; safeSessionSet('maintainerUnlocked','yes'); err.style.display='none'; applyMaintainerLockUI(); }
+    if(input.value === MAINTAINER_PIN){ maintainerUnlocked = true; safeSessionSet('maintainerUnlocked','yes'); err.style.display='none'; applyMaintainerLockUI(); renderBatch(); }
     else { err.style.display = 'block'; input.value = ''; }
   });
   document.getElementById('maintainerLockBtn').addEventListener('click', ()=>{
@@ -875,8 +875,20 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     safeSessionRemove('maintainerUnlocked');
     document.getElementById('maintainerPinInput').value = '';
     applyMaintainerLockUI();
+    renderBatch();
     toast('Maintainer mode locked again');
   });
+  // Attribution privacy: only a maintainer sees who actually added
+  // something (name + email). Everyone else sees "You" for their own
+  // submissions (matched by name+email against the fields above) and
+  // nothing at all for anyone else's -- no name, no "Anonymous", just
+  // omitted. '' means "show no attribution".
+  function contributorDisplayLabel(entry){
+    if(maintainerUnlocked) return `${entry.contributorName || 'Anonymous'}${entry.contributorEmail ? ` (${entry.contributorEmail})` : ''}`;
+    const myEmail = currentContributorEmail().toLowerCase();
+    if(myEmail && entry.contributorEmail && entry.contributorEmail.toLowerCase()===myEmail && entry.contributorName===currentContributorName()) return 'You';
+    return '';
+  }
   document.getElementById('maintainerPinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('maintainerUnlockBtn').click(); });
   function requireMaintainerUnlock(){
     if(maintainerUnlocked) return true;
@@ -2467,6 +2479,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   // Fire-and-forget write; the onValue listener re-renders once it round-trips, so everyone sees the same list.
   function pushToQueue(entry){
     entry.contributorName = currentContributorName();
+    entry.contributorEmail = currentContributorEmail();
     entry.createdAt = Date.now();
     if(firebaseReady){
       fbPush(fbRef(fbdb, 'contributions'), entry).catch(err=>{ console.warn('[Content Tool] Could not write to the shared queue — saving locally instead.', err); batch[`local-${++_localKeyN}`] = entry; renderBatch(); });
@@ -2478,6 +2491,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   // Keeps the entry's original queue position (createdAt) if known.
   function updateQueueEntry(key, entry){
     entry.contributorName = currentContributorName();
+    entry.contributorEmail = currentContributorEmail();
     entry.createdAt = (batch[key] && batch[key].createdAt) || Date.now();
     if(firebaseReady && !key.startsWith('local-')){
       fbSet(fbRef(fbdb, `contributions/${key}`), entry).catch(()=>{ batch[key] = entry; renderBatch(); });
@@ -2593,7 +2607,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       row.dataset.key = key;
       const formKind = resumableForm[entry.type];
       const editBtn = formKind ? '<button class="subtle qi-edit" type="button" title="Edit this queued entry">✏️ Edit</button>' : (isReport(entry) ? reportEditButtonHtml(entry, 'subtle') : '');
-      row.innerHTML = `<div class="qi-row"><div><div class="qi-label">${entry.removalFlagged?'🚩 ':''}${icons[entry.type]||'📄'} <b>${esc2(entry.title)}</b> — ${esc2(entry.note||'')}</div><div class="qi-meta">by ${esc2(entry.contributorName||'Anonymous')}${entry.createdAt?' · '+new Date(entry.createdAt).toLocaleString():''}</div></div>
+      const attribution = contributorDisplayLabel(entry);
+      const metaParts = [attribution ? `by ${esc2(attribution)}` : null, entry.createdAt ? new Date(entry.createdAt).toLocaleString() : null].filter(Boolean);
+      row.innerHTML = `<div class="qi-row"><div><div class="qi-label">${entry.removalFlagged?'🚩 ':''}${icons[entry.type]||'📄'} <b>${esc2(entry.title)}</b> — ${esc2(entry.note||'')}</div><div class="qi-meta">${metaParts.join(' · ')}</div></div>
         <div class="qi-actions"><button class="qi-toggle" type="button">${expandedKeys.has(key)?'▴ Hide':'▾ Details'}</button>${editBtn}<button class="subtle qi-flag-removal" type="button" title="${entry.removalFlagged?'Un-flag':'Flag this for a maintainer to remove'}">${entry.removalFlagged?'↺ Unflag':'🚩 Flag for removal'}</button><button class="subtle list-remove" type="button" title="Remove from the queue (after merging)">✕</button></div></div>
         <div class="qi-details" style="display:${expandedKeys.has(key)?'block':'none'};">${queueDetailHtml(entry)}</div>`;
       row.querySelector('.qi-toggle').addEventListener('click', e=>{ const d = row.querySelector('.qi-details'); const open = d.style.display !== 'block'; d.style.display = open ? 'block' : 'none'; e.currentTarget.textContent = open ? '▴ Hide' : '▾ Details'; });
@@ -2623,7 +2639,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const entries = Object.values(batch).sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
     const groups = [['course','New courses'],['topic','New topics'],['lectureOutcomes','Lecture learning outcomes'],['item','New study guide items'],['edit-item','Edits to existing items'],['question','New questions'],['edit-question','Edits to existing questions'],['delete-item','DELETIONS (items)'],['delete-question','DELETIONS (questions)'],['flag-item','Reports (items)'],['flag-question','Reports (questions)']];
     let out = `// Team queue snapshot — ${new Date().toLocaleString()}\n// ${entries.length} entr${entries.length===1?'y':'ies'} below.\n\n`;
-    groups.forEach(([type, title])=>{ const list = entries.filter(e=>e.type===type); if(list.length) out += `// ---- ${title} ----\n` + list.map(e=>`// by ${e.contributorName||'Anonymous'}\n${e.code || ('// ' + (e.note||''))}`).join('\n\n') + '\n\n'; });
+    groups.forEach(([type, title])=>{ const list = entries.filter(e=>e.type===type); if(list.length) out += `// ---- ${title} ----\n` + list.map(e=>{ const attribution = contributorDisplayLabel(e); return `${attribution ? `// by ${attribution}\n` : ''}${e.code || ('// ' + (e.note||''))}`; }).join('\n\n') + '\n\n'; });
     return out.trim();
   }
   document.getElementById('batchCopyAll').addEventListener('click', ()=>{ if(!Object.keys(batch).length){ toast('Queue is empty'); return; } copyText(fullBatchText()); });
@@ -2917,7 +2933,7 @@ Math.random().toString(36).slice(2,6)   // e.g. 'k3f9'</pre>
     'firebase-queue': { title:'The shared queue (Firebase)', tags:['Realtime Database','JSON tree','onValue','dynamic import()'], body:`
       <p>Firebase Realtime Database is one big JSON document hosted by Google. The queue is the branch <code>contributions/</code>. Adding an entry is <code>push()</code>, which generates a time-ordered key and stores your object as JSON:</p>
       <pre>contributions/
-  -NxA3…: { type:'question', title:'…', data:{…}, contributorName:'Priya', createdAt:1725… }
+  -NxA3…: { type:'question', title:'…', data:{…}, contributorName:'Priya', contributorEmail:'priya@…', createdAt:1725… }
   -NxA4…: { type:'flag-question', … }   ← sent by a player from inside the game</pre>
       <p><code>onValue(ref, cb)</code> opens a live connection; the callback fires with the whole branch on every change made by anyone, and the list re-renders. That's why a teammate's entry appears without refreshing.</p>
       <p>The SDK is loaded with a <em>dynamic</em> <code>import()</code> inside <code>try/catch</code>: if there's no internet the import fails, the tool notices, and falls back to a local-only queue instead of crashing. A static <code>import</code> at the top of the file would have taken the whole page down.</p>
@@ -2967,7 +2983,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
   // TOUR
   // ======================================================================
   const DEV_TOUR_STEPS = [
-    { tab:'add', pane:['add','item'], sel:'#contributorName', title:'Your name', caption:'Type your name once — it credits you on whatever you add. Nothing else uses it.' },
+    { tab:'add', pane:['add','item'], sel:'#contributorName', title:'Your name and email', caption:'Type these once — required before anything can be queued. Only a maintainer can see whose submission is whose; everyone else just sees "You" on their own and nothing on anyone else\'s.' },
     { tab:'add', sel:'#addChips', title:'Pick what you are adding', caption:'A study guide item, a question, a topic, a course, or lecture learning outcomes. The item form is the one you\'ll use most.' },
     { tab:'add', sel:'#i_previewCard', title:'Live preview', caption:'As you type, this shows exactly how the item will look in the game. Check it reads well before adding.' },
     { tab:'add', sel:'#i_addBatch', title:'Add to queue', caption:'Sends it to the shared Team queue, live, for the whole team. It does not touch the game yet.' },
