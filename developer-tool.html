@@ -169,6 +169,7 @@
   /* queue */
   .queue-filter{ display:flex; gap:8px; margin-bottom:12px; }
   .queue-item{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin-bottom:8px; }
+  .queue-item.qi-mine{ border-left:4px solid var(--info); background:var(--info-soft); }
   .queue-item.qi-report{ border-left:4px solid var(--warn); }
   .queue-item.qi-removal-flagged{ border-left:4px solid var(--danger); background:var(--danger-soft); }
   .queue-item .qi-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
@@ -772,7 +773,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-17-attribution-privacy'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-17-mine-highlight'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -2603,11 +2604,11 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const resumableForm = { item:'item', 'edit-item':'item', question:'question', 'edit-question':'question' };
     entries.forEach(([key, entry])=>{
       const row = document.createElement('div');
-      row.className = 'queue-item' + (isReport(entry) ? ' qi-report' : '') + (entry.removalFlagged ? ' qi-removal-flagged' : '');
+      const attribution = contributorDisplayLabel(entry);
+      row.className = 'queue-item' + (attribution==='You' ? ' qi-mine' : '') + (isReport(entry) ? ' qi-report' : '') + (entry.removalFlagged ? ' qi-removal-flagged' : '');
       row.dataset.key = key;
       const formKind = resumableForm[entry.type];
       const editBtn = formKind ? '<button class="subtle qi-edit" type="button" title="Edit this queued entry">✏️ Edit</button>' : (isReport(entry) ? reportEditButtonHtml(entry, 'subtle') : '');
-      const attribution = contributorDisplayLabel(entry);
       const metaParts = [attribution ? `by ${esc2(attribution)}` : null, entry.createdAt ? new Date(entry.createdAt).toLocaleString() : null].filter(Boolean);
       row.innerHTML = `<div class="qi-row"><div><div class="qi-label">${entry.removalFlagged?'🚩 ':''}${icons[entry.type]||'📄'} <b>${esc2(entry.title)}</b> — ${esc2(entry.note||'')}</div><div class="qi-meta">${metaParts.join(' · ')}</div></div>
         <div class="qi-actions"><button class="qi-toggle" type="button">${expandedKeys.has(key)?'▴ Hide':'▾ Details'}</button>${editBtn}<button class="subtle qi-flag-removal" type="button" title="${entry.removalFlagged?'Un-flag':'Flag this for a maintainer to remove'}">${entry.removalFlagged?'↺ Unflag':'🚩 Flag for removal'}</button><button class="subtle list-remove" type="button" title="Remove from the queue (after merging)">✕</button></div></div>
