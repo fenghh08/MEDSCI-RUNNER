@@ -772,7 +772,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-17-optional-explanation'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-17-edit-button-on-reports'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -2508,6 +2508,26 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     else { delete batch[key]; renderBatch(); }
   }
   const isReport = e => e.type==='flag-item' || e.type==='flag-question';
+  // Shared by the row-level Edit button and the report detail view -- jumps
+  // straight to fixing whatever a report is actually about. Re-derives a
+  // question's location from live content (not the report's own stored
+  // theme/topicId) so the link still works if the question moved, and
+  // falls back to opening the item if the question itself can't be found
+  // (e.g. already deleted). Editing itself has never needed the PIN, same
+  // as everywhere else in the tool -- only deleting does.
+  function reportEditButtonHtml(entry, className){
+    className = className || 'struct-edit-link';
+    const d = entry.data || {};
+    if(entry.type === 'flag-question'){
+      const loc = d.qId ? findQuestionLocation(d.qId) : null;
+      if(loc) return `<button type="button" class="${className}" data-edit-question="${esc2(d.qId)}">✏️ Edit this question</button>`;
+      return d.itemId ? `<button type="button" class="${className}" data-edit-item="${esc2(d.itemId)}">✏️ Open this item to fix it</button>` : '';
+    }
+    if(entry.type === 'flag-item'){
+      return d.itemId ? `<button type="button" class="${className}" data-edit-item="${esc2(d.itemId)}">✏️ Edit this item</button>` : '';
+    }
+    return '';
+  }
   // Prepended to every row's details regardless of type -- a removal flag is
   // orthogonal to what kind of entry this is.
   function removalFlagBannerHtml(entry){
@@ -2518,20 +2538,13 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     return removalFlagBannerHtml(entry) + queueDetailHtmlInner(entry);
   }
   function queueDetailHtmlInner(entry){
-    if(entry.type === 'flag-item') return `<div class="qi-detail-label">Reported issue</div><div class="qi-detail-text">${esc2(entry.data?.reason || entry.note || '(no reason given)')}</div>`;
+    if(entry.type === 'flag-item') return `<div class="qi-detail-label">Reported issue</div><div class="qi-detail-text">${esc2(entry.data?.reason || entry.note || '(no reason given)')}</div>` + reportEditButtonHtml(entry);
     if(entry.type === 'flag-question'){
       const d = entry.data || {};
-      // Re-derive location from the live content rather than trusting the
-      // report's own stored theme/topicId/itemId (also confirms the
-      // question hasn't since been deleted) -- lets a working "jump
-      // straight to this question" button skip the item-level fallback.
-      const loc = d.qId ? findQuestionLocation(d.qId) : null;
-      const editBtn = loc ? `<button type="button" class="struct-edit-link" data-edit-question="${esc2(d.qId)}">✏️ Edit this question</button>`
-        : (d.itemId ? `<button type="button" class="struct-edit-link" data-edit-item="${esc2(d.itemId)}">✏️ Open this item to fix it</button>` : '');
       return `<div class="qi-detail-label">Reported issue</div><div class="qi-detail-text">${esc2(d.reason||entry.note||'(no reason given)')}</div>`
         + (d.prompt ? `<div class="qi-detail-label">Question</div><div class="qi-detail-text">${esc2(d.prompt)}</div>` : '')
         + `<div class="qi-detail-label">Where</div><div class="qi-detail-text">${esc2([d.theme, d.topicId, d.itemId, d.qId].filter(Boolean).join(' → ') || '(unknown)')}</div>`
-        + editBtn;
+        + reportEditButtonHtml(entry);
     }
     if(entry.type === 'delete-item' || entry.type === 'delete-question'){
       const d = entry.data || {};
@@ -2567,16 +2580,21 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     if(!entries.length){ batchList.innerHTML = `<p class="batch-empty">${all.length ? 'Nothing matches this filter.' : 'Nothing in the queue yet — add something from "Add content" or "Import CSV".'}</p>`; return; }
     batchList.innerHTML = '';
     const icons = { item:'📄', question:'❓', 'edit-question':'✏️', course:'📚', topic:'🗂️', 'edit-item':'✏️', 'delete-item':'🗑', 'delete-question':'🗑', lectureOutcomes:'🧭', 'flag-item':'🚩', 'flag-question':'⚠️' };
-    // Only these have an actual form to resume editing in -- course/topic/
-    // outcomes/delete-*/flag-* stay Remove-only for now.
+    // course/topic/outcomes/delete-* stay Remove-only -- nothing to jump
+    // into editing for those. item/question/edit-item/edit-question resume
+    // the queued (not-yet-merged) submission itself. flag-item/flag-question
+    // are different again: there's no submission to resume, but the Edit
+    // button here jumps straight to fixing the LIVE item/question the
+    // report is actually about (see reportEditButtonHtml).
     const resumableForm = { item:'item', 'edit-item':'item', question:'question', 'edit-question':'question' };
     entries.forEach(([key, entry])=>{
       const row = document.createElement('div');
       row.className = 'queue-item' + (isReport(entry) ? ' qi-report' : '') + (entry.removalFlagged ? ' qi-removal-flagged' : '');
       row.dataset.key = key;
       const formKind = resumableForm[entry.type];
+      const editBtn = formKind ? '<button class="subtle qi-edit" type="button" title="Edit this queued entry">✏️ Edit</button>' : (isReport(entry) ? reportEditButtonHtml(entry, 'subtle') : '');
       row.innerHTML = `<div class="qi-row"><div><div class="qi-label">${entry.removalFlagged?'🚩 ':''}${icons[entry.type]||'📄'} <b>${esc2(entry.title)}</b> — ${esc2(entry.note||'')}</div><div class="qi-meta">by ${esc2(entry.contributorName||'Anonymous')}${entry.createdAt?' · '+new Date(entry.createdAt).toLocaleString():''}</div></div>
-        <div class="qi-actions"><button class="qi-toggle" type="button">${expandedKeys.has(key)?'▴ Hide':'▾ Details'}</button>${formKind?'<button class="subtle qi-edit" type="button" title="Edit this queued entry">✏️ Edit</button>':''}<button class="subtle qi-flag-removal" type="button" title="${entry.removalFlagged?'Un-flag':'Flag this for a maintainer to remove'}">${entry.removalFlagged?'↺ Unflag':'🚩 Flag for removal'}</button><button class="subtle list-remove" type="button" title="Remove from the queue (after merging)">✕</button></div></div>
+        <div class="qi-actions"><button class="qi-toggle" type="button">${expandedKeys.has(key)?'▴ Hide':'▾ Details'}</button>${editBtn}<button class="subtle qi-flag-removal" type="button" title="${entry.removalFlagged?'Un-flag':'Flag this for a maintainer to remove'}">${entry.removalFlagged?'↺ Unflag':'🚩 Flag for removal'}</button><button class="subtle list-remove" type="button" title="Remove from the queue (after merging)">✕</button></div></div>
         <div class="qi-details" style="display:${expandedKeys.has(key)?'block':'none'};">${queueDetailHtml(entry)}</div>`;
       row.querySelector('.qi-toggle').addEventListener('click', e=>{ const d = row.querySelector('.qi-details'); const open = d.style.display !== 'block'; d.style.display = open ? 'block' : 'none'; e.currentTarget.textContent = open ? '▴ Hide' : '▾ Details'; });
       row.querySelector('.qi-flag-removal').addEventListener('click', ()=> toggleQueueRemovalFlag(key));
