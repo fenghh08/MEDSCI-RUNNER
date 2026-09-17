@@ -170,6 +170,7 @@
   .queue-filter{ display:flex; gap:8px; margin-bottom:12px; }
   .queue-item{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin-bottom:8px; }
   .queue-item.qi-report{ border-left:4px solid var(--warn); }
+  .queue-item.qi-removal-flagged{ border-left:4px solid var(--danger); background:var(--danger-soft); }
   .queue-item .qi-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
   .queue-item .qi-label{ font-size:13px; }
   .queue-item .qi-label b{ color:var(--accent); }
@@ -205,6 +206,7 @@
   table.grid-import td input:focus{ outline:2px solid var(--accent); outline-offset:-2px; }
   table.grid-import td.grid-remove-cell{ text-align:center; padding:0 6px; }
   table.grid-import td.grid-remove-cell button{ font-size:11px; padding:3px 7px; }
+  table.grid-import:not(.show-id) [data-col="questionid"]{ display:none; }
   .step-num{ display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--accent-soft); color:var(--accent); font-weight:700; font-size:12px; margin-right:8px; }
   .callout{ background:var(--info-soft); border:1px solid #c9d7f5; border-radius:10px; padding:10px 14px; font-size:13px; margin-bottom:14px; }
   .callout.warn{ background:var(--warn-soft); border-color:#f6d5a5; }
@@ -265,7 +267,8 @@
 <header class="topbar">
   <div class="brand"><span style="font-size:20px;">🧬</span><div><h1>Runner Content Tool</h1><small>Add and review content for Run Morris Run!</small></div></div>
   <div class="spacer"></div>
-  <label>Your name <input type="text" id="contributorName" placeholder="e.g. Priya" title="Only used to credit you on what you add"></label>
+  <label>Your name <input type="text" id="contributorName" placeholder="e.g. Priya" title="Credits you on what you add, and lets a maintainer reach you about it"></label>
+  <label>Your email <input type="email" id="contributorEmail" placeholder="e.g. priya@example.com" title="Lets a maintainer contact you if they spot an issue with something you added"></label>
   <span id="syncBanner" class="pill off">⏳ Connecting…</span>
   <button id="devTutorialBtn">🎬 Tour</button>
   <button class="subtle" data-info="overview">ⓘ How it all fits</button>
@@ -362,10 +365,10 @@
               <button type="button" class="link-btn" id="i_addQuestionQuickLink" style="display:none;">➕ Skip editing — just add a question to this item</button>
               <div id="i_existingQuestionsWrap" style="display:none;margin-top:10px;">
                 <span class="fl-label">This item's existing questions</span>
-                <span class="fl-help">Remove any that shouldn't be here — deleted only once this edit is merged. 🔒 Maintainer PIN + a reason required.</span>
+                <span class="fl-help">Remove any that shouldn't be here — deleted only once this edit is merged. You'll be asked for a reason.</span>
                 <div id="i_existingQuestionsList"></div>
               </div>
-              <button type="button" class="danger" id="i_deleteItemBtn" style="display:none;margin-top:8px;">🗑 Delete this item and all its questions (🔒 PIN + reason)</button>
+              <button type="button" class="danger" id="i_deleteItemBtn" style="display:none;margin-top:8px;">🗑 Request deletion (needs a reason)</button>
             </div>
             <div class="row2">
               <label class="field"><span class="fl-label">Course <span class="req">*</span></span><select id="i_theme"></select></label>
@@ -431,7 +434,7 @@
             <div class="new-block" id="q_editPickerBlock">
               <label class="field" style="margin-bottom:6px;"><span class="fl-label">Which question?</span><select id="q_editQuestionSelect"></select></label>
               <span class="fl-help">Only lists questions already in game-data.js — one added earlier this session isn't mergeable yet, so there's nothing to edit until it's merged.</span>
-              <button type="button" class="danger" id="q_deleteQuestionBtn" style="display:none;margin-top:8px;">🗑 Delete this question (🔒 PIN + reason)</button>
+              <button type="button" class="danger" id="q_deleteQuestionBtn" style="display:none;margin-top:8px;">🗑 Request deletion (needs a reason)</button>
             </div>
             <div class="row2">
               <label class="field"><span class="fl-label">Course <span class="req">*</span></span><select id="q_theme"></select></label>
@@ -540,14 +543,14 @@
         <p>Work in Google Sheets or Excel, then <i>File → Download → CSV</i> and paste the text here. Every row is checked before anything is added, and everything still lands in the Team queue for review. <b>Nothing is ever deleted by an import.</b></p>
       </div>
       <div class="chips" id="csvChips">
-        <button class="chip active" data-pane="csv-lecture">❓ Questions (any items / lectures)</button>
-        <button class="chip" data-pane="csv-grid">🧮 Paste into a table</button>
+        <button class="chip active" data-pane="csv-grid">🧮 Paste into a table</button>
+        <button class="chip" data-pane="csv-lecture">❓ Questions (any items / lectures)</button>
         <button class="chip" data-pane="csv-one">❓ Questions → one item</button>
         <button class="chip" data-pane="csv-items">📄 Items</button>
         <button class="chip" data-pane="csv-outcomes">🧭 Learning outcomes</button>
       </div>
 
-      <div class="subpane active" data-pane="csv-lecture">
+      <div class="subpane" data-pane="csv-lecture">
         <div class="card">
           <h2>Questions across any items or lectures</h2>
           <p class="card-sub">The most flexible import — course, topic and item are given per row. A blank <code>questionId</code> creates a new question; a matching one updates that question in place. <b>If the item doesn't exist yet it is created for you</b> (fill <code>description</code>/<code>mechanism</code>/<code>funfacts</code> on its first row to author it fully).</p>
@@ -574,7 +577,7 @@
         </div>
       </div>
 
-      <div class="subpane" data-pane="csv-grid">
+      <div class="subpane active" data-pane="csv-grid">
         <div class="card">
           <h2>Paste directly from Google Sheets / Excel</h2>
           <p class="card-sub">Same columns as the CSV tab above, but as an editable table — no need to export to CSV first. Select a range in your spreadsheet, copy, click a cell here, and paste: it fills in as many cells as you copied, growing the table if needed. Fix anything by hand, add or remove rows, then check &amp; queue exactly like the CSV tab.</p>
@@ -587,6 +590,7 @@
           <div class="btn-row" style="margin-top:8px;">
             <button type="button" id="grid_addRowBtn">+ Add row</button>
             <button type="button" id="grid_clearBtn">Clear table</button>
+            <label style="margin-left:auto;font-weight:normal;"><input type="checkbox" id="grid_showIdToggle"> Show Question ID column</label>
           </div>
           <div id="grid_preview" class="status" style="margin:10px 0;"></div>
           <div class="btn-row"><button class="primary" id="grid_parseBtn">Check &amp; add all to queue</button></div>
@@ -653,6 +657,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
         <p id="queueSubtext">Everything anyone adds — here or from inside the game (suggestions, reports) — shows up for the whole team in real time. Open a row to read exactly what was submitted. Once the maintainer has merged something, remove it here.</p>
       </div>
       <div class="card">
+        <div class="struct-stats" id="queueStats"></div>
         <div class="queue-filter">
           <button class="chip active" data-qfilter="all">All</button>
           <button class="chip" data-qfilter="content">Content to merge</button>
@@ -676,6 +681,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
         <div class="lg-error" id="maintainerPinError">Wrong PIN.</div>
       </div>
       <div id="maintainerLockedContent" style="display:none;">
+        <div class="btn-row" style="justify-content:flex-end;margin-bottom:10px;">
+          <button class="subtle" id="maintainerLockBtn" title="Re-lock maintainer mode on this device">🔒 Lock again</button>
+        </div>
         <div class="card">
           <h2>🧬 Merge the queue into game-data.js <button class="info-btn" data-info="merge" title="How this works">i</button></h2>
           <p class="card-sub">Takes everything in the queue and folds it into a complete copy of the data file. You then replace <code>game-data.js</code> with it. Player reports are skipped (they're for reading, not merging).</p>
@@ -729,7 +737,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   // Loaded with a dynamic import() inside try/catch, NOT a static import:
   // a static import is all-or-nothing, so no internet would take down the
   // whole tool. This way only the live sync degrades (queue goes local).
-  let fbRef, fbPush, fbSet, fbOnValue, fbRemove, fbOff, fbGet;
+  let fbRef, fbPush, fbSet, fbUpdate, fbOnValue, fbRemove, fbOff, fbGet;
   let fbApp, fbdb;
   let firebaseReady = false;
   const firebaseConfig = {
@@ -748,7 +756,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       const dbMod = await import('https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js');
       fbApp = appMod.initializeApp(firebaseConfig);
       fbdb = dbMod.getDatabase(fbApp);
-      fbRef = dbMod.ref; fbPush = dbMod.push; fbSet = dbMod.set;
+      fbRef = dbMod.ref; fbPush = dbMod.push; fbSet = dbMod.set; fbUpdate = dbMod.update;
       fbOnValue = dbMod.onValue; fbRemove = dbMod.remove; fbOff = dbMod.off; fbGet = dbMod.get;
       firebaseReady = true;
       syncBanner.className = 'pill ok';
@@ -764,7 +772,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-16-deletion-pin-plus-reason'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-17-queue-removal-flag-and-stats'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -823,9 +831,23 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
   }
   const contributorNameEl = document.getElementById('contributorName');
+  const contributorEmailEl = document.getElementById('contributorEmail');
   try { contributorNameEl.value = localStorage.getItem('contributorName') || ''; } catch(e){}
+  try { contributorEmailEl.value = localStorage.getItem('contributorEmail') || ''; } catch(e){}
   contributorNameEl.addEventListener('input', ()=>{ try { localStorage.setItem('contributorName', contributorNameEl.value); } catch(e){} });
+  contributorEmailEl.addEventListener('input', ()=>{ try { localStorage.setItem('contributorEmail', contributorEmailEl.value); } catch(e){} });
   function currentContributorName(){ return contributorNameEl.value.trim() || 'Anonymous'; }
+  function currentContributorEmail(){ return contributorEmailEl.value.trim(); }
+  // Blocks a queue submission until both are filled in -- lets a maintainer
+  // credit AND reach whoever added something, instead of chasing an
+  // "Anonymous" entry with no way to ask about it. Returns true (and lets
+  // the submission through) only once both fields have something in them.
+  function requireContributorIdentity(){
+    if(contributorNameEl.value.trim() && contributorEmailEl.value.trim()) return true;
+    toast('Add your name and email at the top first — it lets a maintainer credit and reach you.');
+    (contributorNameEl.value.trim() ? contributorEmailEl : contributorNameEl).focus();
+    return false;
+  }
 
   // ---------------- Maintainer PIN (a deterrent, not security) ----------------
   // Anyone can read this in the source; it only stops a casual click on
@@ -833,6 +855,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   const MAINTAINER_PIN = '1008';
   function safeSessionGet(key){ try { return sessionStorage.getItem(key); } catch(e){ return null; } }
   function safeSessionSet(key, val){ try { sessionStorage.setItem(key, val); } catch(e){} }
+  function safeSessionRemove(key){ try { sessionStorage.removeItem(key); } catch(e){} }
   let maintainerUnlocked = safeSessionGet('maintainerUnlocked') === 'yes';
   const maintainerLockGate = document.getElementById('maintainerLockGate');
   const maintainerLockedContent = document.getElementById('maintainerLockedContent');
@@ -846,6 +869,13 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const err = document.getElementById('maintainerPinError');
     if(input.value === MAINTAINER_PIN){ maintainerUnlocked = true; safeSessionSet('maintainerUnlocked','yes'); err.style.display='none'; applyMaintainerLockUI(); }
     else { err.style.display = 'block'; input.value = ''; }
+  });
+  document.getElementById('maintainerLockBtn').addEventListener('click', ()=>{
+    maintainerUnlocked = false;
+    safeSessionRemove('maintainerUnlocked');
+    document.getElementById('maintainerPinInput').value = '';
+    applyMaintainerLockUI();
+    toast('Maintainer mode locked again');
   });
   document.getElementById('maintainerPinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('maintainerUnlockBtn').click(); });
   function requireMaintainerUnlock(){
@@ -864,6 +894,19 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     if(reason===null) return null; // cancelled
     const trimmed = reason.trim();
     if(!trimmed){ toast('A reason is needed to request a deletion'); return null; }
+    return trimmed;
+  }
+  // Same trust model, one level up: flagging a QUEUE ENTRY itself (a
+  // not-yet-merged item/question/edit/etc.) for removal -- e.g. a duplicate,
+  // something submitted by mistake, or something that shouldn't be merged.
+  // Anyone can flag it with a reason; the entry stays in the queue exactly
+  // as before, just visibly marked, until a maintainer reviews it and
+  // actually removes it with the (still PIN-gated) ✕ button.
+  function promptQueueRemovalReason(){
+    const reason = prompt(`Why should this be removed from the queue?\n\nThis only flags it -- a maintainer still reviews it and does the actual removal.`, '');
+    if(reason===null) return null; // cancelled
+    const trimmed = reason.trim();
+    if(!trimmed){ toast('A reason is needed to flag this for removal'); return null; }
     return trimmed;
   }
 
@@ -1165,7 +1208,6 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       return `<div class="q-existing-row${removed?' removed':''}"><span>${esc2(q.prompt.slice(0,70))}${q.prompt.length>70?'…':''}</span><button type="button" class="danger" style="margin:0;padding:4px 10px;" data-toggle-remove="${q.id}">${removed?'↺ Undo':'✕ Remove'}</button></div>`;
     }).join('');
     list.querySelectorAll('[data-toggle-remove]').forEach(btn=> btn.addEventListener('click', ()=>{
-      if(!requireMaintainerUnlock()) return;
       const id = btn.dataset.toggleRemove;
       if(removedQuestionIds.has(id)){
         removedQuestionIds.delete(id); delete removedQuestionReasons[id];
@@ -1179,8 +1221,8 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     }));
   }
   document.getElementById('i_deleteItemBtn').addEventListener('click', ()=>{
-    if(!requireMaintainerUnlock()) return;
     if(!editingItemId) return;
+    if(!requireContributorIdentity()) return;
     const known = KNOWN_ITEMS.find(it=>it.id===editingItemId);
     const qCount = (editingItemQuestions||[]).length;
     const reason = promptDeletionReason(`This would remove "${known.label}" and all ${qCount} of its question(s), once a maintainer merges it.`);
@@ -1359,6 +1401,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   }
   document.getElementById('i_copyOne').addEventListener('click', ()=> copyText(itemCodeString(buildItemObject())));
   document.getElementById('i_addBatch').addEventListener('click', ()=>{
+    if(!requireContributorIdentity()) return;
     if(!i_label.value.trim()){ toast('Give the item a name first'); i_label.focus(); return; }
     if(!i_description.value.trim()){ toast('Add a description first'); i_description.focus(); return; }
     const o = buildItemObject();
@@ -1559,8 +1602,8 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   });
   q_editQuestionSelect.addEventListener('change', ()=> loadQuestionForEditing(q_editQuestionSelect.value));
   document.getElementById('q_deleteQuestionBtn').addEventListener('click', ()=>{
-    if(!requireMaintainerUnlock()) return;
     if(!editingQuestionId || !editingQuestionLoc) return;
+    if(!requireContributorIdentity()) return;
     const loc = editingQuestionLoc;
     const known = KNOWN_ITEMS.find(it=>it.id===loc.itemId);
     const promptPreview = q_prompt.value.slice(0,60);
@@ -1634,6 +1677,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   function renderQuestion(){ const o = buildQuestionObject(); q_codeOut.textContent = questionCodeString(o); renderQuestionPreview(o); }
   document.getElementById('q_copyOne').addEventListener('click', ()=> copyText(questionCodeString(buildQuestionObject())));
   document.getElementById('q_addBatch').addEventListener('click', ()=>{
+    if(!requireContributorIdentity()) return;
     if(!q_prompt.value.trim()){ toast('Write the question first'); q_prompt.focus(); return; }
     const o = buildQuestionObject();
     if(o.options.length < 2){ toast('Fill in at least two answer options'); return; }
@@ -1667,6 +1711,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   fillThemeSelect(newTopicTheme);
   function topicCodeString(o){ return `// new topic — add to THEMES.${o.theme}.topics in game-data.js\n'${o.topicId}': { label:'${esc(o.label)}', icon:'${o.icon}', color:'#c58bff', items:{} },`; }
   document.getElementById('addTopicSubmitBtn').addEventListener('click', ()=>{
+    if(!requireContributorIdentity()) return;
     const label = newTopicLabelInput.value.trim();
     if(!label){ toast('Give the topic a name first'); newTopicLabelInput.focus(); return; }
     const theme = newTopicTheme.value, icon = newTopicIconInput.value.trim() || '📋';
@@ -1694,6 +1739,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   function renderCourse(){ const o = buildCourseObject(); c_idPreview.textContent = `id: ${o.id}`; c_codeOut.textContent = courseCodeString(o); }
   document.getElementById('c_copyOne').addEventListener('click', ()=> copyText(courseCodeString(buildCourseObject())));
   document.getElementById('c_addBatch').addEventListener('click', ()=>{
+    if(!requireContributorIdentity()) return;
     if(!c_label.value.trim()){ toast('Give the course a name first'); c_label.focus(); return; }
     const o = buildCourseObject();
     KNOWN_THEMES.push({ id:o.id, label:o.label });
@@ -1740,6 +1786,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   function renderLectureOutcomes(){ lo_codeOut.textContent = lectureOutcomesCodeString(buildLectureOutcomesObject()); }
   document.getElementById('lo_copyOne').addEventListener('click', ()=> copyText(lectureOutcomesCodeString(buildLectureOutcomesObject())));
   document.getElementById('lo_addBatch').addEventListener('click', ()=>{
+    if(!requireContributorIdentity()) return;
     const o = buildLectureOutcomesObject();
     if(!o.course || !o.classKey){ toast('Pick a course and lecture first'); return; }
     if(!o.outcomes.length){ toast('Add at least one learning outcome'); return; }
@@ -1872,6 +1919,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   }
   csvitem_textarea.addEventListener('input', renderCsvItemPreview);
   document.getElementById('csvitem_parseBtn').addEventListener('click', ()=>{
+    if(!requireContributorIdentity()) return;
     const { valid, errors } = parseCsvItems();
     if(!valid.length){ toast(errors[0] || 'Nothing to add'); return; }
     valid.forEach(o=>{
@@ -1932,6 +1980,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   csv_textarea.addEventListener('input', renderCsvPreview);
   csv_itemSelect.addEventListener('change', renderCsvPreview);
   document.getElementById('csv_parseBtn').addEventListener('click', ()=>{
+    if(!requireContributorIdentity()) return;
     const { valid, errors } = parseCsvQuestions();
     if(!valid.length){ toast(errors[0] || 'Nothing to add'); return; }
     const known = KNOWN_ITEMS.find(it=>it.id===csv_itemSelect.value);
@@ -2049,6 +2098,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   }
   lec_textarea.addEventListener('input', renderLecPreview);
   document.getElementById('lec_parseBtn').addEventListener('click', ()=>{
+    if(!requireContributorIdentity()) return;
     const { valid, newItems, errors } = parseLectureQuestions();
     if(!commitLectureImport(valid, newItems, 'CSV import')){ toast(errors[0] || 'Nothing to add'); return; }
     lec_textarea.value = ''; lec_preview.textContent = '';
@@ -2068,10 +2118,19 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   const gridHeaderRow = document.getElementById('gridImportHeaderRow');
   const gridBody = document.getElementById('gridImportBody');
   const grid_preview = document.getElementById('grid_preview');
-  gridHeaderRow.innerHTML = GRID_COLUMNS.map(([,label])=>`<th>${esc2(label)}</th>`).join('') + '<th></th>';
+  gridHeaderRow.innerHTML = GRID_COLUMNS.map(([key,label])=>`<th data-col="${key}">${esc2(label)}</th>`).join('') + '<th></th>';
+  // Question ID is the one column almost nobody fills in by hand (it's
+  // auto-generated on merge if left blank) -- hidden by default so the table
+  // doesn't lead with a field most people should just ignore, but still
+  // there (and still pasteable into, via the column-index math in
+  // handleGridPaste, which counts DOM children regardless of visibility) for
+  // the rare case of actually re-pointing a paste at an existing question id.
+  const gridImportTable = document.getElementById('gridImportTable');
+  const grid_showIdToggle = document.getElementById('grid_showIdToggle');
+  grid_showIdToggle.addEventListener('change', ()=> gridImportTable.classList.toggle('show-id', grid_showIdToggle.checked));
   function addGridRow(){
     const tr = document.createElement('tr');
-    tr.innerHTML = GRID_COLUMNS.map(([key])=>`<td${GRID_WIDE_COLS.has(key)?' class="grid-wide"':''}><input type="text"></td>`).join('')
+    tr.innerHTML = GRID_COLUMNS.map(([key])=>`<td data-col="${key}"${GRID_WIDE_COLS.has(key)?' class="grid-wide"':''}><input type="text"></td>`).join('')
       + `<td class="grid-remove-cell"><button type="button" class="subtle" title="Remove row">✕</button></td>`;
     tr.querySelectorAll('input').forEach(inp=>{
       inp.addEventListener('input', renderGridPreview);
@@ -2129,6 +2188,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     grid_preview.innerHTML = buildLectureImportPreviewHtml(valid, newItems, errors);
   }
   document.getElementById('grid_parseBtn').addEventListener('click', ()=>{
+    if(!requireContributorIdentity()) return;
     const { valid, newItems, errors } = parseLectureQuestions(readGridRows());
     if(!commitLectureImport(valid, newItems, 'pasted table')){ toast(errors[0] || 'Nothing to add'); return; }
     resetGrid();
@@ -2179,6 +2239,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   }
   document.getElementById('csvlo_textarea').addEventListener('input', renderCsvLoPreview);
   document.getElementById('csvlo_parseBtn').addEventListener('click', ()=>{
+    if(!requireContributorIdentity()) return;
     const { valid, errors } = parseCsvLectureOutcomes();
     if(!valid.length){ toast(errors[0] || 'Nothing to add'); return; }
     valid.forEach(o=>{ const classLabel = KNOWN_COURSES[o.course]?.classes[o.classKey]?.label || o.classKey; pushToQueue({ type:'lectureOutcomes', title:`${o.course} ${o.classKey}`, code:lectureOutcomesCodeString(o), note:`${classLabel} · learning outcomes (CSV)`, data:o }); });
@@ -2197,7 +2258,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const searchBlob = `${full.label} ${full.description||''} ${full.mechanism||''} ${(full.hashtags||[]).join(' ')} ${(full.questions||[]).map(q=>q.prompt+' '+q.explanation).join(' ')}`.toLowerCase();
     const ul = (title, arr, fn) => (arr||[]).length ? `<div class="p-sub">${title}</div><ul class="p-facts">${arr.map(fn).join('')}</ul>` : '';
     const questionsHtml = qCount
-      ? `<div class="p-sub">Questions (${qCount})</div>` + full.questions.map(q=>`<div class="struct-q"><div class="struct-q-prompt">${esc2(q.prompt)}</div>${q.options.map((op,i)=>`<div class="struct-q-opt${i===q.correctIndex?' correct':''}">${i===q.correctIndex?'✓':'·'} ${esc2(op)}</div>`).join('')}<div class="struct-q-explain">${esc2(q.explanation)}</div><button type="button" class="danger struct-edit-link" data-delete-question="${it.id}::${it.theme}::${it.topic}::${esc2(q.id)}">🗑 Delete (🔒 PIN)</button></div>`).join('')
+      ? `<div class="p-sub">Questions (${qCount})</div>` + full.questions.map(q=>`<div class="struct-q"><div class="struct-q-prompt">${esc2(q.prompt)}</div>${q.options.map((op,i)=>`<div class="struct-q-opt${i===q.correctIndex?' correct':''}">${i===q.correctIndex?'✓':'·'} ${esc2(op)}</div>`).join('')}<div class="struct-q-explain">${esc2(q.explanation)}</div><button type="button" class="danger struct-edit-link" data-delete-question="${it.id}::${it.theme}::${it.topic}::${esc2(q.id)}">🗑 Request deletion</button></div>`).join('')
       : `<div class="struct-empty" style="margin:8px 0 0;">— no questions yet for this item —</div>`;
     const html = `<details class="struct-item-toggle" data-search="${searchBlob.replace(/"/g,'&quot;')}">
         <summary>${esc2(it.label)}${subtitle?` <span class="struct-course">· ${esc2(subtitle)}</span>`:''} <span class="struct-qbadge">${qCount} Q${qCount===1?'':'s'}</span></summary>
@@ -2210,7 +2271,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
           ${ul('✍️ Short-answer questions', full.saq, s=>`<li><b>${esc2(s.prompt)}</b><br><span style="opacity:.7;">${esc2(s.modelAnswer)}</span></li>`)}
           ${(full.hashtags||[]).length ? `<div class="p-sub">Hashtags</div><div class="p-chips">${full.hashtags.map(h=>`<span class="p-chip">#${esc2(h)}</span>`).join('')}</div>` : ''}
           ${(full.images||[]).length ? `<div class="p-sub">Images</div><p>${full.images.length} image link${full.images.length===1?'':'s'}</p>` : ''}
-          <div class="btn-row" style="margin-top:8px;"><button type="button" class="struct-edit-link" data-edit-item="${it.id}">✏️ Edit</button><button type="button" class="struct-edit-link" data-add-question="${it.id}">➕ Add a question</button><button type="button" class="danger struct-edit-link" data-delete-item="${it.id}">🗑 Delete (🔒 PIN)</button></div>
+          <div class="btn-row" style="margin-top:8px;"><button type="button" class="struct-edit-link" data-edit-item="${it.id}">✏️ Edit</button><button type="button" class="struct-edit-link" data-add-question="${it.id}">➕ Add a question</button><button type="button" class="danger struct-edit-link" data-delete-item="${it.id}">🗑 Request deletion</button></div>
           ${questionsHtml}
         </div></details>`;
     return { html, qCount };
@@ -2221,7 +2282,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     container.querySelectorAll('[data-add-question]').forEach(btn=> btn.addEventListener('click', e=>{ e.preventDefault(); jumpToNewQuestionForItem(btn.dataset.addQuestion); }));
     container.querySelectorAll('[data-delete-question]').forEach(btn=> btn.addEventListener('click', e=>{
       e.preventDefault();
-      if(!requireMaintainerUnlock()) return;
+      if(!requireContributorIdentity()) return;
       const [itemId, theme, topicId, questionId] = btn.dataset.deleteQuestion.split('::');
       const known = KNOWN_ITEMS.find(it=>it.id===itemId), full = RD.THEMES[theme]?.topics[topicId]?.items[itemId], q = full?.questions?.find(q=>q.id===questionId);
       const promptPreview = q ? q.prompt.slice(0,60) : questionId;
@@ -2239,7 +2300,6 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     }));
     container.querySelectorAll('[data-delete-item]').forEach(btn=> btn.addEventListener('click', e=>{
       e.preventDefault();
-      if(!requireMaintainerUnlock()) return;
       showTab('add'); showPane('add','item');
       i_editModeToggle.checked = true; i_editModeToggle.dispatchEvent(new Event('change'));
       i_editItemSelect.value = btn.dataset.deleteItem; i_editItemSelect.dispatchEvent(new Event('change'));
@@ -2378,7 +2438,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   let batch = {}; // key -> entry. A Firebase push id when synced, "local-N" when offline.
   let _localKeyN = 0;
   let queueFilter = 'all';
-  const batchList = document.getElementById('batchList'), queueTabBadge = document.getElementById('queueTabBadge');
+  const batchList = document.getElementById('batchList'), queueTabBadge = document.getElementById('queueTabBadge'), queueStats = document.getElementById('queueStats');
   // Whenever the shared queue changes, make sure any item/topic it
   // introduces becomes visible to every picker dropdown and dedup check in
   // this tool -- not just to the browser tab that queued it. Without this,
@@ -2425,12 +2485,41 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       fbSet(fbRef(fbdb, `contributions/${key}`), entry).catch(()=>{ batch[key] = entry; renderBatch(); });
     } else { batch[key] = entry; renderBatch(); }
   }
+  // Toggles a "please remove this" flag on an EXISTING queue entry, without
+  // touching anything else about it (contributorName/createdAt/data stay
+  // whoever originally submitted it) -- anyone can flag or unflag, no PIN,
+  // since nothing is actually removed here. The real removal still goes
+  // through removeFromQueue()/the ✕ button, which stays PIN-gated.
+  function setQueueRemovalFlag(key, fields){
+    if(firebaseReady && !key.startsWith('local-')){
+      fbUpdate(fbRef(fbdb, `contributions/${key}`), fields).catch(()=>{ Object.assign(batch[key], fields); renderBatch(); });
+    } else { Object.assign(batch[key], fields); renderBatch(); }
+  }
+  function toggleQueueRemovalFlag(key){
+    const entry = batch[key]; if(!entry) return;
+    if(entry.removalFlagged){
+      setQueueRemovalFlag(key, { removalFlagged:false, removalReason:null, removalFlaggedBy:null });
+    } else {
+      const reason = promptQueueRemovalReason();
+      if(!reason) return;
+      setQueueRemovalFlag(key, { removalFlagged:true, removalReason:reason, removalFlaggedBy:currentContributorName() });
+    }
+  }
   function removeFromQueue(key){
     if(firebaseReady && !key.startsWith('local-')) fbRemove(fbRef(fbdb, `contributions/${key}`));
     else { delete batch[key]; renderBatch(); }
   }
   const isReport = e => e.type==='flag-item' || e.type==='flag-question';
+  // Prepended to every row's details regardless of type -- a removal flag is
+  // orthogonal to what kind of entry this is.
+  function removalFlagBannerHtml(entry){
+    if(!entry.removalFlagged) return '';
+    return `<div class="qi-detail-label">🚩 Flagged for removal${entry.removalFlaggedBy?` by ${esc2(entry.removalFlaggedBy)}`:''}</div><div class="qi-detail-text">${esc2(entry.removalReason || '(no reason given)')}</div>`;
+  }
   function queueDetailHtml(entry){
+    return removalFlagBannerHtml(entry) + queueDetailHtmlInner(entry);
+  }
+  function queueDetailHtmlInner(entry){
     if(entry.type === 'flag-item') return `<div class="qi-detail-label">Reported issue</div><div class="qi-detail-text">${esc2(entry.data?.reason || entry.note || '(no reason given)')}</div>`;
     if(entry.type === 'flag-question'){
       const d = entry.data || {};
@@ -2454,10 +2543,26 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     }
     return `<div class="qi-detail-label">Generated code</div><pre class="code-out" style="margin:0;max-height:220px;">${esc2(entry.code || '(no code recorded for this entry)')}</pre>`;
   }
+  // A quick breakdown of what's actually sitting in the queue, independent
+  // of whatever filter chip is active -- lumps new+edit together per kind
+  // (new items with edits, new questions with edits) since the "is it new
+  // or an edit" distinction only matters once you open a row.
+  function renderQueueStats(all){
+    const counts = { item:0, question:0, deletion:0, report:0, other:0 };
+    all.forEach(([,e])=>{
+      if(e.type==='item' || e.type==='edit-item') counts.item++;
+      else if(e.type==='question' || e.type==='edit-question') counts.question++;
+      else if(e.type==='delete-item' || e.type==='delete-question') counts.deletion++;
+      else if(e.type==='flag-item' || e.type==='flag-question') counts.report++;
+      else counts.other++; // course, topic, lectureOutcomes
+    });
+    queueStats.innerHTML = `<span><b>${all.length}</b> total</span><span><b>${counts.item}</b> item${counts.item===1?'':'s'}</span><span><b>${counts.question}</b> question${counts.question===1?'':'s'}</span><span><b>${counts.deletion}</b> deletion${counts.deletion===1?'':'s'} requested</span><span><b>${counts.report}</b> report${counts.report===1?'':'s'}</span>${counts.other?`<span><b>${counts.other}</b> other</span>`:''}`;
+  }
   function renderBatch(){
     syncKnownFromQueue();
     const all = Object.entries(batch);
     queueTabBadge.textContent = all.length ? String(all.length) : '';
+    renderQueueStats(all);
     // Remember which rows are open: the queue re-renders on every live update from anyone.
     const expandedKeys = new Set([...batchList.querySelectorAll('.queue-item')].filter(row => row.querySelector('.qi-details')?.style.display === 'block').map(row => row.dataset.key));
     const entries = all.filter(([k,e])=> queueFilter==='all' || (queueFilter==='report' ? isReport(e) : !isReport(e))).sort((a,b)=> (a[1].createdAt||0) - (b[1].createdAt||0));
@@ -2469,13 +2574,14 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const resumableForm = { item:'item', 'edit-item':'item', question:'question', 'edit-question':'question' };
     entries.forEach(([key, entry])=>{
       const row = document.createElement('div');
-      row.className = 'queue-item' + (isReport(entry) ? ' qi-report' : '');
+      row.className = 'queue-item' + (isReport(entry) ? ' qi-report' : '') + (entry.removalFlagged ? ' qi-removal-flagged' : '');
       row.dataset.key = key;
       const formKind = resumableForm[entry.type];
-      row.innerHTML = `<div class="qi-row"><div><div class="qi-label">${icons[entry.type]||'📄'} <b>${esc2(entry.title)}</b> — ${esc2(entry.note||'')}</div><div class="qi-meta">by ${esc2(entry.contributorName||'Anonymous')}${entry.createdAt?' · '+new Date(entry.createdAt).toLocaleString():''}</div></div>
-        <div class="qi-actions"><button class="qi-toggle" type="button">${expandedKeys.has(key)?'▴ Hide':'▾ Details'}</button>${formKind?'<button class="subtle qi-edit" type="button" title="Edit this queued entry">✏️ Edit</button>':''}<button class="subtle list-remove" type="button" title="Remove from the queue (after merging)">✕</button></div></div>
+      row.innerHTML = `<div class="qi-row"><div><div class="qi-label">${entry.removalFlagged?'🚩 ':''}${icons[entry.type]||'📄'} <b>${esc2(entry.title)}</b> — ${esc2(entry.note||'')}</div><div class="qi-meta">by ${esc2(entry.contributorName||'Anonymous')}${entry.createdAt?' · '+new Date(entry.createdAt).toLocaleString():''}</div></div>
+        <div class="qi-actions"><button class="qi-toggle" type="button">${expandedKeys.has(key)?'▴ Hide':'▾ Details'}</button>${formKind?'<button class="subtle qi-edit" type="button" title="Edit this queued entry">✏️ Edit</button>':''}<button class="subtle qi-flag-removal" type="button" title="${entry.removalFlagged?'Un-flag':'Flag this for a maintainer to remove'}">${entry.removalFlagged?'↺ Unflag':'🚩 Flag for removal'}</button><button class="subtle list-remove" type="button" title="Remove from the queue (after merging)">✕</button></div></div>
         <div class="qi-details" style="display:${expandedKeys.has(key)?'block':'none'};">${queueDetailHtml(entry)}</div>`;
       row.querySelector('.qi-toggle').addEventListener('click', e=>{ const d = row.querySelector('.qi-details'); const open = d.style.display !== 'block'; d.style.display = open ? 'block' : 'none'; e.currentTarget.textContent = open ? '▴ Hide' : '▾ Details'; });
+      row.querySelector('.qi-flag-removal').addEventListener('click', ()=> toggleQueueRemovalFlag(key));
       if(formKind) row.querySelector('.qi-edit').addEventListener('click', ()=>{
         if(!requireMaintainerUnlock()) return;
         const live = batch[key]; if(!live) return; // could have been merged/removed by someone else in the meantime
