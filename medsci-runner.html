@@ -5224,6 +5224,7 @@
     if(!firebaseReady){ toastCustom('Group Race isn\u2019t connected right now — check your internet connection and try again.'); return; }
     const matches = mpFilteredQuestions();
     if(!matches.length){ toastCustom('No questions match that combination yet — widen your filters.'); return; }
+    if(!mpNameInput.value.trim() && !confirm("You haven't entered a name — proceed as \"Player 1\"?")){ mpNameInput.focus(); return; }
     mpHostBtn.disabled = true;
     try{
       const name = mpNameInput.value.trim() || 'Player 1';
@@ -5265,12 +5266,13 @@
   mpJoinConfirmBtn.addEventListener('click', async ()=>{
     if(mpJoinConfirmBtn.disabled) return;
     if(!firebaseReady){ mpJoinError.textContent = 'Not connected — check your internet connection and try again.'; mpJoinError.style.display='block'; return; }
+    const code = mpCodeInput.value.trim().toUpperCase();
+    if(!code || code.length!==5){ mpJoinError.textContent = 'Enter the 5-character room code.'; mpJoinError.style.display='block'; return; }
+    if(!mpJoinNameInput.value.trim() && !confirm("You haven't entered a name — proceed as \"Player\"?")){ mpJoinNameInput.focus(); return; }
     mpJoinConfirmBtn.disabled = true;
     try{
-      const code = mpCodeInput.value.trim().toUpperCase();
       const name = mpJoinNameInput.value.trim() || 'Player';
       mpJoinError.style.display = 'none';
-      if(!code || code.length!==5){ mpJoinError.textContent = 'Enter the 5-character room code.'; mpJoinError.style.display='block'; return; }
       const snap = await get(ref(fbdb, `rooms/${code}`));
       const room = snap.val();
       if(!room){ mpJoinError.textContent = "That room code doesn't exist."; mpJoinError.style.display='block'; return; }
@@ -5439,14 +5441,17 @@
   }
   // Once everyone ELSE is done (finished, eliminated, quit, or timed out --
   // any reason) and I'm still racing, there's no one left to race against in
-  // the normal sense. Instead of instantly locking me in wherever I happen
-  // to be, I get the same shared catch-up window a finisher's opponents get
-  // (see startCatchUpWindow): a final stretch to keep playing and try to set
-  // the best score, or naturally finish/die before it's up. If I do finish
-  // or die on my own first, endRun()/mpMarkDone() ends my run right then --
-  // this is a safety net for "still racing when everyone else is done," not
-  // a forced wait. Ranking is always by score (mpCheckResolution), never by
-  // who happened to still be racing.
+  // the normal sense. If my current score already beats everyone who's done,
+  // there's nothing left to "catch up to" -- nobody remaining can pass me --
+  // so I win right now instead of being made to sit through 45 more seconds
+  // for no reason. Only if I'm actually behind the best already-done score
+  // do I get the same shared catch-up window a finisher's opponents get (see
+  // startCatchUpWindow): a final stretch to try to overtake it, or naturally
+  // finish/die before it's up. If I do finish or die on my own first,
+  // endRun()/mpMarkDone() ends my run right then -- this is a safety net for
+  // "still racing when everyone else is done," not a forced wait. Ranking is
+  // always by score (mpCheckResolution), never by who happened to still be
+  // racing.
   function mpAutoWinIfLastStanding(roster){
     if(!mp.active || mp.finished || screenState==='over') return;
     const me = roster[mp.playerId];
@@ -5455,7 +5460,11 @@
     if(others.length===0) return; // nobody else ever joined -- nothing to auto-resolve
     if(!others.every(pid=>roster[pid] && roster[pid].done)) return; // someone's still racing
     if(mp.catchUpEndsAt) return; // window's already ticking -- nothing new to start
+    const myScore = mpScore({ correctCount:myCorrectCount, incorrectCount:myIncorrectCount, glucose:Math.max(0,glucose), stageIndex, bonusScore:myBonusScore });
+    const bestOthersScore = Math.max(...others.map(pid=>mpScore(roster[pid])));
+    if(myScore >= bestOthersScore){ mpMarkDone('finished'); return 'won'; } // already ahead -- no one left who could still overtake me
     startCatchUpWindow('last-standing');
+    return 'catchup';
   }
   // Ticks the shared GAME_CONFIG.catchUpWindowMs window visible via
   // #catchUpBanner. Independent of the main game loop (which only runs
@@ -5689,7 +5698,7 @@
   }
 
   // ---------- init ----------
-  const GAME_VERSION = '2026-09-15-meds3003-landing'; // bump this string whenever you send friends a new copy of the file
+  const GAME_VERSION = '2026-09-16-last-standing-instant-win'; // bump this string whenever you send friends a new copy of the file
   console.log('[Runner Game] version', GAME_VERSION);
   document.getElementById('versionTag').textContent = `version ${GAME_VERSION}`;
   function renderManualLifeText(){
@@ -5785,21 +5794,25 @@
         noteGrenadeResults({ grenadeResults: { ['debug-'+Date.now()]: { targetName:name||'Debug rival', shielded:!!shielded, at:Date.now() } } });
         return mpEliminationToast.textContent;
       },
-      // simulateLastStanding(): fakes a roster where everyone else is
-      // already done, then runs the exact check mpAutoWinIfLastStanding uses
-      // on every room update -- confirms it does NOT instantly end the run
-      // (the old behavior) now that it hands off to startCatchUpWindow
-      // instead. mp.roomCode stays unset, so startCatchUpWindow's Firebase
-      // write harmlessly no-ops -- the real round-trip through the room
-      // listener (which sets mp.catchUpEndsAt/mp.catchUpReason and starts
-      // the visible countdown) can't be faked without a real room; use
-      // testCatchUp() to preview that part.
-      simulateLastStanding(){
+      // simulateLastStanding(myCounts, otherCounts): fakes a roster where the
+      // other racer is already done with the given stats and I'm still
+      // racing with mine, then runs the exact check
+      // mpAutoWinIfLastStanding uses on every room update. Returns which
+      // branch it took -- 'won' (I'm already ahead of every already-done
+      // racer, so the race ends for me right now) or 'catchup' (I'm behind,
+      // the shared 45s window starts) -- so both outcomes can be confirmed
+      // without a real room (mp.roomCode stays unset, so the Firebase writes
+      // inside mpMarkDone/startCatchUpWindow harmlessly no-op).
+      simulateLastStanding(myCounts, otherCounts){
         mp.active = true;
         mp.playerId = mp.playerId || 'debug-me';
-        mp.roster = { [mp.playerId]: { done:false }, 'debug-other': { done:true, doneReason:'eliminated' } };
-        mpAutoWinIfLastStanding(mp.roster);
-        return { runStillActive: screenState!=='over', screenState };
+        const m = myCounts || {};
+        myCorrectCount = m.correctCount||0; myIncorrectCount = m.incorrectCount||0; myBonusScore = m.bonusScore||0;
+        if(m.glucose!=null) glucose = m.glucose;
+        if(m.stageIndex!=null) stageIndex = m.stageIndex;
+        mp.roster = { [mp.playerId]: { done:false }, 'debug-other': { done:true, doneReason:'eliminated', ...(otherCounts||{}) } };
+        const decision = mpAutoWinIfLastStanding(mp.roster);
+        return { decision, runStillActive: screenState!=='over', screenState };
       },
       forceGiftCollision(){
         const g = entities.find(e=>e.type==='gift' && !e.hit);
