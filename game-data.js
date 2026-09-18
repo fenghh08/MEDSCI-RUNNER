@@ -41,12 +41,9 @@
    RUNNABLE_THEMES— which course ids have a STAGES entry (playable in Runner
                      mode vs. Study & Practice-only).
    GAME_CONFIG    — every tunable gameplay number.
-   LIFE_CONFIG    — per-course label/icon for the "life" resource.
+   LIFE_CONFIG    — the global label/icon for the "life" resource, same for
+                     every course.
    COMPLETE_SCENARIO — text shown after the last stage.
-   FUN_FACT_QUESTIONS — standalone trivia questions, not tied to any
-                     course/topic/item, used only for the Group Race
-                     grenade gift's "shield it by answering a question"
-                     mini-game. Never counted toward stage progress.
    ============================================================================ */
 (function(){
 
@@ -58,7 +55,7 @@
    ("MEDS3002 · L14 · Cancer Hallmarks") is generated automatically — see
    courseDisplayString() in cancer-runner-group.html.
    ====================================================================== */
-                      const COURSES = {
+                    const COURSES = {
     'MEDS3002': {
       'code': 'MEDS3002',
       'label': 'Cancer / Medical Science',
@@ -418,17 +415,13 @@
   };
 
 /* ======================================================================
-   LIFE — the "health" resource. Same label ("Life") and icon (🩸) across
-   every course now -- LIFE_CONFIG stays keyed by course so a specific
-   course could still be given its own wording later; every place it's
-   shown (HUD, pickups, penalties, the bomb warning) reads from this
-   automatically via lifeCfg() in medsci-runner.html.
+   LIFE — the "health" resource. One global label ("Life") and icon (🩸)
+   for every course -- not keyed by course, so a new course never needs an
+   entry added here (nothing to forget). Every place it's shown (HUD,
+   pickups, penalties, the bomb warning) reads this via lifeCfg() in
+   medsci-runner.html.
    ====================================================================== */
-  const LIFE_CONFIG = {
-    'MEDS3002': { label:'Life', icon:'🩸' },
-    'MEDS2003': { label:'Life', icon:'🩸' },
-    'MEDS3003': { label:'Life', icon:'🩸' },
-  };
+  const LIFE_CONFIG = { label:'Life', icon:'🩸' };
 
 /* ======================================================================
    THEMES — Course -> Topic -> Item. Each item can carry "hashtags" (which
@@ -440,7 +433,7 @@
    its item's (e.g. a question spanning several classes at once) — most
    questions just inherit the item's.
    ====================================================================== */
-                      const THEMES = {
+                    const THEMES = {
     'MEDS3002': {
       'label': 'MEDS3002',
       'icon': '🎗️',
@@ -531,8 +524,6 @@
               'hashtags': [],
               'course': 'MEDS3002',
               'class': 'L2',
-              'contributorName': 'Caitlin',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-genetics-6ctk',
@@ -566,6 +557,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'Caitlin',
+              'contributorEmail': null,
             },
             'dnamethylation_u7ej': {
               'label': 'DNA methylation',
@@ -579,8 +572,6 @@
               'hashtags': [],
               'course': 'MEDS3002',
               'class': 'L2',
-              'contributorName': 'Caitlin',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-genetics-e5ti',
@@ -594,6 +585,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'Caitlin',
+              'contributorEmail': null,
             },
             'dnademythlation_7bfg': {
               'label': 'DNA demythlation',
@@ -607,8 +600,6 @@
               'hashtags': [],
               'course': 'MEDS3002',
               'class': 'L2',
-              'contributorName': 'Caitlin',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-genetics-5b85',
@@ -622,6 +613,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'Caitlin',
+              'contributorEmail': null,
             },
             'histonemodification_8u42': {
               'label': 'Histone modification',
@@ -635,8 +628,6 @@
               'hashtags': [],
               'course': 'MEDS3002',
               'class': 'L2',
-              'contributorName': 'Caitlin',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-genetics-iyrv',
@@ -683,6 +674,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'Caitlin',
+              'contributorEmail': null,
             },
             'noncodingrna_25zk': {
               'label': 'Non-coding RNA',
@@ -696,8 +689,6 @@
               'hashtags': [],
               'course': 'MEDS3002',
               'class': 'L2',
-              'contributorName': 'Caitlin',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-genetics-pv4w',
@@ -731,6 +722,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'Caitlin',
+              'contributorEmail': null,
             },
             'epigenetictherapies_l12j': {
               'label': 'Epigenetic therapies',
@@ -744,8 +737,6 @@
               'hashtags': [],
               'course': 'MEDS3002',
               'class': 'L2',
-              'contributorName': 'Caitlin',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-genetics-srj8',
@@ -768,6 +759,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'Caitlin',
+              'contributorEmail': null,
             },
             'rnasplicing_vuaz': {
               'label': 'RNA splicing',
@@ -781,8 +774,6 @@
               'hashtags': [],
               'course': 'MEDS3002',
               'class': 'L3',
-              'contributorName': 'Caitlin',
-              'contributorEmail': 'caitlinjong74@gmail.com',
               'questions': [
                 {
                   'id': 'q-genetics-3d3i',
@@ -859,6 +850,8 @@
                   'contributorEmail': 'caitlinjong74@gmail.com',
                 },
               ],
+              'contributorName': 'Caitlin',
+              'contributorEmail': 'caitlinjong74@gmail.com',
             },
             'spliceosome_3k8p': {
               'label': 'Spliceosome',
@@ -872,8 +865,6 @@
               'hashtags': [],
               'course': 'MEDS3002',
               'class': 'L3',
-              'contributorName': 'Caitlin',
-              'contributorEmail': 'caitlinjong74@gmail.com',
               'questions': [
                 {
                   'id': 'q-genetics-p5pm',
@@ -963,6 +954,8 @@
                   'contributorEmail': 'caitlinjong74@gmail.com',
                 },
               ],
+              'contributorName': 'Caitlin',
+              'contributorEmail': 'caitlinjong74@gmail.com',
             },
           },
         },
@@ -2711,8 +2704,6 @@
               'hashtags': [],
               'course': 'MEDS2003',
               'class': 'L10',
-              'contributorName': 'Eason',
-              'contributorEmail': 'yifeng1094@gmail.com',
               'questions': [
                 {
                   'id': 'q-metabolism-p9n9',
@@ -2726,6 +2717,8 @@
                   'contributorEmail': 'yifeng1094@gmail.com',
                 },
               ],
+              'contributorName': 'Eason',
+              'contributorEmail': 'yifeng1094@gmail.com',
             },
             'type2diabetes_o5kc': {
               'label': 'Type 2 diabetes',
@@ -2739,6 +2732,7 @@
               'hashtags': [],
               'course': 'MEDS2003',
               'class': 'L9',
+              'questions': [],
               'contributorName': 'Eason',
               'contributorEmail': 'yifeng1094@gmail.com',
             },
@@ -2754,8 +2748,6 @@
               'hashtags': [],
               'course': 'MEDS2003',
               'class': 'L9',
-              'contributorName': 'Eason',
-              'contributorEmail': 'yifeng1094@gmail.com',
               'questions': [
                 {
                   'id': 'q-metabolism-toxp',
@@ -2769,6 +2761,8 @@
                   'contributorEmail': 'yifeng1094@gmail.com',
                 },
               ],
+              'contributorName': 'Eason',
+              'contributorEmail': 'yifeng1094@gmail.com',
             },
           },
         },
@@ -2855,8 +2849,6 @@
               'hashtags': [],
               'course': 'MEDS2003',
               'class': 'L15',
-              'contributorName': 'sara',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-molecularBiology-ploh',
@@ -2886,6 +2878,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'sara',
+              'contributorEmail': null,
             },
             'nucleicacid_amdw': {
               'label': 'Nucleic Acid',
@@ -2899,8 +2893,6 @@
               'hashtags': [],
               'course': 'MEDS2003',
               'class': 'L16',
-              'contributorName': 'sara',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-molecularBiology-ja85',
@@ -2930,6 +2922,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'sara',
+              'contributorEmail': null,
             },
             'prokaryotic_te2c': {
               'label': 'Prokaryotic',
@@ -2943,8 +2937,6 @@
               'hashtags': [],
               'course': 'MEDS2003',
               'class': 'L17',
-              'contributorName': 'sara',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-molecularBiology-rmv0',
@@ -2974,6 +2966,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'sara',
+              'contributorEmail': null,
             },
             'eukaryotic_svc6': {
               'label': 'Eukaryotic',
@@ -2987,8 +2981,6 @@
               'hashtags': [],
               'course': 'MEDS2003',
               'class': 'L18',
-              'contributorName': 'sara',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-molecularBiology-rp2n',
@@ -3027,6 +3019,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'sara',
+              'contributorEmail': null,
             },
             'dnasynthesis_mtdo': {
               'label': 'DNA synthesis',
@@ -3040,8 +3034,6 @@
               'hashtags': [],
               'course': 'MEDS2003',
               'class': 'L19',
-              'contributorName': 'sara',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-molecularBiology-12eb',
@@ -3080,6 +3072,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'sara',
+              'contributorEmail': null,
             },
             'theeukaryoticgenome_z6fv': {
               'label': 'The Eukaryotic Genome',
@@ -3093,8 +3087,6 @@
               'hashtags': [],
               'course': 'MEDS2003',
               'class': 'L20',
-              'contributorName': 'sara',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-molecularBiology-1ekr',
@@ -3124,6 +3116,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'sara',
+              'contributorEmail': null,
             },
             'prokaryotictranscription_5ndx': {
               'label': 'Prokaryotic Transcription',
@@ -3137,8 +3131,6 @@
               'hashtags': [],
               'course': 'MEDS2003',
               'class': 'L21',
-              'contributorName': 'sara',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-molecularBiology-3yt0',
@@ -3168,6 +3160,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'sara',
+              'contributorEmail': null,
             },
             'eukaryotictranscription_8e6t': {
               'label': 'Eukaryotic Transcription',
@@ -3181,8 +3175,6 @@
               'hashtags': [],
               'course': 'MEDS2003',
               'class': 'L22',
-              'contributorName': 'sara',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-molecularBiology-ojbp',
@@ -3212,6 +3204,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'sara',
+              'contributorEmail': null,
             },
             'posttranscriptionalproce_5i6w': {
               'label': 'Post-transcriptional Processing',
@@ -3225,8 +3219,6 @@
               'hashtags': [],
               'course': 'MEDS2003',
               'class': 'L23',
-              'contributorName': 'sara',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-molecularBiology-d6n0',
@@ -3256,6 +3248,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'sara',
+              'contributorEmail': null,
             },
             'translationinprokaryotes_r3uy': {
               'label': 'Translation in Prokaryotes',
@@ -3269,8 +3263,6 @@
               'hashtags': [],
               'course': 'MEDS2003',
               'class': 'L24',
-              'contributorName': 'sara',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-molecularBiology-y9nl',
@@ -3300,6 +3292,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'sara',
+              'contributorEmail': null,
             },
             'translationineukaryotes_39ur': {
               'label': 'Translation in Eukaryotes',
@@ -3313,8 +3307,6 @@
               'hashtags': [],
               'course': 'MEDS2003',
               'class': 'L25',
-              'contributorName': 'sara',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-molecularBiology-8d9c',
@@ -3344,6 +3336,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'sara',
+              'contributorEmail': null,
             },
             'translationalregulation_40el': {
               'label': 'Translational Regulation.',
@@ -3357,8 +3351,6 @@
               'hashtags': [],
               'course': 'MEDS2003',
               'class': 'L26',
-              'contributorName': 'sara',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-molecularBiology-ymu4',
@@ -3406,6 +3398,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'sara',
+              'contributorEmail': null,
             },
             'recombinantdnatechnology_l3oh': {
               'label': 'Recombinant DNA Technology 3',
@@ -3419,8 +3413,6 @@
               'hashtags': [],
               'course': 'MEDS2003',
               'class': 'L29',
-              'contributorName': 'sara',
-              'contributorEmail': null,
               'questions': [
                 {
                   'id': 'q-molecularBiology-w0ld',
@@ -3450,6 +3442,8 @@
                   'contributorEmail': null,
                 },
               ],
+              'contributorName': 'sara',
+              'contributorEmail': null,
             },
           },
         },
@@ -6069,16 +6063,18 @@
         },
       },
     },
+    'amed3003_cz1c': {
+      'label': 'AMED3003',
+      'icon': '📘',
+      'blurb': 'Test',
+      'topics': {},
+    },
   };
 
 /* ======================================================================
-   FUN_FACT_QUESTIONS — a separate, small pool of standalone trivia
-   questions, keyed by id. Used only for the Group Race grenade gift's
-   "shield it by answering a question" mini-game (see GAME_CONFIG's gift
-   comments) — never counted toward stage requirements, streaks, or score,
-   and not tied to any course/topic/item. Same shape as a normal question
-   (prompt/options/correctIndex/explanation) minus the fields that only
-   make sense in context (difficulty, hashtags, course/class).
+   FUN_FACT_QUESTIONS — standalone trivia, not tied to any course/topic/item,
+   used only for the Group Race grenade gift's "shield it by answering a
+   question" mini-game. Never counted toward stage requirements or score.
    ====================================================================== */
     const FUN_FACT_QUESTIONS = {
     'ff-honey': {
