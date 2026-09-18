@@ -293,7 +293,7 @@
     <button id="tabLectures" data-tab="lectures">📚 <span>Lectures</span></button>
     <button id="tabQuestionBank" data-tab="questionbank">🗃️ <span>Question bank</span></button>
     <button id="tabAdd" data-tab="add" class="active">✚ <span>Add content</span></button>
-    <button id="tabCsv" data-tab="csv">📄 <span>Import CSV</span></button>
+    <button id="tabCsv" data-tab="csv">📄 <span>Bulk import</span></button>
     <div class="nav-title">Review</div>
     <button id="tabQueue" data-tab="queue">👥 <span>Team queue</span><span class="badge" id="queueTabBadge"></span></button>
     <button id="tabReports" data-tab="reports">⚠️ <span>Reports</span><span class="badge" id="reportsTabBadge"></span></button>
@@ -516,7 +516,7 @@
               <div class="preview-card" id="q_previewCard"></div>
               <div class="btn-row"><button class="primary" id="q_addBatch">+ Add to queue</button><button id="q_copyOne">Copy code</button></div>
               <details class="more" style="margin-top:12px;"><summary>Generated code</summary><div><pre class="code-out" id="q_codeOut"></pre></div></details>
-              <p class="card-sub" style="margin:10px 0 0;">Adding many questions at once? Use <button type="button" class="link-btn" data-goto="csv">Import CSV</button> instead.</p>
+              <p class="card-sub" style="margin:10px 0 0;">Adding many questions at once? Use <button type="button" class="link-btn" data-goto="csv">Bulk import</button> instead.</p>
             </div>
           </div>
         </div>
@@ -545,7 +545,8 @@
           <div class="card">
             <h2>New course / subject area</h2>
             <p class="card-sub">A whole new top-level subject, like "MEDS3002". You'll add topics and items into it afterwards.</p>
-            <label class="field"><span class="fl-label">Course name <span class="req">*</span></span><input type="text" id="c_label" placeholder="e.g. Pharmacology 101"></label>
+            <label class="field"><span class="fl-label">Course code <span class="req">*</span></span><span class="fl-help">The unit code, e.g. MEDS3002 — this becomes its id everywhere, including the Lectures tab's course picker.</span><input type="text" id="c_code" placeholder="e.g. MEDS3002"></label>
+            <label class="field"><span class="fl-label">Course name <span class="req">*</span></span><span class="fl-help">The readable title shown on its card and in menus.</span><input type="text" id="c_label" placeholder="e.g. Cancer / Medical Science"></label>
             <div class="id-preview" id="c_idPreview">id: —</div>
             <label class="field" style="max-width:140px;"><span class="fl-label">Icon</span><input type="text" id="c_icon" value="📘" maxlength="4"></label>
             <label class="field"><span class="fl-label">One-line description <span class="req">*</span></span><span class="fl-help">Shown on the course's card on the game's home screen.</span><textarea id="c_blurb" placeholder="e.g. Core pharmacology concepts across drug classes."></textarea></label>
@@ -568,7 +569,7 @@
             <label class="field"><span class="fl-label">Learning outcome(s) <span class="req">*</span></span><div class="list-editor" id="lo_outcomes"></div></label>
             <label class="field"><span class="fl-label">Intro blurb</span><span class="fl-help">Optional — a sentence or two of context shown with the outcomes.</span><textarea id="lo_intro" placeholder="e.g. This lecture covers two classic cancer hallmarks seen in leukemia…"></textarea></label>
             <div class="btn-row"><button class="primary" id="lo_addBatch">+ Add to queue</button><button id="lo_copyOne">Copy code</button></div>
-            <p class="card-sub" style="margin:10px 0 0;">Many lectures at once? Use <button type="button" class="link-btn" data-goto="csv">Import CSV</button>.</p>
+            <p class="card-sub" style="margin:10px 0 0;">Many lectures at once? Use the pasteable table in <button type="button" class="link-btn" data-goto="lectures">Lectures</button> instead.</p>
           </div>
           <div class="card"><details class="more" open><summary>Generated code</summary><div><pre class="code-out" id="lo_codeOut"></pre></div></details></div>
         </div>
@@ -594,7 +595,7 @@
       </div>
     </section>
 
-    <!-- ================= IMPORT CSV ================= -->
+    <!-- ================= BULK IMPORT ================= -->
     <section data-section="csv">
       <div class="section-head">
         <h2>Import from a spreadsheet <button class="info-btn" data-info="csv" title="How this works">i</button></h2>
@@ -791,7 +792,7 @@
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-18-course-chip-admin-gated'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-18-missing-lecture-routes-to-lectures-tab'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -1780,18 +1781,18 @@
   // ======================================================================
   // COURSE FORM
   // ======================================================================
-  const c_label = document.getElementById('c_label'), c_icon = document.getElementById('c_icon'), c_blurb = document.getElementById('c_blurb');
+  const c_code = document.getElementById('c_code'), c_label = document.getElementById('c_label'), c_icon = document.getElementById('c_icon'), c_blurb = document.getElementById('c_blurb');
   const c_idPreview = document.getElementById('c_idPreview'), c_codeOut = document.getElementById('c_codeOut');
-  [c_label, c_icon, c_blurb].forEach(el=>el.addEventListener('input', renderCourse));
-  // Every real course so far (MEDS3002, MEDS2003, MEDS3003) uses its own
-  // code as BOTH the THEMES key and the COURSES key, with no suffix -- so a
-  // newly created one gets an id that's just the typed name with whitespace
-  // stripped, not a randomly-suffixed slug. That keeps it usable as a real
-  // course code immediately (see c_addBatch below, which also creates a
-  // matching COURSES entry so lectures can be added to it right away).
+  [c_code, c_label, c_icon, c_blurb].forEach(el=>el.addEventListener('input', renderCourse));
+  // Course code and course name are separate fields -- a real course has
+  // both (MEDS3002 the code, "Cancer / Medical Science" the readable
+  // title). The code (uppercased, whitespace stripped) becomes the id
+  // everywhere: THEMES key, COURSES key, and what shows up in the Lectures
+  // tab's course picker (see c_addBatch below, which creates both entries
+  // with matching ids so lectures can be added to it right away).
   function buildCourseObject(){
-    const label = c_label.value.trim() || 'Untitled course';
-    return { id: label.replace(/\s+/g, ''), label, icon: c_icon.value.trim() || '📘', blurb: c_blurb.value.trim() || '(add a description)' };
+    const code = c_code.value.trim().replace(/\s+/g, '').toUpperCase();
+    return { id: code, label: c_label.value.trim() || code || 'Untitled course', icon: c_icon.value.trim() || '📘', blurb: c_blurb.value.trim() || '(add a description)' };
   }
   function courseCodeString(o){ return `// new course — new top-level key in THEMES *and* COURSES in game-data.js\nTHEMES['${o.id}'] = {\n  label:'${esc(o.label)}', icon:'${o.icon}',\n  blurb:'${esc(o.blurb)}',\n  topics:{}\n};\nCOURSES['${o.id}'] = { code:'${o.id}', label:'${esc(o.label)}', classes:{} };`; }
   function renderCourse(){ const o = buildCourseObject(); c_idPreview.textContent = `id: ${o.id}`; c_codeOut.textContent = courseCodeString(o); }
@@ -1799,9 +1800,10 @@
   document.getElementById('c_addBatch').addEventListener('click', ()=>{
     if(!requireMaintainerUnlock()) return;
     if(!requireContributorIdentity()) return;
+    if(!c_code.value.trim()){ toast('Give the course a code first, e.g. MEDS3002'); c_code.focus(); return; }
     if(!c_label.value.trim()){ toast('Give the course a name first'); c_label.focus(); return; }
     const o = buildCourseObject();
-    if(KNOWN_THEMES.some(t=>t.id===o.id) || KNOWN_COURSES[o.id]){ toast(`"${o.id}" already exists — pick a different name`); return; }
+    if(KNOWN_THEMES.some(t=>t.id===o.id) || KNOWN_COURSES[o.id]){ toast(`"${o.id}" already exists — pick a different code`); return; }
     KNOWN_THEMES.push({ id:o.id, label:o.label });
     // Also register it as a COURSES entry (the lecture-list side) with a
     // matching code, so it shows up in the Lectures tab's course picker
@@ -1814,7 +1816,7 @@
     refreshCourseSelects(); fillLoCourseSelect(); fillLecCourseSelect(); fillLecAddCourseSelect();
     renderStructureList();
     toast('Added to the queue');
-    c_label.value=''; c_blurb.value=''; c_icon.value='📘'; renderCourse();
+    c_code.value=''; c_label.value=''; c_blurb.value=''; c_icon.value='📘'; renderCourse();
   });
 
   // ======================================================================
@@ -1902,11 +1904,11 @@
   renderFunFact();
 
   // ======================================================================
-  // CSV — parser, exports, and the four imports
+  // Bulk import — exports and the pasteable question grid
   // ======================================================================
-  // A small, dependency-free CSV parser: quoted fields, commas/newlines
-  // inside quotes, and "" as an escaped quote -- the same rules Excel and
-  // Google Sheets use when they export, so pasting straight from a sheet works.
+  // Quotes a field for a downloaded .csv export (the same rule Excel and
+  // Google Sheets use): wrap in quotes if it contains a comma, quote or
+  // newline, and double up any literal quote.
   function csvField(v){ v = (v==null ? '' : String(v)); return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; }
   // Matches a typed lecture against a course's real keys, tolerating zero-padding and case ('L01', 'l1' -> 'L1').
   function resolveLectureKey(courseId, input){
@@ -1933,17 +1935,34 @@
   // the missing thing, but nothing said where. This scans an errors array
   // for that family of message and returns a button straight to wherever
   // it's created: Course/Topic have their own Add-content pane; a lecture
-  // (COURSES.classes) has no pane of its own and can only be created inline
-  // from the "+ Add a new lecture to this course" toggle in the item form.
+  // (COURSES.classes) goes to the Lectures tab's pasteable grid, with the
+  // course preselected and one row per missing lecture number already typed
+  // in (it can also be created inline via the "+ Add a new lecture to this
+  // course" toggle in the item/question form, but that's slower for several
+  // at once).
   function importMissingRefHintsHtml(errors){
     const joined = errors.join(' ');
     const hints = [];
     const courseMatch = joined.match(/(?:course|theme) "([^"]*)" doesn't (?:match any existing course|exist)/);
-    if(courseMatch) hints.push(`<button type="button" class="link-btn" data-goto-add-pane="course" data-preset-course-name="${esc2(courseMatch[1])}">➕ Add the missing course</button>`);
+    if(courseMatch){
+      // Adding a course is admin-only (see courseChip) -- a regular
+      // contributor has nowhere to go for this, so don't link to a form
+      // they can't use. Tell them who to ask instead.
+      if(maintainerUnlocked) hints.push(`<button type="button" class="link-btn" data-goto-add-pane="course" data-preset-course-name="${esc2(courseMatch[1])}">➕ Add the missing course</button>`);
+      else hints.push(`<span style="color:var(--muted);">Ask an admin to add the "${esc2(courseMatch[1])}" course.</span>`);
+    }
     const topicMatch = joined.match(/topic "([^"]*)" doesn't (?:match any topic under|exist under) ([^,]*)/);
     if(topicMatch) hints.push(`<button type="button" class="link-btn" data-goto-add-pane="topic" data-preset-topic-course="${esc2(topicMatch[2].trim())}" data-preset-topic-name="${esc2(topicMatch[1])}">➕ Add the missing topic</button>`);
-    const lectureMatch = joined.match(/lecture "([^"]*)" doesn't exist under(?: course)? ([^,]*)/);
-    if(lectureMatch) hints.push(`<button type="button" class="link-btn" data-goto-add-pane="item" data-preset-lecture-course="${esc2(lectureMatch[2].trim())}" data-preset-lecture-key="${esc2(lectureMatch[1])}">➕ Add the missing lecture (via a new item)</button>`);
+    // Collect every missing-lecture message, not just the first -- a single
+    // batch of rows commonly names several lecture numbers under the same
+    // course at once (e.g. L4, L5, L6), and the Lectures tab's grid can take
+    // all of them in one visit.
+    const lectureMatches = [...joined.matchAll(/lecture "([^"]*)" doesn't exist under(?: course)? ([^,]*)/g)];
+    if(lectureMatches.length){
+      const course = lectureMatches[0][2].trim();
+      const keys = [...new Set(lectureMatches.map(m=>m[1]))];
+      hints.push(`<button type="button" class="link-btn" data-goto-add-pane="lectures" data-preset-lecture-course="${esc2(course)}" data-preset-lecture-keys="${esc2(keys.join(','))}">➕ Add the missing lecture${keys.length>1?'s':''} (${keys.map(k=>esc2(k)).join(', ')})</button>`);
+    }
     return hints.length ? ` ${hints.join(' ')}` : '';
   }
   // A course name/id in an error message can be either -- the various
@@ -1961,12 +1980,33 @@
   document.addEventListener('click', e=>{
     const btn = e.target.closest('[data-goto-add-pane]'); if(!btn) return;
     const pane = btn.dataset.gotoAddPane;
+    if(pane==='course' && !maintainerUnlocked) return; // admin-only pane -- importMissingRefHintsHtml doesn't even render this button when locked, but don't navigate there if something else does
+    if(pane==='lectures'){
+      // Lectures is its own top-level tab, not an Add-content pane -- jump
+      // there and drop one prefilled row per missing lecture number into
+      // its pasteable grid (appended, so nothing already typed is lost).
+      showTab('lectures');
+      const courseCode = btn.dataset.presetLectureCourse ? resolveCourseCode(btn.dataset.presetLectureCourse) : null;
+      if(courseCode){
+        fillLecAddCourseSelect();
+        lecAdd_course.value = courseCode; lecAdd_course.dispatchEvent(new Event('change'));
+        (btn.dataset.presetLectureKeys||'').split(',').filter(Boolean).forEach(key=>{
+          const row = addLecAddRow();
+          row.querySelector('input').value = key.toUpperCase().replace(/^([A-Z]+)0*(\d)/, '$1$2');
+        });
+        renderLecAddPreview();
+      }
+      return;
+    }
     showTab('add'); showPane('add', pane);
     // Landing on an empty form after being told exactly what's missing is a
     // dead end of its own -- pre-fill whatever the error already told us,
     // so the row that failed can usually be requeued in two clicks.
     if(pane==='course' && btn.dataset.presetCourseName){
-      c_label.value = btn.dataset.presetCourseName; renderCourse(); c_label.focus();
+      // The missing value from a row is almost always typed as a code
+      // (e.g. "AMED3003"), not a readable title -- pre-fill both fields
+      // with it as a starting point; the admin can give it a nicer name.
+      c_code.value = btn.dataset.presetCourseName; c_label.value = btn.dataset.presetCourseName; renderCourse(); c_label.focus();
     }
     if(pane==='topic'){
       // A course that only just landed in KNOWN_THEMES (e.g. still pending,
@@ -1978,20 +2018,6 @@
       if(themeId){ newTopicTheme.value = themeId; newTopicTheme.dispatchEvent(new Event('change')); }
       if(btn.dataset.presetTopicName) newTopicLabelInput.value = btn.dataset.presetTopicName;
       newTopicLabelInput.focus();
-    }
-    if(pane==='item' && btn.dataset.presetLectureCourse){
-      // i_course/i_newClassBlock/etc live inside initCourseClassPicker()'s own
-      // closure, not as top-level consts like i_theme/i_topic -- fetch by id.
-      const courseCode = resolveCourseCode(btn.dataset.presetLectureCourse);
-      const i_course = document.getElementById('i_course'), i_newClassBlock = document.getElementById('i_newClassBlock'),
-        i_newClassToggle = document.getElementById('i_newClassToggle'), i_newClassKey = document.getElementById('i_newClassKey'), i_newClassLabel = document.getElementById('i_newClassLabel');
-      if(courseCode){
-        refreshCourseSelects();
-        i_course.value = courseCode; i_course.dispatchEvent(new Event('change'));
-        if(!i_newClassBlock.classList.contains('show')) i_newClassToggle.click();
-        if(btn.dataset.presetLectureKey) i_newClassKey.value = btn.dataset.presetLectureKey;
-        i_newClassLabel.focus();
-      }
     }
   });
   function readQuestionCells(row, idx, rowNum, errors){
@@ -2751,7 +2777,7 @@
     const reportEntries = all.filter(([k,e])=>isReport(e)).sort((a,b)=> (a[1].createdAt||0) - (b[1].createdAt||0));
     queueTabBadge.textContent = contentEntries.length ? String(contentEntries.length) : '';
     reportsTabBadge.textContent = reportEntries.length ? String(reportEntries.length) : '';
-    renderQueueRows(batchListContent, contentEntries, 'Nothing to merge yet — add something from "Add content" or "Import CSV".');
+    renderQueueRows(batchListContent, contentEntries, 'Nothing to merge yet — add something from "Add content" or "Bulk import".');
     renderQueueRows(batchListReports, reportEntries, 'No reports from players yet.');
   }
   function fullBatchText(){
@@ -3235,7 +3261,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
       <p>Someone with no email on file (content merged before attribution existed, or a report filed without filling in the identity box) is grouped by name instead, under "(no email)".</p>` },
     lectures: { title:'Where lecture data comes from', tags:['COURSES', 'read-only'], body:`
       <p>Straight from <code>COURSES[&lt;code&gt;].classes[&lt;L#&gt;]</code> in <code>game-data.js</code> — the same lectures an item/question can cite via its <code>course</code>/<code>class</code> fields. This list doesn't touch items or questions at all, just the lecture list and whatever <code>outcomes</code> each one carries.</p>
-      <p>Add or update lectures with the pasteable table above it, or the "🧭 Learning outcomes" form/CSV import under Add content — like everything else, it goes to the shared queue and only shows up here once merged.</p>` },
+      <p>Add or update lectures with the pasteable table above it, or the "🧭 Learning outcomes" form under Add content — like everything else, it goes to the shared queue and only shows up here once merged.</p>` },
     'lecture-grid': { title:'Adding lectures in bulk', tags:['lectureOutcomes', 'create-or-update'], body:`
       <p>Same paste-a-range-from-a-spreadsheet interaction as the questions grid, sized to three columns: <b>Lecture #</b> (the class key, e.g. <code>L16</code>), <b>Name</b>, and <b>LO</b> (learning outcomes joined with <code>;</code>). One course at a time — pick it from the dropdown first.</p>
       <p>A row queues the same <code>lectureOutcomes</code> entry type the Learning outcomes form uses. On merge, <code>applyEntry()</code> creates <code>COURSES.&lt;course&gt;.classes.&lt;L#&gt;</code> if that key doesn't exist yet, or merges onto it if it does — a blank <b>LO</b> cell never wipes outcomes that are already there, it just leaves them alone.</p>` },
@@ -3264,7 +3290,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
     { tab:'csv', sel:'#gridImportTable', title:'Bulk import from a spreadsheet', caption:'Adding many questions at once? Select a range in Sheets/Excel, copy, click a cell here, and paste — it fills in and grows the table. Every row is checked before anything is added.' },
     { tab:'queue', sel:'#batchList', title:'Team queue', caption:'Everything anyone added, plus reports players send from inside the game. Open a row for the full detail; remove it once it\'s merged.' },
     { tab:'maintainer', sel:'#maintainerLockGate', title:'Admin', caption:'PIN-gated: merge the queue into a new game-data.js, refresh the merge template, read answer analytics, check the folder against GitHub.', fallbackSel:'#mergeGenerateBtn' },
-    { tab:'add', sel:'[data-info="overview"]', title:'Curious how it works?', caption:'Every ⓘ opens a short technical note about that part — the CSV parser, the Firebase queue, the merge, the PIN. Reopen this tour any time from the 🎬 button.', final:true },
+    { tab:'add', sel:'[data-info="overview"]', title:'Curious how it works?', caption:'Every ⓘ opens a short technical note about that part — the pasteable table, the Firebase queue, the merge, the PIN. Reopen this tour any time from the 🎬 button.', final:true },
   ];
   let devTourStep = 0;
   const T = { spotlight: document.getElementById('devTutorialSpotlight'), caption: document.getElementById('devTutorialCaption'), title: document.getElementById('devTutorialTitle'), text: document.getElementById('devTutorialCaptionText'), dots: document.getElementById('devTutorialDots'), back: document.getElementById('devTutorialBackBtn'), skip: document.getElementById('devTutorialSkipBtn'), next: document.getElementById('devTutorialNextBtn'), close: document.getElementById('devTutorialCloseBtn') };
