@@ -360,7 +360,17 @@
     'AMED3003': {
       'code': 'AMED3003',
       'label': 'AMED3003',
-      'classes': {},
+      'classes': {
+        'L1': {
+          'label': 'Test',
+        },
+        'L2': {
+          'label': 'Testtt',
+        },
+        'L3': {
+          'label': 'Good',
+        },
+      },
     },
   };
 
