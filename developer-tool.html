@@ -278,10 +278,10 @@
 <header class="topbar">
   <div class="brand"><span style="font-size:20px;">🧬</span><div><h1>Runner Content Tool</h1><small>Add and review content for Run Morris Run!</small></div></div>
   <div class="spacer"></div>
-  <label>Your name <input type="text" id="contributorName" placeholder="e.g. Priya" title="Credits you on what you add, and lets a maintainer reach you about it"></label>
-  <label>Your email <input type="email" id="contributorEmail" placeholder="e.g. priya@example.com" title="Lets a maintainer contact you if they spot an issue with something you added"></label>
+  <label>Your name <input type="text" id="contributorName" placeholder="e.g. Priya" title="Credits you on what you add, and lets an admin reach you about it"></label>
+  <label>Your email <input type="email" id="contributorEmail" placeholder="e.g. priya@example.com" title="Lets an admin contact you if they spot an issue with something you added"></label>
   <span id="syncBanner" class="pill off">⏳ Connecting…</span>
-  <span id="maintainerModeBadge" class="pill" style="display:none;background:var(--accent-soft);color:var(--accent);border-color:var(--accent-line);font-weight:600;">🛠 Maintainer mode</span>
+  <span id="maintainerModeBadge" class="pill" style="display:none;background:var(--accent-soft);color:var(--accent);border-color:var(--accent-line);font-weight:600;">🛠 Admin mode</span>
   <button id="devTutorialBtn">🎬 Tour</button>
   <button class="subtle" data-info="overview">ⓘ How it all fits</button>
 </header>
@@ -297,11 +297,11 @@
     <div class="nav-title">Review</div>
     <button id="tabQueue" data-tab="queue">👥 <span>Team queue</span><span class="badge" id="queueTabBadge"></span></button>
     <button id="tabReports" data-tab="reports">⚠️ <span>Reports</span><span class="badge" id="reportsTabBadge"></span></button>
-    <button id="tabMaintainer" data-tab="maintainer">🛠 <span>Maintainer</span></button>
-    <div class="nav-title" id="navTitleMaintainerTools" style="display:none;">Maintainer tools</div>
+    <button id="tabMaintainer" data-tab="maintainer">🛠 <span>Admin</span></button>
+    <div class="nav-title" id="navTitleMaintainerTools" style="display:none;">Admin tools</div>
     <button id="tabContributors" data-tab="contributors" style="display:none;">🙋 <span>Contributors</span></button>
     <button id="tabDataAnalysis" data-tab="analysis" style="display:none;">📊 <span>Data analysis</span></button>
-    <div class="nav-help">Everything you add goes to the shared Team queue first. Nothing reaches the game until the maintainer merges it.</div>
+    <div class="nav-help">Everything you add goes to the shared Team queue first. Nothing reaches the game until the admin merges it.</div>
   </nav>
 
   <main>
@@ -340,7 +340,19 @@
     <section data-section="lectures">
       <div class="section-head">
         <h2>Lectures <button class="info-btn" data-info="lectures" title="How this works">i</button></h2>
-        <p>Every lecture in every course, with its learning outcomes — for checking what a lecture actually covers, not what's been tagged to it yet. Add or edit outcomes from the "learning outcomes" form under Add content.</p>
+        <p>Every lecture in every course, with its learning outcomes — for checking what a lecture actually covers, not what's been tagged to it yet.</p>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">➕ Add or update lectures <button class="info-btn" data-info="lecture-grid" title="How this works">i</button></h2>
+        <p class="card-sub">Paste directly from a spreadsheet — same template as the questions sheet — with columns <b>Lecture #</b> (e.g. <code>L16</code>), <b>Name</b>, and <b>LO</b> (learning outcomes, separated by semicolons). A lecture number that doesn't exist yet under the chosen course is created; one that already exists gets its name and outcomes updated.</p>
+        <label class="field" style="max-width:340px;"><span class="fl-label">Course <span class="req">*</span></span><select id="lecAdd_course"></select></label>
+        <table class="cols grid-import" id="lecAddTable" style="margin-top:10px;">
+          <thead><tr><th>Lecture #</th><th>Name</th><th class="grid-wide">LO (separate with ;)</th><th></th></tr></thead>
+          <tbody id="lecAddBody"></tbody>
+        </table>
+        <div class="btn-row" style="margin-top:8px;"><button type="button" id="lecAdd_addRowBtn">+ Add row</button><button type="button" id="lecAdd_clearBtn">Clear table</button></div>
+        <div id="lecAdd_preview" class="status" style="margin:10px 0;"></div>
+        <div class="btn-row"><button class="primary" id="lecAdd_parseBtn">Check &amp; add all to queue</button></div>
       </div>
       <div id="lecturesList"></div>
     </section>
@@ -375,7 +387,7 @@
         <button class="chip active" data-pane="item">📄 Study guide item</button>
         <button class="chip" data-pane="question">❓ Question</button>
         <button class="chip" data-pane="topic">🗂️ Topic</button>
-        <button class="chip" data-pane="course">📚 Course</button>
+        <button class="chip" data-pane="course">📚 Course <span style="opacity:.6;">🔒 Admin</span></button>
         <button class="chip" data-pane="outcomes">🧭 Learning outcomes</button>
         <button class="chip" data-pane="funfact">🎲 Fun fact question</button>
       </div>
@@ -532,7 +544,7 @@
         <div class="two-col">
           <div class="card">
             <h2>New course / subject area</h2>
-            <p class="card-sub">A whole new top-level subject, like "MEDS3002". You'll add topics and items into it afterwards.</p>
+            <p class="card-sub">A whole new top-level subject, like "MEDS3002". You'll add topics and items into it afterwards. <b>Admin-only</b> — unlock Admin mode (left menu) first; everyone else can still add topics, items and questions freely.</p>
             <label class="field"><span class="fl-label">Course name <span class="req">*</span></span><input type="text" id="c_label" placeholder="e.g. Pharmacology 101"></label>
             <div class="id-preview" id="c_idPreview">id: —</div>
             <label class="field" style="max-width:140px;"><span class="fl-label">Icon</span><input type="text" id="c_icon" value="📘" maxlength="4"></label>
@@ -586,47 +598,19 @@
     <section data-section="csv">
       <div class="section-head">
         <h2>Import from a spreadsheet <button class="info-btn" data-info="csv" title="How this works">i</button></h2>
-        <p>Work in Google Sheets or Excel, then <i>File → Download → CSV</i> and paste the text here. Every row is checked before anything is added, and everything still lands in the Team queue for review. <b>Nothing is ever deleted by an import.</b></p>
-      </div>
-      <div class="chips" id="csvChips">
-        <button class="chip active" data-pane="csv-grid">🧮 Paste into a table</button>
-        <button class="chip" data-pane="csv-lecture">❓ Questions (any items / lectures)</button>
-        <button class="chip" data-pane="csv-one">❓ Questions → one item</button>
-        <button class="chip" data-pane="csv-items">📄 Items</button>
-        <button class="chip" data-pane="csv-outcomes">🧭 Learning outcomes</button>
-      </div>
-
-      <div class="subpane" data-pane="csv-lecture">
-        <div class="card">
-          <h2>Questions across any items or lectures</h2>
-          <p class="card-sub">The most flexible import — course, topic and item are given per row. A blank <code>questionId</code> creates a new question; a matching one updates that question in place. <b>If the item doesn't exist yet it is created for you</b> (fill <code>description</code>/<code>mechanism</code>/<code>funfacts</code> on its first row to author it fully).</p>
-          <div class="callout"><span class="step-num">1</span> Export the current questions (or use the <a href="https://docs.google.com/spreadsheets/d/1BlL64j0qI--hMyGCwRw3hcRho6tvo_-CfkiIAf01ZG4/edit?usp=sharing" target="_blank" rel="noopener">template sheet</a>) &nbsp;→&nbsp; <span class="step-num">2</span> edit in a spreadsheet &nbsp;→&nbsp; <span class="step-num">3</span> paste the CSV below.</div>
-          <div class="btn-row" style="margin-bottom:12px;"><button id="lec_exportBtn">⬇️ Export all questions as CSV</button></div>
-          <div class="row2">
-            <label class="field"><span class="fl-label">Default course for new items</span><span class="fl-help">Only used when a row's own <code>lecture</code> is blank.</span><select id="lec_course"></select></label>
-            <div class="new-block show" id="lec_classBlock" style="margin:0;"><label class="field" style="margin:0;"><span class="fl-label">Default lecture</span><select id="lec_class" disabled></select></label></div>
-          </div>
-          <label class="field"><span class="fl-label">Paste CSV</span><textarea class="csv" id="lec_textarea" placeholder="questionId,course,lecture,topic,item,prompt,optionA,optionB,optionC,optionD,correct,explanation,hashtags,difficulty,description,mechanism,funfacts
-,MEDS3002,L12,pharmacology,Ibrutinib,&quot;Ibrutinib inhibits which enzyme?&quot;,BTK,JAK2,mTOR,PI3K,A,&quot;Ibrutinib irreversibly binds BTK.&quot;,Leukemia,medium,&quot;A BTK inhibitor used in CLL.&quot;,&quot;Irreversibly binds BTK.&quot;,&quot;First-in-class BTK inhibitor;Taken orally&quot;"></textarea></label>
-          <div id="lec_preview" class="status" style="margin-bottom:10px;"></div>
-          <div class="btn-row"><button class="primary" id="lec_parseBtn">Check &amp; add all to queue</button></div>
-          <details class="more" style="margin-top:14px;"><summary>Column reference</summary><div>
-            <table class="cols"><tr><th>Column</th><th>Required</th><th>Notes</th></tr>
-              <tr><td><code>questionId</code></td><td>no</td><td>Blank = new question. A real id (from the export) = update that question in place; its course/lecture/topic/item columns are then ignored so it can't be moved by accident.</td></tr>
-              <tr><td><code>course</code>, <code>topic</code>, <code>item</code></td><td>yes</td><td>Course code or name, topic id or name, item name. An unknown item is created.</td></tr>
-              <tr><td><code>lecture</code></td><td>no</td><td>e.g. <code>L12</code> — the lecture a newly created item is filed under. <code>L01</code>/<code>l1</code> also work.</td></tr>
-              <tr><td><code>prompt</code>, <code>optionA–D</code>, <code>correct</code></td><td>yes</td><td><code>correct</code> is A, B, C or D.</td></tr>
-              <tr><td><code>explanation</code>, <code>hashtags</code>, <code>difficulty</code></td><td>no</td><td>Semicolon-separated tags; easy / medium / hard.</td></tr>
-              <tr><td><code>description</code>, <code>mechanism</code>, <code>funfacts</code></td><td>no</td><td>These describe the <b>item</b>, not the question — only used on a new item's first row, to author it fully instead of a bare label. Ignored on every other row.</td></tr>
-            </table>
-          </div></details>
-        </div>
+        <p>Work in Google Sheets or Excel, then select and copy a range and paste it here. Every row is checked before anything is added, and everything still lands in the Team queue for review. <b>Nothing is ever deleted by an import.</b></p>
       </div>
 
       <div class="subpane active" data-pane="csv-grid">
         <div class="card">
           <h2>Paste directly from Google Sheets / Excel</h2>
-          <p class="card-sub">Same columns as the CSV tab above, minus <code>description</code>/<code>mechanism</code>/<code>funfacts</code> — those describe the <b>item</b>, not the question, so add/edit them from the item form instead. This table is questions only. Select a range in your spreadsheet, copy, click a cell here, and paste: it fills in as many cells as you copied, growing the table if needed. Fix anything by hand, add or remove rows, then check &amp; queue exactly like the CSV tab. A row whose <code>item</code> doesn't exist yet still creates a bare item with just that label — open it afterward to fill in the rest.</p>
+          <p class="card-sub">The most flexible import — course, topic and item are given per row. A blank Question ID column creates a new question; a matching one updates that question in place. <b>If the item doesn't exist yet it is created for you</b> — open it afterward to fill in description/mechanism/fun facts. Select a range in your spreadsheet, copy, click a cell here, and paste: it fills in as many cells as you copied, growing the table if needed. Fix anything by hand, add or remove rows, then check &amp; queue.</p>
+          <div class="callout"><span class="step-num">1</span> Export the current questions (or use the <a href="https://docs.google.com/spreadsheets/d/1BlL64j0qI--hMyGCwRw3hcRho6tvo_-CfkiIAf01ZG4/edit?usp=sharing" target="_blank" rel="noopener">template sheet</a>) &nbsp;→&nbsp; <span class="step-num">2</span> edit in a spreadsheet &nbsp;→&nbsp; <span class="step-num">3</span> copy and paste into the table below.</div>
+          <div class="btn-row" style="margin-bottom:12px;"><button id="lec_exportBtn">⬇️ Export all questions as CSV</button></div>
+          <div class="row2">
+            <label class="field"><span class="fl-label">Default course for new items</span><span class="fl-help">Only used when a row's own <code>lecture</code> column is blank.</span><select id="lec_course"></select></label>
+            <div class="new-block show" id="lec_classBlock" style="margin:0;"><label class="field" style="margin:0;"><span class="fl-label">Default lecture</span><select id="lec_class" disabled></select></label></div>
+          </div>
           <div style="overflow-x:auto;max-width:100%;">
             <table class="cols grid-import" id="gridImportTable">
               <thead><tr id="gridImportHeaderRow"></tr></thead>
@@ -640,58 +624,15 @@
           </div>
           <div id="grid_preview" class="status" style="margin:10px 0;"></div>
           <div class="btn-row"><button class="primary" id="grid_parseBtn">Check &amp; add all to queue</button></div>
-        </div>
-      </div>
-
-      <div class="subpane" data-pane="csv-one">
-        <div class="card">
-          <h2>Several questions for one item</h2>
-          <p class="card-sub">Pick the item once; the CSV only needs the question columns.</p>
-          <label class="field"><span class="fl-label">Which item are these for? <span class="req">*</span></span><select id="csv_itemSelect"></select></label>
-          <label class="field"><span class="fl-label">Paste CSV</span><textarea class="csv" id="csv_textarea" placeholder="prompt,optionA,optionB,optionC,optionD,correct,explanation,hashtags,difficulty
-&quot;Which translocation causes CML?&quot;,t(9;22),t(15;17),t(8;14),t(12;21),A,&quot;t(9;22) creates BCR-ABL1.&quot;,Leukemia,easy"></textarea></label>
-          <div id="csv_preview" class="status" style="margin-bottom:10px;"></div>
-          <div class="btn-row"><button class="primary" id="csv_parseBtn">Check &amp; add all to queue</button></div>
           <details class="more" style="margin-top:14px;"><summary>Column reference</summary><div>
             <table class="cols"><tr><th>Column</th><th>Required</th><th>Notes</th></tr>
-              <tr><td><code>prompt</code>, <code>optionA–D</code>, <code>correct</code></td><td>yes</td><td><code>correct</code> is A, B, C or D.</td></tr>
-              <tr><td><code>explanation</code>, <code>hashtags</code>, <code>difficulty</code></td><td>no</td><td>Semicolon-separated tags; easy / medium / hard.</td></tr>
+              <tr><td>Question ID</td><td>no</td><td>Blank = new question. A real id (from the export) = update that question in place; its course/lecture/topic/item columns are then ignored so it can't be moved by accident. Hidden by default — the checkbox above shows it.</td></tr>
+              <tr><td>Course, Topic, Item</td><td>yes</td><td>Course code or name, topic id or name, item name. An unknown item is created.</td></tr>
+              <tr><td>Lecture</td><td>no</td><td>e.g. <code>L12</code> — the lecture a newly created item is filed under. <code>L01</code>/<code>l1</code> also work.</td></tr>
+              <tr><td>Prompt, Option A–D, Correct</td><td>yes</td><td>Correct is A, B, C or D.</td></tr>
+              <tr><td>Explanation, Hashtags, Difficulty</td><td>no</td><td>Semicolon-separated tags; easy / medium / hard.</td></tr>
             </table>
           </div></details>
-        </div>
-      </div>
-
-      <div class="subpane" data-pane="csv-items">
-        <div class="card">
-          <h2>Items (add or update in bulk) <button class="info-btn" data-info="edit-vs-new" title="How this works">i</button></h2>
-          <p class="card-sub">Export every item, edit in a spreadsheet, paste back. A row with an existing <code>itemId</code> updates that item (questions untouched); a blank <code>itemId</code> creates a new one. On an update row, a blank cell means "leave as is".</p>
-          <div class="btn-row" style="margin-bottom:12px;"><button id="itemsExportBtn">⬇️ Export all items as CSV</button></div>
-          <label class="field"><span class="fl-label">Paste CSV</span><textarea class="csv" id="csvitem_textarea" placeholder="itemId,theme,topic,label,description,mechanism,funFacts,activeRecall,hashtags,course,class,images,refs
-,MEDS3002,pharmacology,Ibrutinib,&quot;A BTK inhibitor used in CLL.&quot;,&quot;Irreversibly binds BTK.&quot;,&quot;First oral targeted therapy in CLL&quot;,&quot;What class of drug is ibrutinib?&quot;,Leukemia,MEDS3002,L15,,"></textarea></label>
-          <div id="csvitem_preview" class="status" style="margin-bottom:10px;"></div>
-          <div class="btn-row"><button class="primary" id="csvitem_parseBtn">Check &amp; add all to queue</button></div>
-          <details class="more" style="margin-top:14px;"><summary>Column reference</summary><div>
-            <table class="cols"><tr><th>Column</th><th>Required</th><th>Notes</th></tr>
-              <tr><td><code>label</code>, <code>description</code></td><td>yes</td><td>Always required, even on an update row.</td></tr>
-              <tr><td><code>itemId</code></td><td>no</td><td>Blank = new item. Only ever paste an id the export gave you.</td></tr>
-              <tr><td><code>theme</code>, <code>topic</code></td><td>new rows</td><td>Course id and topic id the new item goes under. Ignored on update rows.</td></tr>
-              <tr><td><code>mechanism</code>, <code>funFacts</code>, <code>activeRecall</code>, <code>hashtags</code></td><td>no</td><td>Lists are semicolon-separated.</td></tr>
-              <tr><td><code>course</code>, <code>class</code></td><td>no</td><td>Must match an existing course code and lecture key.</td></tr>
-              <tr><td><code>images</code>, <code>refs</code></td><td>no</td><td><code>caption|url;caption2|url2</code> and <code>label|url;label2|url2</code>.</td></tr>
-            </table>
-          </div></details>
-        </div>
-      </div>
-
-      <div class="subpane" data-pane="csv-outcomes">
-        <div class="card">
-          <h2>Learning outcomes for many lectures</h2>
-          <p class="card-sub">Export every lecture, fill in the <code>outcomes</code> / <code>intro</code> columns, paste back. Only existing lectures can be edited this way; a row with blank outcomes is skipped.</p>
-          <div class="btn-row" style="margin-bottom:12px;"><button id="loExportBtn">⬇️ Export all lectures as CSV</button></div>
-          <label class="field"><span class="fl-label">Paste CSV</span><textarea class="csv" id="csvlo_textarea" placeholder="course,classKey,label,outcomes,intro
-MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of CML;Explain how loss of TP53 drives genomic instability&quot;,&quot;Two classic cancer hallmarks seen in leukemia.&quot;"></textarea></label>
-          <div id="csvlo_preview" class="status" style="margin-bottom:10px;"></div>
-          <div class="btn-row"><button class="primary" id="csvlo_parseBtn">Check &amp; add all to queue</button></div>
         </div>
       </div>
     </section>
@@ -700,7 +641,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     <section data-section="queue">
       <div class="section-head">
         <h2>Team queue <button class="info-btn" data-info="firebase-queue" title="How this works">i</button></h2>
-        <p id="queueSubtext">Everything anyone adds shows up for the whole team in real time. Open a row to read exactly what was submitted. Once the maintainer has merged something, remove it here. Reports sent from inside the game live in their own Reports tab.</p>
+        <p id="queueSubtext">Everything anyone adds shows up for the whole team in real time. Open a row to read exactly what was submitted. Once the admin has merged something, remove it here. Reports sent from inside the game live in their own Reports tab.</p>
       </div>
       <div class="card">
         <div class="struct-stats" id="queueStats"></div>
@@ -708,7 +649,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       </div>
       <div class="card">
         <h2 style="margin-top:0;">📥 Content to merge</h2>
-        <p class="card-sub">New/edited items, questions, courses, topics, lecture outcomes, and deletion requests — everything a maintainer folds into <code>game-data.js</code> on merge, and what "Remove the merged entries from the queue" clears out afterward.</p>
+        <p class="card-sub">New/edited items, questions, courses, topics, lecture outcomes, and deletion requests — everything an admin folds into <code>game-data.js</code> on merge, and what "Remove the merged entries from the queue" clears out afterward.</p>
         <div id="batchListContent"></div>
       </div>
     </section>
@@ -717,7 +658,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     <section data-section="reports">
       <div class="section-head">
         <h2>Reports from players <button class="info-btn" data-info="firebase-queue" title="How this works">i</button></h2>
-        <p>Flags sent from inside the game about an existing item/question. These are never merged and never touched by "Remove the merged entries from the queue" in Maintainer — a report only leaves here once a maintainer removes it by hand (✕) after dealing with it, or anyone can 🚩 flag it for removal first.</p>
+        <p>Flags sent from inside the game about an existing item/question. These are never merged and never touched by "Remove the merged entries from the queue" in Admin — a report only leaves here once an admin removes it by hand (✕) after dealing with it, or anyone can 🚩 flag it for removal first.</p>
       </div>
       <div class="card">
         <div id="batchListReports"></div>
@@ -727,18 +668,18 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     <!-- ================= MAINTAINER ================= -->
     <section data-section="maintainer">
       <div class="section-head">
-        <h2>Maintainer</h2>
+        <h2>Admin</h2>
         <p>For whoever looks after <code>game-data.js</code>. Merge the queue into a new copy of the data file, keep the merge template fresh, read the answer analytics, and check this folder against GitHub.</p>
       </div>
       <div id="maintainerLockGate" class="lock-gate card">
-        <div>🔒 Maintainer PIN <button class="info-btn" data-info="pin" title="How this works">i</button></div>
+        <div>🔒 Admin PIN <button class="info-btn" data-info="pin" title="How this works">i</button></div>
         <input type="password" id="maintainerPinInput" maxlength="4" inputmode="numeric" placeholder="••••">
         <button class="primary" id="maintainerUnlockBtn">Unlock</button>
         <div class="lg-error" id="maintainerPinError">Wrong PIN.</div>
       </div>
       <div id="maintainerLockedContent" style="display:none;">
         <div class="btn-row" style="justify-content:flex-end;margin-bottom:10px;">
-          <button class="subtle" id="maintainerLockBtn" title="Re-lock maintainer mode on this device">🔒 Lock again</button>
+          <button class="subtle" id="maintainerLockBtn" title="Re-lock admin mode on this device">🔒 Lock again</button>
         </div>
         <div class="card">
           <h2>🧬 Merge the queue into game-data.js <button class="info-btn" data-info="merge" title="How this works">i</button></h2>
@@ -775,7 +716,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     <section data-section="contributors">
       <div class="section-head">
         <h2>Contributors <button class="info-btn" data-info="contributors" title="How this works">i</button></h2>
-        <p>Everyone who's added, edited, or reported something, and what it was. Maintainer-only — this is how you find someone's email to follow up about their questions.</p>
+        <p>Everyone who's added, edited, or reported something, and what it was. Admin-only — this is how you find someone's email to follow up about their questions.</p>
       </div>
       <div class="card">
         <input type="text" class="struct-search" id="contributorSearchInput" placeholder="🔍 Search by name or email…">
@@ -850,7 +791,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-18-prefill-missing-ref-hints'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-18-csv-table-only'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -922,7 +863,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   // the submission through) only once both fields have something in them.
   function requireContributorIdentity(){
     if(contributorNameEl.value.trim() && contributorEmailEl.value.trim()) return true;
-    toast('Add your name and email at the top first — it lets a maintainer credit and reach you.');
+    toast('Add your name and email at the top first — it lets an admin credit and reach you.');
     (contributorNameEl.value.trim() ? contributorEmailEl : contributorNameEl).focus();
     return false;
   }
@@ -967,7 +908,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     renderBatch();
     renderStructureList();
     renderQuestionBank();
-    toast('Maintainer mode locked again');
+    toast('Admin mode locked again');
   });
   // Attribution privacy: only a maintainer sees who actually added
   // something (name + email). Everyone else sees "You" for their own
@@ -983,7 +924,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   document.getElementById('maintainerPinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('maintainerUnlockBtn').click(); });
   function requireMaintainerUnlock(){
     if(maintainerUnlocked) return true;
-    toast('Unlock maintainer mode first (Maintainer section, left menu)');
+    toast('Unlock admin mode first (Admin section, left menu)');
     showTab('maintainer');
     return false;
   }
@@ -993,7 +934,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   // The one thing required in exchange is a reason, so the maintainer isn't
   // guessing why. Returns the trimmed reason, or null if cancelled/blank.
   function promptDeletionReason(blastRadiusText){
-    const reason = prompt(`Why should this be deleted?${blastRadiusText ? '\n\n'+blastRadiusText : ''}\n\nThis only adds a request to the shared queue -- a maintainer reviews it and does the actual deletion.`, '');
+    const reason = prompt(`Why should this be deleted?${blastRadiusText ? '\n\n'+blastRadiusText : ''}\n\nThis only adds a request to the shared queue -- an admin reviews it and does the actual deletion.`, '');
     if(reason===null) return null; // cancelled
     const trimmed = reason.trim();
     if(!trimmed){ toast('A reason is needed to request a deletion'); return null; }
@@ -1006,7 +947,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   // as before, just visibly marked, until a maintainer reviews it and
   // actually removes it with the (still PIN-gated) ✕ button.
   function promptQueueRemovalReason(){
-    const reason = prompt(`Why should this be removed from the queue?\n\nThis only flags it -- a maintainer still reviews it and does the actual removal.`, '');
+    const reason = prompt(`Why should this be removed from the queue?\n\nThis only flags it -- an admin still reviews it and does the actual removal.`, '');
     if(reason===null) return null; // cancelled
     const trimmed = reason.trim();
     if(!trimmed){ toast('A reason is needed to flag this for removal'); return null; }
@@ -1328,7 +1269,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     if(!requireContributorIdentity()) return;
     const known = KNOWN_ITEMS.find(it=>it.id===editingItemId);
     const qCount = (editingItemQuestions||[]).length;
-    const reason = promptDeletionReason(`This would remove "${known.label}" and all ${qCount} of its question(s), once a maintainer merges it.`);
+    const reason = promptDeletionReason(`This would remove "${known.label}" and all ${qCount} of its question(s), once an admin merges it.`);
     if(!reason) return;
     pushToQueue({ type:'delete-item', title: known.label, code:`// DELETE THEMES.${editingItemTheme}.topics.${editingItemTopic}.items.${editingItemId} from game-data.js (removes it and all ${qCount} of its questions)`,
       note:`DELETE requested · ${(KNOWN_THEMES.find(t=>t.id===editingItemTheme)||{}).label||editingItemTheme} · ${editingItemTopic}`,
@@ -1712,7 +1653,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     const loc = editingQuestionLoc;
     const known = KNOWN_ITEMS.find(it=>it.id===loc.itemId);
     const promptPreview = q_prompt.value.slice(0,60);
-    const reason = promptDeletionReason(`This would remove the question "${promptPreview}" from "${known?known.label:loc.itemId}", once a maintainer merges it.`);
+    const reason = promptDeletionReason(`This would remove the question "${promptPreview}" from "${known?known.label:loc.itemId}", once an admin merges it.`);
     if(!reason) return;
     pushToQueue({ type:'delete-question', title: promptPreview,
       code:`// DELETE question ${editingQuestionId} from THEMES.${loc.theme}.topics.${loc.topic}.items.${loc.itemId}.questions in game-data.js`,
@@ -1802,7 +1743,6 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     q_theme.value = known.theme; q_theme.dispatchEvent(new Event('change'));
     q_topic.value = known.topic; q_topic.dispatchEvent(new Event('change'));
     q_itemSelect.value = itemId; q_itemSelect.dispatchEvent(new Event('change'));
-    if([...csv_itemSelect.options].some(o=>o.value===itemId)){ csv_itemSelect.value = itemId; csv_itemSelect.dispatchEvent(new Event('change')); }
     q_prompt.focus();
   }
 
@@ -1843,6 +1783,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   function renderCourse(){ const o = buildCourseObject(); c_idPreview.textContent = `id: ${o.id}`; c_codeOut.textContent = courseCodeString(o); }
   document.getElementById('c_copyOne').addEventListener('click', ()=> copyText(courseCodeString(buildCourseObject())));
   document.getElementById('c_addBatch').addEventListener('click', ()=>{
+    if(!requireMaintainerUnlock()) return;
     if(!requireContributorIdentity()) return;
     if(!c_label.value.trim()){ toast('Give the course a name first'); c_label.focus(); return; }
     const o = buildCourseObject();
@@ -1883,9 +1824,10 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   }
   function buildLectureOutcomesObject(){ return { course: lo_course.value, classKey: lo_class.value, outcomes: lo_outcomesEl._getValues(), intro: lo_intro.value.trim() }; }
   function lectureOutcomesCodeString(o){
-    const outcomesStr = o.outcomes.map(s=>`'${escMultiline(s)}'`).join(',\n    ');
+    const outcomesStr = (o.outcomes||[]).map(s=>`'${escMultiline(s)}'`).join(',\n    ');
+    const labelStr = o.label ? `label: '${escMultiline(o.label)}',\n  ` : '';
     const introStr = o.intro ? `,\n  intro: '${escMultiline(o.intro)}'` : '';
-    return `// -> COURSES.${o.course||'<course>'}.classes.${o.classKey||'<lecture>'} in game-data.js -- merge these fields into the existing entry\noutcomes: [\n    ${outcomesStr}\n  ]${introStr},`;
+    return `// -> COURSES.${o.course||'<course>'}.classes.${o.classKey||'<lecture>'} in game-data.js -- creates it if it doesn't exist yet, otherwise merges these fields into it\n${labelStr}outcomes: [\n    ${outcomesStr}\n  ]${introStr},`;
   }
   function renderLectureOutcomes(){ lo_codeOut.textContent = lectureOutcomesCodeString(buildLectureOutcomesObject()); }
   document.getElementById('lo_copyOne').addEventListener('click', ()=> copyText(lectureOutcomesCodeString(buildLectureOutcomesObject())));
@@ -1943,37 +1885,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   // A small, dependency-free CSV parser: quoted fields, commas/newlines
   // inside quotes, and "" as an escaped quote -- the same rules Excel and
   // Google Sheets use when they export, so pasting straight from a sheet works.
-  function parseCSV(text){
-    const rows = []; let row = [], field = '', inQuotes = false;
-    for(let i=0; i<text.length; i++){
-      const c = text[i], next = text[i+1];
-      if(inQuotes){
-        if(c === '"' && next === '"'){ field += '"'; i++; }
-        else if(c === '"'){ inQuotes = false; }
-        else { field += c; }
-      } else {
-        if(c === '"'){ inQuotes = true; }
-        else if(c === ','){ row.push(field); field = ''; }
-        else if(c === '\n'){ row.push(field); rows.push(row); row = []; field = ''; }
-        else if(c === '\r'){ /* \n closes the row */ }
-        else { field += c; }
-      }
-    }
-    if(field.length || row.length){ row.push(field); rows.push(row); }
-    return rows.filter(r => r.length > 1 || (r[0]||'').trim() !== '');
-  }
   function csvField(v){ v = (v==null ? '' : String(v)); return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v; }
-  function encodePairList(arr, keyA, keyB){ return (arr||[]).map(o=>`${(o[keyA]||'').replace(/[|;]/g,' ')}|${(o[keyB]||'').replace(/[|;]/g,' ')}`).join(';'); }
-  function decodePairList(str, keyA, keyB){
-    return (str||'').split(';').map(s=>s.trim()).filter(Boolean).map(pair=>{ const [a,b] = pair.split('|').map(s=>(s||'').trim()); return { [keyA]: a||'', [keyB]: b||'' }; }).filter(o=>o[keyA]);
-  }
-  function resolveImageUrl(course, cls, value){
-    if(!value) return '';
-    if(/^(https?:\/\/|images\/|data:)/i.test(value)) return value;
-    if(course && cls) return `images/${course}/${cls}/${value}`;
-    if(course) return `images/${course}/${value}`;
-    return `images/${value}`;
-  }
   // Matches a typed lecture against a course's real keys, tolerating zero-padding and case ('L01', 'l1' -> 'L1').
   function resolveLectureKey(courseId, input){
     const classes = KNOWN_COURSES[courseId] && KNOWN_COURSES[courseId].classes;
@@ -1994,64 +1906,6 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   function headerIndex(rows, names){ const header = rows[0].map(h=>h.trim().toLowerCase()); const idx = {}; names.forEach(n=>{ idx[n] = header.indexOf(n); }); return idx; }
   const splitList = v => (v||'').split(';').map(s=>s.trim()).filter(Boolean);
 
-  // ---- items: export + add-or-update import ----
-  const csvitem_textarea = document.getElementById('csvitem_textarea'), csvitem_preview = document.getElementById('csvitem_preview');
-  document.getElementById('itemsExportBtn').addEventListener('click', ()=>{
-    const rows = [['itemId','theme','topic','label','description','mechanism','funFacts','activeRecall','hashtags','course','class','images','refs']];
-    Object.entries(RD.THEMES).forEach(([themeId, theme])=> Object.entries(theme.topics).forEach(([topicId, topic])=> Object.entries(topic.items).forEach(([itemId, item])=>{
-      rows.push([itemId, themeId, topicId, item.label, item.description||'', item.mechanism||'', (item.funFacts||[]).join(';'), (item.activeRecall||[]).join(';'), (item.hashtags||[]).join(';'), item.course||'', item.class||'',
-        encodePairList((item.images||[]).map(im=>({caption:im.caption||'', url:im.url||''})), 'caption', 'url'), encodePairList((item.refs||[]).map(r=>({label:r.label, url:r.url||''})), 'label', 'url')].map(csvField));
-    })));
-    downloadText(`runner-items-export-${new Date().toISOString().slice(0,10)}.csv`, rows.map(r=>r.join(',')).join('\n'), 'text/csv');
-    toast(`Exported ${rows.length-1} items`);
-  });
-  // The add-vs-update decision hinges entirely on itemId: blank -> new; a real id -> update in place
-  // (its theme/topic columns are ignored so an item can never be moved by a typo).
-  function parseCsvItems(){
-    const rows = parseCSV(csvitem_textarea.value);
-    if(rows.length < 2) return { valid:[], errors:['Paste a header row plus at least one item row.'] };
-    const idx = headerIndex(rows, ['itemid','theme','topic','label','description','mechanism','funfacts','activerecall','hashtags','course','class','images','refs']);
-    const missingCols = ['label','description'].filter(k=>idx[k]<0);
-    if(missingCols.length) return { valid:[], errors:[`Missing required column(s): ${missingCols.join(', ')}.`] };
-    const valid = [], errors = [];
-    for(let r=1; r<rows.length; r++){
-      const row = rows[r]; if(row.every(f=>(f||'').trim()==='')) continue;
-      const rowNum = r+1, cell = k => idx[k]>=0 ? (row[idx[k]]||'').trim() : '';
-      const rawItemId = cell('itemid'), label = cell('label'), description = cell('description'), mechanism = cell('mechanism');
-      const funFacts = splitList(cell('funfacts')), activeRecallList = splitList(cell('activerecall')), hashtags = splitList(cell('hashtags'));
-      const courseCode = cell('course'), classKey = cell('class');
-      const imagePairs = decodePairList(cell('images'), 'caption', 'url'), refs = decodePairList(cell('refs'), 'label', 'url');
-      if(!label){ errors.push(`Row ${rowNum}: missing label, skipped.`); continue; }
-      if(!description){ errors.push(`Row ${rowNum}: missing description, skipped.`); continue; }
-      let course = '', cls = '';
-      if(courseCode){
-        if(!KNOWN_COURSES[courseCode]){ errors.push(`Row ${rowNum}: course "${courseCode}" doesn't match any existing course, skipped.`); continue; }
-        course = courseCode;
-        if(classKey){ const resolved = resolveLectureKey(courseCode, classKey); if(!resolved){ errors.push(`Row ${rowNum}: lecture "${classKey}" doesn't exist under ${courseCode}, skipped.`); continue; } cls = resolved; }
-      } else if(classKey){ errors.push(`Row ${rowNum}: lecture given without a course, skipped.`); continue; }
-      const existing = rawItemId ? KNOWN_ITEMS.find(it=>it.id===rawItemId) : null;
-      if(rawItemId && !existing) errors.push(`Row ${rowNum}: itemId "${rawItemId}" doesn't match any existing item — added as a NEW item instead.`);
-      if(existing){
-        const full = RD.THEMES[existing.theme]?.topics?.[existing.topic]?.items?.[existing.id];
-        const effCourse = course || full?.course || '', effCls = cls || full?.class || '';
-        valid.push({ isEdit:true, theme: existing.theme, topicId: existing.topic, usingNewTopic:false, itemId: existing.id, editingItemId: existing.id, label, description,
-          mechanism: mechanism || (full?.mechanism||''), funFacts: funFacts.length ? funFacts : (full?.funFacts||[]), notes: full?.notes||[], saq: full?.saq||[],
-          activeRecall: activeRecallList.length ? activeRecallList : (full?.activeRecall||[]), hashtags: hashtags.length ? hashtags : (full?.hashtags||[]),
-          course, class: cls, relatedCourseOverride: full?.relatedCourse||'', courseInfo: blankCourseInfo(), addCourseSnippet:'', addClassSnippet:'',
-          refs: refs.length ? refs : (full?.refs||[]), images: imagePairs.length ? imagePairs.map(im=>({ caption: im.caption, url: resolveImageUrl(effCourse, effCls, im.url) })) : (full?.images||[]),
-          existingQuestions: full?.questions || [] });
-        continue;
-      }
-      const theme = cell('theme'), topicId = cell('topic');
-      if(!theme){ errors.push(`Row ${rowNum}: a new item needs a theme (course id), skipped.`); continue; }
-      if(!KNOWN_THEMES.some(t=>t.id===theme)){ errors.push(`Row ${rowNum}: theme "${theme}" doesn't match any existing course, skipped.`); continue; }
-      if(!topicId){ errors.push(`Row ${rowNum}: a new item needs a topic, skipped.`); continue; }
-      if(!RD.THEMES[theme]?.topics?.[topicId]){ errors.push(`Row ${rowNum}: topic "${topicId}" doesn't exist under ${theme}, skipped.`); continue; }
-      valid.push({ isEdit:false, theme, topicId, itemId: slugify(label) + '_' + randSuffix(), label, description, mechanism, funFacts, notes:[], saq:[], activeRecall: activeRecallList, hashtags,
-        refs, images: imagePairs.map(im=>({ caption: im.caption, url: resolveImageUrl(course, cls, im.url) })), course, class: cls, relatedCourseOverride:'', usingNewTopic:false, addCourseSnippet:'', addClassSnippet:'', courseInfo: blankCourseInfo() });
-    }
-    return { valid, errors };
-  }
   // A "course/topic/lecture doesn't exist" import error is a dead end on its
   // own -- the row gets skipped and the only way forward is to go create
   // the missing thing, but nothing said where. This scans an errors array
@@ -2118,39 +1972,6 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       }
     }
   });
-  function renderCsvItemPreview(){
-    if(!csvitem_textarea.value.trim()){ csvitem_preview.textContent = ''; return; }
-    const { valid, errors } = parseCsvItems();
-    const newCount = valid.filter(o=>!o.isEdit).length, editCount = valid.filter(o=>o.isEdit).length;
-    csvitem_preview.innerHTML = (valid.length ? `<span class="status ok">✅ ${newCount} new, ${editCount} update${editCount===1?'':'s'} ready.</span> ` : '') + (errors.length ? `<span class="status bad">⚠️ ${esc2(errors.join(' '))}${importMissingRefHintsHtml(errors)}</span>` : '');
-  }
-  csvitem_textarea.addEventListener('input', renderCsvItemPreview);
-  document.getElementById('csvitem_parseBtn').addEventListener('click', ()=>{
-    if(!requireContributorIdentity()) return;
-    const { valid, errors } = parseCsvItems();
-    if(!valid.length){ toast(errors[0] || 'Nothing to add'); return; }
-    valid.forEach(o=>{
-      const themeLabel = (KNOWN_THEMES.find(t=>t.id===o.theme)||{}).label || o.theme;
-      if(!o.isEdit) KNOWN_ITEMS.push({ id:o.itemId, theme:o.theme, topic:o.topicId, label:o.label, course:o.course, class:o.class });
-      pushToQueue({ type: o.isEdit?'edit-item':'item', title:o.label, code:itemCodeString(o), note:`${o.isEdit?'✏️ Edit':'🆕 New'} · ${themeLabel} · ${o.topicId} · via CSV`, data:o });
-    });
-    refreshAllPickers();
-    const newCount = valid.filter(o=>!o.isEdit).length, editCount = valid.filter(o=>o.isEdit).length;
-    toast(`Added ${newCount} new item${newCount===1?'':'s'} and ${editCount} update${editCount===1?'':'s'} to the queue`);
-    csvitem_textarea.value = ''; csvitem_preview.textContent = '';
-  });
-
-  // ---- questions for ONE item ----
-  const csv_itemSelect = document.getElementById('csv_itemSelect'), csv_textarea = document.getElementById('csv_textarea'), csv_preview = document.getElementById('csv_preview');
-  function refreshCsvItemSelect(){
-    const current = csv_itemSelect.value;
-    csv_itemSelect.innerHTML = KNOWN_ITEMS
-      .map(it=>({ it, themeLabel:(KNOWN_THEMES.find(t=>t.id===it.theme)||{}).label||it.theme, topicLabel:(KNOWN_TOPICS[it.topic]||{}).label||it.topic }))
-      .sort((a,b)=> a.themeLabel.localeCompare(b.themeLabel) || a.topicLabel.localeCompare(b.topicLabel) || a.it.label.localeCompare(b.it.label))
-      .map(({it,themeLabel,topicLabel})=>`<option value="${it.id}">${themeLabel} · ${topicLabel} · ${it.label}</option>`).join('');
-    if([...csv_itemSelect.options].some(o=>o.value===current)) csv_itemSelect.value = current;
-  }
-  refreshCsvItemSelect();
   function readQuestionCells(row, idx, rowNum, errors){
     const cell = k => idx[k]>=0 ? (row[idx[k]]||'').trim() : '';
     const prompt = cell('prompt'), options = [cell('optiona'), cell('optionb'), cell('optionc'), cell('optiond')], correctLetter = cell('correct').toUpperCase(), explanation = cell('explanation');
@@ -2162,43 +1983,8 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     if(correctIndex<0){ errors.push(`Row ${rowNum}: correct must be A, B, C or D (got "${correctLetter}"), skipped.`); return null; }
     return { prompt, options, correctIndex, explanation, hashtags, difficulty };
   }
-  function parseCsvQuestions(){
-    const known = KNOWN_ITEMS.find(it=>it.id===csv_itemSelect.value);
-    if(!known) return { valid:[], errors:['Pick an item first.'] };
-    const rows = parseCSV(csv_textarea.value);
-    if(rows.length < 2) return { valid:[], errors:['Paste a header row plus at least one question row.'] };
-    const idx = headerIndex(rows, ['prompt','optiona','optionb','optionc','optiond','correct','explanation','hashtags','difficulty']);
-    const missingCols = ['prompt','optiona','optionb','optionc','optiond','correct'].filter(k=>idx[k]<0);
-    if(missingCols.length) return { valid:[], errors:[`Missing required column(s): ${missingCols.join(', ')}.`] };
-    const valid = [], errors = [];
-    for(let r=1; r<rows.length; r++){
-      const row = rows[r]; if(row.every(f=>(f||'').trim()==='')) continue;
-      const q = readQuestionCells(row, idx, r+1, errors); if(!q) continue;
-      valid.push({ theme: known.theme, topic: known.topic, itemId: known.id, qId: 'q-' + known.topic + '-' + randSuffix(), ...q, course:'', class:'', relatedCourseOverride:'', addCourseSnippet:'', addClassSnippet:'', courseInfo: blankCourseInfo() });
-    }
-    return { valid, errors };
-  }
-  function renderCsvPreview(){
-    if(!csv_textarea.value.trim()){ csv_preview.textContent = ''; return; }
-    const { valid, errors } = parseCsvQuestions();
-    csv_preview.innerHTML = (valid.length ? `<span class="status ok">✅ ${valid.length} question${valid.length===1?'':'s'} ready.</span> ` : '') + (errors.length ? `<span class="status bad">⚠️ ${esc2(errors.join(' '))}</span>` : '');
-  }
-  csv_textarea.addEventListener('input', renderCsvPreview);
-  csv_itemSelect.addEventListener('change', renderCsvPreview);
-  document.getElementById('csv_parseBtn').addEventListener('click', ()=>{
-    if(!requireContributorIdentity()) return;
-    const { valid, errors } = parseCsvQuestions();
-    if(!valid.length){ toast(errors[0] || 'Nothing to add'); return; }
-    const known = KNOWN_ITEMS.find(it=>it.id===csv_itemSelect.value);
-    const themeLabel = (KNOWN_THEMES.find(t=>t.id===known.theme)||{}).label || known.theme;
-    valid.forEach(o=> pushToQueue({ type:'question', title:o.prompt.slice(0,50), code:questionCodeString(o), note:`${themeLabel} · ${o.topic} · via CSV`, data:o }));
-    renderStructureList();
-    toast(`Added ${valid.length} question${valid.length===1?'':'s'} to the queue`);
-    csv_textarea.value = ''; csv_preview.textContent = '';
-  });
-
   // ---- questions across many items / lectures (auto-creates missing items) ----
-  const lec_course = document.getElementById('lec_course'), lec_class = document.getElementById('lec_class'), lec_textarea = document.getElementById('lec_textarea'), lec_preview = document.getElementById('lec_preview');
+  const lec_course = document.getElementById('lec_course'), lec_class = document.getElementById('lec_class');
   function fillLecCourseSelect(){
     const current = lec_course.value;
     lec_course.innerHTML = `<option value="">— none —</option>` + Object.values(KNOWN_COURSES).map(c=>`<option value="${c.code}">${c.code} — ${c.label}</option>`).join('');
@@ -2210,15 +1996,13 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     lec_class.disabled = !c;
     lec_class.innerHTML = `<option value="">— none —</option>` + (c ? Object.entries(c.classes).map(([k,v])=>`<option value="${k}">${k} — ${v.label}</option>`).join('') : '');
   }
-  lec_course.addEventListener('change', ()=>{ fillLecClassSelect(); renderLecPreview(); });
-  lec_class.addEventListener('change', renderLecPreview);
+  lec_course.addEventListener('change', ()=>{ fillLecClassSelect(); renderGridPreview(); });
+  lec_class.addEventListener('change', renderGridPreview);
   fillLecCourseSelect();
-  // Pure: never touches KNOWN_ITEMS. decidedThisBatch only dedupes within one parse.
-  // rows is optional -- omit it to read straight from the CSV textarea (the
-  // original call shape); the pasteable grid below passes its own rows
-  // built the same way parseCSV() would (header row + string arrays).
+  // Pure: never touches KNOWN_ITEMS. decidedThisBatch only dedupes within one
+  // parse. rows is [headerRow, ...bodyRows] of plain strings, built by
+  // readGridRows() from the grid's <input> cells.
   function parseLectureQuestions(rows){
-    rows = rows || parseCSV(lec_textarea.value);
     if(rows.length < 2) return { valid:[], newItems:[], errors:['Paste a header row plus at least one question row.'] };
     const idx = headerIndex(rows, ['questionid','course','lecture','topic','item','prompt','optiona','optionb','optionc','optiond','correct','explanation','hashtags','difficulty','description','mechanism','funfacts']);
     const missingCols = ['course','topic','item','prompt','optiona','optionb','optionc','optiond','correct'].filter(k=>idx[k]<0);
@@ -2297,23 +2081,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     toast(`Added ${newCount} new question${newCount===1?'':'s'}, ${editCount} update${editCount===1?'':'s'}${newItems.length?`, and ${newItems.length} new item${newItems.length===1?'':'s'}`:''} to the queue`);
     return true;
   }
-  function renderLecPreview(){
-    if(!lec_textarea.value.trim()){ lec_preview.innerHTML = ''; return; }
-    const { valid, newItems, errors } = parseLectureQuestions();
-    lec_preview.innerHTML = buildLectureImportPreviewHtml(valid, newItems, errors);
-  }
-  lec_textarea.addEventListener('input', renderLecPreview);
-  document.getElementById('lec_parseBtn').addEventListener('click', ()=>{
-    if(!requireContributorIdentity()) return;
-    const { valid, newItems, errors } = parseLectureQuestions();
-    if(!commitLectureImport(valid, newItems, 'CSV import')){ toast(errors[0] || 'Nothing to add'); return; }
-    lec_textarea.value = ''; lec_preview.textContent = '';
-  });
-
-  // ---- pasteable question-import grid: same columns/parsing as the CSV
-  // tab above, but as a real editable table you can paste a whole copied
-  // spreadsheet range into at once (see handleGridPaste) instead of
-  // formatting to CSV text first. ----
+  // ---- pasteable question-import grid: a real editable table you can paste
+  // a whole copied spreadsheet range into at once (see handleGridPaste)
+  // instead of formatting to CSV text first. ----
   const GRID_COLUMNS = [
     ['questionid','Question ID'], ['course','Course'], ['lecture','Lecture'], ['topic','Topic'], ['item','Item'],
     ['prompt','Prompt'], ['optiona','Option A'], ['optionb','Option B'], ['optionc','Option C'], ['optiond','Option D'],
@@ -2407,50 +2177,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     downloadText(`runner-questions-export-${new Date().toISOString().slice(0,10)}.csv`, rows.map(r=>r.join(',')).join('\n'), 'text/csv');
     toast(`Exported ${rows.length-1} questions`);
   });
-  document.getElementById('jumpToLectureImportBtn').addEventListener('click', ()=>{ showTab('csv'); showPane('csv','csv-lecture'); lec_textarea.focus(); });
-
-  // ---- learning outcomes in bulk ----
-  document.getElementById('loExportBtn').addEventListener('click', ()=>{
-    const rows = [['course','classKey','label','outcomes','intro']];
-    Object.entries(RD.COURSES||{}).forEach(([code, c])=> Object.entries(c.classes||{}).forEach(([classKey, cls])=> rows.push([code, classKey, cls.label||'', (cls.outcomes||[]).join(';'), cls.intro||''].map(csvField))));
-    downloadText('learning-outcomes.csv', rows.map(r=>r.join(',')).join('\n'), 'text/csv');
-  });
-  function parseCsvLectureOutcomes(){
-    const rows = parseCSV(document.getElementById('csvlo_textarea').value);
-    if(rows.length < 2) return { valid:[], errors:['Paste a header row plus at least one lecture row.'] };
-    const idx = headerIndex(rows, ['course','classkey','outcomes','intro']);
-    const missingCols = ['course','classkey','outcomes'].filter(k=>idx[k]<0);
-    if(missingCols.length) return { valid:[], errors:[`Missing required column(s): ${missingCols.join(', ')}.`] };
-    const valid = [], errors = [];
-    for(let r=1; r<rows.length; r++){
-      const row = rows[r]; if(row.every(f=>(f||'').trim()==='')) continue;
-      const rowNum = r+1, cell = k => idx[k]>=0 ? (row[idx[k]]||'').trim() : '';
-      const courseCode = cell('course'), classKeyRaw = cell('classkey'), outcomes = splitList(cell('outcomes')), intro = cell('intro');
-      if(!courseCode){ errors.push(`Row ${rowNum}: missing course, skipped.`); continue; }
-      if(!KNOWN_COURSES[courseCode]){ errors.push(`Row ${rowNum}: course "${courseCode}" doesn't exist, skipped.`); continue; }
-      if(!classKeyRaw){ errors.push(`Row ${rowNum}: missing classKey, skipped.`); continue; }
-      const classKey = resolveLectureKey(courseCode, classKeyRaw);
-      if(!classKey){ errors.push(`Row ${rowNum}: lecture "${classKeyRaw}" doesn't exist under ${courseCode}, skipped.`); continue; }
-      if(!outcomes.length){ errors.push(`Row ${rowNum}: no outcomes given, skipped (this can't clear outcomes to empty).`); continue; }
-      valid.push({ course:courseCode, classKey, outcomes, intro });
-    }
-    return { valid, errors };
-  }
-  function renderCsvLoPreview(){
-    const el = document.getElementById('csvlo_preview'), text = document.getElementById('csvlo_textarea').value;
-    if(!text.trim()){ el.textContent = ''; return; }
-    const { valid, errors } = parseCsvLectureOutcomes();
-    el.innerHTML = `<span class="status ok">${valid.length} lecture${valid.length===1?'':'s'} ready.</span>` + (errors.length ? ` <span class="status bad">⚠️ ${esc2(errors.join(' '))}${importMissingRefHintsHtml(errors)}</span>` : '');
-  }
-  document.getElementById('csvlo_textarea').addEventListener('input', renderCsvLoPreview);
-  document.getElementById('csvlo_parseBtn').addEventListener('click', ()=>{
-    if(!requireContributorIdentity()) return;
-    const { valid, errors } = parseCsvLectureOutcomes();
-    if(!valid.length){ toast(errors[0] || 'Nothing to add'); return; }
-    valid.forEach(o=>{ const classLabel = KNOWN_COURSES[o.course]?.classes[o.classKey]?.label || o.classKey; pushToQueue({ type:'lectureOutcomes', title:`${o.course} ${o.classKey}`, code:lectureOutcomesCodeString(o), note:`${classLabel} · learning outcomes (CSV)`, data:o }); });
-    toast(`Added ${valid.length} lecture${valid.length===1?'':'s'} to the queue${errors.length?` (${errors.length} skipped)`:''}`);
-    document.getElementById('csvlo_textarea').value = ''; renderCsvLoPreview();
-  });
+  document.getElementById('jumpToLectureImportBtn').addEventListener('click', ()=>{ showTab('csv'); showPane('csv','csv-grid'); });
 
   // ======================================================================
   // BROWSE (structure browser)
@@ -2502,7 +2229,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       const [itemId, theme, topicId, questionId] = btn.dataset.deleteQuestion.split('::');
       const known = KNOWN_ITEMS.find(it=>it.id===itemId), full = RD.THEMES[theme]?.topics[topicId]?.items[itemId], q = full?.questions?.find(q=>q.id===questionId);
       const promptPreview = q ? q.prompt.slice(0,60) : questionId;
-      const reason = promptDeletionReason(`This would remove the question "${promptPreview}" from "${known?known.label:itemId}", once a maintainer merges it.`);
+      const reason = promptDeletionReason(`This would remove the question "${promptPreview}" from "${known?known.label:itemId}", once an admin merges it.`);
       if(!reason) return;
       pushToQueue({ type:'delete-question', title: promptPreview, code:`// DELETE question ${questionId} from THEMES.${theme}.topics.${topicId}.items.${itemId}.questions in game-data.js`, note:`DELETE requested · ${(KNOWN_THEMES.find(t=>t.id===theme)||{}).label||theme} · ${topicId}`, data:{ theme, topicId, itemId, questionId, reason } });
       toast('Question queued for deletion review'); renderStructureList();
@@ -2534,9 +2261,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       // course's stage config would be left dangling. Warn the requester now
       // rather than have the maintainer discover it after merging.
       const runnerWarning = (RD.RUNNABLE_THEMES||[]).includes(themeId)
-        ? `\n\n⚠️ This course is playable in Runner mode (it's in STAGES/RUNNABLE_THEMES), which the merge can't touch -- the maintainer will need to remove it from there by hand too, in game-data.js.`
+        ? `\n\n⚠️ This course is playable in Runner mode (it's in STAGES/RUNNABLE_THEMES), which the merge can't touch -- the admin will need to remove it from there by hand too, in game-data.js.`
         : '';
-      const reason = promptDeletionReason(`This would remove the course "${known.label}" entirely: ${topicCount} topic${topicCount===1?'':'s'}, ${itemCount} item${itemCount===1?'':'s'}, and ${questionCount} question${questionCount===1?'':'s'}, once a maintainer merges it.${runnerWarning}`);
+      const reason = promptDeletionReason(`This would remove the course "${known.label}" entirely: ${topicCount} topic${topicCount===1?'':'s'}, ${itemCount} item${itemCount===1?'':'s'}, and ${questionCount} question${questionCount===1?'':'s'}, once an admin merges it.${runnerWarning}`);
       if(!reason) return;
       pushToQueue({ type:'delete-course', title: known.label, code:`// DELETE THEMES.${themeId} (and COURSES.${themeId}, if present) from game-data.js -- removes ${topicCount} topic(s), ${itemCount} item(s), ${questionCount} question(s)`,
         note:`DELETE requested · whole course${runnerWarning?' · also remove from STAGES/RUNNABLE_THEMES by hand':''}`,
@@ -2682,6 +2409,92 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       </div>`;
     }).join('');
   }
+
+  // ---------------- Add/update lectures via a pasteable grid (Lectures tab) ----------------
+  // Everyone can use this (not maintainer-gated) -- it only ever touches
+  // COURSES.<course>.classes, never THEMES, so it can't create a whole new
+  // course on its own (that stays admin-only, see c_addBatch below).
+  const lecAdd_course = document.getElementById('lecAdd_course'), lecAddBody = document.getElementById('lecAddBody'), lecAdd_preview = document.getElementById('lecAdd_preview');
+  function fillLecAddCourseSelect(){
+    const current = lecAdd_course.value;
+    lecAdd_course.innerHTML = `<option value="">— pick a course —</option>` + Object.values(KNOWN_COURSES).map(c=>`<option value="${c.code}">${c.code} — ${c.label}</option>`).join('');
+    if([...lecAdd_course.options].some(o=>o.value===current)) lecAdd_course.value = current;
+  }
+  function addLecAddRow(){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><input type="text"></td><td><input type="text"></td><td class="grid-wide"><input type="text"></td><td class="grid-remove-cell"><button type="button" class="subtle" title="Remove row">✕</button></td>`;
+    tr.querySelectorAll('input').forEach(inp=>{ inp.addEventListener('input', renderLecAddPreview); inp.addEventListener('paste', handleLecAddPaste); });
+    tr.querySelector('button').addEventListener('click', ()=>{ tr.remove(); renderLecAddPreview(); });
+    lecAddBody.appendChild(tr);
+    return tr;
+  }
+  function resetLecAddGrid(startingRows){ lecAddBody.innerHTML = ''; for(let i=0; i<(startingRows||6); i++) addLecAddRow(); }
+  resetLecAddGrid();
+  fillLecAddCourseSelect();
+  document.getElementById('lecAdd_addRowBtn').addEventListener('click', ()=> addLecAddRow());
+  document.getElementById('lecAdd_clearBtn').addEventListener('click', ()=>{ resetLecAddGrid(); renderLecAddPreview(); });
+  // Same paste-fill-and-grow behaviour as the questions grid above, just
+  // sized to 3 columns instead of the full question shape.
+  function handleLecAddPaste(e){
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    if(!text.includes('\t') && !text.includes('\n')) return;
+    e.preventDefault();
+    const startTr = e.target.closest('tr');
+    const startCol = [...startTr.children].indexOf(e.target.closest('td'));
+    const startRowIdx = [...lecAddBody.children].indexOf(startTr);
+    const lines = text.replace(/\r/g,'').split('\n');
+    if(lines.length > 1 && lines[lines.length-1] === '') lines.pop();
+    lines.forEach((line, rOffset)=>{
+      const values = line.split('\t');
+      let tr = lecAddBody.children[startRowIdx + rOffset];
+      if(!tr) tr = addLecAddRow();
+      values.forEach((val, cOffset)=>{
+        if(cOffset >= 3) return;
+        const input = tr.children[cOffset]?.querySelector('input');
+        if(input) input.value = val;
+      });
+    });
+    renderLecAddPreview();
+  }
+  function lecAddHasContent(){ return [...lecAddBody.querySelectorAll('input')].some(inp=>inp.value.trim()); }
+  function parseLecAddGrid(){
+    const courseCode = lecAdd_course.value;
+    if(!courseCode) return { valid:[], errors:['Pick a course first.'] };
+    const errors = [], valid = [];
+    [...lecAddBody.querySelectorAll('tr')].forEach((tr, i)=>{
+      const [classKeyInput, labelInput, outcomesInput] = [...tr.querySelectorAll('input')].map(inp=>inp.value.trim());
+      if(!classKeyInput && !labelInput && !outcomesInput) return; // fully blank row
+      const rowNum = i+1;
+      if(!classKeyInput){ errors.push(`Row ${rowNum}: missing lecture #, skipped.`); return; }
+      if(!labelInput){ errors.push(`Row ${rowNum}: missing name, skipped.`); return; }
+      const existingKey = resolveLectureKey(courseCode, classKeyInput);
+      const classKey = existingKey || classKeyInput.toUpperCase().replace(/^([A-Z]+)0*(\d)/, '$1$2');
+      valid.push({ course:courseCode, classKey, label:labelInput, outcomes:splitList(outcomesInput||''), intro:'', isNew:!existingKey });
+    });
+    return { valid, errors };
+  }
+  function renderLecAddPreview(){
+    if(!lecAddHasContent()){ lecAdd_preview.innerHTML = ''; return; }
+    const { valid, errors } = parseLecAddGrid();
+    const newCount = valid.filter(v=>v.isNew).length, updateCount = valid.length - newCount;
+    let html = '';
+    if(valid.length) html += `<div class="status ok">✅ ${newCount} new lecture${newCount===1?'':'s'}, ${updateCount} update${updateCount===1?'':'s'} ready.</div>`;
+    if(errors.length) html += `<div class="status bad" style="margin-top:6px;">⚠️ ${esc2(errors.join(' '))}</div>`;
+    lecAdd_preview.innerHTML = html;
+  }
+  lecAdd_course.addEventListener('change', renderLecAddPreview);
+  document.getElementById('lecAdd_parseBtn').addEventListener('click', ()=>{
+    if(!requireContributorIdentity()) return;
+    const { valid, errors } = parseLecAddGrid();
+    if(!valid.length){ toast(errors[0] || 'Nothing to add'); return; }
+    valid.forEach(o=>{
+      pushToQueue({ type:'lectureOutcomes', title:`${o.course} ${o.classKey}`, code:lectureOutcomesCodeString(o), note:`${o.label} · ${o.isNew?'new lecture':'lecture update'}`, data:{ course:o.course, classKey:o.classKey, label:o.label, outcomes:o.outcomes, intro:o.intro } });
+    });
+    toast(`Added ${valid.length} lecture${valid.length===1?'':'s'} to the queue${errors.length?` (${errors.length} skipped)`:''}`);
+    resetLecAddGrid();
+    lecAdd_preview.innerHTML = '';
+    renderLectures();
+  });
   function renderHashtagStructureList(){
     const tagMap = {};
     KNOWN_ITEMS.forEach(it=>{
@@ -2697,7 +2510,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   }
   // Every dropdown that lists items/courses, refreshed together after any change.
   function refreshAllPickers(){
-    refreshQuestionItemSelect(); refreshEditItemSelect(); refreshCsvItemSelect(); refreshCourseSelects(); fillLoCourseSelect(); fillLecCourseSelect();
+    refreshQuestionItemSelect(); refreshEditItemSelect(); refreshCourseSelects(); fillLoCourseSelect(); fillLecCourseSelect(); fillLecAddCourseSelect();
     [i_theme, q_theme, newTopicTheme].forEach(sel=>{ const v = sel.value; fillThemeSelect(sel); if([...sel.options].some(o=>o.value===v)) sel.value = v; });
     renderStructureList();
   }
@@ -2879,7 +2692,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       const editBtn = formKind ? '<button class="subtle qi-edit" type="button" title="Edit this queued entry">✏️ Edit</button>' : (isReport(entry) ? reportEditButtonHtml(entry, 'subtle') : '');
       const metaParts = [attribution ? `by ${esc2(attribution)}` : null, entry.createdAt ? new Date(entry.createdAt).toLocaleString() : null].filter(Boolean);
       row.innerHTML = `<div class="qi-row"><div><div class="qi-label">${entry.removalFlagged?'🚩 ':''}${QUEUE_ICONS[entry.type]||'📄'} <b>${esc2(entry.title)}</b> — ${esc2(entry.note||'')}</div><div class="qi-meta">${metaParts.join(' · ')}</div></div>
-        <div class="qi-actions"><button class="qi-toggle" type="button">${expandedKeys.has(key)?'▴ Hide':'▾ Details'}</button>${editBtn}<button class="subtle qi-flag-removal" type="button" title="${entry.removalFlagged?'Un-flag':'Flag this for a maintainer to remove'}">${entry.removalFlagged?'↺ Unflag':'🚩 Flag for removal'}</button><button class="subtle list-remove" type="button" title="Remove from the queue (after merging)">✕</button></div></div>
+        <div class="qi-actions"><button class="qi-toggle" type="button">${expandedKeys.has(key)?'▴ Hide':'▾ Details'}</button>${editBtn}<button class="subtle qi-flag-removal" type="button" title="${entry.removalFlagged?'Un-flag':'Flag this for an admin to remove'}">${entry.removalFlagged?'↺ Unflag':'🚩 Flag for removal'}</button><button class="subtle list-remove" type="button" title="Remove from the queue (after merging)">✕</button></div></div>
         <div class="qi-details" style="display:${expandedKeys.has(key)?'block':'none'};">${queueDetailHtml(entry)}</div>`;
       row.querySelector('.qi-toggle').addEventListener('click', e=>{ const d = row.querySelector('.qi-details'); const open = d.style.display !== 'block'; d.style.display = open ? 'block' : 'none'; e.currentTarget.textContent = open ? '▴ Hide' : '▾ Details'; });
       row.querySelector('.qi-flag-removal').addEventListener('click', ()=> toggleQueueRemovalFlag(key));
@@ -3044,7 +2857,20 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       else { q.contributorName = entry.contributorName; q.contributorEmail = entry.contributorEmail; }
       item.questions[i] = q; return;
     }
-    if(entry.type === 'lectureOutcomes'){ const course = courses[o.course]; if(!course) return; course.classes[o.classKey] = { ...(course.classes[o.classKey]||{ label:o.classKey }), outcomes:o.outcomes, intro:o.intro }; return; }
+    if(entry.type === 'lectureOutcomes'){
+      // Creates COURSES.<course>.classes.<classKey> if it doesn't exist yet
+      // (the "add lectures" grid in the Lectures tab uses this to register
+      // brand-new lecture numbers), or merges onto the existing one -- never
+      // clearing label/outcomes/intro to blank just because a field was left
+      // empty on this particular entry.
+      const course = courses[o.course]; if(!course) return;
+      const next = { ...(course.classes[o.classKey] || { label:o.classKey }) };
+      if(o.label) next.label = o.label;
+      if(o.outcomes && o.outcomes.length) next.outcomes = o.outcomes;
+      if(o.intro) next.intro = o.intro;
+      course.classes[o.classKey] = next;
+      return;
+    }
   }
   function generateMergedFile(){
     const template = loadTemplate();
@@ -3270,7 +3096,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     document.querySelectorAll('.sidenav [data-tab]').forEach(b=> b.classList.toggle('active', b.dataset.tab===which));
     document.querySelectorAll('section[data-section]').forEach(s=> s.classList.toggle('active', s.dataset.section===which));
     if(which==='structure') renderStructureList();
-    if(which==='lectures') renderLectures();
+    if(which==='lectures'){ renderLectures(); fillLecAddCourseSelect(); }
     if(which==='questionbank'){ fillBankCourseSelect(); fillBankTopicSelect(); fillBankLectureSelect(); renderQuestionBank(); }
     if(which==='contributors') renderContributors();
     if(which==='analysis') loadAnalytics();
@@ -3291,7 +3117,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   const INFO_NOTES = {
     overview: { title:'How it all fits together', tags:['architecture','no build step'], body:`
       <p>Three files do everything: <b>medsci-runner.html</b> (the game), <b>game-data.js</b> (every course, item and question as plain data) and <b>this page</b> (the content tool). No framework, no bundler, no server — each file is opened straight from the folder or from GitHub Pages.</p>
-      <p>The flow of a contribution: fill in a form here → it becomes a small JavaScript object → it's pushed to a shared Firebase queue → the maintainer merges the queue into a fresh <code>game-data.js</code> → that file is committed and the game reads it on next load.</p>
+      <p>The flow of a contribution: fill in a form here → it becomes a small JavaScript object → it's pushed to a shared Firebase queue → the admin merges the queue into a fresh <code>game-data.js</code> → that file is committed and the game reads it on next load.</p>
       <ul><li>Forms and preview: plain DOM + template literals.</li><li>Shared queue: Firebase Realtime Database (a JSON tree with live listeners).</li><li>Merge: clone the data, apply each queued change, serialise back to source text, syntax-check it.</li></ul>
       <p>Click any <span class="info-btn" style="pointer-events:none;">i</span> around the tool for the specific piece.</p>` },
     questionbank: { title:'One flat list, not a tree', tags:['Array.map/filter','no re-fetch'], body:`
@@ -3333,22 +3159,9 @@ Math.random().toString(36).slice(2,6)   // e.g. 'k3f9'</pre>
     .trim();
 }</pre>
       <p>The snippet is only for reading and for the "copy" fallback. The merge never parses it back — it uses the structured object saved alongside (<code>entry.data</code>), which is why the queue can be merged reliably even if the text format changes later.</p>` },
-    csv: { title:'How the CSV import works', tags:['parser','state machine','validate before commit'], body:`
-      <p>Spreadsheets export CSV with quoting rules: a field containing a comma or a line break is wrapped in quotes, and a literal quote becomes two (<code>""</code>). A naive <code>split(',')</code> would shred any question that contains a comma, so the tool has a tiny hand-written parser — a loop with one flag, <code>inQuotes</code>:</p>
-      <pre>for each character c:
-  if inQuotes:
-    '"' followed by '"'  → literal quote
-    '"'                  → leave quoted mode
-    else                 → add to field
-  else:
-    '"' → enter quoted mode
-    ',' → end of field
-    '\\n' → end of row</pre>
-      <p>Columns are matched by header <em>name</em>, not position, so you can reorder or omit optional columns. Every row is validated first (does that course exist? is <code>correct</code> A–D?) and the preview shows exactly what would happen. Only the button actually pushes to the queue — the preview is a pure function of the text.</p>`, file:'developer-tool.html → CSV section' },
-    'edit-vs-new': { title:'Update or create? The itemId rule', tags:['idempotent import','no accidental moves'], body:`
-      <p>The only thing that decides whether a CSV row updates an existing item or creates a new one is the <code>itemId</code> cell. Blank → new item. A real id from the export → update that item.</p>
-      <p>Two deliberate safety rules: on an update row the <code>theme</code>/<code>topic</code> columns are <em>ignored</em> (so a typo can't move an item to another topic), and a blank optional cell means "leave as is", never "clear it". Required fields (label, description) must always be present so a half-filled row is rejected rather than silently wiping content.</p>
-      <p>Nothing is ever deleted by an import. Deletion is a separate, PIN-gated action so it can't happen by accident.</p>` },
+    csv: { title:'How the pasteable table works', tags:['clipboard paste','grow-on-paste','validate before commit'], body:`
+      <p>Pasting a range copied from Sheets/Excel puts tab-separated values on the clipboard, one line per row. Pasting into any cell splits that text on tabs and newlines and fans it out starting from the cell you clicked, adding rows automatically if the paste needs more than the table currently has — a whole spreadsheet range lands in one paste, no CSV file or comma-escaping to think about.</p>
+      <p>Columns are matched by position (the header row above each column), and every row is validated as you type — does that course/topic exist, is <code>correct</code> A–D — with the preview showing exactly what would happen. Only the button actually pushes to the queue; the preview never does. Nothing is ever deleted by an import — deletion is a separate, PIN-gated action so it can't happen by accident.</p>`, file:'developer-tool.html → CSV section' },
     'firebase-queue': { title:'The shared queue (Firebase)', tags:['Realtime Database','JSON tree','onValue','dynamic import()'], body:`
       <p>Firebase Realtime Database is one big JSON document hosted by Google. The queue is the branch <code>contributions/</code>. Adding an entry is <code>push()</code>, which generates a time-ordered key and stores your object as JSON:</p>
       <pre>contributions/
@@ -3367,7 +3180,7 @@ Math.random().toString(36).slice(2,6)   // e.g. 'k3f9'</pre>
 const themesDecl  = text.indexOf('const THEMES = {');
 // each block ends at the first "\\n  };" after it</pre>
       <p>A built-in copy ships inside this file; "Refresh from GitHub" fetches the latest committed file and saves fresher parts in <code>localStorage</code> (per browser). If you hand-edit <code>GAME_CONFIG</code> locally, paste the whole file in the box instead so the merge doesn't overwrite your tuning with the old numbers.</p>` },
-    pin: { title:'The maintainer PIN', tags:['sessionStorage','not security'], body:`
+    pin: { title:'The admin PIN', tags:['sessionStorage','not security'], body:`
       <p>The PIN is a plain string in this file's source, so anyone can read it. It isn't security — it stops a regular contributor from clicking "delete" or "generate the real file" while exploring. Real protection is the Firebase security rules in the console, which decide who can write to which path.</p>
       <p>Once unlocked, the flag is kept in <code>sessionStorage</code> so it survives a reload but not closing the tab. That call is wrapped in <code>try/catch</code>: some browsers throw on storage access for <code>file://</code> pages, and an optional convenience must never break the page.</p>` },
     analytics: { title:'Where the analytics come from', tags:['transaction','aggregate only'], body:`
@@ -3384,12 +3197,15 @@ const themesDecl  = text.indexOf('const THEMES = {');
   return window.RUNNER_DATA;
 }</pre>
       <p>The two HTML files carry a hand-bumped version string; those are compared with a regex rather than executed.</p>` },
-    contributors: { title:'Where contributor data comes from', tags:['maintainer-only', 'no separate store'], body:`
+    contributors: { title:'Where contributor data comes from', tags:['admin-only', 'no separate store'], body:`
       <p>There's no separate "contributors" list — this page just groups everything that already carries a <code>contributorName</code>/<code>contributorEmail</code> by email: merged items and questions (stamped once when <code>applyEntry</code> merges them, and preserved through later edits by someone else), plus anything still sitting in the shared queue, including reports.</p>
       <p>Someone with no email on file (content merged before attribution existed, or a report filed without filling in the identity box) is grouped by name instead, under "(no email)".</p>` },
     lectures: { title:'Where lecture data comes from', tags:['COURSES', 'read-only'], body:`
-      <p>Straight from <code>COURSES[&lt;code&gt;].classes[&lt;L#&gt;]</code> in <code>game-data.js</code> — the same lectures an item/question can cite via its <code>course</code>/<code>class</code> fields. This tab doesn't touch items or questions at all, just the lecture list and whatever <code>outcomes</code> each one carries.</p>
-      <p>To add or change outcomes, use the "🧭 Learning outcomes" form under Add content (or its CSV import) — like everything else, it goes to the shared queue and only shows up here once merged.</p>` },
+      <p>Straight from <code>COURSES[&lt;code&gt;].classes[&lt;L#&gt;]</code> in <code>game-data.js</code> — the same lectures an item/question can cite via its <code>course</code>/<code>class</code> fields. This list doesn't touch items or questions at all, just the lecture list and whatever <code>outcomes</code> each one carries.</p>
+      <p>Add or update lectures with the pasteable table above it, or the "🧭 Learning outcomes" form/CSV import under Add content — like everything else, it goes to the shared queue and only shows up here once merged.</p>` },
+    'lecture-grid': { title:'Adding lectures in bulk', tags:['lectureOutcomes', 'create-or-update'], body:`
+      <p>Same paste-a-range-from-a-spreadsheet interaction as the questions grid, sized to three columns: <b>Lecture #</b> (the class key, e.g. <code>L16</code>), <b>Name</b>, and <b>LO</b> (learning outcomes joined with <code>;</code>). One course at a time — pick it from the dropdown first.</p>
+      <p>A row queues the same <code>lectureOutcomes</code> entry type the Learning outcomes form uses. On merge, <code>applyEntry()</code> creates <code>COURSES.&lt;course&gt;.classes.&lt;L#&gt;</code> if that key doesn't exist yet, or merges onto it if it does — a blank <b>LO</b> cell never wipes outcomes that are already there, it just leaves them alone.</p>` },
   };
   const infoPanel = document.getElementById('infoPanel'), infoBackdrop = document.getElementById('infoBackdrop');
   function openInfo(key){
@@ -3408,13 +3224,13 @@ const themesDecl  = text.indexOf('const THEMES = {');
   // TOUR
   // ======================================================================
   const DEV_TOUR_STEPS = [
-    { tab:'add', pane:['add','item'], sel:'#contributorName', title:'Your name and email', caption:'Type these once — required before anything can be queued. Only a maintainer can see whose submission is whose; everyone else just sees "You" on their own and nothing on anyone else\'s.' },
+    { tab:'add', pane:['add','item'], sel:'#contributorName', title:'Your name and email', caption:'Type these once — required before anything can be queued. Only an admin can see whose submission is whose; everyone else just sees "You" on their own and nothing on anyone else\'s.' },
     { tab:'add', sel:'#addChips', title:'Pick what you are adding', caption:'A study guide item, a question, a topic, a course, or lecture learning outcomes. The item form is the one you\'ll use most.' },
     { tab:'add', sel:'#i_previewCard', title:'Live preview', caption:'As you type, this shows exactly how the item will look in the game. Check it reads well before adding.' },
     { tab:'add', sel:'#i_addBatch', title:'Add to queue', caption:'Sends it to the shared Team queue, live, for the whole team. It does not touch the game yet.' },
-    { tab:'csv', sel:'#csvChips', title:'Bulk import from a spreadsheet', caption:'Adding many questions at once? Export the current ones, edit in Sheets, paste the CSV back. Every row is checked before anything is added.' },
+    { tab:'csv', sel:'#gridImportTable', title:'Bulk import from a spreadsheet', caption:'Adding many questions at once? Select a range in Sheets/Excel, copy, click a cell here, and paste — it fills in and grows the table. Every row is checked before anything is added.' },
     { tab:'queue', sel:'#batchList', title:'Team queue', caption:'Everything anyone added, plus reports players send from inside the game. Open a row for the full detail; remove it once it\'s merged.' },
-    { tab:'maintainer', sel:'#maintainerLockGate', title:'Maintainer', caption:'PIN-gated: merge the queue into a new game-data.js, refresh the merge template, read answer analytics, check the folder against GitHub.', fallbackSel:'#mergeGenerateBtn' },
+    { tab:'maintainer', sel:'#maintainerLockGate', title:'Admin', caption:'PIN-gated: merge the queue into a new game-data.js, refresh the merge template, read answer analytics, check the folder against GitHub.', fallbackSel:'#mergeGenerateBtn' },
     { tab:'add', sel:'[data-info="overview"]', title:'Curious how it works?', caption:'Every ⓘ opens a short technical note about that part — the CSV parser, the Firebase queue, the merge, the PIN. Reopen this tour any time from the 🎬 button.', final:true },
   ];
   let devTourStep = 0;
@@ -3454,7 +3270,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
   renderItem(); renderQuestion(); renderCourse(); renderStructureList();
   renderBatch();
   if(new URLSearchParams(location.search).has('debug')){
-    window.__devToolDebug = { get batch(){ return batch; }, renderBatch, showTab, showPane, parseCSV, generateMergedFile, KNOWN_ITEMS, KNOWN_TOPICS, KNOWN_THEMES, KNOWN_COURSES, RD, renderStructureList, renderQuestionBank, renderContributors, buildContributorMap, renderLectures };
+    window.__devToolDebug = { get batch(){ return batch; }, renderBatch, showTab, showPane, generateMergedFile, KNOWN_ITEMS, KNOWN_TOPICS, KNOWN_THEMES, KNOWN_COURSES, RD, renderStructureList, renderQuestionBank, renderContributors, buildContributorMap, renderLectures };
   }
 </script>
 </body>
