@@ -21,6 +21,12 @@
     --mono:'SF Mono','JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
     --radius:12px; --shadow:0 1px 2px rgba(20,30,60,.06), 0 8px 24px -16px rgba(20,30,60,.18);
   }
+  /* Maintainer mode reuses every --accent-driven rule in the page (buttons,
+     active tabs, chips, links, ...) for a whole-page color swap -- toggled
+     via body.maintainer-on in applyMaintainerLockUI(), so it's obvious at a
+     glance which mode you're in without hunting for the lock state. */
+  body.maintainer-on{ --accent:#6d28d9; --accent-soft:#f1e8fd; --accent-line:#d9c6f7; --bg:#f7f5fc; }
+  body.maintainer-on .topbar{ background:linear-gradient(to right, var(--card) 60%, var(--accent-soft)); border-bottom-color:var(--accent-line); }
   *{ box-sizing:border-box; }
   html,body{ margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:14px; line-height:1.5; }
   a{ color:var(--accent); }
@@ -275,6 +281,7 @@
   <label>Your name <input type="text" id="contributorName" placeholder="e.g. Priya" title="Credits you on what you add, and lets a maintainer reach you about it"></label>
   <label>Your email <input type="email" id="contributorEmail" placeholder="e.g. priya@example.com" title="Lets a maintainer contact you if they spot an issue with something you added"></label>
   <span id="syncBanner" class="pill off">⏳ Connecting…</span>
+  <span id="maintainerModeBadge" class="pill" style="display:none;background:var(--accent-soft);color:var(--accent);border-color:var(--accent-line);font-weight:600;">🛠 Maintainer mode</span>
   <button id="devTutorialBtn">🎬 Tour</button>
   <button class="subtle" data-info="overview">ⓘ How it all fits</button>
 </header>
@@ -843,7 +850,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-18-course-deletion'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-18-maintainer-theme'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -934,6 +941,12 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     maintainerLockGate.style.display = maintainerUnlocked ? 'none' : 'block';
     maintainerLockedContent.style.display = maintainerUnlocked ? 'block' : 'none';
     ['navTitleMaintainerTools','tabContributors','tabDataAnalysis'].forEach(id=>{ document.getElementById(id).style.display = maintainerUnlocked ? '' : 'none'; });
+    // Whole-page color swap (see body.maintainer-on in the stylesheet) plus a
+    // topbar badge, so it's obvious at a glance whether you're looking at
+    // the page as a regular contributor or as an unlocked maintainer --
+    // easy to lose track of otherwise since the two modes share every tab.
+    document.body.classList.toggle('maintainer-on', maintainerUnlocked);
+    document.getElementById('maintainerModeBadge').style.display = maintainerUnlocked ? 'inline-block' : 'none';
     // Re-locking while sitting on a now-hidden tab would leave an empty
     // maintainer-only section on screen -- bounce back to Browse content.
     const activeTab = document.querySelector('.sidenav [data-tab].active');
