@@ -86,7 +86,7 @@ merges it.
 
 ### 2. `developer-tool.html` — forms with a live preview
 
-Open it next to `game-data.js`, type your name and email at the top (both are required before anything can be queued — it's how a maintainer credits and can reach you about what you add), and use the tabs on the left:
+Open it next to `game-data.js`, type your name and email at the top (both are required before anything can be queued — it's how a maintainer credits and can reach you about what you add), and use the tabs on the left. Only a maintainer (PIN unlocked) can see whose submission is whose; everyone else sees "You" on their own queue entries and no name at all on anyone else's.
 
 - **Browse** — the whole content tree (course → lecture → item → questions) with a search box, an "incomplete items" summary, and ✏️ buttons that jump straight into editing anything.
 - **Add** — one form each for an **item**, a **question**, a **topic**, a **course**, and **learning outcomes**. Every field renders in a preview panel styled like the real game, so what you see is what players will see. Existing courses/topics/items are picked from dropdowns, so a typo can't silently create a near-duplicate category. Editing is the same form with "I'm editing an existing item/question" ticked — it prefills every field with the real content, and submitting queues an update in place rather than a duplicate. Deleting (an item, or one question from an item) is a separate button on the same page — anyone can request it, no PIN needed, but it just asks why (a short reason) and queues the request; the actual deletion only happens once a maintainer reviews it and merges.
