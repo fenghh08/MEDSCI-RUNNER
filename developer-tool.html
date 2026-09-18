@@ -850,7 +850,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-18-contributor-map-fix'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-18-pending-course-recognized'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -2685,6 +2685,9 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       }
       if(entry.type==='topic' && entry.data && entry.data.topicId && !KNOWN_TOPICS[entry.data.topicId]){
         KNOWN_TOPICS[entry.data.topicId] = { label:entry.data.label||entry.data.topicId, theme:entry.data.theme };
+      }
+      if(entry.type==='course' && entry.data && entry.data.id && !KNOWN_THEMES.some(t=>t.id===entry.data.id)){
+        KNOWN_THEMES.push({ id:entry.data.id, label:entry.data.label||entry.data.id });
       }
     });
   }
