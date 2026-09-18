@@ -1636,7 +1636,7 @@
     });
   });
 
-  function lifeCfg(){ return LIFE_CONFIG[currentCancerId] || { label:'Life', icon:'🩸' }; }
+  function lifeCfg(){ return LIFE_CONFIG; }
 
 /* ======================================================================
    ICONS — any "icon" field (on a cancer, topic, or elsewhere) can be either
@@ -5854,7 +5854,7 @@
   }
 
   // ---------- init ----------
-  const GAME_VERSION = '2026-09-18-gift-unlock-pending-fix'; // bump this string whenever you send friends a new copy of the file
+  const GAME_VERSION = '2026-09-18-life-config-global'; // bump this string whenever you send friends a new copy of the file
   console.log('[Runner Game] version', GAME_VERSION);
   document.getElementById('versionTag').textContent = `version ${GAME_VERSION}`;
   function renderManualLifeText(){
