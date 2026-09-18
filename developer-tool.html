@@ -172,7 +172,6 @@
   .checks label{ display:flex; align-items:center; gap:6px; cursor:pointer; }
 
   /* queue */
-  .queue-filter{ display:flex; gap:8px; margin-bottom:12px; }
   .queue-item{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin-bottom:8px; }
   .queue-item.qi-mine{ border-left:4px solid var(--info); background:var(--info-soft); }
   .queue-item.qi-report{ border-left:4px solid var(--warn); }
@@ -284,6 +283,7 @@
   <nav class="sidenav">
     <div class="nav-title">Work</div>
     <button id="tabStructure" data-tab="structure">📖 <span>Browse content</span></button>
+    <button id="tabLectures" data-tab="lectures">📚 <span>Lectures</span></button>
     <button id="tabQuestionBank" data-tab="questionbank">🗃️ <span>Question bank</span></button>
     <button id="tabAdd" data-tab="add" class="active">✚ <span>Add content</span></button>
     <button id="tabCsv" data-tab="csv">📄 <span>Import CSV</span></button>
@@ -327,6 +327,15 @@
       </div></details>
     </section>
     <datalist id="knownHashtagsList"></datalist>
+
+    <!-- ================= LECTURES ================= -->
+    <section data-section="lectures">
+      <div class="section-head">
+        <h2>Lectures <button class="info-btn" data-info="lectures" title="How this works">i</button></h2>
+        <p>Every lecture in every course, with its learning outcomes — for checking what a lecture actually covers, not what's been tagged to it yet. Add or edit outcomes from the "learning outcomes" form under Add content.</p>
+      </div>
+      <div id="lecturesList"></div>
+    </section>
 
     <!-- ================= QUESTION BANK ================= -->
     <section data-section="questionbank">
@@ -687,13 +696,17 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       </div>
       <div class="card">
         <div class="struct-stats" id="queueStats"></div>
-        <div class="queue-filter">
-          <button class="chip active" data-qfilter="all">All</button>
-          <button class="chip" data-qfilter="content">Content to merge</button>
-          <button class="chip" data-qfilter="report">⚠️ Reports from players</button>
-        </div>
-        <div id="batchList"></div>
         <div class="btn-row" style="margin-top:12px;"><button id="batchCopyAll">Copy entire queue as text</button><button id="batchDownload">Download as .txt</button></div>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">📥 Content to merge <span class="struct-qbadge" id="queueContentBadge"></span></h2>
+        <p class="card-sub">New/edited items, questions, courses, topics, lecture outcomes, and deletion requests — everything a maintainer folds into <code>game-data.js</code> on merge, and what "Remove the merged entries from the queue" clears out afterward.</p>
+        <div id="batchListContent"></div>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">⚠️ Reports from players <span class="struct-qbadge" id="queueReportBadge"></span></h2>
+        <p class="card-sub">Flags sent from inside the game about an existing item/question. These are never merged and never touched by "Remove the merged entries from the queue" — a report only leaves here once a maintainer removes it by hand (✕) after dealing with it, or anyone can 🚩 flag it for removal first.</p>
+        <div id="batchListReports"></div>
       </div>
     </section>
 
@@ -823,7 +836,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-18-contributors-and-analysis-tabs'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-18-separate-reports-in-queue'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -2537,6 +2550,30 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     courseStructureList.innerHTML = html;
     wireEditButtons(courseStructureList);
   }
+  // Sorts lecture keys like 'L1', 'L2', ... 'L10' numerically instead of
+  // alphabetically (which would put L10 right after L1).
+  function lectureKeySort(a, b){
+    const na = parseInt(a.replace(/\D/g,''),10), nb = parseInt(b.replace(/\D/g,''),10);
+    if(!isNaN(na) && !isNaN(nb) && na!==nb) return na-nb;
+    return a.localeCompare(b);
+  }
+  function renderLectures(){
+    const lecturesList = document.getElementById('lecturesList');
+    const courses = Object.values(KNOWN_COURSES);
+    if(!courses.length){ lecturesList.innerHTML = `<div class="card"><div class="struct-empty">— no courses yet —</div></div>`; return; }
+    lecturesList.innerHTML = courses.map(c=>{
+      const classes = Object.entries(c.classes||{}).sort((a,b)=> lectureKeySort(a[0], b[0]));
+      const rows = classes.length ? classes.map(([key, k])=>{
+        const outcomes = k.outcomes || [];
+        const lo = outcomes.length ? `<ul class="p-facts" style="margin:0;">${outcomes.map(o=>`<li>${esc2(o)}</li>`).join('')}</ul>` : `<span style="color:var(--muted);">— none yet —</span>`;
+        return `<tr><td>${esc2(key)}</td><td>${esc2(k.label)}</td><td>${lo}</td></tr>`;
+      }).join('') : `<tr><td colspan="3"><div class="struct-empty" style="margin:0;">— no lectures yet —</div></td></tr>`;
+      return `<div class="card">
+        <h2 style="margin-top:0;">${esc2(c.code)} <span class="struct-course">· ${esc2(c.label)}</span></h2>
+        <table class="analytics-table"><thead><tr><th style="width:60px;">L#</th><th style="width:220px;">Name</th><th>Learning outcomes</th></tr></thead><tbody>${rows}</tbody></table>
+      </div>`;
+    }).join('');
+  }
   function renderHashtagStructureList(){
     const tagMap = {};
     KNOWN_ITEMS.forEach(it=>{
@@ -2562,8 +2599,8 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   // ======================================================================
   let batch = {}; // key -> entry. A Firebase push id when synced, "local-N" when offline.
   let _localKeyN = 0;
-  let queueFilter = 'all';
-  const batchList = document.getElementById('batchList'), queueTabBadge = document.getElementById('queueTabBadge'), queueStats = document.getElementById('queueStats');
+  const batchListContent = document.getElementById('batchListContent'), batchListReports = document.getElementById('batchListReports'), queueTabBadge = document.getElementById('queueTabBadge'), queueStats = document.getElementById('queueStats');
+  const queueContentBadge = document.getElementById('queueContentBadge'), queueReportBadge = document.getElementById('queueReportBadge');
   // Whenever the shared queue changes, make sure any item/topic it
   // introduces becomes visible to every picker dropdown and dedup check in
   // this tool -- not just to the browser tab that queued it. Without this,
@@ -2698,33 +2735,31 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     });
     queueStats.innerHTML = `<span><b>${all.length}</b> total</span><span><b>${counts.item}</b> item${counts.item===1?'':'s'}</span><span><b>${counts.question}</b> question${counts.question===1?'':'s'}</span><span><b>${counts.deletion}</b> deletion${counts.deletion===1?'':'s'} requested</span><span><b>${counts.report}</b> report${counts.report===1?'':'s'}</span>${counts.other?`<span><b>${counts.other}</b> other</span>`:''}`;
   }
-  function renderBatch(){
-    syncKnownFromQueue();
-    const all = Object.entries(batch);
-    queueTabBadge.textContent = all.length ? String(all.length) : '';
-    renderQueueStats(all);
-    // Remember which rows are open: the queue re-renders on every live update from anyone.
-    const expandedKeys = new Set([...batchList.querySelectorAll('.queue-item')].filter(row => row.querySelector('.qi-details')?.style.display === 'block').map(row => row.dataset.key));
-    const entries = all.filter(([k,e])=> queueFilter==='all' || (queueFilter==='report' ? isReport(e) : !isReport(e))).sort((a,b)=> (a[1].createdAt||0) - (b[1].createdAt||0));
-    if(!entries.length){ batchList.innerHTML = `<p class="batch-empty">${all.length ? 'Nothing matches this filter.' : 'Nothing in the queue yet — add something from "Add content" or "Import CSV".'}</p>`; return; }
-    batchList.innerHTML = '';
-    const icons = { item:'📄', question:'❓', 'edit-question':'✏️', course:'📚', topic:'🗂️', 'edit-item':'✏️', 'delete-item':'🗑', 'delete-question':'🗑', lectureOutcomes:'🧭', 'flag-item':'🚩', 'flag-question':'⚠️' };
-    // course/topic/outcomes/delete-* stay Remove-only -- nothing to jump
-    // into editing for those. item/question/edit-item/edit-question resume
-    // the queued (not-yet-merged) submission itself. flag-item/flag-question
-    // are different again: there's no submission to resume, but the Edit
-    // button here jumps straight to fixing the LIVE item/question the
-    // report is actually about (see reportEditButtonHtml).
-    const resumableForm = { item:'item', 'edit-item':'item', question:'question', 'edit-question':'question' };
+  // course/topic/outcomes/delete-* stay Remove-only -- nothing to jump
+  // into editing for those. item/question/edit-item/edit-question resume
+  // the queued (not-yet-merged) submission itself. flag-item/flag-question
+  // are different again: there's no submission to resume, but the Edit
+  // button here jumps straight to fixing the LIVE item/question the
+  // report is actually about (see reportEditButtonHtml).
+  const QUEUE_ICONS = { item:'📄', question:'❓', 'edit-question':'✏️', course:'📚', topic:'🗂️', 'edit-item':'✏️', 'delete-item':'🗑', 'delete-question':'🗑', lectureOutcomes:'🧭', 'flag-item':'🚩', 'flag-question':'⚠️' };
+  const RESUMABLE_FORM = { item:'item', 'edit-item':'item', question:'question', 'edit-question':'question' };
+  // Renders one of the two permanently-separate queue lists (content to
+  // merge vs. reports from players) into its own container. Kept as one
+  // shared row-builder since a row looks and behaves the same either way --
+  // only which array feeds it differs.
+  function renderQueueRows(container, entries, emptyMessage){
+    const expandedKeys = new Set([...container.querySelectorAll('.queue-item')].filter(row => row.querySelector('.qi-details')?.style.display === 'block').map(row => row.dataset.key));
+    if(!entries.length){ container.innerHTML = `<p class="batch-empty">${emptyMessage}</p>`; return; }
+    container.innerHTML = '';
     entries.forEach(([key, entry])=>{
       const row = document.createElement('div');
       const attribution = contributorDisplayLabel(entry);
       row.className = 'queue-item' + (attribution==='You' ? ' qi-mine' : '') + (isReport(entry) ? ' qi-report' : '') + (entry.removalFlagged ? ' qi-removal-flagged' : '');
       row.dataset.key = key;
-      const formKind = resumableForm[entry.type];
+      const formKind = RESUMABLE_FORM[entry.type];
       const editBtn = formKind ? '<button class="subtle qi-edit" type="button" title="Edit this queued entry">✏️ Edit</button>' : (isReport(entry) ? reportEditButtonHtml(entry, 'subtle') : '');
       const metaParts = [attribution ? `by ${esc2(attribution)}` : null, entry.createdAt ? new Date(entry.createdAt).toLocaleString() : null].filter(Boolean);
-      row.innerHTML = `<div class="qi-row"><div><div class="qi-label">${entry.removalFlagged?'🚩 ':''}${icons[entry.type]||'📄'} <b>${esc2(entry.title)}</b> — ${esc2(entry.note||'')}</div><div class="qi-meta">${metaParts.join(' · ')}</div></div>
+      row.innerHTML = `<div class="qi-row"><div><div class="qi-label">${entry.removalFlagged?'🚩 ':''}${QUEUE_ICONS[entry.type]||'📄'} <b>${esc2(entry.title)}</b> — ${esc2(entry.note||'')}</div><div class="qi-meta">${metaParts.join(' · ')}</div></div>
         <div class="qi-actions"><button class="qi-toggle" type="button">${expandedKeys.has(key)?'▴ Hide':'▾ Details'}</button>${editBtn}<button class="subtle qi-flag-removal" type="button" title="${entry.removalFlagged?'Un-flag':'Flag this for a maintainer to remove'}">${entry.removalFlagged?'↺ Unflag':'🚩 Flag for removal'}</button><button class="subtle list-remove" type="button" title="Remove from the queue (after merging)">✕</button></div></div>
         <div class="qi-details" style="display:${expandedKeys.has(key)?'block':'none'};">${queueDetailHtml(entry)}</div>`;
       row.querySelector('.qi-toggle').addEventListener('click', e=>{ const d = row.querySelector('.qi-details'); const open = d.style.display !== 'block'; d.style.display = open ? 'block' : 'none'; e.currentTarget.textContent = open ? '▴ Hide' : '▾ Details'; });
@@ -2746,10 +2781,21 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
         removeFromQueue(key); refreshAllPickers();
       });
       wireEditButtons(row);
-      batchList.appendChild(row);
+      container.appendChild(row);
     });
   }
-  document.querySelectorAll('[data-qfilter]').forEach(btn=> btn.addEventListener('click', ()=>{ queueFilter = btn.dataset.qfilter; document.querySelectorAll('[data-qfilter]').forEach(b=>b.classList.toggle('active', b===btn)); renderBatch(); }));
+  function renderBatch(){
+    syncKnownFromQueue();
+    const all = Object.entries(batch);
+    queueTabBadge.textContent = all.length ? String(all.length) : '';
+    renderQueueStats(all);
+    const contentEntries = all.filter(([k,e])=>!isReport(e)).sort((a,b)=> (a[1].createdAt||0) - (b[1].createdAt||0));
+    const reportEntries = all.filter(([k,e])=>isReport(e)).sort((a,b)=> (a[1].createdAt||0) - (b[1].createdAt||0));
+    queueContentBadge.textContent = contentEntries.length ? String(contentEntries.length) : '';
+    queueReportBadge.textContent = reportEntries.length ? String(reportEntries.length) : '';
+    renderQueueRows(batchListContent, contentEntries, 'Nothing to merge yet — add something from "Add content" or "Import CSV".');
+    renderQueueRows(batchListReports, reportEntries, 'No reports from players yet.');
+  }
   function fullBatchText(){
     const entries = Object.values(batch).sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
     const groups = [['course','New courses'],['topic','New topics'],['lectureOutcomes','Lecture learning outcomes'],['item','New study guide items'],['edit-item','Edits to existing items'],['question','New questions'],['edit-question','Edits to existing questions'],['delete-item','DELETIONS (items)'],['delete-question','DELETIONS (questions)'],['flag-item','Reports (items)'],['flag-question','Reports (questions)']];
@@ -3075,6 +3121,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     document.querySelectorAll('.sidenav [data-tab]').forEach(b=> b.classList.toggle('active', b.dataset.tab===which));
     document.querySelectorAll('section[data-section]').forEach(s=> s.classList.toggle('active', s.dataset.section===which));
     if(which==='structure') renderStructureList();
+    if(which==='lectures') renderLectures();
     if(which==='questionbank'){ fillBankCourseSelect(); fillBankTopicSelect(); fillBankLectureSelect(); renderQuestionBank(); }
     if(which==='contributors') renderContributors();
     if(which==='analysis') loadAnalytics();
@@ -3191,6 +3238,9 @@ const themesDecl  = text.indexOf('const THEMES = {');
     contributors: { title:'Where contributor data comes from', tags:['maintainer-only', 'no separate store'], body:`
       <p>There's no separate "contributors" list — this page just groups everything that already carries a <code>contributorName</code>/<code>contributorEmail</code> by email: merged items and questions (stamped once when <code>applyEntry</code> merges them, and preserved through later edits by someone else), plus anything still sitting in the shared queue, including reports.</p>
       <p>Someone with no email on file (content merged before attribution existed, or a report filed without filling in the identity box) is grouped by name instead, under "(no email)".</p>` },
+    lectures: { title:'Where lecture data comes from', tags:['COURSES', 'read-only'], body:`
+      <p>Straight from <code>COURSES[&lt;code&gt;].classes[&lt;L#&gt;]</code> in <code>game-data.js</code> — the same lectures an item/question can cite via its <code>course</code>/<code>class</code> fields. This tab doesn't touch items or questions at all, just the lecture list and whatever <code>outcomes</code> each one carries.</p>
+      <p>To add or change outcomes, use the "🧭 Learning outcomes" form under Add content (or its CSV import) — like everything else, it goes to the shared queue and only shows up here once merged.</p>` },
   };
   const infoPanel = document.getElementById('infoPanel'), infoBackdrop = document.getElementById('infoBackdrop');
   function openInfo(key){
@@ -3255,7 +3305,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
   renderItem(); renderQuestion(); renderCourse(); renderStructureList();
   renderBatch();
   if(new URLSearchParams(location.search).has('debug')){
-    window.__devToolDebug = { get batch(){ return batch; }, renderBatch, showTab, showPane, parseCSV, generateMergedFile, KNOWN_ITEMS, KNOWN_TOPICS, KNOWN_THEMES, RD, renderStructureList, renderQuestionBank, renderContributors, buildContributorMap };
+    window.__devToolDebug = { get batch(){ return batch; }, renderBatch, showTab, showPane, parseCSV, generateMergedFile, KNOWN_ITEMS, KNOWN_TOPICS, KNOWN_THEMES, KNOWN_COURSES, RD, renderStructureList, renderQuestionBank, renderContributors, buildContributorMap, renderLectures };
   }
 </script>
 </body>
