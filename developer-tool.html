@@ -791,7 +791,7 @@
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-18-csv-table-only'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-18-course-links-to-courses'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -1776,10 +1776,17 @@
   const c_label = document.getElementById('c_label'), c_icon = document.getElementById('c_icon'), c_blurb = document.getElementById('c_blurb');
   const c_idPreview = document.getElementById('c_idPreview'), c_codeOut = document.getElementById('c_codeOut');
   [c_label, c_icon, c_blurb].forEach(el=>el.addEventListener('input', renderCourse));
+  // Every real course so far (MEDS3002, MEDS2003, MEDS3003) uses its own
+  // code as BOTH the THEMES key and the COURSES key, with no suffix -- so a
+  // newly created one gets an id that's just the typed name with whitespace
+  // stripped, not a randomly-suffixed slug. That keeps it usable as a real
+  // course code immediately (see c_addBatch below, which also creates a
+  // matching COURSES entry so lectures can be added to it right away).
   function buildCourseObject(){
-    return { id: slugify(c_label.value) + '_' + randSuffix(), label: c_label.value.trim() || 'Untitled course', icon: c_icon.value.trim() || '📘', blurb: c_blurb.value.trim() || '(add a description)' };
+    const label = c_label.value.trim() || 'Untitled course';
+    return { id: label.replace(/\s+/g, ''), label, icon: c_icon.value.trim() || '📘', blurb: c_blurb.value.trim() || '(add a description)' };
   }
-  function courseCodeString(o){ return `// new course — new top-level key in THEMES in game-data.js\nTHEMES['${o.id}'] = {\n  label:'${esc(o.label)}', icon:'${o.icon}',\n  blurb:'${esc(o.blurb)}',\n  topics:{}\n};`; }
+  function courseCodeString(o){ return `// new course — new top-level key in THEMES *and* COURSES in game-data.js\nTHEMES['${o.id}'] = {\n  label:'${esc(o.label)}', icon:'${o.icon}',\n  blurb:'${esc(o.blurb)}',\n  topics:{}\n};\nCOURSES['${o.id}'] = { code:'${o.id}', label:'${esc(o.label)}', classes:{} };`; }
   function renderCourse(){ const o = buildCourseObject(); c_idPreview.textContent = `id: ${o.id}`; c_codeOut.textContent = courseCodeString(o); }
   document.getElementById('c_copyOne').addEventListener('click', ()=> copyText(courseCodeString(buildCourseObject())));
   document.getElementById('c_addBatch').addEventListener('click', ()=>{
@@ -1787,9 +1794,17 @@
     if(!requireContributorIdentity()) return;
     if(!c_label.value.trim()){ toast('Give the course a name first'); c_label.focus(); return; }
     const o = buildCourseObject();
+    if(KNOWN_THEMES.some(t=>t.id===o.id) || KNOWN_COURSES[o.id]){ toast(`"${o.id}" already exists — pick a different name`); return; }
     KNOWN_THEMES.push({ id:o.id, label:o.label });
+    // Also register it as a COURSES entry (the lecture-list side) with a
+    // matching code, so it shows up in the Lectures tab's course picker
+    // immediately -- otherwise a brand-new course has nowhere to hang
+    // lectures until someone separately adds one via the item form's
+    // "+ Add a new course" toggle.
+    KNOWN_COURSES[o.id] = { code:o.id, label:o.label, classes:{} };
     pushToQueue({ type:'course', title:o.label, code:courseCodeString(o), note:'new course', data:o });
     [i_theme, q_theme, newTopicTheme].forEach(sel=>fillThemeSelect(sel));
+    refreshCourseSelects(); fillLoCourseSelect(); fillLecCourseSelect(); fillLecAddCourseSelect();
     renderStructureList();
     toast('Added to the queue');
     c_label.value=''; c_blurb.value=''; c_icon.value='📘'; renderCourse();
@@ -2810,10 +2825,16 @@
     if(entry.type === 'delete-course'){ delete themes[o.themeId]; delete courses[o.themeId]; return; }
     // If this course already exists (e.g. this "new course" entry is being
     // re-applied because it was never cleared from the queue after an
-    // earlier merge already created it), keep its existing topics rather
-    // than resetting to {} -- otherwise a leftover queue entry would wipe
-    // out every topic/item added to that course since.
-    if(entry.type === 'course'){ themes[o.id] = { label:o.label, icon:o.icon, blurb:o.blurb, topics:(themes[o.id]||{}).topics||{} }; return; }
+    // earlier merge already created it), keep its existing topics/classes
+    // rather than resetting to {} -- otherwise a leftover queue entry would
+    // wipe out every topic/item/lecture added to that course since. Also
+    // creates the matching COURSES entry (see buildCourseObject()'s comment)
+    // so the new course can immediately have lectures added under it.
+    if(entry.type === 'course'){
+      themes[o.id] = { label:o.label, icon:o.icon, blurb:o.blurb, topics:(themes[o.id]||{}).topics||{} };
+      courses[o.id] = { code:o.id, label:o.label, classes:(courses[o.id]||{}).classes||{} };
+      return;
+    }
     if(entry.type === 'topic'){ const th = themes[o.theme]; if(th) th.topics[o.topicId] = th.topics[o.topicId] || { label:o.label, icon:o.icon, color:'#c58bff', items:{} }; return; }
     if(entry.type === 'item' || entry.type === 'edit-item'){
       applyCourseInfo(o.courseInfo);
