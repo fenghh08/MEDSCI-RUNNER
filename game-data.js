@@ -58,7 +58,7 @@
    ("MEDS3002 · L14 · Cancer Hallmarks") is generated automatically — see
    courseDisplayString() in cancer-runner-group.html.
    ====================================================================== */
-                      const COURSES = {
+                        const COURSES = {
     'MEDS3002': {
       'code': 'MEDS3002',
       'label': 'Cancer / Medical Science',
@@ -440,7 +440,7 @@
    its item's (e.g. a question spanning several classes at once) — most
    questions just inherit the item's.
    ====================================================================== */
-                      const THEMES = {
+                        const THEMES = {
     'MEDS3002': {
       'label': 'MEDS3002',
       'icon': '🎗️',
@@ -6070,6 +6070,19 @@
         },
       },
     },
+    'amed3003_gosd': {
+      'label': 'AMED3003',
+      'icon': '📘',
+      'blurb': 'Test',
+      'topics': {
+        'newtopic': {
+          'label': 'New topic',
+          'icon': '📋',
+          'color': '#c58bff',
+          'items': {},
+        },
+      },
+    },
   };
 
 /* ======================================================================
@@ -6081,7 +6094,7 @@
    (prompt/options/correctIndex/explanation) minus the fields that only
    make sense in context (difficulty, hashtags, course/class).
    ====================================================================== */
-    const FUN_FACT_QUESTIONS = {
+      const FUN_FACT_QUESTIONS = {
     'ff-honey': {
       'prompt': 'Archaeologists have found pots of this food in ancient Egyptian tombs that are still edible thousands of years later. What is it?',
       'options': ['Honey', 'Dried fish', 'Olive oil', 'Wine'],
