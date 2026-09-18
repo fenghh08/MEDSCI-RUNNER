@@ -143,6 +143,11 @@
   .struct-stats b{ color:var(--ink); }
   .struct-search{ margin-bottom:12px; }
   .struct-theme{ font-weight:700; font-size:15px; margin:16px 0 6px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  details.struct-theme-toggle{ margin:0; }
+  details.struct-theme-toggle > summary.struct-theme{ cursor:pointer; list-style:none; }
+  details.struct-theme-toggle > summary.struct-theme::before{ content:'▾ '; color:var(--faint); font-size:12px; }
+  details.struct-theme-toggle:not([open]) > summary.struct-theme{ border-bottom-color:transparent; margin-bottom:0; }
+  details.struct-theme-toggle:not([open]) > summary.struct-theme::before{ content:'▸ '; }
   .struct-topic{ font-weight:600; font-size:13.5px; margin:10px 0 4px 4px; color:var(--ink); }
   .struct-counts, .struct-course{ font-weight:400; color:var(--muted); font-size:12px; }
   .struct-empty{ color:var(--faint); font-size:12px; margin-left:12px; }
@@ -285,6 +290,9 @@
     <div class="nav-title">Review</div>
     <button id="tabQueue" data-tab="queue">👥 <span>Team queue</span><span class="badge" id="queueTabBadge"></span></button>
     <button id="tabMaintainer" data-tab="maintainer">🛠 <span>Maintainer</span></button>
+    <div class="nav-title" id="navTitleMaintainerTools" style="display:none;">Maintainer tools</div>
+    <button id="tabContributors" data-tab="contributors" style="display:none;">🙋 <span>Contributors</span></button>
+    <button id="tabDataAnalysis" data-tab="analysis" style="display:none;">📊 <span>Data analysis</span></button>
     <div class="nav-help">Everything you add goes to the shared Team queue first. Nothing reaches the game until the maintainer merges it.</div>
   </nav>
 
@@ -727,20 +735,42 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
           </div></details>
         </div>
         <div class="card">
-          <h2>📊 Analytics — which questions get missed <button class="info-btn" data-info="analytics" title="How this works">i</button></h2>
-          <p class="card-sub">Correct/wrong counts per question from every player and every mode. No per-player data, just totals.</p>
-          <div id="analyticsLockNote" style="display:none;"></div>
-          <div id="analyticsContent">
-            <div class="btn-row"><button id="analyticsRefreshBtn">🔄 Refresh</button><span id="analyticsStatus" class="status"></span></div>
-            <div id="analyticsTableWrap" style="margin-top:12px;overflow-x:auto;"></div>
-          </div>
-        </div>
-        <div class="card">
           <h2>🔗 Is this folder up to date with GitHub? <button class="info-btn" data-info="github-check" title="How this works">i</button></h2>
           <div id="gitCheckBanner">
             <p id="gitCheckText" class="card-sub">Not checked yet — compares <code>game-data.js</code> content and both tool files' versions against GitHub main. Only runs when you click.</p>
             <div class="btn-row"><button id="gitCheckBtn">Check now</button><a class="link-btn" href="https://github.com/fenghh08/MEDSCI-RUNNER" target="_blank" rel="noopener">View repo on GitHub ↗</a></div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= CONTRIBUTORS (maintainer only) ================= -->
+    <section data-section="contributors">
+      <div class="section-head">
+        <h2>Contributors <button class="info-btn" data-info="contributors" title="How this works">i</button></h2>
+        <p>Everyone who's added, edited, or reported something, and what it was. Maintainer-only — this is how you find someone's email to follow up about their questions.</p>
+      </div>
+      <div class="card">
+        <input type="text" class="struct-search" id="contributorSearchInput" placeholder="🔍 Search by name or email…">
+        <div id="contributorList"></div>
+      </div>
+      <div class="card" id="contributorDetailCard" style="display:none;">
+        <button type="button" class="subtle" id="contributorBackBtn">← Back to all contributors</button>
+        <div id="contributorDetail" style="margin-top:10px;"></div>
+      </div>
+    </section>
+
+    <!-- ================= DATA ANALYSIS (maintainer only) ================= -->
+    <section data-section="analysis">
+      <div class="section-head">
+        <h2>Data analysis <button class="info-btn" data-info="analytics" title="How this works">i</button></h2>
+        <p>Correct/wrong counts per question from every player and every mode. No per-player data, just totals.</p>
+      </div>
+      <div class="card">
+        <div id="analyticsLockNote" style="display:none;"></div>
+        <div id="analyticsContent">
+          <div class="btn-row"><button id="analyticsRefreshBtn">🔄 Refresh</button><span id="analyticsStatus" class="status"></span></div>
+          <div id="analyticsTableWrap" style="margin-top:12px;overflow-x:auto;"></div>
         </div>
       </div>
     </section>
@@ -793,7 +823,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-18-safe-remerge'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-18-contributors-and-analysis-tabs'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -883,6 +913,11 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   function applyMaintainerLockUI(){
     maintainerLockGate.style.display = maintainerUnlocked ? 'none' : 'block';
     maintainerLockedContent.style.display = maintainerUnlocked ? 'block' : 'none';
+    ['navTitleMaintainerTools','tabContributors','tabDataAnalysis'].forEach(id=>{ document.getElementById(id).style.display = maintainerUnlocked ? '' : 'none'; });
+    // Re-locking while sitting on a now-hidden tab would leave an empty
+    // maintainer-only section on screen -- bounce back to Browse content.
+    const activeTab = document.querySelector('.sidenav [data-tab].active');
+    if(!maintainerUnlocked && activeTab && ['contributors','analysis'].includes(activeTab.dataset.tab)) showTab('structure');
     if(maintainerUnlocked) loadAnalytics();
   }
   document.getElementById('maintainerUnlockBtn').addEventListener('click', ()=>{
@@ -2409,7 +2444,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
         themeItems += topicItems; themeQuestions += topicQuestions;
         themeHtml += `<div class="struct-topic">${esc2(topic.label)} <span class="struct-counts">${topicItems} item${topicItems===1?'':'s'} · ${topicQuestions} question${topicQuestions===1?'':'s'}</span> <button type="button" class="link-btn" style="margin-left:8px;" data-add-item-topic="${theme.id}::${topicId}">➕ add an item here</button></div>${topicHtml}`;
       });
-      html += `<div class="struct-theme">${esc2(theme.label)} <span class="struct-counts">${themeItems} item${themeItems===1?'':'s'} · ${themeQuestions} question${themeQuestions===1?'':'s'}</span></div>${themeHtml}`;
+      html += `<details class="struct-theme-toggle" open><summary class="struct-theme">${esc2(theme.label)} <span class="struct-counts">${themeItems} item${themeItems===1?'':'s'} · ${themeQuestions} question${themeQuestions===1?'':'s'}</span></summary>${themeHtml}</details>`;
     });
     structureList.innerHTML = html;
     structStats.innerHTML = `<span><b>${KNOWN_THEMES.length}</b> courses</span><span><b>${totalTopics}</b> topics</span><span><b>${totalItems}</b> items</span><span><b>${totalQuestions}</b> questions</span>${pendingCount?`<span style="color:var(--warn);"><b>${pendingCount}</b> pending merge</span>`:''}`;
@@ -2464,7 +2499,15 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   function applyStructSearch(){
     const q = structSearchInput.value.trim().toLowerCase().replace(/^#/,'');
     [structureList, courseStructureList, hashtagStructureList].forEach(root=>{
-      root.querySelectorAll('details.struct-item-toggle[data-search]').forEach(det=>{ const match = !q || (det.dataset.search||'').includes(q); det.style.display = match ? '' : 'none'; if(q && match) det.open = true; });
+      root.querySelectorAll('details.struct-item-toggle[data-search]').forEach(det=>{
+        const match = !q || (det.dataset.search||'').includes(q);
+        det.style.display = match ? '' : 'none';
+        if(q && match){
+          det.open = true;
+          // A course you'd collapsed shouldn't hide a match inside it during search.
+          const course = det.closest('details.struct-theme-toggle'); if(course) course.open = true;
+        }
+      });
     });
   }
   structSearchInput.addEventListener('input', applyStructSearch);
@@ -2903,6 +2946,67 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     finally { btn.disabled = false; }
   });
 
+  // ---------------- Contributors (maintainer only) ----------------
+  // Aggregates by email across three sources: merged items/questions (which
+  // carry contributorName/contributorEmail once merged -- see applyEntry),
+  // and whatever's still sitting in the shared queue (pending content plus
+  // flag-item/flag-question reports). Same maintainer-only privacy rule as
+  // everywhere else attribution shows up.
+  const contributorList = document.getElementById('contributorList'), contributorSearchInput = document.getElementById('contributorSearchInput');
+  const contributorDetailCard = document.getElementById('contributorDetailCard'), contributorDetail = document.getElementById('contributorDetail');
+  const QUEUE_TYPE_LABELS = { item:'🆕 New item', 'edit-item':'✏️ Item edit', question:'🆕 New question', 'edit-question':'✏️ Question edit', course:'🆕 New course', topic:'🆕 New topic', lectureOutcomes:'📄 Lecture outcomes', 'funfact-question':'🎲 Fun fact question', 'delete-item':'🗑 Item deletion request', 'delete-question':'🗑 Question deletion request', 'flag-item':'🚩 Item report', 'flag-question':'🚩 Question report' };
+  function buildContributorMap(){
+    const map = {}; // email (lowercased) or a name-keyed fallback -> aggregate
+    const get = (name, email) => {
+      const key = (email||'').toLowerCase() || `noemail::${(name||'Anonymous').toLowerCase()}`;
+      if(!map[key]) map[key] = { name: name||'Anonymous', email: email||'', items:[], questions:[], pending:[], reports:[] };
+      if(name) map[key].name = name; // keep the freshest name seen for this email
+      return map[key];
+    };
+    Object.entries(RD.THEMES).forEach(([themeId, theme])=> Object.entries(theme.topics||{}).forEach(([topicId, topic])=> Object.entries(topic.items||{}).forEach(([itemId, item])=>{
+      if(item.contributorEmail) get(item.contributorName, item.contributorEmail).items.push({ label:item.label, theme: theme.label, topic: topic.label });
+      (item.questions||[]).forEach(q=>{ if(q.contributorEmail) get(q.contributorName, q.contributorEmail).questions.push({ prompt:q.prompt, itemLabel:item.label, theme: theme.label, topic: topic.label }); });
+    })));
+    Object.values(batch).forEach(entry=>{
+      if(!entry.contributorEmail && !entry.contributorName) return;
+      const c = get(entry.contributorName, entry.contributorEmail);
+      (isReport(entry) ? c.reports : c.pending).push(entry);
+    });
+    return map;
+  }
+  function renderContributors(){
+    if(!maintainerUnlocked) return;
+    contributorDetailCard.style.display = 'none';
+    const map = buildContributorMap();
+    const rows = Object.entries(map).sort((a,b)=> (b[1].items.length+b[1].questions.length) - (a[1].items.length+a[1].questions.length));
+    if(!rows.length){ contributorList.innerHTML = '<div class="struct-empty">— no contributor data yet —</div>'; return; }
+    contributorList.innerHTML = rows.map(([key,c])=>`
+      <div class="q-existing-row contributor-row">
+        <span><b>${esc2(c.name)}</b>${c.email?` <span style="color:var(--muted);">(${esc2(c.email)})</span>`:''}
+          <span style="color:var(--muted);"> — ${c.items.length} item${c.items.length===1?'':'s'}, ${c.questions.length} question${c.questions.length===1?'':'s'}${c.pending.length?`, ${c.pending.length} pending`:''}${c.reports.length?`, ${c.reports.length} report${c.reports.length===1?'':'s'}`:''}</span>
+        </span>
+        <button type="button" class="struct-edit-link" data-view-contributor="${esc2(key)}">View →</button>
+      </div>`).join('');
+    contributorList.querySelectorAll('[data-view-contributor]').forEach(btn=> btn.addEventListener('click', ()=> renderContributorDetail(btn.dataset.viewContributor, map)));
+    applyContributorSearch();
+  }
+  function applyContributorSearch(){
+    const q = contributorSearchInput.value.trim().toLowerCase();
+    contributorList.querySelectorAll('.contributor-row').forEach(row=>{ row.style.display = (!q || row.textContent.toLowerCase().includes(q)) ? '' : 'none'; });
+  }
+  contributorSearchInput.addEventListener('input', applyContributorSearch);
+  function renderContributorDetail(key, map){
+    const c = map[key]; if(!c) return;
+    contributorDetailCard.style.display = 'block';
+    contributorDetailCard.scrollIntoView({ block:'start' });
+    const itemsHtml = c.items.length ? `<div class="p-sub">Merged items (${c.items.length})</div><ul class="p-facts">${c.items.map(i=>`<li>${esc2(i.label)} <span style="color:var(--muted);">· ${esc2(i.theme)} · ${esc2(i.topic)}</span></li>`).join('')}</ul>` : '';
+    const questionsHtml = c.questions.length ? `<div class="p-sub">Merged questions (${c.questions.length})</div><ul class="p-facts">${c.questions.map(q=>`<li>${esc2((q.prompt||'').slice(0,90))} <span style="color:var(--muted);">· ${esc2(q.itemLabel)}</span></li>`).join('')}</ul>` : '';
+    const pendingHtml = c.pending.length ? `<div class="p-sub">Pending in queue (${c.pending.length})</div><ul class="p-facts">${c.pending.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).map(e=>`<li>${QUEUE_TYPE_LABELS[e.type]||e.type} — ${esc2(e.title||'')}</li>`).join('')}</ul>` : '';
+    const reportsHtml = c.reports.length ? `<div class="p-sub">Reports filed (${c.reports.length})</div><ul class="p-facts">${c.reports.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).map(e=>`<li>${QUEUE_TYPE_LABELS[e.type]||e.type} — ${esc2(e.title||'')}${e.note?` <span style="color:var(--muted);">(${esc2(e.note)})</span>`:''}</li>`).join('')}</ul>` : '';
+    contributorDetail.innerHTML = `<h2 style="margin-top:0;">${esc2(c.name)}${c.email?` <span style="color:var(--muted);font-weight:normal;font-size:14px;">(${esc2(c.email)})</span>`:''}</h2>${itemsHtml}${questionsHtml}${pendingHtml}${reportsHtml}${(!itemsHtml&&!questionsHtml&&!pendingHtml&&!reportsHtml)?'<p class="card-sub">Nothing recorded for this person yet.</p>':''}`;
+  }
+  document.getElementById('contributorBackBtn').addEventListener('click', ()=>{ contributorDetailCard.style.display = 'none'; });
+
   // ---------------- Analytics ----------------
   const analyticsStatus = document.getElementById('analyticsStatus'), analyticsTableWrap = document.getElementById('analyticsTableWrap');
   function buildItemIndex(){
@@ -2972,6 +3076,8 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     document.querySelectorAll('section[data-section]').forEach(s=> s.classList.toggle('active', s.dataset.section===which));
     if(which==='structure') renderStructureList();
     if(which==='questionbank'){ fillBankCourseSelect(); fillBankTopicSelect(); fillBankLectureSelect(); renderQuestionBank(); }
+    if(which==='contributors') renderContributors();
+    if(which==='analysis') loadAnalytics();
     window.scrollTo({ top:0 });
   }
   function showPane(section, pane){
@@ -3082,6 +3188,9 @@ const themesDecl  = text.indexOf('const THEMES = {');
   return window.RUNNER_DATA;
 }</pre>
       <p>The two HTML files carry a hand-bumped version string; those are compared with a regex rather than executed.</p>` },
+    contributors: { title:'Where contributor data comes from', tags:['maintainer-only', 'no separate store'], body:`
+      <p>There's no separate "contributors" list — this page just groups everything that already carries a <code>contributorName</code>/<code>contributorEmail</code> by email: merged items and questions (stamped once when <code>applyEntry</code> merges them, and preserved through later edits by someone else), plus anything still sitting in the shared queue, including reports.</p>
+      <p>Someone with no email on file (content merged before attribution existed, or a report filed without filling in the identity box) is grouped by name instead, under "(no email)".</p>` },
   };
   const infoPanel = document.getElementById('infoPanel'), infoBackdrop = document.getElementById('infoBackdrop');
   function openInfo(key){
@@ -3146,7 +3255,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
   renderItem(); renderQuestion(); renderCourse(); renderStructureList();
   renderBatch();
   if(new URLSearchParams(location.search).has('debug')){
-    window.__devToolDebug = { get batch(){ return batch; }, renderBatch, showTab, showPane, parseCSV, generateMergedFile, KNOWN_ITEMS, KNOWN_TOPICS, KNOWN_THEMES, RD, renderStructureList, renderQuestionBank };
+    window.__devToolDebug = { get batch(){ return batch; }, renderBatch, showTab, showPane, parseCSV, generateMergedFile, KNOWN_ITEMS, KNOWN_TOPICS, KNOWN_THEMES, RD, renderStructureList, renderQuestionBank, renderContributors, buildContributorMap };
   }
 </script>
 </body>
