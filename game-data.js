@@ -43,6 +43,10 @@
    GAME_CONFIG    — every tunable gameplay number.
    LIFE_CONFIG    — per-course label/icon for the "life" resource.
    COMPLETE_SCENARIO — text shown after the last stage.
+   FUN_FACT_QUESTIONS — standalone trivia questions, not tied to any
+                     course/topic/item, used only for the Group Race
+                     grenade gift's "shield it by answering a question"
+                     mini-game. Never counted toward stage progress.
    ============================================================================ */
 (function(){
 
@@ -390,14 +394,15 @@
     streakBonusScoreAmount: 150, // flat score points awarded when a streak bonus triggers (on top of the usual correct/incorrect/life/stage weights)
     speedPresets: { slow:0.75, normal:1, fast:1.25 }, // Customise → Game speed: multiplies baseSpeed/maxSpeed (a Group Race uses the host's pick for everyone)
     bombIntervalByDifficulty: { easy:1.5, medium:1, hard:0.7 }, // bomb spawn interval multiplier per stage difficulty (easy = fewer bombs)
-    // ---- Group Race gifts (grenades & shields) ----
-    giftUnlockShare: 0.2,      // gift questions start once this share of racers has reached Stage II
+    // ---- Group Race gifts: +50 life, Bomb Hell, Grenade, Shield -- see
+    // renderGiftShop() in medsci-runner.html. Free to pick (2 of the 4 are
+    // offered at random each time; no life cost). ----
+    giftUnlockQuestionsPerPlayer: 3, // gift questions start once the room has answered (right or wrong, combined) at least this many questions per player -- e.g. 3 players needs 9 total answered
     giftSpawnBaseMs: 7000,     // a gift-question block is ROLLED for every base + random(0..rand) ms ...
     giftSpawnRandMs: 6000,
     giftChanceMin: 0.3,        // ... and appears with this chance for the racer in 1st place ...
     giftChanceMax: 0.85,       // ... rising to this for whoever is last -- falling behind gets you more gifts
-    giftCost: 25,              // life spent to buy a grenade or a shield after answering a gift question correctly
-    grenadeDamage: 40,         // life an unshielded target loses when a grenade lands (same as a bomb)
+    grenadeDamage: 40,         // life an unshielded grenade target loses if they fail the shield question (same as a bomb)
     // ---- Catch-up window ----
     // Two things can start this window, whichever happens first: (a) a racer
     // finishes all stages (reason:'finished'), or (b) a racer becomes the
@@ -1070,6 +1075,282 @@
                 },
               ],
             },
+            'historyOfPharmacology': {
+              'label': 'History of pharmacology & pharmacognosy',
+              'images': [],
+              'description': 'Pharmacology traces back to ancient plant- and mineral-based remedies (the Ebers Papyrus, Galen’s theriac, digitalis, quinine, belladonna) and legal codes governing medical practice, through to the extraction and isolation of active compounds that enabled standardised, modern drug development.',
+              'funFacts': [],
+              'activeRecall': ['Where does the Ebers Papyrus come from, and what did it contain?', 'What did William Harvey’s 1628 work overturn, and what did he propose instead?'],
+              'refs': [],
+              'hashtags': ['History'],
+              'course': 'MEDS3002',
+              'questions': [
+                {
+                  'correctIndex': 2,
+                  'explanation': 'The Ebers Papyrus is one of the oldest and most important medical texts, originating from Ancient Egypt.',
+                  'hashtags': ['History'],
+                  'id': 'ph-hist-1',
+                  'options': ['Mesopotamia', 'Ayurvedic India', 'Ancient Egypt', 'Ancient Greece'],
+                  'prompt': 'The Ebers Papyrus, containing hundreds of pharmaceutical preparations, originated from which civilisation?',
+                },
+                {
+                  'correctIndex': 2,
+                  'explanation': 'Harvey’s De Motu Cordis proposed that blood circulates in a closed system driven by the heart, overturning centuries of Galenic humoral theory.',
+                  'hashtags': ['History'],
+                  'id': 'ph-hist-2',
+                  'options': ['The liver converts food directly into vital spirit', 'Anatomy is sufficient to explain and cure all disease', 'Blood circulates as a closed system driven by the heart', 'Disease is caused by imbalance of four humours'],
+                  'prompt': 'William Harvey’s 1628 publication challenged Galenic medicine by proposing what?',
+                },
+                {
+                  'correctIndex': 1,
+                  'explanation': 'The thalidomide disaster led directly to strengthened preclinical safety testing requirements (including teratogenicity testing) and modern pharmacovigilance systems.',
+                  'hashtags': ['History'],
+                  'id': 'ph-hist-3',
+                  'options': ['The establishment of Phase I trials in healthy volunteers', 'Strengthened requirements for preclinical safety testing and pharmacovigilance', 'A global ban on using pregnant women as clinical trial participants', 'Mandatory post-marketing surveillance for all approved drugs'],
+                  'prompt': 'The thalidomide disaster of 1961 most directly led to which regulatory development?',
+                },
+                {
+                  'correctIndex': 2,
+                  'explanation': 'The 1937 Elixir Sulfanilamide poisoning (leading to the 1938 FD&C Act) and the thalidomide disaster (leading to the 1962 Kefauver-Harris Amendment) are the two events most directly credited with cementing mandatory preclinical animal safety testing.',
+                  'hashtags': ['History'],
+                  'id': 'ph-hist-4',
+                  'options': ['The discovery of penicillin and the development of recombinant insulin', 'The Opium Wars and the introduction of laudanum', 'The 1937 Elixir Sulfanilamide poisoning and the 1950s–60s thalidomide disaster', 'The Nazi human experiments and the Tuskegee Syphilis study'],
+                  'prompt': 'The global consensus supporting animal testing before human trials was reinforced historically by which two key events?',
+                },
+                {
+                  'correctIndex': 1,
+                  'explanation': 'Coca-Cola was invented in 1886 by John Pemberton, an American pharmacist, as a non-alcoholic alternative to coca wine.',
+                  'hashtags': ['History'],
+                  'id': 'ph-hist-5',
+                  'options': ['Galen, who developed complex multi-ingredient remedies', 'John Pemberton, an American pharmacist, in 1886', 'William Withering, who also studied digitalis', 'Sigmund Freud, who promoted cocaine therapeutically'],
+                  'prompt': 'Coca-Cola was originally invented as a non-alcoholic alternative to coca wine by:',
+                },
+                {
+                  'correctIndex': 2,
+                  'explanation': 'Withering used digitalis (foxglove) to treat dropsy — oedema associated with heart failure — establishing it as a cardiac drug.',
+                  'hashtags': ['History'],
+                  'id': 'ph-hist-6',
+                  'options': ['Pupil dilation for ophthalmic examination', 'Pain relief and anaesthesia during surgery', 'Dropsy, which is oedema associated with heart failure', 'Malaria and intermittent fevers'],
+                  'prompt': 'Digitalis purpurea was first used clinically by Dr William Withering in the late 18th century to treat which condition?',
+                },
+                {
+                  'correctIndex': 1,
+                  'explanation': 'Theriac was a complex polypharmacy remedy historically described as containing around 70 or so ingredients.',
+                  'hashtags': ['History'],
+                  'id': 'ph-hist-7',
+                  'options': ['120', '73', '12', '45'],
+                  'prompt': 'Galen’s remedy "theriac", described as a universal remedy, contained approximately how many powdered ingredients?',
+                },
+                {
+                  'correctIndex': 3,
+                  'explanation': 'Belladonna (“beautiful lady”) was traditionally used to dilate pupils; atropine was later isolated as its active compound.',
+                  'hashtags': ['History'],
+                  'id': 'ph-hist-8',
+                  'options': ['Fever treatment; quinine', 'Pain relief; morphine', 'Heart failure; digoxin', 'Pupil dilation; atropine'],
+                  'prompt': 'Belladonna (Atropa belladonna) was traditionally used for which purpose, and which active compound was later isolated from it?',
+                },
+                {
+                  'correctIndex': 3,
+                  'explanation': 'The Code of Hammurabi famously set fees for surgeons and punishments for malpractice, among the earliest known medical regulation.',
+                  'hashtags': ['History'],
+                  'id': 'ph-hist-9',
+                  'options': ['Hippocratic Oath', 'Ebers Papyrus', 'Edwin Smith Papyrus', 'Code of Hammurabi'],
+                  'prompt': 'Which ancient legal code set fees for medical services and punishments for surgical malpractice?',
+                },
+                {
+                  'correctIndex': 0,
+                  'explanation': 'Quinine was originally isolated from the bark of the Cinchona tree.',
+                  'hashtags': ['History'],
+                  'id': 'ph-hist-10',
+                  'options': ['Cinchona bark', 'Opium poppy', 'Belladonna', 'Digitalis purpurea'],
+                  'prompt': 'Which plant is the original source of quinine, used to treat malaria?',
+                },
+              ],
+            },
+            'clinicalTrialPhases': {
+              'label': 'Clinical trial phases & drug development',
+              'images': [],
+              'description': 'Drug development proceeds through preclinical testing and four clinical trial phases — Phase I (safety/dosing in healthy volunteers), Phase II (efficacy signal in patients), Phase III (comparative efficacy in large randomised populations), and Phase IV (post-marketing surveillance) — each with a different population, design, and primary question.',
+              'funFacts': [],
+              'activeRecall': ['What is the primary question each clinical trial phase (I-IV) is trying to answer?', 'How does a Phase II trial differ from a Phase III trial in population size and design?'],
+              'refs': [],
+              'hashtags': ['Clinical trials'],
+              'course': 'MEDS3002',
+              'class': 'L35',
+              'questions': [
+                {
+                  'correctIndex': 2,
+                  'explanation': 'CTCAE Grade 4 toxicity is life-threatening, requiring hospitalisation and cessation of chemotherapy (Grade 3 is severe, Grade 2 moderate, Grade 1 mild).',
+                  'hashtags': ['Clinical trials'],
+                  'id': 'ph-ct-1',
+                  'options': ['Moderate, requiring monitoring and possible intervention', 'Mild, requiring no intervention', 'Life-threatening, requiring hospitalisation and cessation of chemotherapy', 'Severe, requiring intervention and possible pause of chemotherapy'],
+                  'prompt': 'The NCI-CTCAE grading system classifies toxicity on a scale where Grade 4 is defined as:',
+                },
+                {
+                  'correctIndex': 3,
+                  'explanation': 'A substantial minority of drugs entering Phase I fail to progress, commonly cited at around 25% — lower than the attrition seen in later, efficacy-driven phases.',
+                  'hashtags': ['Clinical trials'],
+                  'id': 'ph-ct-2',
+                  'options': ['Approximately 50%', 'Approximately 10%', 'Approximately 75%', 'Approximately 25%'],
+                  'prompt': 'What proportion of drugs typically fail to progress past Phase I?',
+                },
+                {
+                  'correctIndex': 1,
+                  'explanation': 'Phase II trials are conducted in up to around 1000 patients with the disease of interest, typically double-blind and placebo-controlled, to establish an efficacy signal.',
+                  'hashtags': ['Clinical trials'],
+                  'id': 'ph-ct-3',
+                  'options': ['More than 10000 unselected people post-approval', 'Up to 1000 people with disease, mostly double-blind placebo-controlled', '100 healthy volunteers, open-label single arm', '1000 to 10000 people with a defined condition, randomised against best available drug'],
+                  'prompt': 'Phase II trials are typically conducted in which population and using which design?',
+                },
+                {
+                  'correctIndex': 3,
+                  'explanation': 'Phase I trials, usually in healthy volunteers, primarily establish safety and a safe dosing range.',
+                  'hashtags': ['Clinical trials'],
+                  'id': 'ph-ct-4',
+                  'options': ['Is this drug more effective than the current best treatment?', 'Does this drug produce a measurable therapeutic response in patients with the disease?', 'Does this drug work in an unselected real-world population?', 'Will this drug hurt the patient, and what is a safe dose?'],
+                  'prompt': 'The primary question addressed in a Phase I clinical trial is:',
+                },
+                {
+                  'correctIndex': 1,
+                  'explanation': 'Randomisation reduces bias and helps ensure the treatment and control groups are comparable at baseline.',
+                  'hashtags': ['Clinical trials'],
+                  'id': 'ph-ct-5',
+                  'options': ['Ensure all participants experience the experimental treatment at some point', 'Reduce bias and ensure experimental and control groups are similar at baseline', 'Guarantee a statistically significant result with a smaller sample size', 'Allow researchers to know which treatment each participant is receiving'],
+                  'prompt': 'Randomisation in a clinical trial primarily serves to:',
+                },
+                {
+                  'correctIndex': 3,
+                  'explanation': 'ORR is the proportion of patients whose tumour shrinks by a defined amount (complete or partial response), distinct from progression-free survival, overall survival, or toxicity measures.',
+                  'hashtags': ['Clinical trials'],
+                  'id': 'ph-ct-6',
+                  'options': ['The time from treatment initiation to disease progression', 'The percentage of patients alive at a defined time point after treatment', 'The proportion of patients experiencing any grade of adverse drug reaction', 'The proportion of patients achieving a defined degree of tumour shrinkage'],
+                  'prompt': 'In cancer clinical trials, Objective Response Rate (ORR) is defined as:',
+                },
+                {
+                  'correctIndex': 0,
+                  'explanation': 'Phase III trials compare the drug against the best available treatment (or placebo) in a much larger population — typically 1000 to 10000 patients — than Phase II.',
+                  'hashtags': ['Clinical trials'],
+                  'id': 'ph-ct-7',
+                  'options': ['Compare the drug against the best available treatment or placebo in 1000 to 10000 patients', 'Test safety and dose for the first time in healthy volunteers', 'Evaluate long-term safety in unselected real-world populations after drug approval', 'Focus exclusively on pharmacokinetic parameters such as half-life and bioavailability'],
+                  'prompt': 'Phase III trials differ from Phase II trials primarily in that they:',
+                },
+                {
+                  'correctIndex': 1,
+                  'explanation': 'This statistic underscores why Phase IV post-marketing surveillance and voluntary adverse-event reporting matter — rare or delayed toxicities often only surface once a drug reaches a much larger, more diverse real-world population.',
+                  'hashtags': ['Clinical trials'],
+                  'id': 'ph-ct-8',
+                  'options': ['Replacing randomised controlled trials with real-world observational data', 'Phase IV studies and voluntary reporting systems to detect rare or delayed toxicities', 'Stricter eligibility criteria in Phase III trials to exclude high-risk patients', 'Requiring all drugs to undergo a second Phase II trial after approval'],
+                  'prompt': 'The post-marketing surveillance finding that serious adverse drug reactions account for approximately 5% of hospital-related deaths illustrates the importance of:',
+                },
+              ],
+            },
+            'animalResearchEthics': {
+              'label': 'Animal research ethics & the 3 Rs',
+              'images': [],
+              'description': 'Animal research is governed by the 3 Rs framework (Replace, Reduce, Refine) and, in Australia, by Animal Ethics Committees with defined member categories; newer approach methodologies (NAMs) are progressively replacing some animal use in specific domains like ADME and genotoxicity testing.',
+              'funFacts': [],
+              'activeRecall': ['What do the 3 Rs stand for, and what does each one mean in practice?', 'What is currently the strongest, most validated use case for New Approach Methodologies (NAMs)?'],
+              'refs': [],
+              'hashtags': ['Animal ethics'],
+              'course': 'MEDS3002',
+              'class': 'L36',
+              'questions': [
+                {
+                  'correctIndex': 0,
+                  'explanation': 'The 3 Rs — Replace, Reduce, Refine — form the core ethical framework for animal research, first proposed by Russell and Burch.',
+                  'hashtags': ['Animal ethics'],
+                  'id': 'ph-ae-1',
+                  'options': ['Replace, Refine, Reduce', 'Research, Regulate, Report', 'Randomise, Record, Review', 'Restrict, Replicate, Reassess'],
+                  'prompt': 'The 3 Rs framework in animal research ethics consists of:',
+                },
+                {
+                  'correctIndex': 0,
+                  'explanation': '"Replace" means substituting animal use with non-animal methods such as cell-based assays or computational modelling where possible.',
+                  'hashtags': ['Animal ethics'],
+                  'id': 'ph-ae-2',
+                  'options': ['Using cell-based assays or computer modelling instead of live animals for initial screening', 'Using anaesthesia to minimise pain during surgical procedures in animals', 'Designing experiments with the minimum number of animals needed for statistical power', 'Administering post-operative analgesics to reduce animal suffering'],
+                  'prompt': 'The "Replace" component of the 3 Rs is best exemplified by:',
+                },
+                {
+                  'class': 'L37',
+                  'correctIndex': 1,
+                  'explanation': 'NAMs (in vitro/in silico methods) are currently most validated and established for ADME, safety pharmacology, and genotoxicity testing.',
+                  'hashtags': ['Animal ethics'],
+                  'id': 'ph-ae-3',
+                  'options': ['Immunogenicity testing of biological medicines', 'ADME, safety pharmacology, and genotoxicity', 'Efficacy validation in complex disease models', 'Long-term chronic toxicity studies'],
+                  'prompt': 'New Approach Methodologies (NAMs) currently have greatest validated application in which areas of preclinical testing?',
+                },
+                {
+                  'correctIndex': 1,
+                  'explanation': 'Category C members are people committed to animal welfare who are not involved in animal experimentation — distinct from the Category A vet, Category B experienced researcher, and Category D independent community layperson.',
+                  'hashtags': ['Animal ethics'],
+                  'id': 'ph-ae-4',
+                  'options': ['A layperson representing the general community', 'An animal welfare advocate with no institutional affiliation', 'A veterinarian with expertise in the species being used', 'A researcher with active animal experimentation experience'],
+                  'prompt': 'In the Australian Animal Ethics Committee structure, a Category C member is defined as:',
+                },
+                {
+                  'correctIndex': 3,
+                  'explanation': 'Ordinary mice don’t express a form of ACE2 that SARS-CoV-2 can use to enter cells; hACE2 transgenic mice express the human receptor, making them susceptible to infection for COVID-19 research.',
+                  'hashtags': ['Animal ethics'],
+                  'id': 'ph-ae-5',
+                  'options': ['Model cardiovascular disease for antihypertensive drug testing', 'Study oral drug pharmacokinetics in a human-like GI environment', 'Replace non-rodent models in regulatory toxicology studies', 'Make mice susceptible to SARS-CoV-2 infection for COVID-19 drug research'],
+                  'prompt': 'hACE2 transgenic mice were developed specifically to:',
+                },
+              ],
+            },
+            'drugDiscoveryAndRegulation': {
+              'label': 'Drug discovery, regulation & personalised medicine',
+              'images': [],
+              'description': 'Modern drug discovery moved from crude plant extracts to isolated, chemically modifiable compounds, computational prediction of activity (QSAR), and genetically tailored dosing (pharmacogenomics) — all overseen by national regulatory and reimbursement bodies.',
+              'funFacts': [],
+              'activeRecall': ['How does an antagonist differ from an agonist?', 'What does QSAR let researchers predict, and how?', 'Which Australian body decides PBS listing, and how does its role differ from the TGA’s?'],
+              'refs': [],
+              'hashtags': ['Regulation'],
+              'course': 'MEDS3002',
+              'class': 'L34',
+              'questions': [
+                {
+                  'correctIndex': 1,
+                  'explanation': 'An antagonist occupies the receptor without activating it, thereby blocking activation by an agonist — the defining distinction from an agonist.',
+                  'hashtags': ['Regulation'],
+                  'id': 'ph-dd-1',
+                  'options': ['Increases enzyme activity by stabilising the active conformation', 'Occupies the receptor without activating it, blocking agonist activation', 'Binds irreversibly to the active site of an enzyme, preventing substrate binding', 'Mimics the natural ligand and produces a full pharmacological response'],
+                  'prompt': 'In the context of enzyme pharmacology, an antagonist differs from an agonist in that an antagonist:',
+                },
+                {
+                  'correctIndex': 0,
+                  'explanation': 'Isolating the active compound from a crude plant extract enabled standardised dosing, chemical synthesis, and further therapeutic modification — a major step in modern pharmacology.',
+                  'hashtags': ['Regulation'],
+                  'id': 'ph-dd-2',
+                  'options': ['Standardised dosing, chemical synthesis, and therapeutic modification at scale', 'Direct clinical use without the need for preclinical testing', 'Replacement of all animal models with in vitro assays', 'Identification of genetic variants affecting drug metabolism'],
+                  'prompt': 'Extraction of active compounds from plant remedies was significant because it enabled:',
+                },
+                {
+                  'correctIndex': 0,
+                  'explanation': 'Pharmacogenomics tailors drug choice and dosage to an individual’s genetic makeup, aiming to improve efficacy and reduce adverse effects.',
+                  'hashtags': ['Regulation'],
+                  'id': 'ph-dd-3',
+                  'options': ['Tailoring drug choice and dosage to an individual’s genetic makeup', 'Using recombinant bacteria to produce insulin at scale', 'Applying computer modelling to identify receptor binding sites', 'Replacing crude plant extracts with isolated active compounds'],
+                  'prompt': 'Pharmacogenomics aims to improve drug therapy primarily by:',
+                },
+                {
+                  'correctIndex': 2,
+                  'explanation': 'QSAR uses mathematical models relating molecular structure to biological activity, allowing prediction of activity for compounds that haven’t even been synthesised yet.',
+                  'hashtags': ['Regulation'],
+                  'id': 'ph-dd-4',
+                  'options': ['Classify toxicity severity according to organ system affected', 'Model three-dimensional protein folding using AI', 'Predict drug activity for unsynthesised compounds based on molecular structure', 'Determine the optimal dosing interval from pharmacokinetic data'],
+                  'prompt': 'In Quantitative Structure-Activity Relationships (QSAR), mathematical equations are used to:',
+                },
+                {
+                  'correctIndex': 2,
+                  'explanation': 'The PBAC (Pharmaceutical Benefits Advisory Committee) recommends which medicines are listed on Australia’s PBS — distinct from the TGA, which handles approval/registration.',
+                  'hashtags': ['Regulation'],
+                  'id': 'ph-dd-5',
+                  'options': ['NHMRC (National Health and Medical Research Council)', 'ARTG (Australian Register of Therapeutic Goods)', 'PBAC (Pharmaceutical Benefits Advisory Committee)', 'TGA (Therapeutic Goods Administration)'],
+                  'prompt': 'In Australia, the body responsible for deciding which medicines are listed on the Pharmaceutical Benefits Scheme is the:',
+                },
+              ],
+            },
           },
         },
         'oncology': {
@@ -1453,289 +1734,6 @@
                   'id': 'cb-stem-5',
                   'options': ['Adult stem cells can be reprogrammed into iPSCs using Yamanaka factors; ESCs require somatic cell nuclear transfer for reprogramming', 'Adult stem cells are multipotent with limited self-renewal; ESCs are pluripotent, long-term culturable, and express Nanog, Oct4, and Sox2', 'Adult stem cells express Oct4 and Sox2 but lack Nanog; ESCs are totipotent and can generate extraembryonic structures', 'Adult stem cells are pluripotent but harder to culture; ESCs are multipotent and pose a higher tumour formation risk'],
                   'prompt': 'A researcher characterises a population of adult bone marrow stem cells and a population of embryonic stem cells. Which combination of features would correctly distinguish them?',
-                },
-              ],
-            },
-          },
-        },
-        'pharmacologyHistory': {
-          'label': 'Pharmacology History',
-          'icon': '📜',
-          'color': '#818cf8',
-          'items': {
-            'historyOfPharmacology': {
-              'label': 'History of pharmacology & pharmacognosy',
-              'images': [],
-              'description': 'Pharmacology traces back to ancient plant- and mineral-based remedies (the Ebers Papyrus, Galen’s theriac, digitalis, quinine, belladonna) and legal codes governing medical practice, through to the extraction and isolation of active compounds that enabled standardised, modern drug development.',
-              'funFacts': [],
-              'activeRecall': ['Where does the Ebers Papyrus come from, and what did it contain?', 'What did William Harvey’s 1628 work overturn, and what did he propose instead?'],
-              'refs': [],
-              'hashtags': ['History'],
-              'course': 'MEDS3002',
-              'questions': [
-                {
-                  'correctIndex': 2,
-                  'explanation': 'The Ebers Papyrus is one of the oldest and most important medical texts, originating from Ancient Egypt.',
-                  'hashtags': ['History'],
-                  'id': 'ph-hist-1',
-                  'options': ['Mesopotamia', 'Ayurvedic India', 'Ancient Egypt', 'Ancient Greece'],
-                  'prompt': 'The Ebers Papyrus, containing hundreds of pharmaceutical preparations, originated from which civilisation?',
-                },
-                {
-                  'correctIndex': 2,
-                  'explanation': 'Harvey’s De Motu Cordis proposed that blood circulates in a closed system driven by the heart, overturning centuries of Galenic humoral theory.',
-                  'hashtags': ['History'],
-                  'id': 'ph-hist-2',
-                  'options': ['The liver converts food directly into vital spirit', 'Anatomy is sufficient to explain and cure all disease', 'Blood circulates as a closed system driven by the heart', 'Disease is caused by imbalance of four humours'],
-                  'prompt': 'William Harvey’s 1628 publication challenged Galenic medicine by proposing what?',
-                },
-                {
-                  'correctIndex': 1,
-                  'explanation': 'The thalidomide disaster led directly to strengthened preclinical safety testing requirements (including teratogenicity testing) and modern pharmacovigilance systems.',
-                  'hashtags': ['History'],
-                  'id': 'ph-hist-3',
-                  'options': ['The establishment of Phase I trials in healthy volunteers', 'Strengthened requirements for preclinical safety testing and pharmacovigilance', 'A global ban on using pregnant women as clinical trial participants', 'Mandatory post-marketing surveillance for all approved drugs'],
-                  'prompt': 'The thalidomide disaster of 1961 most directly led to which regulatory development?',
-                },
-                {
-                  'correctIndex': 2,
-                  'explanation': 'The 1937 Elixir Sulfanilamide poisoning (leading to the 1938 FD&C Act) and the thalidomide disaster (leading to the 1962 Kefauver-Harris Amendment) are the two events most directly credited with cementing mandatory preclinical animal safety testing.',
-                  'hashtags': ['History'],
-                  'id': 'ph-hist-4',
-                  'options': ['The discovery of penicillin and the development of recombinant insulin', 'The Opium Wars and the introduction of laudanum', 'The 1937 Elixir Sulfanilamide poisoning and the 1950s–60s thalidomide disaster', 'The Nazi human experiments and the Tuskegee Syphilis study'],
-                  'prompt': 'The global consensus supporting animal testing before human trials was reinforced historically by which two key events?',
-                },
-                {
-                  'correctIndex': 1,
-                  'explanation': 'Coca-Cola was invented in 1886 by John Pemberton, an American pharmacist, as a non-alcoholic alternative to coca wine.',
-                  'hashtags': ['History'],
-                  'id': 'ph-hist-5',
-                  'options': ['Galen, who developed complex multi-ingredient remedies', 'John Pemberton, an American pharmacist, in 1886', 'William Withering, who also studied digitalis', 'Sigmund Freud, who promoted cocaine therapeutically'],
-                  'prompt': 'Coca-Cola was originally invented as a non-alcoholic alternative to coca wine by:',
-                },
-                {
-                  'correctIndex': 2,
-                  'explanation': 'Withering used digitalis (foxglove) to treat dropsy — oedema associated with heart failure — establishing it as a cardiac drug.',
-                  'hashtags': ['History'],
-                  'id': 'ph-hist-6',
-                  'options': ['Pupil dilation for ophthalmic examination', 'Pain relief and anaesthesia during surgery', 'Dropsy, which is oedema associated with heart failure', 'Malaria and intermittent fevers'],
-                  'prompt': 'Digitalis purpurea was first used clinically by Dr William Withering in the late 18th century to treat which condition?',
-                },
-                {
-                  'correctIndex': 1,
-                  'explanation': 'Theriac was a complex polypharmacy remedy historically described as containing around 70 or so ingredients.',
-                  'hashtags': ['History'],
-                  'id': 'ph-hist-7',
-                  'options': ['120', '73', '12', '45'],
-                  'prompt': 'Galen’s remedy "theriac", described as a universal remedy, contained approximately how many powdered ingredients?',
-                },
-                {
-                  'correctIndex': 3,
-                  'explanation': 'Belladonna (“beautiful lady”) was traditionally used to dilate pupils; atropine was later isolated as its active compound.',
-                  'hashtags': ['History'],
-                  'id': 'ph-hist-8',
-                  'options': ['Fever treatment; quinine', 'Pain relief; morphine', 'Heart failure; digoxin', 'Pupil dilation; atropine'],
-                  'prompt': 'Belladonna (Atropa belladonna) was traditionally used for which purpose, and which active compound was later isolated from it?',
-                },
-                {
-                  'correctIndex': 3,
-                  'explanation': 'The Code of Hammurabi famously set fees for surgeons and punishments for malpractice, among the earliest known medical regulation.',
-                  'hashtags': ['History'],
-                  'id': 'ph-hist-9',
-                  'options': ['Hippocratic Oath', 'Ebers Papyrus', 'Edwin Smith Papyrus', 'Code of Hammurabi'],
-                  'prompt': 'Which ancient legal code set fees for medical services and punishments for surgical malpractice?',
-                },
-                {
-                  'correctIndex': 0,
-                  'explanation': 'Quinine was originally isolated from the bark of the Cinchona tree.',
-                  'hashtags': ['History'],
-                  'id': 'ph-hist-10',
-                  'options': ['Cinchona bark', 'Opium poppy', 'Belladonna', 'Digitalis purpurea'],
-                  'prompt': 'Which plant is the original source of quinine, used to treat malaria?',
-                },
-              ],
-            },
-            'clinicalTrialPhases': {
-              'label': 'Clinical trial phases & drug development',
-              'images': [],
-              'description': 'Drug development proceeds through preclinical testing and four clinical trial phases — Phase I (safety/dosing in healthy volunteers), Phase II (efficacy signal in patients), Phase III (comparative efficacy in large randomised populations), and Phase IV (post-marketing surveillance) — each with a different population, design, and primary question.',
-              'funFacts': [],
-              'activeRecall': ['What is the primary question each clinical trial phase (I-IV) is trying to answer?', 'How does a Phase II trial differ from a Phase III trial in population size and design?'],
-              'refs': [],
-              'hashtags': ['Clinical trials'],
-              'course': 'MEDS3002',
-              'class': 'L35',
-              'questions': [
-                {
-                  'correctIndex': 2,
-                  'explanation': 'CTCAE Grade 4 toxicity is life-threatening, requiring hospitalisation and cessation of chemotherapy (Grade 3 is severe, Grade 2 moderate, Grade 1 mild).',
-                  'hashtags': ['Clinical trials'],
-                  'id': 'ph-ct-1',
-                  'options': ['Moderate, requiring monitoring and possible intervention', 'Mild, requiring no intervention', 'Life-threatening, requiring hospitalisation and cessation of chemotherapy', 'Severe, requiring intervention and possible pause of chemotherapy'],
-                  'prompt': 'The NCI-CTCAE grading system classifies toxicity on a scale where Grade 4 is defined as:',
-                },
-                {
-                  'correctIndex': 3,
-                  'explanation': 'A substantial minority of drugs entering Phase I fail to progress, commonly cited at around 25% — lower than the attrition seen in later, efficacy-driven phases.',
-                  'hashtags': ['Clinical trials'],
-                  'id': 'ph-ct-2',
-                  'options': ['Approximately 50%', 'Approximately 10%', 'Approximately 75%', 'Approximately 25%'],
-                  'prompt': 'What proportion of drugs typically fail to progress past Phase I?',
-                },
-                {
-                  'correctIndex': 1,
-                  'explanation': 'Phase II trials are conducted in up to around 1000 patients with the disease of interest, typically double-blind and placebo-controlled, to establish an efficacy signal.',
-                  'hashtags': ['Clinical trials'],
-                  'id': 'ph-ct-3',
-                  'options': ['More than 10000 unselected people post-approval', 'Up to 1000 people with disease, mostly double-blind placebo-controlled', '100 healthy volunteers, open-label single arm', '1000 to 10000 people with a defined condition, randomised against best available drug'],
-                  'prompt': 'Phase II trials are typically conducted in which population and using which design?',
-                },
-                {
-                  'correctIndex': 3,
-                  'explanation': 'Phase I trials, usually in healthy volunteers, primarily establish safety and a safe dosing range.',
-                  'hashtags': ['Clinical trials'],
-                  'id': 'ph-ct-4',
-                  'options': ['Is this drug more effective than the current best treatment?', 'Does this drug produce a measurable therapeutic response in patients with the disease?', 'Does this drug work in an unselected real-world population?', 'Will this drug hurt the patient, and what is a safe dose?'],
-                  'prompt': 'The primary question addressed in a Phase I clinical trial is:',
-                },
-                {
-                  'correctIndex': 1,
-                  'explanation': 'Randomisation reduces bias and helps ensure the treatment and control groups are comparable at baseline.',
-                  'hashtags': ['Clinical trials'],
-                  'id': 'ph-ct-5',
-                  'options': ['Ensure all participants experience the experimental treatment at some point', 'Reduce bias and ensure experimental and control groups are similar at baseline', 'Guarantee a statistically significant result with a smaller sample size', 'Allow researchers to know which treatment each participant is receiving'],
-                  'prompt': 'Randomisation in a clinical trial primarily serves to:',
-                },
-                {
-                  'correctIndex': 3,
-                  'explanation': 'ORR is the proportion of patients whose tumour shrinks by a defined amount (complete or partial response), distinct from progression-free survival, overall survival, or toxicity measures.',
-                  'hashtags': ['Clinical trials'],
-                  'id': 'ph-ct-6',
-                  'options': ['The time from treatment initiation to disease progression', 'The percentage of patients alive at a defined time point after treatment', 'The proportion of patients experiencing any grade of adverse drug reaction', 'The proportion of patients achieving a defined degree of tumour shrinkage'],
-                  'prompt': 'In cancer clinical trials, Objective Response Rate (ORR) is defined as:',
-                },
-                {
-                  'correctIndex': 0,
-                  'explanation': 'Phase III trials compare the drug against the best available treatment (or placebo) in a much larger population — typically 1000 to 10000 patients — than Phase II.',
-                  'hashtags': ['Clinical trials'],
-                  'id': 'ph-ct-7',
-                  'options': ['Compare the drug against the best available treatment or placebo in 1000 to 10000 patients', 'Test safety and dose for the first time in healthy volunteers', 'Evaluate long-term safety in unselected real-world populations after drug approval', 'Focus exclusively on pharmacokinetic parameters such as half-life and bioavailability'],
-                  'prompt': 'Phase III trials differ from Phase II trials primarily in that they:',
-                },
-                {
-                  'correctIndex': 1,
-                  'explanation': 'This statistic underscores why Phase IV post-marketing surveillance and voluntary adverse-event reporting matter — rare or delayed toxicities often only surface once a drug reaches a much larger, more diverse real-world population.',
-                  'hashtags': ['Clinical trials'],
-                  'id': 'ph-ct-8',
-                  'options': ['Replacing randomised controlled trials with real-world observational data', 'Phase IV studies and voluntary reporting systems to detect rare or delayed toxicities', 'Stricter eligibility criteria in Phase III trials to exclude high-risk patients', 'Requiring all drugs to undergo a second Phase II trial after approval'],
-                  'prompt': 'The post-marketing surveillance finding that serious adverse drug reactions account for approximately 5% of hospital-related deaths illustrates the importance of:',
-                },
-              ],
-            },
-            'animalResearchEthics': {
-              'label': 'Animal research ethics & the 3 Rs',
-              'images': [],
-              'description': 'Animal research is governed by the 3 Rs framework (Replace, Reduce, Refine) and, in Australia, by Animal Ethics Committees with defined member categories; newer approach methodologies (NAMs) are progressively replacing some animal use in specific domains like ADME and genotoxicity testing.',
-              'funFacts': [],
-              'activeRecall': ['What do the 3 Rs stand for, and what does each one mean in practice?', 'What is currently the strongest, most validated use case for New Approach Methodologies (NAMs)?'],
-              'refs': [],
-              'hashtags': ['Animal ethics'],
-              'course': 'MEDS3002',
-              'class': 'L36',
-              'questions': [
-                {
-                  'correctIndex': 0,
-                  'explanation': 'The 3 Rs — Replace, Reduce, Refine — form the core ethical framework for animal research, first proposed by Russell and Burch.',
-                  'hashtags': ['Animal ethics'],
-                  'id': 'ph-ae-1',
-                  'options': ['Replace, Refine, Reduce', 'Research, Regulate, Report', 'Randomise, Record, Review', 'Restrict, Replicate, Reassess'],
-                  'prompt': 'The 3 Rs framework in animal research ethics consists of:',
-                },
-                {
-                  'correctIndex': 0,
-                  'explanation': '"Replace" means substituting animal use with non-animal methods such as cell-based assays or computational modelling where possible.',
-                  'hashtags': ['Animal ethics'],
-                  'id': 'ph-ae-2',
-                  'options': ['Using cell-based assays or computer modelling instead of live animals for initial screening', 'Using anaesthesia to minimise pain during surgical procedures in animals', 'Designing experiments with the minimum number of animals needed for statistical power', 'Administering post-operative analgesics to reduce animal suffering'],
-                  'prompt': 'The "Replace" component of the 3 Rs is best exemplified by:',
-                },
-                {
-                  'class': 'L37',
-                  'correctIndex': 1,
-                  'explanation': 'NAMs (in vitro/in silico methods) are currently most validated and established for ADME, safety pharmacology, and genotoxicity testing.',
-                  'hashtags': ['Animal ethics'],
-                  'id': 'ph-ae-3',
-                  'options': ['Immunogenicity testing of biological medicines', 'ADME, safety pharmacology, and genotoxicity', 'Efficacy validation in complex disease models', 'Long-term chronic toxicity studies'],
-                  'prompt': 'New Approach Methodologies (NAMs) currently have greatest validated application in which areas of preclinical testing?',
-                },
-                {
-                  'correctIndex': 1,
-                  'explanation': 'Category C members are people committed to animal welfare who are not involved in animal experimentation — distinct from the Category A vet, Category B experienced researcher, and Category D independent community layperson.',
-                  'hashtags': ['Animal ethics'],
-                  'id': 'ph-ae-4',
-                  'options': ['A layperson representing the general community', 'An animal welfare advocate with no institutional affiliation', 'A veterinarian with expertise in the species being used', 'A researcher with active animal experimentation experience'],
-                  'prompt': 'In the Australian Animal Ethics Committee structure, a Category C member is defined as:',
-                },
-                {
-                  'correctIndex': 3,
-                  'explanation': 'Ordinary mice don’t express a form of ACE2 that SARS-CoV-2 can use to enter cells; hACE2 transgenic mice express the human receptor, making them susceptible to infection for COVID-19 research.',
-                  'hashtags': ['Animal ethics'],
-                  'id': 'ph-ae-5',
-                  'options': ['Model cardiovascular disease for antihypertensive drug testing', 'Study oral drug pharmacokinetics in a human-like GI environment', 'Replace non-rodent models in regulatory toxicology studies', 'Make mice susceptible to SARS-CoV-2 infection for COVID-19 drug research'],
-                  'prompt': 'hACE2 transgenic mice were developed specifically to:',
-                },
-              ],
-            },
-            'drugDiscoveryAndRegulation': {
-              'label': 'Drug discovery, regulation & personalised medicine',
-              'images': [],
-              'description': 'Modern drug discovery moved from crude plant extracts to isolated, chemically modifiable compounds, computational prediction of activity (QSAR), and genetically tailored dosing (pharmacogenomics) — all overseen by national regulatory and reimbursement bodies.',
-              'funFacts': [],
-              'activeRecall': ['How does an antagonist differ from an agonist?', 'What does QSAR let researchers predict, and how?', 'Which Australian body decides PBS listing, and how does its role differ from the TGA’s?'],
-              'refs': [],
-              'hashtags': ['Regulation'],
-              'course': 'MEDS3002',
-              'class': 'L34',
-              'questions': [
-                {
-                  'correctIndex': 1,
-                  'explanation': 'An antagonist occupies the receptor without activating it, thereby blocking activation by an agonist — the defining distinction from an agonist.',
-                  'hashtags': ['Regulation'],
-                  'id': 'ph-dd-1',
-                  'options': ['Increases enzyme activity by stabilising the active conformation', 'Occupies the receptor without activating it, blocking agonist activation', 'Binds irreversibly to the active site of an enzyme, preventing substrate binding', 'Mimics the natural ligand and produces a full pharmacological response'],
-                  'prompt': 'In the context of enzyme pharmacology, an antagonist differs from an agonist in that an antagonist:',
-                },
-                {
-                  'correctIndex': 0,
-                  'explanation': 'Isolating the active compound from a crude plant extract enabled standardised dosing, chemical synthesis, and further therapeutic modification — a major step in modern pharmacology.',
-                  'hashtags': ['Regulation'],
-                  'id': 'ph-dd-2',
-                  'options': ['Standardised dosing, chemical synthesis, and therapeutic modification at scale', 'Direct clinical use without the need for preclinical testing', 'Replacement of all animal models with in vitro assays', 'Identification of genetic variants affecting drug metabolism'],
-                  'prompt': 'Extraction of active compounds from plant remedies was significant because it enabled:',
-                },
-                {
-                  'correctIndex': 0,
-                  'explanation': 'Pharmacogenomics tailors drug choice and dosage to an individual’s genetic makeup, aiming to improve efficacy and reduce adverse effects.',
-                  'hashtags': ['Regulation'],
-                  'id': 'ph-dd-3',
-                  'options': ['Tailoring drug choice and dosage to an individual’s genetic makeup', 'Using recombinant bacteria to produce insulin at scale', 'Applying computer modelling to identify receptor binding sites', 'Replacing crude plant extracts with isolated active compounds'],
-                  'prompt': 'Pharmacogenomics aims to improve drug therapy primarily by:',
-                },
-                {
-                  'correctIndex': 2,
-                  'explanation': 'QSAR uses mathematical models relating molecular structure to biological activity, allowing prediction of activity for compounds that haven’t even been synthesised yet.',
-                  'hashtags': ['Regulation'],
-                  'id': 'ph-dd-4',
-                  'options': ['Classify toxicity severity according to organ system affected', 'Model three-dimensional protein folding using AI', 'Predict drug activity for unsynthesised compounds based on molecular structure', 'Determine the optimal dosing interval from pharmacokinetic data'],
-                  'prompt': 'In Quantitative Structure-Activity Relationships (QSAR), mathematical equations are used to:',
-                },
-                {
-                  'correctIndex': 2,
-                  'explanation': 'The PBAC (Pharmaceutical Benefits Advisory Committee) recommends which medicines are listed on Australia’s PBS — distinct from the TGA, which handles approval/registration.',
-                  'hashtags': ['Regulation'],
-                  'id': 'ph-dd-5',
-                  'options': ['NHMRC (National Health and Medical Research Council)', 'ARTG (Australian Register of Therapeutic Goods)', 'PBAC (Pharmaceutical Benefits Advisory Committee)', 'TGA (Therapeutic Goods Administration)'],
-                  'prompt': 'In Australia, the body responsible for deciding which medicines are listed on the Pharmaceutical Benefits Scheme is the:',
                 },
               ],
             },
@@ -4940,6 +4938,26 @@
   };
 
 /* ======================================================================
+   FUN_FACT_QUESTIONS — a separate, small pool of standalone trivia
+   questions, keyed by id. Used only for the Group Race grenade gift's
+   "shield it by answering a question" mini-game (see GAME_CONFIG's gift
+   comments) — never counted toward stage requirements, streaks, or score,
+   and not tied to any course/topic/item. Same shape as a normal question
+   (prompt/options/correctIndex/explanation) minus the fields that only
+   make sense in context (difficulty, hashtags, course/class).
+   ====================================================================== */
+  const FUN_FACT_QUESTIONS = {
+    'ff-honey': { prompt:'Archaeologists have found pots of this food in ancient Egyptian tombs that are still edible thousands of years later. What is it?', options:['Honey','Dried fish','Olive oil','Wine'], correctIndex:0, explanation:"Honey's low moisture and acidity keep bacteria from growing, so sealed pots of it can stay edible for millennia." },
+    'ff-heart': { prompt:"Which organ uses roughly a fifth of the body's resting oxygen supply, despite being about 2% of body weight?", options:['The liver','The kidneys','The brain','The stomach'], correctIndex:2, explanation:"The brain is metabolically expensive — around 20% of resting oxygen consumption for about 2% of body mass." },
+    'ff-octopus': { prompt:'How many hearts does an octopus have?', options:['One','Two','Three','Four'], correctIndex:2, explanation:'Two pump blood to the gills, and a third pumps it to the rest of the body.' },
+    'ff-bones': { prompt:'A newborn baby has more bones than an adult. Roughly how many more?', options:['About 20 more','About 5 more','About 95 more','The same number'], correctIndex:0, explanation:'Babies have around 300 bones; many fuse together during growth, leaving adults with 206.' },
+    'ff-sneeze': { prompt:"What's the approximate top speed of a human sneeze?", options:['10 mph','45 mph','100 mph','300 mph'], correctIndex:1, explanation:'Estimates put a sneeze at roughly 45 mph (about 70 km/h) — fast, though far below the old "100mph" myth.' },
+    'ff-tongue': { prompt:'Which of these is the strongest muscle in the human body relative to its size?', options:['The biceps','The masseter (jaw muscle)','The quadriceps','The tongue'], correctIndex:1, explanation:'Per unit of size, the masseter (jaw-closing) muscle generates the most bite force in the human body.' },
+    'ff-dna': { prompt:'If you stretched out all the DNA in one human cell, roughly how long would it be?', options:['About 2 millimetres','About 2 centimetres','About 2 metres','About 2 kilometres'], correctIndex:2, explanation:"Each cell's DNA, uncoiled, stretches to roughly 2 metres — tightly packed into a nucleus a few micrometres wide." },
+    'ff-liver': { prompt:'The liver is famous for being able to regrow. How much of it can be surgically removed and still regenerate to near-full size?', options:['About 10%', 'About 25%', 'Up to about 75%', "It can't regenerate at all"], correctIndex:2, explanation:'The liver can regenerate from as little as 25-30% of its original mass remaining.' },
+  };
+
+/* ======================================================================
    STAGES — per course. Each stage has correct-answer requirements (reset
    each stage), a difficulty ('easy'/'medium'/'hard' — questions tagged with
    it are served first, and bomb frequency scales with it), and a narrative
@@ -4992,7 +5010,7 @@
 
   window.RUNNER_DATA = {
     COURSES, GAME_CONFIG, LIFE_CONFIG, THEMES,
-    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES,
+    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES, FUN_FACT_QUESTIONS,
   };
 
 })();
