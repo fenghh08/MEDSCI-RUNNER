@@ -12,9 +12,9 @@ Applies to: **Runner**, **Custom run**, and **Group Race** (all three share the 
 
 ## 1. Life
 
-"Life" is the resource shown top-left of the HUD, labelled **Life 🩸** in every course
-(`LIFE_CONFIG` is still keyed per course, so a specific course could be given its own wording
-later, but right now every entry — and the fallback in `lifeCfg()` — reads the same).
+"Life" is the resource shown top-left of the HUD, labelled **Life 🩸** in every course.
+`LIFE_CONFIG` is one global `{ label, icon }`, not keyed per course — a new course never
+needs an entry added for it.
 
 | Event | Change | Config key | Where |
 |---|---|---|---|
