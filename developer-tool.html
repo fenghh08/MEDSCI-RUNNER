@@ -850,7 +850,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-18-maintainer-theme'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-18-contributor-map-fix'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -3092,13 +3092,30 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       return map[key];
     };
     Object.entries(RD.THEMES).forEach(([themeId, theme])=> Object.entries(theme.topics||{}).forEach(([topicId, topic])=> Object.entries(topic.items||{}).forEach(([itemId, item])=>{
-      if(item.contributorEmail) get(item.contributorName, item.contributorEmail).items.push({ label:item.label, theme: theme.label, topic: topic.label });
-      (item.questions||[]).forEach(q=>{ if(q.contributorEmail) get(q.contributorName, q.contributorEmail).questions.push({ prompt:q.prompt, itemLabel:item.label, theme: theme.label, topic: topic.label }); });
+      if(item.contributorEmail || item.contributorName) get(item.contributorName, item.contributorEmail).items.push({ label:item.label, theme: theme.label, topic: topic.label });
+      (item.questions||[]).forEach(q=>{ if(q.contributorEmail || q.contributorName) get(q.contributorName, q.contributorEmail).questions.push({ prompt:q.prompt, itemLabel:item.label, theme: theme.label, topic: topic.label }); });
     })));
     Object.values(batch).forEach(entry=>{
       if(!entry.contributorEmail && !entry.contributorName) return;
       const c = get(entry.contributorName, entry.contributorEmail);
       (isReport(entry) ? c.reports : c.pending).push(entry);
+    });
+    // A no-email entry (an old contribution from before attribution existed,
+    // or a report filed in-game without an email) whose name unambiguously
+    // matches exactly one email-having contributor is almost certainly the
+    // same person, just missing the email that time -- fold it into them
+    // rather than showing the same person twice. Skipped if the name is
+    // shared by more than one real email (too ambiguous to guess which).
+    Object.keys(map).filter(k=>k.startsWith('noemail::') && k!=='noemail::anonymous').forEach(noEmailKey=>{
+      const entry = map[noEmailKey];
+      const nameLower = entry.name.toLowerCase();
+      const candidates = Object.keys(map).filter(k=> !k.startsWith('noemail::') && map[k].name.toLowerCase()===nameLower);
+      if(candidates.length === 1){
+        const target = map[candidates[0]];
+        target.items.push(...entry.items); target.questions.push(...entry.questions);
+        target.pending.push(...entry.pending); target.reports.push(...entry.reports);
+        delete map[noEmailKey];
+      }
     });
     return map;
   }
