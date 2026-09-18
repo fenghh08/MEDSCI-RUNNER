@@ -579,9 +579,16 @@
     <div class="screen active" id="landingScreen">
       <div id="cancerPickView">
         <p class="desc">Hit a block, answer, keep your life up.</p>
-        <div class="btn-row" style="margin-bottom:16px;">
+        <!-- Two utility rows instead of one: help (how it works) and
+             settings (how it looks/sounds/reads) were one undifferentiated
+             strip, and the language picker sat between "See it in action"
+             and "Dark" with nothing to say which of the six was which.
+             Every id is unchanged -- only grouping/order moved. -->
+        <div class="btn-row" style="margin-bottom:6px;">
           <button class="secondary" id="manualBtn">📖 How to play</button>
           <button class="secondary" id="tutorialBtn">🎬 See it in action</button>
+        </div>
+        <div class="btn-row" style="margin-bottom:6px;">
           <button class="secondary" id="customizeBtnMenu">🎨 Customise</button>
           <button class="secondary" id="themeToggleBtn">🌙 Dark</button>
           <button class="secondary" id="signInBtn" style="display:none;">👤 Sign in</button>
@@ -593,33 +600,42 @@
             <option value="ko">🌐 한국어</option>
           </select>
         </div>
+        <!-- Section headings: the course grid IS Runner mode, but with six
+             more cards stacked under it, nothing said so -- "pick a course"
+             and "Study & Practice" read as peers. Three labelled groups:
+             the game, the other ways to study, and the two reference views. -->
+        <div class="p-sub landing-section-title" style="width:100%;max-width:460px;margin:14px auto 6px;">▶ Play — pick a course</div>
         <div class="cancer-grid" id="cancerGrid"></div>
-        <!-- Study guide / Browse by lecture moved out of the small utility
-             button row above and given full pick-card weight -- both are
-             core, not secondary, to how this app is actually used
-             (reported: they read as an afterthought next to Dark mode). -->
-        <button class="pick-card" id="studyGuideBtnMenu" style="margin:10px auto 0;max-width:460px;display:block;text-align:center;">
-          <span class="cc-icon">📚</span><span class="cc-name">Study guide</span>
-        </button>
-        <button class="pick-card" id="courseListBtnMenu" style="margin:10px auto 0;max-width:460px;display:block;text-align:center;">
-          <span class="cc-icon">🎓</span><span class="cc-name">Browse by lecture</span>
-        </button>
-        <button class="pick-card" id="practiceModeCard" style="margin:10px auto 0;max-width:460px;display:block;text-align:center;">
-          <span class="cc-icon">📝</span><span class="cc-name">Study &amp; Practice</span>
-          <span class="cc-blurb">Untimed practice, any topic.</span>
-        </button>
-        <button class="pick-card" id="mpModeCard" style="margin:10px auto 0;max-width:460px;display:block;text-align:center;">
-          <span class="cc-icon">🆚</span><span class="cc-name">Group Race</span>
-          <span class="cc-blurb">Race friends, same stages.</span>
-        </button>
-        <button class="pick-card" id="customModeCard" style="margin:10px auto 0;max-width:460px;display:block;text-align:center;">
-          <span class="cc-icon">🎯</span><span class="cc-name">Custom run</span>
-          <span class="cc-blurb">Pick your own question mix.</span>
-        </button>
-        <button class="pick-card" id="reviewModeCard" style="margin:10px auto 0;max-width:460px;display:block;text-align:center;">
-          <span class="cc-icon">📅</span><span class="cc-name">Review</span>
-          <span class="cc-blurb" id="reviewModeBlurb">Spaced repetition, questions you've already studied.</span>
-        </button>
+        <div class="p-sub landing-section-title" style="width:100%;max-width:460px;margin:14px auto 6px;">More ways to study</div>
+        <div class="cancer-grid">
+          <button class="pick-card" id="practiceModeCard">
+            <span class="cc-icon">📝</span><span class="cc-name">Study &amp; Practice</span>
+            <span class="cc-blurb">Untimed practice, any topic.</span>
+          </button>
+          <button class="pick-card" id="reviewModeCard">
+            <span class="cc-icon">📅</span><span class="cc-name">Review</span>
+            <span class="cc-blurb" id="reviewModeBlurb">Spaced repetition, questions you've already studied.</span>
+          </button>
+          <button class="pick-card" id="customModeCard">
+            <span class="cc-icon">🎯</span><span class="cc-name">Custom run</span>
+            <span class="cc-blurb">Pick your own question mix.</span>
+          </button>
+          <button class="pick-card" id="mpModeCard">
+            <span class="cc-icon">🆚</span><span class="cc-name">Group Race</span>
+            <span class="cc-blurb">Race friends, same stages.</span>
+          </button>
+        </div>
+        <div class="p-sub landing-section-title" style="width:100%;max-width:460px;margin:14px auto 6px;">Reference</div>
+        <div class="cancer-grid">
+          <button class="pick-card" id="studyGuideBtnMenu">
+            <span class="cc-icon">📚</span><span class="cc-name">Study guide</span>
+            <span class="cc-blurb">Every item, with notes and facts.</span>
+          </button>
+          <button class="pick-card" id="courseListBtnMenu">
+            <span class="cc-icon">🎓</span><span class="cc-name">Browse by lecture</span>
+            <span class="cc-blurb">Lecture by lecture, with outcomes.</span>
+          </button>
+        </div>
       </div>
       <div id="customizeView" style="display:none;">
         <h2>Customise Your Cell</h2>
@@ -5854,7 +5870,7 @@
   }
 
   // ---------- init ----------
-  const GAME_VERSION = '2026-09-18-life-config-global'; // bump this string whenever you send friends a new copy of the file
+  const GAME_VERSION = '2026-09-19-landing-sections'; // bump this string whenever you send friends a new copy of the file
   console.log('[Runner Game] version', GAME_VERSION);
   document.getElementById('versionTag').textContent = `version ${GAME_VERSION}`;
   function renderManualLifeText(){
