@@ -3015,7 +3015,7 @@
     if(step.mockMcq) openTutorialMockMcq();
   }
   function openTutorialMockMcq(){
-    const options = ['t(9;22) — Philadelphia chromosome', 't(15;17)', 't(8;14)', 't(12;21)'];
+    const options = ['t(9;22)', 't(15;17)', 't(8;14)', 't(12;21)'];
     tutorialMcqOptions.innerHTML = '';
     options.forEach((opt,i)=>{
       const b = document.createElement('button');
@@ -3952,6 +3952,10 @@
   // ---------- update / draw ----------
   function update(dt){
     if(mp.incomingQueue && mp.incomingQueue.length){ processIncomingGrenades(); if(screenState!=='running') return; }
+    // Fires a gift-unlock announcement that couldn't show immediately when
+    // it was triggered (see the room listener) -- the moment I'm actually
+    // back to running, instead of never showing it at all.
+    if(mp.giftUnlockPending){ mp.giftUnlockPending = false; showGiftUnlockAnnouncement(); return; }
     survivalTime += dt;
     // GAME_CONFIG's speed numbers are tuned for the landscape W=960 grid,
     // where an entity travels ~850px (spawn to player) to cross the screen.
@@ -5179,7 +5183,7 @@
     // fromId/fromName) -- kept around just long enough for resolveGrenade()
     // to tell the thrower what happened. seenGrenadeResults mirrors
     // seenIncoming but for results flowing the other way, back to a thrower.
-    pendingGrenade:null, seenGrenadeResults:new Set(), seenEvents:new Set(), bombHellEndsAt:null,
+    pendingGrenade:null, seenGrenadeResults:new Set(), seenEvents:new Set(), bombHellEndsAt:null, giftUnlockPending:false,
     roomListenerRef:null, countdownStarted:false, theme:RUNNABLE_THEMES[0], selectedTheme:RUNNABLE_THEMES[0],
     // filterCourse/filterTopics/filterClasses describe an optional narrowing
     // within the chosen course -- empty topic/class lists mean "the whole
@@ -5485,10 +5489,15 @@
             mp.giftFirstRollDone = false;
             mp.giftTimer = 2500;
             updateGiftHUD();
-            // Only take over the screen from the normal running state --
-            // mid-question, mid-grenade, paused, or already over all stay
-            // undisturbed; the unlock itself still happened either way.
+            // This fires from a live roster update, which happens constantly
+            // as everyone answers questions -- so the moment it crosses the
+            // threshold, I'm very likely mid-question/paused/etc myself, not
+            // 'running'. Show it immediately if I am; otherwise queue it and
+            // update() fires it the next time I'm actually back to running
+            // (see the check at the top of update()), instead of silently
+            // skipping the one-shot announcement forever.
             if(screenState==='running') showGiftUnlockAnnouncement();
+            else mp.giftUnlockPending = true;
           }
         }
         noteIncomingGrenades(roster[mp.playerId]);
@@ -5697,7 +5706,7 @@
     stageProgress = {};
     Object.keys(currentStages()[0].requirements).forEach(t=>stageProgress[t]=0);
     mpOpponentPanel.style.display = 'block';
-    mp.shields = 0; mp.giftsUnlocked = false; mp.giftFirstRollDone = false; mp.giftTimer = 0; mp.seenIncoming = new Set(); mp.incomingQueue = []; mp.bombHellEndsAt = null;
+    mp.shields = 0; mp.giftsUnlocked = false; mp.giftFirstRollDone = false; mp.giftTimer = 0; mp.seenIncoming = new Set(); mp.incomingQueue = []; mp.bombHellEndsAt = null; mp.giftUnlockPending = false;
     clearTimeout(mp.catchUpTimer); mp.catchUpEndsAt = null; mp.catchUpReason = null; mp.catchUpFinisherName = null;
     catchUpBanner.style.display = 'none';
     updateGiftHUD();
@@ -5836,7 +5845,7 @@
       myName:'Player', finished:false, roomListenerRef:null, countdownStarted:false, theme:RUNNABLE_THEMES[0], selectedTheme:RUNNABLE_THEMES[0],
       filterCourse:null, filterTopics:[], filterClasses:[],
       shields:0, giftsUnlocked:false, giftFirstRollDone:false, giftTimer:0, seenIncoming:new Set(), incomingQueue:[], speed:'normal',
-      pendingGrenade:null, seenGrenadeResults:new Set(), seenEvents:new Set(), bombHellEndsAt:null,
+      pendingGrenade:null, seenGrenadeResults:new Set(), seenEvents:new Set(), bombHellEndsAt:null, giftUnlockPending:false,
       catchUpEndsAt:null, catchUpReason:null, catchUpFinisherName:null, catchUpTimer:null };
     mpOpponentPanel.style.display = 'none';
     grenadeOverlay.classList.remove('active');
@@ -5845,7 +5854,7 @@
   }
 
   // ---------- init ----------
-  const GAME_VERSION = '2026-09-18-gift-system-redesign'; // bump this string whenever you send friends a new copy of the file
+  const GAME_VERSION = '2026-09-18-gift-unlock-pending-fix'; // bump this string whenever you send friends a new copy of the file
   console.log('[Runner Game] version', GAME_VERSION);
   document.getElementById('versionTag').textContent = `version ${GAME_VERSION}`;
   function renderManualLifeText(){
@@ -5944,6 +5953,15 @@
         if(screenState!=='running') return 'Start a run first.';
         showGiftUnlockAnnouncement();
         return 'Gift unlock announcement shown.';
+      },
+      // Simulates the unlock threshold being crossed while I'm NOT
+      // 'running' (mid-question, paused, etc) -- sets the same pending
+      // flag the real room listener would, without needing a real race.
+      // Confirms update() fires the queued announcement once I'm actually
+      // back to running, instead of it being silently skipped forever.
+      queueGiftUnlockPending(){
+        mp.giftUnlockPending = true;
+        return { pending: mp.giftUnlockPending, screenState };
       },
       // Fakes Bomb Hell arriving from someone else (bombHellFromId differs
       // from mp.playerId, matching the real "not the activator" check) --
