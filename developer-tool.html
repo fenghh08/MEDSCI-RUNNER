@@ -592,6 +592,11 @@
             <details class="more" style="margin-top:14px;"><summary>Generated code</summary><div><pre class="code-out" id="ff_codeOut"></pre></div></details>
           </div>
         </div>
+        <div class="card">
+          <h2 style="margin-top:0;">Existing fun fact questions <span class="struct-qbadge" id="ffBankCount"></span></h2>
+          <input type="text" class="struct-search" id="ffBankSearch" placeholder="🔍 Search fun fact questions…">
+          <div id="ffBankList" style="margin-top:10px;"></div>
+        </div>
       </div>
     </section>
 
@@ -806,7 +811,7 @@
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-18-richer-data-analysis'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-19-funfact-bank-and-analytics-detail'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -1916,6 +1921,25 @@
     ff_prompt.value = ''; ff_explanation.value = ''; makeOptionList(ff_optionsEl, ()=>renderFunFact()); renderFunFact();
   });
   renderFunFact();
+  // Read-only browse of everything already merged into FUN_FACT_QUESTIONS --
+  // the add form above it has never had a way to see what's already there,
+  // easy to end up re-adding a near-duplicate. Pending (not-yet-merged)
+  // fun fact submissions still show up the normal way, in Team queue.
+  function renderFunFactBank(){
+    const search = document.getElementById('ffBankSearch').value.trim().toLowerCase();
+    const all = Object.entries(RD.FUN_FACT_QUESTIONS || {});
+    const entries = all.filter(([id, q])=> !search || q.prompt.toLowerCase().includes(search));
+    document.getElementById('ffBankCount').textContent = search ? `${entries.length} of ${all.length}` : `${all.length}`;
+    const list = document.getElementById('ffBankList');
+    if(!entries.length){ list.innerHTML = `<div class="struct-empty">— ${all.length ? 'no matches' : 'no fun fact questions yet'} —</div>`; return; }
+    list.innerHTML = entries.map(([id, q])=>`<div class="struct-q">
+        <div class="struct-q-prompt">${esc2(q.prompt)}</div>
+        ${q.options.map((op,i)=>`<div class="struct-q-opt${i===q.correctIndex?' correct':''}">${i===q.correctIndex?'✓':'·'} ${esc2(op)}</div>`).join('')}
+        ${q.explanation ? `<div class="struct-q-explain">${esc2(q.explanation)}</div>` : ''}
+      </div>`).join('');
+  }
+  document.getElementById('ffBankSearch').addEventListener('input', renderFunFactBank);
+  renderFunFactBank();
 
   // ======================================================================
   // Bulk import — exports and the pasteable question grid
@@ -3151,11 +3175,50 @@
       mostAnswered ? `<span>Most answered: <b>${esc2((mostAnswered.prompt||'').slice(0,40))}${(mostAnswered.prompt||'').length>40?'…':''}</b> (${mostAnswered.total})</span>` : '',
     ].filter(Boolean).join('');
   }
+  // The prompt column is truncated at 90 chars, and that was previously the
+  // only way to read a question from this table at all -- no way to see the
+  // options, the correct answer, or jump to fixing it. Each row now expands
+  // into a detail row (full prompt/options/correct answer/explanation) with
+  // an edit link straight into the Add-content form, reusing the same
+  // wireEditButtons() mechanism Browse content's item toggles use.
   function renderAnalyticsTable(){
     const minAttempts = Math.max(0, parseInt(document.getElementById('analyticsMinAttempts').value, 10) || 0);
     const rows = analyticsRowsCache.filter(r=>r.total >= minAttempts).sort((a,b)=> b.missRate - a.missRate || b.total - a.total);
-    if(!rows.length){ analyticsTableWrap.innerHTML = '<p class="card-sub">No questions meet that minimum attempts.</p>'; }
-    else analyticsTableWrap.innerHTML = `<table class="analytics-table"><thead><tr><th>Course</th><th>Topic</th><th>Item</th><th>Question</th><th>Correct</th><th>Wrong</th><th>Miss rate</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc2(r.courseLabel)}</td><td>${esc2(r.topic)}</td><td>${esc2(r.itemLabel)}</td><td>${esc2((r.prompt||'').slice(0,90))}${(r.prompt||'').length>90?'…':''}</td><td>${r.correct}</td><td>${r.wrong}</td><td>${Math.round(r.missRate*100)}%</td></tr>`).join('')}</tbody></table>`;
+    if(!rows.length){
+      analyticsTableWrap.innerHTML = '<p class="card-sub">No questions meet that minimum attempts.</p>';
+      analyticsStatus.textContent = `0 of ${analyticsRowsCache.length} question${analyticsRowsCache.length===1?'':'s'} with answer data shown.`;
+      return;
+    }
+    analyticsTableWrap.innerHTML = `<table class="analytics-table"><thead><tr><th>Course</th><th>Topic</th><th>Item</th><th>Question</th><th>Correct</th><th>Wrong</th><th>Miss rate</th><th></th></tr></thead><tbody>${rows.map((r,i)=>`
+      <tr>
+        <td>${esc2(r.courseLabel)}</td><td>${esc2(r.topic)}</td><td>${esc2(r.itemLabel)}</td>
+        <td>${esc2((r.prompt||'').slice(0,90))}${(r.prompt||'').length>90?'…':''}</td>
+        <td>${r.correct}</td><td>${r.wrong}</td><td>${Math.round(r.missRate*100)}%</td>
+        <td><button type="button" class="subtle" data-analytics-detail="${i}">Detail ▾</button></td>
+      </tr>
+      <tr data-analytics-detail-row="${i}" style="display:none;"><td colspan="8" style="background:var(--bg-1);"></td></tr>
+    `).join('')}</tbody></table>`;
+    analyticsTableWrap.querySelectorAll('[data-analytics-detail]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const i = btn.dataset.analyticsDetail, row = rows[i];
+        const detailRow = analyticsTableWrap.querySelector(`[data-analytics-detail-row="${i}"]`);
+        const wasOpen = detailRow.style.display !== 'none';
+        analyticsTableWrap.querySelectorAll('[data-analytics-detail-row]').forEach(tr=> tr.style.display = 'none');
+        analyticsTableWrap.querySelectorAll('[data-analytics-detail]').forEach(b=> b.textContent = 'Detail ▾');
+        if(wasOpen) return; // clicking an already-open row's button just closes it
+        detailRow.style.display = '';
+        btn.textContent = 'Detail ▴';
+        const cell = detailRow.querySelector('td');
+        if(row.isSaq){
+          cell.innerHTML = `<div class="struct-q-prompt">${esc2(row.prompt)}</div><div class="struct-q-explain">Model answer: ${esc2(row.explanation||'(none)')}</div><button type="button" class="struct-edit-link" data-edit-item="${esc2(row.itemId)}">✏️ Open item</button>`;
+        } else if(row.options){
+          cell.innerHTML = `<div class="struct-q-prompt">${esc2(row.prompt)}</div>${row.options.map((op,oi)=>`<div class="struct-q-opt${oi===row.correctIndex?' correct':''}">${oi===row.correctIndex?'✓':'·'} ${esc2(op)}</div>`).join('')}${row.explanation?`<div class="struct-q-explain">${esc2(row.explanation)}</div>`:''}<button type="button" class="struct-edit-link" data-edit-question="${esc2(row.qId)}">✏️ Edit this question</button>`;
+        } else {
+          cell.innerHTML = `<div class="struct-q-prompt">${esc2(row.prompt)}</div><p class="card-sub" style="margin:6px 0 0;">Couldn't find this question in the current content — it may have been deleted or edited since this stat was recorded.</p>`;
+        }
+        wireEditButtons(cell);
+      });
+    });
     analyticsStatus.textContent = `${rows.length} of ${analyticsRowsCache.length} question${analyticsRowsCache.length===1?'':'s'} with answer data shown.`;
   }
   document.getElementById('analyticsMinAttempts').addEventListener('input', renderAnalyticsTable);
@@ -3173,7 +3236,16 @@
         const prompt = q ? q.prompt : saqEntry ? saqEntry.prompt : '(question not found — deleted or edited since)';
         const correct = s.correct||0, wrong = s.wrong||0, total = correct+wrong;
         const courseId = entry ? entry.themeId : '';
-        return { itemLabel: entry ? entry.item.label : itemId, prompt, correct, wrong, total, courseId, courseLabel: courseId ? ((RD.THEMES[courseId]||{}).label || courseId) : '(unknown)', topicId: entry ? entry.topicId : '', topic: entry ? ((RD.THEMES[entry.themeId]?.topics?.[entry.topicId]||{}).label || entry.topicId) : '', missRate: total ? wrong/total : 0 };
+        return {
+          itemLabel: entry ? entry.item.label : itemId, prompt, correct, wrong, total, courseId,
+          courseLabel: courseId ? ((RD.THEMES[courseId]||{}).label || courseId) : '(unknown)',
+          topicId: entry ? entry.topicId : '', topic: entry ? ((RD.THEMES[entry.themeId]?.topics?.[entry.topicId]||{}).label || entry.topicId) : '',
+          missRate: total ? wrong/total : 0,
+          // Carried through so the table can show a full detail view (and an
+          // edit link) per row instead of just a truncated prompt string.
+          itemId, qId, isSaq, options: q ? q.options : null, correctIndex: q ? q.correctIndex : null,
+          explanation: q ? q.explanation : (saqEntry ? saqEntry.modelAnswer : ''),
+        };
       }).filter(r=>r.total>0);
       analyticsRowsCache = rows;
       renderAnalyticsSummary(rows);
@@ -3233,6 +3305,7 @@
     const sec = document.querySelector(`section[data-section="${section}"]`);
     sec.querySelectorAll('.chip[data-pane]').forEach(b=> b.classList.toggle('active', b.dataset.pane===pane));
     sec.querySelectorAll('.subpane').forEach(p=> p.classList.toggle('active', p.dataset.pane===pane));
+    if(section==='add' && pane==='funfact') renderFunFactBank();
   }
   document.querySelectorAll('.sidenav [data-tab]').forEach(b=> b.addEventListener('click', ()=> showTab(b.dataset.tab)));
   document.querySelectorAll('.chip[data-pane]').forEach(b=> b.addEventListener('click', ()=> showPane(b.closest('section').dataset.section, b.dataset.pane)));
@@ -3269,7 +3342,8 @@ function renderItem(){
       <p>The preview uses the same class names (<code>.p-name</code>, <code>.p-facts</code>, …) the game's study-guide page uses, so what you see is what a player sees. Text is HTML-escaped first (<code>esc2</code>) so a description containing <code>&lt;</code> can't inject markup.</p>`, file:'developer-tool.html → ITEM FORM' },
     funfact: { title:'Fun fact questions', tags:['FUN_FACT_QUESTIONS','grenade shield mini-game'], body:`
       <p>These live in their own <code>FUN_FACT_QUESTIONS</code> object in game-data.js, separate from <code>THEMES</code> — no course, topic or item, and never counted toward stage progress, streaks or score.</p>
-      <p>They're used only for one thing in Group Race: when a grenade is thrown at a specific person, the target can try to shield it by answering one of these correctly instead of taking the hit. The pool needs to stay reasonably sized so the same handful of questions don't repeat every race.</p>` },
+      <p>They're used only for one thing in Group Race: when a grenade is thrown at a specific person, the target can try to shield it by answering one of these correctly instead of taking the hit. The pool needs to stay reasonably sized so the same handful of questions don't repeat every race.</p>
+      <p>The card below the form is the closest thing to a "bank" for these — everything already merged, searchable, so you can check for near-duplicates before adding another. A pending submission (not yet merged) shows up the normal way, in Team queue.</p>` },
     ids: { title:'How ids are made', tags:['slugify','random suffix','object keys'], body:`
       <p>Each item gets an id like <code>ibrutinib_k3f9</code>: the name lower-cased with everything non-alphanumeric stripped (a "slug"), plus a 4-character random suffix so two people adding "Ibrutinib" on the same day don't collide.</p>
       <pre>slugify('Ibrutinib (BTK)')   // 'ibrutinibbtk'
