@@ -100,7 +100,7 @@ Everything is one JSON tree. The paths the code reads and writes:
 | `rooms/<CODE>/players/<targetId>/incoming/<pushKey>` | A racer who throws the Grenade gift at a chosen target | The targeted racer (via the same room listener) | `{ fromName, fromId, at }` — one thrown grenade. The target removes the key once it has played out, so it never replays. |
 | `rooms/<CODE>/players/<throwerId>/grenadeResults/<pushKey>` | The target, once a grenade resolves | The original thrower (via the same room listener) | `{ targetName, shielded, at }` — tells the thrower whether it was blocked or landed, as a toast. The thrower removes the key once shown, so it never replays. |
 | `rooms/<CODE>/events/<pushKey>` | Whoever triggers the event (currently: a grenade thrower) | Every racer in the room (via the same room listener), except the event's own source | `{ type, fromId, fromName, at }` — a shared, room-wide "here's what just happened" log so everyone sees it, not just the people directly involved. Kept to one line per event on purpose. Each client tracks which keys it's already shown (`mp.seenEvents`) instead of removing them, since (unlike `incoming`/`grenadeResults`) more than one client needs to read each entry. |
-| `stats/<itemId>::<qId>` | The game, every time any player answers (a transaction that increments `correct` or `wrong`) | `developer-tool.html` → Analytics tab | Aggregate per-question correct/wrong counts, used for the miss-rate table |
+| `stats/<itemId>::<qId>` | The game, every time any player answers (a transaction that increments `correct` or `wrong`) | `developer-tool.html` → Data analysis tab (maintainer-only) | Aggregate per-question correct/wrong counts, used for the miss-rate table |
 | `contributions/<pushKey>` | The game's "Contribute" section on an item page, the ⚠️ **Report question** button under any answered question, and the dev tool's "Add to batch" | `developer-tool.html` → Team Queue | Suggested fun facts / notes / flags / question reports (`flag-question`, with the reason, prompt and ids) / new items+questions, waiting for a maintainer to review and merge into `game-data.js` |
 | `users/<uid>/sync/<key>` | The game, whenever a **signed-in** player changes something syncable | The game, on sign-in and live afterwards | `theme`, `font`, `gameSpeed`, `lang` (interface language), `playerCustomization`, `srsState` (spaced-repetition history, merged per-entry by newest `lastSeen`) |
 | `.info/serverTimeOffset` | Firebase itself | The game | Clock offset between this device and Firebase's servers, so the Group Race countdown is the same on every device even if someone's clock is wrong |
@@ -110,10 +110,12 @@ when a maintainer merges it into `game-data.js` through the dev tool.
 
 ### 2.4 The dev tool's "maintainer PIN"
 
-The dev tool's destructive sections (delete/overwrite content, Analytics, merging the queue)
-sit behind a PIN check that lives *in the HTML*. It's a convenience gate to stop a casual opener
-clicking the wrong button — it is **not** security. Anyone who can read the file can read the
-PIN, and the database's real protection is the Security Rules in the console.
+The dev tool's destructive sections (delete/overwrite content, Data analysis, Contributors,
+merging the queue) sit behind a PIN check that lives *in the HTML*. It's a convenience gate to stop
+a casual opener clicking the wrong button — it is **not** security. Anyone who can read the file
+can read the PIN, and the database's real protection is the Security Rules in the console. The
+Contributors and Data analysis tabs in the sidenav are hidden entirely until the PIN is entered
+(`applyMaintainerLockUI()`), rather than merely showing a locked placeholder.
 
 ---
 
@@ -273,7 +275,9 @@ Security Rules, and the Auth "Authorized domains" list — all live in the Fireb
 5. Debug helpers: add `?debug=1` to the game's URL and `window.__runnerDebug` appears in the
    console with `simulateGrenade(shields)`, `spawnGift()`, `forceGiftShop()` (renders the gift
    shop immediately, with two fake rivals as real grenade targets), `forceGiftUnlockAnnouncement()`
-   (previews the full-screen "Gift mode is live!" takeover), `forceBombHell()` (fakes Bomb Hell
+   (previews the full-screen "Gift mode is live!" takeover), `queueGiftUnlockPending()` (simulates
+   the unlock threshold crossing while you're mid-question/paused instead of running, to confirm
+   the announcement fires the moment you're back), `forceBombHell()` (fakes Bomb Hell
    arriving from someone else), `forceBombCollision()` (drops a bomb in your lane, to check a held
    shield blocks it), `tutorialSnapshot()`, `setLanguage('ja')` and `tx('Stage II · Life 12')`
    (translate a string the way the UI would), `testCatchUp(seconds, name, reason)` (preview the
