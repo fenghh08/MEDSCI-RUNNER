@@ -23,9 +23,9 @@ later, but right now every entry — and the fallback in `lifeCfg()` — reads t
 | Every 3rd correct answer in a row (streak bonus) | **+0 as currently set** (`streakBonusAmount`, gated by `streakBonusAppliesToLife` — was 10 in an earlier build; see the note in section 2) | `answerMCQ()` |
 | Wrong MCQ answer | **−40** | `wrongAnswerPenalty` | `answerMCQ()` |
 | MCQ timer runs out | **−40** (counted exactly like a wrong answer) | `wrongAnswerPenalty` | `answerMCQ(isTimeout)` |
-| Touch a 💣 bomb | **−40**, instantly, no question | `bombDamage` | collision in `update()` |
-| Buy a grenade or shield after a 🎁 gift question (Group Race) | **−25** | `giftCost` | `renderGiftShop()` |
-| Hit by a rival's grenade without a shield (Group Race) | **−40** | `grenadeDamage` | `resolveGrenade()` |
+| Touch a 💣 bomb | **−40**, instantly, no question — unless you're holding a 🛡 shield, which blocks it for free | `bombDamage` | collision in `update()` |
+| Picking a 🎁 gift after a correct gift question (Group Race) | Free — no life cost either way | — | `renderGiftShop()` |
+| Fail the shield question when a rival's grenade lands on you (Group Race) | **−40** | `grenadeDamage` | `resolveGrenade()` |
 
 Rules around it:
 
@@ -202,37 +202,51 @@ Either way:
   before — whoever triggered the window can still lose if someone else's score overtakes them in
   that time.
 
-### Gifts: grenades and shields
+### Gifts: 4 possible, 2 offered at random
 
-- **Unlock.** Gift questions switch on for the whole room once **20%** of racers have reached
-  Stage II (`giftUnlockShare`). A toast announces it.
+- **Unlock.** Gift questions switch on for the whole room once the room has collectively answered
+  (right or wrong, everyone's combined) at least **3 questions per player** (`giftUnlockQuestionsPerPlayer`)
+  — e.g. a 3-player race needs 9 total. A full-screen "Gift mode is live!" takeover announces it
+  (same freeze-then-3-2-1-resume pattern as a grenade landing), shown only if you're in the middle
+  of actually running when it happens — mid-question, paused, or already done stays undisturbed.
 - **Spawning.** Every 7–13 s (`giftSpawnBaseMs/RandMs`) each racer rolls for a 🎁 gift block. The
   odds run from **30%** for whoever is in 1st place to **85%** for last place
   (`giftChanceMin/Max`), so falling behind earns more gifts. At most one gift block is on screen.
 - **A gift block is a normal question** for one of the stage's topics: it counts toward stage
   progress, streaks, score and SRS exactly like any other. Answer it **correctly** and the shop
-  appears under the explanation.
-- **The shop.** Spend 25 life on one of:
-  - 💣 **Grenade** — thrown immediately at the racer directly **ahead of** or directly **behind**
-    you (your choice; racers who are already done can't be targeted).
-  - 🛡 **Shield** — kept; you can hold several. The HUD shows `🛡 ×n`.
-  - **No thanks** — keep your life.
-  You can only buy while life is strictly above 25, so a purchase never ends your run.
-- **Being hit.** The grenade is delivered through the room (`players/<you>/incoming`). It waits
-  until you're actually running (never mid-question or mid-countdown), then the track freezes,
-  a flashing ⚠️ *WARNING! Grenade incoming!* shows who threw it and how many shields you hold,
-  and you choose **Apply shield** or **Brace**. The rest plays out on the track: the grenade lobs
-  in from the right and drops onto your cell. With a shield, a blue arc pops up in front of the
-  cell and the explosion bursts off it: *Blocked!*, no damage. Without one, the starburst lands
-  on the cell: **−40 life** (`grenadeDamage`), red flash. Then a 1.5 s count and the run
-  continues. If the hit takes life below zero, the run ends as usual.
+  appears under the explanation, offering **2 of these 4 gifts, chosen at random** each time — free
+  to pick, no life cost (the randomness is the balancing factor):
+  - ❤️ **+50 Life** — immediate.
+  - 💣 **Bomb Hell** — for 10 seconds, every OTHER racer still going (not you) has their track
+    cleared down to bombs-only — no questions, gifts, or life pickups spawn, and bombs spawn on a
+    much tighter timer. Delivered via a shared `rooms/<CODE>` field (`bombHellEndsAt` /
+    `bombHellFromId`), so every other client reacts to the same deadline at once.
+  - 🎯 **Grenade** — pick one specific rival still racing, thrown at them right away.
+  - 🛡 **Shield** — kept (you can hold several, HUD shows `🛡 ×n`); blocks your **next bomb hit**
+    (a regular passively-spawned one, or one from someone's Bomb Hell — any bomb, consumed on the
+    first one either way). Shields no longer do anything against grenades.
+- **Defending a grenade.** It's delivered through the room (`players/<you>/incoming`) and waits
+  until you're actually running (never mid-question or mid-countdown), then the track freezes, a
+  flashing ⚠️ *WARNING! Grenade incoming!* names who threw it (bolded, in red, so it's not lost in
+  the surrounding text), and you're given one question from `FUN_FACT_QUESTIONS` — standalone
+  trivia, never counted toward stage progress, streaks, score, or SRS. Answer it right and the
+  grenade is blocked (no shield item spent — this mini-game *is* the defense); answer wrong and it
+  lands: **−40 life** (`grenadeDamage`), same as an unshielded hit always cost. Then a 1.5 s count
+  and the run continues. If the hit takes life below zero, the run ends as usual.
 - **Telling the thrower what happened.** Once the target's grenade resolves, a toast tells the
   *thrower* the outcome too — "🛡 \<name\> blocked your grenade!" or "💥 \<name\> got hit by your
   grenade!" — via `players/<thrower>/grenadeResults`. Throwing used to be fire-and-forget with no
   feedback at all; this closes that loop without changing anything about the throw or the hit.
+- **Telling everyone else what happened.** A grenade throw also writes a one-line event to
+  `rooms/<CODE>/events` — every other client (not just the thrower and the target) sees a shared
+  "💣 \<name\> threw a grenade!" toast, kept deliberately simple (no per-target detail) so it
+  doesn't turn into a wall of text in a bigger room.
 - **Previewing it solo.** Open the game with `?debug=1` on the URL, start any run, and in the
-  browser console call `__runnerDebug.simulateGrenade(1)` (the number is how many shields you
-  hold) or `__runnerDebug.spawnGift()`.
+  browser console call `__runnerDebug.simulateGrenade(1)`, `__runnerDebug.spawnGift()`,
+  `__runnerDebug.forceGiftShop()` (renders the shop immediately, with two fake rivals as real
+  grenade targets), `__runnerDebug.forceGiftUnlockAnnouncement()`, `__runnerDebug.forceBombHell()`
+  (fakes Bomb Hell arriving from someone else), or `__runnerDebug.forceBombCollision()` (drops a
+  bomb in your lane, to check a held shield blocks it).
 - Grenades that arrive after you're already done simply fizzle.
 
 - Each racer plays the same stages independently; only life, stage, counts and bonus points are
@@ -264,11 +278,10 @@ Either way:
 | `stageWeight` | 300 | Score per stage index reached |
 | `speedPresets` | slow 0.75 / normal 1 / fast 1.25 | Customise → Game speed multipliers |
 | `bombIntervalByDifficulty` | easy 1.5 / medium 1 / hard 0.7 | Bomb spawn interval multiplier per stage |
-| `giftUnlockShare` | 0.2 | Share of racers on Stage II before gifts start |
+| `giftUnlockQuestionsPerPlayer` | 3 | Total questions the room must answer, per player, before gifts start |
 | `giftSpawnBaseMs` / `giftSpawnRandMs` | 7000 / 6000 | How often a gift block is rolled for |
 | `giftChanceMin` / `giftChanceMax` | 0.3 / 0.85 | Gift odds for 1st place / last place |
-| `giftCost` | 25 | Life per grenade or shield |
-| `grenadeDamage` | 40 | Life lost to an unshielded grenade |
+| `grenadeDamage` | 40 | Life lost if you fail the grenade's shield question |
 | `baseSpeed` / `speedRampPerStage` / `speedRampPerSecond` / `maxSpeed` | 600 / 40 / 10 / 1000 | Scroll speed ramp (px/s) |
 | `MCQ_TIME_LIMIT` (in the game file) | 45 s | Base question timer |
 
