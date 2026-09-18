@@ -387,7 +387,7 @@
         <button class="chip active" data-pane="item">📄 Study guide item</button>
         <button class="chip" data-pane="question">❓ Question</button>
         <button class="chip" data-pane="topic">🗂️ Topic</button>
-        <button class="chip" data-pane="course">📚 Course <span style="opacity:.6;">🔒 Admin</span></button>
+        <button class="chip" id="courseChip" data-pane="course" style="display:none;">📚 Course</button>
         <button class="chip" data-pane="outcomes">🧭 Learning outcomes</button>
         <button class="chip" data-pane="funfact">🎲 Fun fact question</button>
       </div>
@@ -544,7 +544,7 @@
         <div class="two-col">
           <div class="card">
             <h2>New course / subject area</h2>
-            <p class="card-sub">A whole new top-level subject, like "MEDS3002". You'll add topics and items into it afterwards. <b>Admin-only</b> — unlock Admin mode (left menu) first; everyone else can still add topics, items and questions freely.</p>
+            <p class="card-sub">A whole new top-level subject, like "MEDS3002". You'll add topics and items into it afterwards.</p>
             <label class="field"><span class="fl-label">Course name <span class="req">*</span></span><input type="text" id="c_label" placeholder="e.g. Pharmacology 101"></label>
             <div class="id-preview" id="c_idPreview">id: —</div>
             <label class="field" style="max-width:140px;"><span class="fl-label">Icon</span><input type="text" id="c_icon" value="📘" maxlength="4"></label>
@@ -791,7 +791,7 @@
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-18-course-links-to-courses'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-18-course-chip-admin-gated'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -882,6 +882,13 @@
     maintainerLockGate.style.display = maintainerUnlocked ? 'none' : 'block';
     maintainerLockedContent.style.display = maintainerUnlocked ? 'block' : 'none';
     ['navTitleMaintainerTools','tabContributors','tabDataAnalysis'].forEach(id=>{ document.getElementById(id).style.display = maintainerUnlocked ? '' : 'none'; });
+    // The Course chip/pane under Add content is admin-only too -- hide the
+    // chip entirely rather than showing it and blocking on submit, and if a
+    // non-admin is somehow sitting on that pane when locking (e.g. it was
+    // open when someone else re-locked the shared PIN state), bounce back
+    // to the default "item" pane instead of leaving a dead-end open.
+    document.getElementById('courseChip').style.display = maintainerUnlocked ? '' : 'none';
+    if(!maintainerUnlocked && document.querySelector('section[data-section="add"] .subpane[data-pane="course"]')?.classList.contains('active')) showPane('add','item');
     // Whole-page color swap (see body.maintainer-on in the stylesheet) plus a
     // topbar badge, so it's obvious at a glance whether you're looking at
     // the page as a regular contributor or as an unlocked maintainer --
@@ -2561,8 +2568,13 @@
       if(entry.type==='topic' && entry.data && entry.data.topicId && !KNOWN_TOPICS[entry.data.topicId]){
         KNOWN_TOPICS[entry.data.topicId] = { label:entry.data.label||entry.data.topicId, theme:entry.data.theme };
       }
-      if(entry.type==='course' && entry.data && entry.data.id && !KNOWN_THEMES.some(t=>t.id===entry.data.id)){
-        KNOWN_THEMES.push({ id:entry.data.id, label:entry.data.label||entry.data.id });
+      if(entry.type==='course' && entry.data && entry.data.id){
+        if(!KNOWN_THEMES.some(t=>t.id===entry.data.id)) KNOWN_THEMES.push({ id:entry.data.id, label:entry.data.label||entry.data.id });
+        // Also register the COURSES side (see c_addBatch/applyEntry) -- without
+        // this, a pending course only ever shows up in Browse content (built
+        // from KNOWN_THEMES) and never in the Lectures tab's course picker
+        // (built from KNOWN_COURSES) until someone actually merges it.
+        if(!KNOWN_COURSES[entry.data.id]) KNOWN_COURSES[entry.data.id] = { code:entry.data.id, label:entry.data.label||entry.data.id, classes:{} };
       }
     });
   }
