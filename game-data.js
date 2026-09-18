@@ -58,7 +58,7 @@
    ("MEDS3002 · L14 · Cancer Hallmarks") is generated automatically — see
    courseDisplayString() in cancer-runner-group.html.
    ====================================================================== */
-                        const COURSES = {
+                      const COURSES = {
     'MEDS3002': {
       'code': 'MEDS3002',
       'label': 'Cancer / Medical Science',
@@ -359,18 +359,8 @@
     },
     'AMED3003': {
       'code': 'AMED3003',
-      'label': 'AMED3003',
-      'classes': {
-        'L1': {
-          'label': 'Test',
-        },
-        'L2': {
-          'label': 'Testtt',
-        },
-        'L3': {
-          'label': 'Good',
-        },
-      },
+      'label': 'Diagnostics and Biomarkers',
+      'classes': {},
     },
   };
 
@@ -455,7 +445,7 @@
    its item's (e.g. a question spanning several classes at once) — most
    questions just inherit the item's.
    ====================================================================== */
-                        const THEMES = {
+                      const THEMES = {
     'MEDS3002': {
       'label': 'MEDS3002',
       'icon': '🎗️',
@@ -6086,9 +6076,9 @@
       },
     },
     'AMED3003': {
-      'label': 'AMED3003',
+      'label': 'Diagnostics and Biomarkers',
       'icon': '📘',
-      'blurb': 'Test',
+      'blurb': 'Diagnostic sciences have evolved at a rapid pace and provide the cornerstone of our health care system. Effective diagnostic assays enable the identification of people who have, or are at risk of, a disease, and guide their treatment. Research into the pathophysiology of disease underpins the discovery of novel biomarkers and in turn, the development of revolutionary diagnostic assays that make use of state-of-the-art molecular and cellular methods. In this unit you will explore a diverse range of diagnostic tests and gain valuable practical experience in a number of core diagnostic methodologies, many of which are currently used in hospital laboratories. Together we will also cover the regulatory, social, and ethical aspects of the use of biomarkers and diagnostic tests and explore the pathways to their translation into clinical practice. By undertaking this unit, you will develop your understanding of diagnostic assays and biomarkers and acquire the skills needed to embark on a career in diagnostic sciences.',
       'topics': {},
     },
   };
@@ -6102,7 +6092,7 @@
    (prompt/options/correctIndex/explanation) minus the fields that only
    make sense in context (difficulty, hashtags, course/class).
    ====================================================================== */
-      const FUN_FACT_QUESTIONS = {
+    const FUN_FACT_QUESTIONS = {
     'ff-honey': {
       'prompt': 'Archaeologists have found pots of this food in ancient Egyptian tombs that are still edible thousands of years later. What is it?',
       'options': ['Honey', 'Dried fish', 'Olive oil', 'Wine'],
