@@ -41,9 +41,12 @@
    RUNNABLE_THEMES— which course ids have a STAGES entry (playable in Runner
                      mode vs. Study & Practice-only).
    GAME_CONFIG    — every tunable gameplay number.
-   LIFE_CONFIG    — the global label/icon for the "life" resource, same for
-                     every course.
+   LIFE_CONFIG    — per-course label/icon for the "life" resource.
    COMPLETE_SCENARIO — text shown after the last stage.
+   FUN_FACT_QUESTIONS — standalone trivia questions, not tied to any
+                     course/topic/item, used only for the Group Race
+                     grenade gift's "shield it by answering a question"
+                     mini-game. Never counted toward stage progress.
    ============================================================================ */
 (function(){
 
@@ -55,7 +58,7 @@
    ("MEDS3002 · L14 · Cancer Hallmarks") is generated automatically — see
    courseDisplayString() in cancer-runner-group.html.
    ====================================================================== */
-                    const COURSES = {
+                      const COURSES = {
     'MEDS3002': {
       'code': 'MEDS3002',
       'label': 'Cancer / Medical Science',
@@ -415,13 +418,17 @@
   };
 
 /* ======================================================================
-   LIFE — the "health" resource. One global label ("Life") and icon (🩸)
-   for every course -- not keyed by course, so a new course never needs an
-   entry added here (nothing to forget). Every place it's shown (HUD,
-   pickups, penalties, the bomb warning) reads this via lifeCfg() in
-   medsci-runner.html.
+   LIFE — the "health" resource. Same label ("Life") and icon (🩸) across
+   every course now -- LIFE_CONFIG stays keyed by course so a specific
+   course could still be given its own wording later; every place it's
+   shown (HUD, pickups, penalties, the bomb warning) reads from this
+   automatically via lifeCfg() in medsci-runner.html.
    ====================================================================== */
-  const LIFE_CONFIG = { label:'Life', icon:'🩸' };
+  const LIFE_CONFIG = {
+    'MEDS3002': { label:'Life', icon:'🩸' },
+    'MEDS2003': { label:'Life', icon:'🩸' },
+    'MEDS3003': { label:'Life', icon:'🩸' },
+  };
 
 /* ======================================================================
    THEMES — Course -> Topic -> Item. Each item can carry "hashtags" (which
@@ -433,7 +440,7 @@
    its item's (e.g. a question spanning several classes at once) — most
    questions just inherit the item's.
    ====================================================================== */
-                    const THEMES = {
+                      const THEMES = {
     'MEDS3002': {
       'label': 'MEDS3002',
       'icon': '🎗️',
@@ -6063,18 +6070,16 @@
         },
       },
     },
-    'amed3003_cz1c': {
-      'label': 'AMED3003',
-      'icon': '📘',
-      'blurb': 'Test',
-      'topics': {},
-    },
   };
 
 /* ======================================================================
-   FUN_FACT_QUESTIONS — standalone trivia, not tied to any course/topic/item,
-   used only for the Group Race grenade gift's "shield it by answering a
-   question" mini-game. Never counted toward stage requirements or score.
+   FUN_FACT_QUESTIONS — a separate, small pool of standalone trivia
+   questions, keyed by id. Used only for the Group Race grenade gift's
+   "shield it by answering a question" mini-game (see GAME_CONFIG's gift
+   comments) — never counted toward stage requirements, streaks, or score,
+   and not tied to any course/topic/item. Same shape as a normal question
+   (prompt/options/correctIndex/explanation) minus the fields that only
+   make sense in context (difficulty, hashtags, course/class).
    ====================================================================== */
     const FUN_FACT_QUESTIONS = {
     'ff-honey': {
