@@ -288,12 +288,14 @@
 
 <div class="shell">
   <nav class="sidenav">
-    <div class="nav-title">Work</div>
-    <button id="tabStructure" data-tab="structure">📖 <span>Browse content</span></button>
-    <button id="tabLectures" data-tab="lectures">📚 <span>Lectures</span></button>
-    <button id="tabQuestionBank" data-tab="questionbank">🗃️ <span>Question bank</span></button>
-    <button id="tabAdd" data-tab="add" class="active">✚ <span>Add content</span></button>
+    <div class="nav-title">Contribute</div>
+    <button id="tabStart" data-tab="start" class="active">🚀 <span>Start here</span></button>
     <button id="tabCsv" data-tab="csv">📄 <span>Bulk import</span></button>
+    <button id="tabLectures" data-tab="lectures">📚 <span>Lectures</span></button>
+    <button id="tabAdd" data-tab="add">✚ <span>Add content</span></button>
+    <div class="nav-title">Browse</div>
+    <button id="tabStructure" data-tab="structure">📖 <span>Browse content</span></button>
+    <button id="tabQuestionBank" data-tab="questionbank">🗃️ <span>Question bank</span></button>
     <div class="nav-title">Review</div>
     <button id="tabQueue" data-tab="queue">👥 <span>Team queue</span><span class="badge" id="queueTabBadge"></span></button>
     <button id="tabReports" data-tab="reports">⚠️ <span>Reports</span><span class="badge" id="reportsTabBadge"></span></button>
@@ -305,6 +307,45 @@
   </nav>
 
   <main>
+    <!-- ================= START HERE (the contributor / unit-coordinator flow) ================= -->
+    <section data-section="start" class="active">
+      <div class="section-head">
+        <h2>Start here <button class="info-btn" data-info="overview" title="How this works">i</button></h2>
+        <p>The whole flow in four steps. Most people only ever need the first three — the sheet, paste it in, done. Nothing you add touches the game until an admin merges it, so there's no way to break anything.</p>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">1 · Get the template sheet</h2>
+        <p class="card-sub">Work in Google Sheets — one row per question. Make a copy of the template so you have the exact column layout; there's a tab in it for questions and one for lectures. Type your name and email at the top of this page too — that's how your work gets credited, and how an admin can reach you about it.</p>
+        <div class="btn-row"><a class="link-btn" style="font-size:13px;text-decoration:none;" href="https://docs.google.com/spreadsheets/d/1BlL64j0qI--hMyGCwRw3hcRho6tvo_-CfkiIAf01ZG4/edit?usp=sharing" target="_blank" rel="noopener">📋 Open the template sheet ↗</a></div>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">2 · Fill it in</h2>
+        <p class="card-sub"><b>Questions:</b> course code (e.g. <code>MEDS3002</code>), lecture (e.g. <code>L14</code>), topic, item name, the prompt, four options, and which is correct. If the item doesn't exist yet it's created for you. <b>Lectures &amp; learning outcomes:</b> lecture number, name, and the outcomes separated by semicolons — one row per lecture, on the lectures tab of the sheet.</p>
+        <p class="card-sub">Topics and courses have to exist before a row can point at them. Topics you can add yourself under Add content; a brand-new course is admin-only — ask one of the admins and it takes a minute.</p>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">3 · Paste it into the tool</h2>
+        <p class="card-sub">Select the filled-in rows in your sheet, copy, then click a cell in the table here and paste — it fills every cell you copied and grows the table if needed. Each row is checked as you go; anything missing gets a note and, where possible, a button straight to the fix.</p>
+        <div class="btn-row">
+          <button type="button" class="primary" data-goto="csv">📄 Paste questions (Bulk import)</button>
+          <button type="button" data-goto="lectures">📚 Paste lectures &amp; outcomes</button>
+          <button type="button" data-goto="add">✚ Or add one at a time</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">4 · It goes to the team queue</h2>
+        <p class="card-sub">Everything lands in <b>Team queue</b>, live, where the whole team can see it. An admin reviews and merges it into the game — usually in a batch. You can edit or fix your own submissions there until they're merged. Players' in-game reports about existing questions show up separately under <b>Reports</b>.</p>
+        <div class="btn-row"><button type="button" data-goto="queue">👥 Open the team queue</button><button type="button" data-goto="structure">📖 Browse what's already in the game</button></div>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Who can do what</h2>
+        <table class="cols"><tr><th>Anyone</th><th>Admin only</th></tr>
+          <tr><td>Add or edit questions, items, topics, lectures and learning outcomes; request deletions; flag anything for review</td><td>Create a course; merge the queue into the real game file; remove things from the queue; see who contributed what; read the answer analytics</td></tr>
+        </table>
+        <p class="card-sub" style="margin-top:8px;">Admins: Eason, Sara, Caitlin, Stephanie, Henry — unlock under <button type="button" class="link-btn" data-goto="maintainer">Admin</button> with the PIN.</p>
+      </div>
+    </section>
+
     <!-- ================= BROWSE ================= -->
     <section data-section="structure">
       <div class="section-head">
@@ -378,7 +419,7 @@
     </section>
 
     <!-- ================= ADD ================= -->
-    <section data-section="add" class="active">
+    <section data-section="add">
       <div class="section-head">
         <h2>Add content</h2>
         <p>Pick what you're adding. Fill in the form on the left, check the live preview on the right, then <b>Add to queue</b>. <button class="info-btn" data-info="live-preview" title="How this works">i</button></p>
@@ -679,6 +720,7 @@
       </div>
       <div id="maintainerLockGate" class="lock-gate card">
         <div>🔒 Admin PIN <button class="info-btn" data-info="pin" title="How this works">i</button></div>
+        <p class="card-sub" style="margin:2px 0 8px;">Needs the PIN <i>and</i> your name (top of the page) on the admin list.</p>
         <input type="password" id="maintainerPinInput" maxlength="4" inputmode="numeric" placeholder="••••">
         <button class="primary" id="maintainerUnlockBtn">Unlock</button>
         <div class="lg-error" id="maintainerPinError">Wrong PIN.</div>
@@ -745,6 +787,11 @@
         <div class="struct-stats" id="analyticsSummary" style="margin-top:12px;"></div>
       </div>
       <div class="card">
+        <h2 style="margin-top:0;">⚠️ Needs review <span class="struct-qbadge" id="needsReviewCount"></span></h2>
+        <p class="card-sub">Auto-surfaced: a high miss rate with enough attempts to trust it, or a difficulty tag that doesn't match how the question actually performs (e.g. tagged "easy" but missed most of the time). Flag one straight to the team's Reports queue, or jump in and fix it yourself.</p>
+        <div id="needsReviewList"></div>
+      </div>
+      <div class="card">
         <h2 style="margin-top:0;">By course</h2>
         <p class="card-sub">Sorted hardest first (lowest accuracy).</p>
         <div id="analyticsByCourse" style="overflow-x:auto;"></div>
@@ -760,6 +807,12 @@
         <p class="card-sub">Sorted by miss rate. Low-attempt questions are noisy (one wrong answer out of one attempt is a 100% miss rate) — raise the minimum to filter those out.</p>
         <div class="btn-row"><label style="font-weight:normal;font-size:13px;">Minimum attempts <input type="number" id="analyticsMinAttempts" value="3" min="0" style="width:60px;margin-left:6px;"></label></div>
         <div id="analyticsTableWrap" style="margin-top:12px;overflow-x:auto;"></div>
+      </div>
+      <div class="card">
+        <details class="more"><summary>Easiest questions</summary><div>
+          <p class="card-sub" style="margin-top:10px;">Lowest miss rate with at least 3 attempts — the flip side of "hardest", mostly useful for spotting a question that's a giveaway rather than actually testing anything.</p>
+          <div id="analyticsEasiestWrap" style="overflow-x:auto;"></div>
+        </div></details>
       </div>
     </section>
   </main>
@@ -811,7 +864,7 @@
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-19-funfact-bank-and-analytics-detail'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-19-start-here-reorg-admin-list-review'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -892,6 +945,12 @@
   // Anyone can read this in the source; it only stops a casual click on
   // "delete" or "generate the real file". Change it before sharing the file.
   const MAINTAINER_PIN = '1008';
+  // Unlocking now needs BOTH the PIN and a name on this list (matched
+  // against the "Your name" field at the top, case/whitespace-insensitive)
+  // -- knowing the PIN alone isn't enough. Still just a deterrent, same as
+  // the PIN itself: both are plain text in this file's source.
+  const ADMIN_NAMES = ['Eason', 'Sara', 'Caitlin', 'Stephanie', 'Henry'];
+  function isAdminName(name){ return ADMIN_NAMES.some(a=> a.toLowerCase()===(name||'').trim().toLowerCase()); }
   function safeSessionGet(key){ try { return sessionStorage.getItem(key); } catch(e){ return null; } }
   function safeSessionSet(key, val){ try { sessionStorage.setItem(key, val); } catch(e){} }
   function safeSessionRemove(key){ try { sessionStorage.removeItem(key); } catch(e){} }
@@ -924,8 +983,11 @@
   document.getElementById('maintainerUnlockBtn').addEventListener('click', ()=>{
     const input = document.getElementById('maintainerPinInput');
     const err = document.getElementById('maintainerPinError');
+    const name = contributorNameEl.value.trim();
+    if(!name){ err.textContent = 'Type your name at the top of the page first.'; err.style.display = 'block'; return; }
+    if(!isAdminName(name)){ err.textContent = `"${name}" isn't on the admin list.`; err.style.display = 'block'; return; }
     if(input.value === MAINTAINER_PIN){ maintainerUnlocked = true; safeSessionSet('maintainerUnlocked','yes'); err.style.display='none'; applyMaintainerLockUI(); renderBatch(); renderStructureList(); renderQuestionBank(); }
-    else { err.style.display = 'block'; input.value = ''; }
+    else { err.textContent = 'Wrong PIN.'; err.style.display = 'block'; input.value = ''; }
   });
   document.getElementById('maintainerLockBtn').addEventListener('click', ()=>{
     maintainerUnlocked = false;
@@ -3222,6 +3284,62 @@
     analyticsStatus.textContent = `${rows.length} of ${analyticsRowsCache.length} question${analyticsRowsCache.length===1?'':'s'} with answer data shown.`;
   }
   document.getElementById('analyticsMinAttempts').addEventListener('input', renderAnalyticsTable);
+  // The actionable half of the analytics: instead of leaving someone to
+  // scan the table and decide what's worth acting on, surface the rows that
+  // most likely mean a badly written question (or a mis-tagged difficulty),
+  // and give them a one-click way to hand it to the team via the same
+  // Reports queue player reports already land in -- so it's reviewed and
+  // fixed through the workflow that already exists, not a new one.
+  const REVIEW_MIN_ATTEMPTS = 3, REVIEW_MISS_RATE = 0.6;
+  function computeNeedsReview(rows){
+    const out = [];
+    rows.forEach(r=>{
+      if(!r.qId || r.isSaq || !r.options || r.total < REVIEW_MIN_ATTEMPTS) return; // only real, still-existing MCQs can be flagged/edited
+      const pct = Math.round(r.missRate*100), reasons = [];
+      if(r.missRate >= REVIEW_MISS_RATE) reasons.push(`missed ${pct}% of the time over ${r.total} attempts`);
+      if(r.difficulty==='easy' && r.missRate > 0.5) reasons.push(`tagged "easy" but missed ${pct}% of the time — may be mis-tagged or unclear`);
+      if(r.difficulty==='hard' && r.missRate < 0.15) reasons.push(`tagged "hard" but only missed ${pct}% of the time — may be too easy for its tag`);
+      if(reasons.length) out.push({ ...r, reasons });
+    });
+    return out.sort((a,b)=> b.missRate - a.missRate || b.total - a.total);
+  }
+  function isAlreadyFlagged(qId){ return Object.values(batch).some(e=> e.type==='flag-question' && e.data && e.data.qId===qId); }
+  function renderNeedsReview(){
+    const rows = computeNeedsReview(analyticsRowsCache);
+    document.getElementById('needsReviewCount').textContent = rows.length ? String(rows.length) : '';
+    const el = document.getElementById('needsReviewList');
+    if(!rows.length){ el.innerHTML = `<div class="struct-empty">— nothing stands out right now (needs ${REVIEW_MIN_ATTEMPTS}+ attempts and a ${Math.round(REVIEW_MISS_RATE*100)}%+ miss rate, or a difficulty tag that doesn't fit) —</div>`; return; }
+    el.innerHTML = rows.map(r=>{
+      const flagged = isAlreadyFlagged(r.qId);
+      return `<div class="q-existing-row" style="align-items:flex-start;">
+        <span><b>${esc2(r.itemLabel)}</b> <span style="color:var(--muted);">· ${esc2(r.courseLabel)} · ${esc2(r.topic)}</span><br>
+          <span style="color:var(--muted);">${esc2((r.prompt||'').slice(0,90))}${(r.prompt||'').length>90?'…':''}</span><br>
+          <span style="color:var(--warn);">${r.reasons.map(esc2).join('; ')}</span></span>
+        <span class="btn-row" style="margin:0;flex-shrink:0;">
+          <button type="button" class="struct-edit-link" data-edit-question="${esc2(r.qId)}">✏️ Edit</button>
+          ${flagged ? `<span class="struct-edit-link" style="opacity:.6;">🚩 Already flagged</span>` : `<button type="button" class="danger struct-edit-link" data-flag-for-review="${esc2(r.qId)}">🚩 Flag for review</button>`}
+        </span>
+      </div>`;
+    }).join('');
+    wireEditButtons(el);
+    el.querySelectorAll('[data-flag-for-review]').forEach(btn=> btn.addEventListener('click', ()=>{
+      if(!requireContributorIdentity()) return;
+      const r = rows.find(x=>x.qId===btn.dataset.flagForReview); if(!r) return;
+      const reason = `Flagged from Data analysis: ${r.reasons.join('; ')}`;
+      // Same shape the in-game "Report question" button writes, so it shows
+      // up in Reports with the same Edit link and detail view as any other.
+      pushToQueue({ type:'flag-question', title: (r.prompt||'').length > 70 ? r.prompt.slice(0,67)+'…' : (r.prompt||'(question)'), note:`⚠️ ${reason}`,
+        data:{ theme:r.courseId, topicId:r.topicId, itemId:r.itemId, qId:r.qId, reason, prompt:r.prompt, difficulty:r.difficulty||'medium' } });
+      toast('Flagged — it\'s now in Reports for the team');
+      renderNeedsReview();
+    }));
+  }
+  function renderAnalyticsEasiest(){
+    const el = document.getElementById('analyticsEasiestWrap');
+    const rows = analyticsRowsCache.filter(r=>r.total >= REVIEW_MIN_ATTEMPTS).sort((a,b)=> a.missRate - b.missRate || b.total - a.total).slice(0, 15);
+    if(!rows.length){ el.innerHTML = `<p class="card-sub">No questions with ${REVIEW_MIN_ATTEMPTS}+ attempts yet.</p>`; return; }
+    el.innerHTML = `<table class="analytics-table"><thead><tr><th>Course</th><th>Item</th><th>Question</th><th>Attempts</th><th>Miss rate</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc2(r.courseLabel)}</td><td>${esc2(r.itemLabel)}</td><td>${esc2((r.prompt||'').slice(0,90))}${(r.prompt||'').length>90?'…':''}</td><td>${r.total}</td><td>${Math.round(r.missRate*100)}%</td></tr>`).join('')}</tbody></table>`;
+  }
   function loadAnalytics(){
     if(!maintainerUnlocked) return;
     if(!firebaseReady){ analyticsStatus.className = 'status bad'; analyticsStatus.textContent = 'Not connected — check your internet connection and hit Refresh.'; return; }
@@ -3245,13 +3363,16 @@
           // edit link) per row instead of just a truncated prompt string.
           itemId, qId, isSaq, options: q ? q.options : null, correctIndex: q ? q.correctIndex : null,
           explanation: q ? q.explanation : (saqEntry ? saqEntry.modelAnswer : ''),
+          difficulty: q ? (q.difficulty || 'medium') : null,
         };
       }).filter(r=>r.total>0);
       analyticsRowsCache = rows;
       renderAnalyticsSummary(rows);
       renderAnalyticsGroupTable('analyticsByCourse', groupAnalyticsRows(rows, r=>r.courseId, r=>r.courseLabel), 'Course');
       renderAnalyticsGroupTable('analyticsByTopic', groupAnalyticsRows(rows, r=>r.courseId+'::'+r.topicId, r=>`${r.courseLabel} · ${r.topic}`), 'Course · Topic');
+      renderNeedsReview();
       renderAnalyticsTable();
+      renderAnalyticsEasiest();
     }).catch(err=>{ analyticsStatus.className = 'status bad'; analyticsStatus.textContent = 'Failed to load — check your connection and try again.'; console.warn('[Analytics] load failed', err); });
   }
   document.getElementById('analyticsRefreshBtn').addEventListener('click', loadAnalytics);
@@ -3316,8 +3437,9 @@
   // ======================================================================
   const INFO_NOTES = {
     overview: { title:'How it all fits together', tags:['architecture','no build step'], body:`
-      <p>Three files do everything: <b>medsci-runner.html</b> (the game), <b>game-data.js</b> (every course, item and question as plain data) and <b>this page</b> (the content tool). No framework, no bundler, no server — each file is opened straight from the folder or from GitHub Pages.</p>
-      <p>The flow of a contribution: fill in a form here → it becomes a small JavaScript object → it's pushed to a shared Firebase queue → the admin merges the queue into a fresh <code>game-data.js</code> → that file is committed and the game reads it on next load.</p>
+      <p><b>For contributors:</b> fill in the template sheet (one row per question; a separate tab for lectures and learning outcomes) → paste the rows into <b>Bulk import</b> or <b>Lectures</b> → they land in the shared <b>Team queue</b> → an admin merges them into the game. That's the whole loop; the Start here tab walks it step by step.</p>
+      <p><b>Under the hood:</b> three files do everything — <b>medsci-runner.html</b> (the game), <b>game-data.js</b> (every course, item and question as plain data) and <b>this page</b> (the content tool). No framework, no bundler, no server — each file is opened straight from the folder or from GitHub Pages.</p>
+      <p>A contribution becomes a small JavaScript object → it's pushed to a shared Firebase queue → the admin merges the queue into a fresh <code>game-data.js</code> → that file is committed and the game reads it on next load.</p>
       <ul><li>Forms and preview: plain DOM + template literals.</li><li>Shared queue: Firebase Realtime Database (a JSON tree with live listeners).</li><li>Merge: clone the data, apply each queued change, serialise back to source text, syntax-check it.</li></ul>
       <p>Click any <span class="info-btn" style="pointer-events:none;">i</span> around the tool for the specific piece.</p>` },
     questionbank: { title:'One flat list, not a tree', tags:['Array.map/filter','no re-fetch'], body:`
@@ -3383,6 +3505,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
       <p>A built-in copy ships inside this file; "Refresh from GitHub" fetches the latest committed file and saves fresher parts in <code>localStorage</code> (per browser). If you hand-edit <code>GAME_CONFIG</code> locally, paste the whole file in the box instead so the merge doesn't overwrite your tuning with the old numbers.</p>` },
     pin: { title:'The admin PIN', tags:['sessionStorage','not security'], body:`
       <p>The PIN is a plain string in this file's source, so anyone can read it. It isn't security — it stops a regular contributor from clicking "delete" or "generate the real file" while exploring. Real protection is the Firebase security rules in the console, which decide who can write to which path.</p>
+      <p>Unlocking also checks the "Your name" field against a hardcoded <code>ADMIN_NAMES</code> list — same deterrent-not-security caveat: anyone who reads the source can see both the PIN and the list, and nothing stops someone typing a name from that list. It just means knowing the PIN alone (e.g. seeing it over someone's shoulder) isn't enough by itself.</p>
       <p>Once unlocked, the flag is kept in <code>sessionStorage</code> so it survives a reload but not closing the tab. That call is wrapped in <code>try/catch</code>: some browsers throw on storage access for <code>file://</code> pages, and an optional convenience must never break the page.</p>` },
     analytics: { title:'Where the analytics come from', tags:['transaction','aggregate only'], body:`
       <p>Every time a player answers a question, the game runs a Firebase <em>transaction</em> on <code>stats/&lt;itemId&gt;::&lt;questionId&gt;</code> that increments <code>correct</code> or <code>wrong</code>. A transaction reads the current value and writes the new one atomically, so two players answering at the same instant can't lose an increment.</p>
@@ -3425,14 +3548,14 @@ const themesDecl  = text.indexOf('const THEMES = {');
   // TOUR
   // ======================================================================
   const DEV_TOUR_STEPS = [
-    { tab:'add', pane:['add','item'], sel:'#contributorName', title:'Your name and email', caption:'Type these once — required before anything can be queued. Only an admin can see whose submission is whose; everyone else just sees "You" on their own and nothing on anyone else\'s.' },
-    { tab:'add', sel:'#addChips', title:'Pick what you are adding', caption:'A study guide item, a question, a topic, a course, or lecture learning outcomes. The item form is the one you\'ll use most.' },
-    { tab:'add', sel:'#i_previewCard', title:'Live preview', caption:'As you type, this shows exactly how the item will look in the game. Check it reads well before adding.' },
-    { tab:'add', sel:'#i_addBatch', title:'Add to queue', caption:'Sends it to the shared Team queue, live, for the whole team. It does not touch the game yet.' },
-    { tab:'csv', sel:'#gridImportTable', title:'Bulk import from a spreadsheet', caption:'Adding many questions at once? Select a range in Sheets/Excel, copy, click a cell here, and paste — it fills in and grows the table. Every row is checked before anything is added.' },
-    { tab:'queue', sel:'#batchList', title:'Team queue', caption:'Everything anyone added, plus reports players send from inside the game. Open a row for the full detail; remove it once it\'s merged.' },
-    { tab:'maintainer', sel:'#maintainerLockGate', title:'Admin', caption:'PIN-gated: merge the queue into a new game-data.js, refresh the merge template, read answer analytics, check the folder against GitHub.', fallbackSel:'#mergeGenerateBtn' },
-    { tab:'add', sel:'[data-info="overview"]', title:'Curious how it works?', caption:'Every ⓘ opens a short technical note about that part — the pasteable table, the Firebase queue, the merge, the PIN. Reopen this tour any time from the 🎬 button.', final:true },
+    { tab:'start', sel:'#contributorName', title:'Your name and email', caption:'Type these once — required before anything can be queued. It\'s how your work is credited, and how an admin can reach you about it. Only an admin can see whose submission is whose.' },
+    { tab:'start', sel:'section[data-section="start"] .card', title:'The whole flow', caption:'Fill in the template sheet → paste it in → it lands in the team queue → an admin merges it. Start here walks through it; the buttons jump straight to each step.' },
+    { tab:'csv', sel:'#gridImportTable', title:'Paste questions', caption:'The main way in. Select a range in Sheets/Excel, copy, click a cell here, and paste — it fills in and grows the table. Every row is checked as you go; a missing course/topic/lecture gets a button straight to the fix.' },
+    { tab:'lectures', sel:'#lecAddTable', title:'Paste lectures & outcomes', caption:'Same paste-a-range idea, for a course\'s lecture list: lecture number, name, learning outcomes. Pick the course first; the list below narrows to it.' },
+    { tab:'add', sel:'#addChips', title:'Or one at a time', caption:'A study guide item, a question, a topic, lecture outcomes, or a fun-fact question — with a live preview of how it looks in the game. (Creating a whole course is admin-only.)' },
+    { tab:'queue', sel:'#batchListContent', title:'Team queue', caption:'Everything anyone added, live. Open a row for the full detail, fix your own if needed, and an admin removes it once it\'s merged. Players\' in-game reports live under Reports.' },
+    { tab:'maintainer', sel:'#maintainerLockGate', title:'Admin', caption:'Needs the PIN and a name on the admin list. Merge the queue into a new game-data.js, refresh the merge template, check the folder against GitHub — and unlock Contributors and Data analysis.', fallbackSel:'#mergeGenerateBtn' },
+    { tab:'start', sel:'[data-info="overview"]', title:'Curious how it works?', caption:'Every ⓘ opens a short technical note about that part — the pasteable table, the Firebase queue, the merge, the PIN. Reopen this tour any time from the 🎬 button.', final:true },
   ];
   let devTourStep = 0;
   const T = { spotlight: document.getElementById('devTutorialSpotlight'), caption: document.getElementById('devTutorialCaption'), title: document.getElementById('devTutorialTitle'), text: document.getElementById('devTutorialCaptionText'), dots: document.getElementById('devTutorialDots'), back: document.getElementById('devTutorialBackBtn'), skip: document.getElementById('devTutorialSkipBtn'), next: document.getElementById('devTutorialNextBtn'), close: document.getElementById('devTutorialCloseBtn') };
@@ -3473,6 +3596,11 @@ const themesDecl  = text.indexOf('const THEMES = {');
   if(new URLSearchParams(location.search).has('debug')){
     window.__devToolDebug = {
       get batch(){ return batch; }, renderBatch, showTab, showPane, generateMergedFile, KNOWN_ITEMS, KNOWN_TOPICS, KNOWN_THEMES, KNOWN_COURSES, RD, renderStructureList, renderQuestionBank, renderContributors, buildContributorMap, renderLectures,
+      // Lets a test walk every tour step and confirm its selector still
+      // resolves -- the tour went stale once before (pointed at a removed
+      // element) and nothing caught it. Lazy so DEV_TOUR_STEPS, declared
+      // further down, is past its TDZ by the time this is called.
+      tourSteps(){ return DEV_TOUR_STEPS; },
       // Feeds fake rows through the same render path loadAnalytics() uses,
       // without a real Firebase fetch -- lets the Data analysis cards be
       // tested with Firebase blocked (this project's standing test rule).
@@ -3481,7 +3609,9 @@ const themesDecl  = text.indexOf('const THEMES = {');
         renderAnalyticsSummary(rows);
         renderAnalyticsGroupTable('analyticsByCourse', groupAnalyticsRows(rows, r=>r.courseId, r=>r.courseLabel), 'Course');
         renderAnalyticsGroupTable('analyticsByTopic', groupAnalyticsRows(rows, r=>r.courseId+'::'+r.topicId, r=>`${r.courseLabel} · ${r.topic}`), 'Course · Topic');
+        renderNeedsReview();
         renderAnalyticsTable();
+        renderAnalyticsEasiest();
       },
     };
   }
