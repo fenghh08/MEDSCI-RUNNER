@@ -207,8 +207,11 @@ Either way:
 - **Unlock.** Gift questions switch on for the whole room once the room has collectively answered
   (right or wrong, everyone's combined) at least **3 questions per player** (`giftUnlockQuestionsPerPlayer`)
   — e.g. a 3-player race needs 9 total. A full-screen "Gift mode is live!" takeover announces it
-  (same freeze-then-3-2-1-resume pattern as a grenade landing), shown only if you're in the middle
-  of actually running when it happens — mid-question, paused, or already done stays undisturbed.
+  (same freeze-then-3-2-1-resume pattern as a grenade landing). This fires from a live roster
+  update, which happens constantly as everyone answers questions, so you're often mid-question,
+  mid-grenade, or paused at that exact instant — if so, it's queued (`mp.giftUnlockPending`) and
+  shown the moment you're actually back to running, rather than silently skipped. Already-done
+  stays undisturbed (nothing to show it on).
 - **Spawning.** Every 7–13 s (`giftSpawnBaseMs/RandMs`) each racer rolls for a 🎁 gift block. The
   odds run from **30%** for whoever is in 1st place to **85%** for last place
   (`giftChanceMin/Max`), so falling behind earns more gifts. At most one gift block is on screen.
