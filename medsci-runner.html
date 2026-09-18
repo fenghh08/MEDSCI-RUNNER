@@ -38,6 +38,18 @@
     --ov-ink:#3a0d1c; --ov-dim:#8a5568; --ov-danger:#c81a3f; --ov-bg:#fff1f5;
     --hud-block-bg:rgba(255,255,255,.72); --backdrop:rgba(255,236,242,.93); --backdrop-soft:rgba(255,236,242,.66);
   }
+  /* Same deepened brand accents as light mode -- just neutral gray/white
+     backgrounds instead of light's pink tint, for anyone who wants a plainer
+     page without switching all the way to dark. */
+  :root[data-theme="white"]{
+    color-scheme: light;
+    --bg-0:#eef0f2; --bg-1:#ffffff;
+    --membrane:#d6106a; --hud-ink:#20222a; --hud-dim:#767b88; --danger:#c81a3f; --good:#0f9e78;
+    --panel:#ffffff; --panel-line:rgba(32,34,42,.16);
+    --hairline-strong:rgba(32,34,42,.22); --hairline-soft:rgba(32,34,42,.16); --chip-bg:rgba(32,34,42,.05);
+    --ov-ink:#20222a; --ov-dim:#767b88; --ov-danger:#c81a3f; --ov-bg:#ffffff;
+    --hud-block-bg:rgba(255,255,255,.8); --backdrop:rgba(238,240,242,.94); --backdrop-soft:rgba(238,240,242,.7);
+  }
   /* Optional reading fonts (Customise → Reading font). OpenDyslexic is
      fetched from a CDN with font-display:swap, so offline (or in the native
      app without a connection) it silently falls back to the next fonts in
@@ -171,6 +183,14 @@
   .grenade-warn{ font-size:64px; line-height:1; animation:grenadeFlash .5s steps(2,start) infinite; }
   @keyframes grenadeFlash{ 0%{ opacity:1; transform:scale(1);} 100%{ opacity:.35; transform:scale(1.12);} }
   .grenade-title{ font-family:var(--display); font-style:italic; font-size:30px; color:var(--danger); margin:8px 0 4px; text-shadow:0 0 24px rgba(255,59,92,.5); }
+  /* Group Race gifts: full-screen "gift mode is live" announcement -- was
+     just a small toast, easy to miss mid-race. */
+  #giftUnlockOverlay{ position:absolute; inset:0; display:none; flex-direction:column; align-items:center; justify-content:center;
+    background:var(--backdrop-soft); z-index:26; text-align:center; padding:20px; }
+  #giftUnlockOverlay.active{ display:flex; }
+  .gift-unlock-icon{ font-size:64px; line-height:1; animation:giftUnlockPulse .6s steps(2,start) infinite; }
+  @keyframes giftUnlockPulse{ 0%{ transform:scale(1);} 100%{ transform:scale(1.12);} }
+  .gift-unlock-title{ font-family:var(--display); font-style:italic; font-size:30px; color:#ffd54d; margin:8px 0 4px; text-shadow:0 0 24px rgba(255,213,77,.5); }
   .gift-shop{ margin:12px 0 4px; padding:12px; border:1px solid #ffd54d88; background:rgba(255,213,77,.08); border-radius:12px; text-align:left; }
   .gift-shop .gs-title{ font-weight:700; color:#ffd54d; margin-bottom:6px; }
   .gift-shop .btn-row{ justify-content:flex-start; }
@@ -527,12 +547,15 @@
         <div class="grenade-warn">⚠️</div>
         <div class="grenade-title">WARNING! Grenade incoming!</div>
         <p class="desc" id="grenadeFromText" style="margin-bottom:6px;"></p>
-        <p class="desc" id="grenadeShieldText" style="margin-bottom:12px;"></p>
-        <div class="btn-row">
-          <button class="primary" id="grenadeApplyShieldBtn">🛡 Apply shield</button>
-          <button class="secondary" id="grenadeBraceBtn">Don't apply — brace!</button>
-        </div>
+        <p class="desc" id="grenadeShieldText" style="margin-bottom:10px;">Answer this to shield it — get it wrong and it lands. (Doesn't count as a normal question.)</p>
+        <p class="mcq-prompt" id="grenadeShieldPrompt" style="margin-bottom:10px;"></p>
+        <div id="grenadeShieldOptions"></div>
       </div>
+    </div>
+    <div id="giftUnlockOverlay">
+      <div class="gift-unlock-icon">🎁</div>
+      <div class="gift-unlock-title">Gift mode is live!</div>
+      <p class="desc" style="margin-bottom:12px;">Answer a gold gift block correctly to pick from 2 of 4 possible gifts.</p>
     </div>
     <div id="resumeIndicator" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;
       flex-direction:column;gap:6px;z-index:23;pointer-events:none;">
@@ -1121,14 +1144,13 @@
     });
   }
 
-  // ---------- light/dark theme ----------
-  // Defaults to dark (the tuned, tested look) rather than following the
-  // OS's color-scheme preference — this app has a deliberate dark "vessel"
-  // art style rather than a neutral light-by-default utility UI, so a
-  // silent default flip for light-mode-OS users would be a surprise, not
-  // a convenience. Explicit toggle only.
+  // ---------- light/dark/white theme ----------
+  // Defaults to light rather than following the OS's color-scheme
+  // preference — explicit toggle only, three fixed looks (light/white/dark)
+  // rather than a silent OS-driven flip.
+  const THEME_CYCLE = ['light', 'white', 'dark'];
   let currentTheme = (function(){
-    try { const saved = localStorage.getItem('theme'); return saved === 'light' ? 'light' : 'dark'; } catch(e){ return 'dark'; }
+    try { const saved = localStorage.getItem('theme'); return THEME_CYCLE.includes(saved) ? saved : 'light'; } catch(e){ return 'light'; }
   })();
   // Floater popups are queued with CSS-variable colors ('var(--danger)'),
   // which Canvas2D can't parse -- resolveCanvasColor() (in the drawing code
@@ -1137,7 +1159,7 @@
   function applyTheme(theme){
     currentTheme = theme;
     document.documentElement.dataset.theme = theme;
-    if(themeToggleBtn) themeToggleBtn.textContent = theme==='light' ? '☀️ Light' : '🌙 Dark';
+    if(themeToggleBtn) themeToggleBtn.textContent = { light:'☀️ Light', white:'⚪ White', dark:'🌙 Dark' }[theme];
     try { localStorage.setItem('theme', theme); } catch(e){ /* fine — just won't persist */ }
     syncPush('theme', theme);
     for(const k in _cssColorCache) delete _cssColorCache[k]; // resolved var(--x) colors differ per theme
@@ -1508,7 +1530,7 @@
    ====================================================================== */
   const {
     COURSES, GAME_CONFIG, LIFE_CONFIG, THEMES,
-    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES,
+    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES, FUN_FACT_QUESTIONS,
   } = window.RUNNER_DATA;
 
   // Topics are authored per-course now (each carries its own label/icon/
@@ -1851,11 +1873,12 @@
   const tutorialMcqContinueBtn = document.getElementById('tutorialMcqContinueBtn');
   const overLiveBoard = document.getElementById('overLiveBoard');
   const grenadeOverlay = document.getElementById('grenadeOverlay');
+  const giftUnlockOverlay = document.getElementById('giftUnlockOverlay');
   const grenadeWarnWrap = document.getElementById('grenadeWarnWrap');
   const grenadeFromText = document.getElementById('grenadeFromText');
   const grenadeShieldText = document.getElementById('grenadeShieldText');
-  const grenadeApplyShieldBtn = document.getElementById('grenadeApplyShieldBtn');
-  const grenadeBraceBtn = document.getElementById('grenadeBraceBtn');
+  const grenadeShieldPrompt = document.getElementById('grenadeShieldPrompt');
+  const grenadeShieldOptions = document.getElementById('grenadeShieldOptions');
   const mcqGiftTag = document.getElementById('mcqGiftTag');
   const mcqGiftShop = document.getElementById('mcqGiftShop');
   const mcqGiftShopBody = document.getElementById('mcqGiftShopBody');
@@ -2525,7 +2548,7 @@
   // outright rather than just sitting behind another overlay, so nothing
   // peeks through a semi-opaque screen underneath.
   function syncHudVisibility(){
-    const inRun = ['running','resuming','grenade'].includes(screenState)
+    const inRun = ['running','resuming','grenade','giftUnlock'].includes(screenState)
       || (screenState==='mcq' && quizMode==='runner');
     hud.style.display = inRun ? 'flex' : 'none';
     controlsMobile.classList.toggle('in-run', inRun);
@@ -2788,7 +2811,7 @@
       demo:{ type:'glucose', lane:0, outcome:'collect' } },
     { title:'Bombs', caption:()=>`Spiky and red means danger. Touching one costs ${GAME_CONFIG.bombDamage} life instantly — no question, no warning. You don't have to do anything to avoid it — just don't be in its lane, like the cell isn't here.`,
       demo:{ type:'bomb', lane:0, outcome:'avoid', stayLane:1 } },
-    { title:'Life', caption:()=>`This number, on its own, is your health. You start at ${GAME_CONFIG.startingGlucose}. A wrong answer or a timeout costs ${GAME_CONFIG.wrongAnswerPenalty}, a bomb costs ${GAME_CONFIG.bombDamage} — same amount either way. A pickup gives back ${GAME_CONFIG.glucosePickupValue}. In Group Race, buying a grenade or a shield costs ${GAME_CONFIG.giftCost} life too. Run out (below zero) and the run ends.`, showHud:true, spotlight:['life'] },
+    { title:'Life', caption:()=>`This number, on its own, is your health. You start at ${GAME_CONFIG.startingGlucose}. A wrong answer or a timeout costs ${GAME_CONFIG.wrongAnswerPenalty}, a bomb costs ${GAME_CONFIG.bombDamage} — same amount either way. A pickup gives back ${GAME_CONFIG.glucosePickupValue}. Run out (below zero) and the run ends.`, showHud:true, spotlight:['life'] },
     { title:'Questions this stage', caption:'These chips are the questions you still need to answer — one per topic. The number is how many you\'ve already answered correctly out of how many this stage needs from that topic. Clear every chip to move to the next stage.', showHud:true, spotlight:['stage'] },
     { title:'Stages get harder', caption:()=>{
         const stages = STAGES[RUNNABLE_THEMES[0]] || [];
@@ -2797,7 +2820,7 @@
         return `There are ${stages.length} stages: ${names}. Each one needs more correct answers per topic than the last, and bombs come more often too. Clear the chips from the last page to move on to the next stage.`;
       }, stageChips:true },
     { title:'Score', caption:()=>`This number is completely separate from life, used to rank Group Race. A correct answer is +${GAME_CONFIG.scoreCorrectWeight}, a wrong one is −${GAME_CONFIG.scoreIncorrectWeight}, reaching a new stage is +${GAME_CONFIG.stageWeight}, and every ${GAME_CONFIG.streakBonusEvery} correct answers in a row banks a +${GAME_CONFIG.streakBonusScoreAmount} streak bonus. Life and score don't affect each other — losing life doesn't cost you score, and score can't buy back life.`, showHud:true, spotlight:['score'] },
-    { title:'Group Race extras', caption:'Racing friends adds gold 🎁 gift blocks — answered just like a topic block. Get it right and you can spend life on a grenade to throw at everyone else still racing at once, or a shield to block one coming your way.',
+    { title:'Group Race extras', caption:'Racing friends adds gold 🎁 gift blocks — answered just like a topic block. Get it right and you\'ll be offered 2 of 4 possible gifts at random: +50 life, Bomb Hell (buries everyone else in bombs for 10s), a Grenade (thrown at whoever you pick — they can shield it by answering a quick trivia question), or a Shield (blocks your next bomb hit). All free to pick.',
       demo:{ type:'gift', lane:2, outcome:'collect' } },
     { title:"You're ready", caption:'Pick a mode below and give it a run — you can reopen this any time from the menu.', final:true },
   ];
@@ -3532,7 +3555,7 @@
     mcqFlagBtn.textContent = entry.flagged ? '🚩 Flagged' : '🚩 Flag for review';
   });
   // ---------- report a question (straight to the content team's queue) ----------
-  const REPORT_REASONS = ['Answer too obvious', 'Wrong difficulty', 'Wrong concept / factually off', 'Poor question quality', 'Something else'];
+  const REPORT_REASONS = ['Answer too obvious', 'Wrong difficulty', 'Wrong concept / factually off', 'Poor question quality', 'Question/options are too long', 'Something else'];
   mcqReportBtn.addEventListener('click', ()=>{
     const open = mcqReportWrap.style.display !== 'block';
     mcqReportWrap.style.display = open ? 'block' : 'none';
@@ -3574,48 +3597,82 @@
     }
   }
 
-  // ---------- Group Race gifts: grenade & shield ----------
-  // After a correct gift-question answer: spend life on a grenade (thrown
-  // right now at EVERY rival still racing at once) or a shield (kept;
-  // blocks one incoming grenade). Buying is always optional.
+  // ---------- Group Race gifts: 4 possible, 2 offered at random ----------
+  // A correct gift-question answer shows 2 of these 4 (random each time),
+  // free to pick -- the randomness itself (you don't get to choose from
+  // all 4) is the balancing factor, not a life cost.
+  const GIFT_TYPES = {
+    life50:   { label:'+50 Life', icon:'❤️' },
+    bombHell: { label:'Bomb Hell — everyone else, 10s of nothing but bombs', icon:'💣' },
+    grenade:  { label:'Grenade — pick a target', icon:'🎯' },
+    shield:   { label:'Shield — blocks your next bomb hit', icon:'🛡' },
+  };
   function renderGiftShop(){
     mcqGiftShop.style.display = 'block'; // built its content below -- was never actually un-hidden, so the shop silently never appeared after a correct gift answer
-    const cost = GAME_CONFIG.giftCost;
     const life = lifeCfg().label;
-    const canAfford = glucose > cost; // never let a purchase itself end the run
-    const targets = mpRankedRoster(mp.roster).filter(p=>!p.done && p.pid!==mp.playerId);
+    const offered = Object.keys(GIFT_TYPES).sort(()=>Math.random()-0.5).slice(0,2);
     mcqGiftShopBody.innerHTML = `
-      <div style="font-size:12.5px;line-height:1.5;margin-bottom:8px;">${t('Spend <b>{cost} {life}</b> on one of these, or keep your {life} and move on.', { cost, life:tx(life) })}${canAfford ? '' : ` <span style="color:var(--danger)">${t('You need more than {cost} {life} to buy.', { cost, life:tx(life) })}</span>`}</div>
+      <div style="font-size:12.5px;line-height:1.5;margin-bottom:8px;">Pick one of these two, or keep going.</div>
       <div class="btn-row" id="giftChoiceRow">
-        <button type="button" class="secondary" id="giftBuyGrenadeBtn" ${(!canAfford || !targets.length) ? 'disabled' : ''}>💣 Grenade — throw at everyone now</button>
-        <button type="button" class="secondary" id="giftBuyShieldBtn" ${canAfford ? '' : 'disabled'}>🛡 Shield — keep for later (you have ${mp.shields})</button>
+        ${offered.map(key=>`<button type="button" class="secondary" data-gift="${key}">${GIFT_TYPES[key].icon} ${GIFT_TYPES[key].label}</button>`).join('')}
         <button type="button" class="secondary" id="giftDeclineBtn">No thanks</button>
       </div>
+      <div id="giftTargetRow" style="display:none;margin-top:8px;"></div>
       <div id="giftShopStatus" style="font-size:12px;margin-top:8px;color:#ffd54d;"></div>`;
-    if(!targets.length) mcqGiftShopBody.querySelector('#giftShopStatus').textContent = 'No rival still racing to throw at — a shield is still on offer.';
-    const done = (msg)=>{ mcqGiftShopBody.querySelector('#giftChoiceRow').style.display = 'none'; mcqGiftShopBody.querySelector('#giftShopStatus').textContent = msg; };
-    mcqGiftShopBody.querySelector('#giftDeclineBtn').addEventListener('click', ()=> done('Kept your ' + life + '.'));
-    mcqGiftShopBody.querySelector('#giftBuyShieldBtn').addEventListener('click', ()=>{
-      if(glucose <= cost) return;
-      glucose -= cost; updateGlucoseUI();
-      mp.shields += 1; updateGiftHUD(); mpSyncMyState();
-      SoundFX.pickup();
-      done(`🛡 Shield ready — you now have ${mp.shields}. It'll be offered the moment a grenade comes your way.`);
-    });
-    mcqGiftShopBody.querySelector('#giftBuyGrenadeBtn').addEventListener('click', ()=>{
-      if(glucose <= cost || !targets.length) return;
-      glucose -= cost; updateGlucoseUI();
-      throwGrenade(targets.map(t=>t.pid));
-      SoundFX.damage();
-      done(`💣 Grenade thrown at everyone! (−${cost} ${life})`);
-      popup(PLAYER_X, player.y-40, `💣 → Everyone!`, '#ffd54d');
-    });
+    const choiceRow = mcqGiftShopBody.querySelector('#giftChoiceRow'), targetRow = mcqGiftShopBody.querySelector('#giftTargetRow');
+    const done = (msg)=>{ choiceRow.style.display = 'none'; targetRow.style.display = 'none'; mcqGiftShopBody.querySelector('#giftShopStatus').textContent = msg; };
+    mcqGiftShopBody.querySelector('#giftDeclineBtn').addEventListener('click', ()=> done('Kept going.'));
+    mcqGiftShopBody.querySelectorAll('[data-gift]').forEach(b=> b.addEventListener('click', ()=>{
+      const key = b.dataset.gift;
+      if(key==='life50'){
+        glucose += 50; updateGlucoseUI(); mpSyncMyState();
+        SoundFX.pickup();
+        popup(PLAYER_X, player.y-40, `+50 ${life}`, '#3ee6b8');
+        done(`❤️ +50 ${life}!`);
+      } else if(key==='shield'){
+        mp.shields += 1; updateGiftHUD(); mpSyncMyState();
+        SoundFX.pickup();
+        done(`🛡 Shield ready — you now have ${mp.shields}. Blocks the next bomb you hit.`);
+      } else if(key==='bombHell'){
+        startBombHell();
+        SoundFX.damage();
+        done('💣 Bomb Hell unleashed on everyone else for 10 seconds!');
+      } else if(key==='grenade'){
+        const targets = mpRankedRoster(mp.roster).filter(p=>!p.done && p.pid!==mp.playerId);
+        if(!targets.length){ done('No rival still racing to throw at.'); return; }
+        choiceRow.style.display = 'none';
+        targetRow.style.display = 'block';
+        targetRow.innerHTML = `<div style="font-size:12px;color:var(--hud-dim);margin-bottom:6px;">Throw at:</div><div class="btn-row">${targets.map(t=>`<button type="button" class="secondary" data-target="${t.pid}">🎯 ${escapeHtml(t.name)}</button>`).join('')}</div>`;
+        targetRow.querySelectorAll('[data-target]').forEach(tb=> tb.addEventListener('click', ()=>{
+          const target = targets.find(t=>t.pid===tb.dataset.target);
+          if(!target) return;
+          throwGrenade([target.pid]);
+          SoundFX.damage();
+          popup(PLAYER_X, player.y-40, `💣 → ${target.name}`, '#ffd54d');
+          done(`💣 Grenade thrown at ${target.name}!`);
+        }));
+      }
+    }));
   }
   function throwGrenade(targetPids){
     if(!mp.roomCode) return;
     targetPids.forEach(pid=>{
       fbPush(ref(fbdb, `rooms/${mp.roomCode}/players/${pid}/incoming`), { fromName: mp.myName, fromId: mp.playerId, at: serverNow() }).catch(()=>{});
     });
+    // A room-wide event log so EVERYONE sees what happened, not just the
+    // thrower and the target(s) -- kept to one line per event, no target
+    // names (everyone's hit anyway), so it doesn't turn into a wall of text
+    // in a bigger room.
+    fbPush(ref(fbdb, `rooms/${mp.roomCode}/events`), { type:'grenade', fromId: mp.playerId, fromName: mp.myName, at: serverNow() }).catch(()=>{});
+  }
+  // Bomb Hell: a room-wide 10s window where every OTHER racer's track
+  // clears down to bombs only (see the room listener, which reacts to
+  // bombHellEndsAt changing) -- the activator keeps racing normally. One
+  // shared field rather than per-target pushes, since it's a track-wide
+  // effect, not something delivered to specific people like a grenade.
+  function startBombHell(){
+    if(!mp.roomCode) return;
+    fbUpdate(ref(fbdb, `rooms/${mp.roomCode}`), { bombHellEndsAt: serverNow() + 10000, bombHellFromId: mp.playerId, bombHellFromName: mp.myName }).catch(()=>{});
   }
   function updateGiftHUD(){
     if(!mp.active){ giftHudLine.style.display = 'none'; return; }
@@ -3650,39 +3707,63 @@
       mpShowEliminationToast(r.shielded ? `🛡 ${name} blocked your grenade!` : `💥 ${name} got hit by your grenade!`);
     });
   }
+  // A shared, room-wide log so EVERYONE sees what happened during the race
+  // (e.g. who threw a grenade), not just the people directly involved --
+  // simple on purpose: one line per event, no per-target detail, so it
+  // doesn't turn into a wall of toasts in a bigger room. Skips the event's
+  // own thrower, who already gets their own direct confirmation toast.
+  function noteRoomEvents(events){
+    if(!events) return;
+    Object.entries(events).forEach(([key, ev])=>{
+      if(mp.seenEvents.has(key)) return;
+      mp.seenEvents.add(key);
+      if(ev.fromId === mp.playerId) return;
+      if(mp.finished || screenState==='over') return;
+      if(ev.type === 'grenade') mpShowEliminationToast(`💣 ${ev.fromName || 'A racer'} threw a grenade!`);
+    });
+  }
   function processIncomingGrenades(){
     if(!mp.incomingQueue.length || screenState!=='running') return;
     const g = mp.incomingQueue.shift();
     if(mp.roomCode && g.key) remove(ref(fbdb, `rooms/${mp.roomCode}/players/${mp.playerId}/incoming/${g.key}`)).catch(()=>{});
     showIncomingGrenade(g);
   }
+  // The grenade target's only defense now is answering a standalone fun
+  // fact question correctly (see FUN_FACT_QUESTIONS) -- shields don't apply
+  // to grenades anymore, only to bombs (see resolveBombHit). This question
+  // never touches myCorrectCount/myIncorrectCount/streaks/stage progress --
+  // it's a pass/fail gate on the hit, nothing else.
   function showIncomingGrenade(g){
     screenState = 'grenade';
     syncHudVisibility();
     mp.pendingGrenade = g; // fromId/fromName -- resolveGrenade() reports back to them once this plays out
     grenadeWarnWrap.style.display = 'block';
     grenadeFromText.innerHTML = `<b style="color:var(--danger);font-size:1.15em;">${escapeHtml(g.fromName || 'A rival')}</b> threw a grenade at you.`;
-    const hasShields = mp.shields > 0;
-    grenadeShieldText.textContent = hasShields
-      ? `You have ${mp.shields} shield${mp.shields===1?'':'s'} left.`
-      : `You have no shields — bracing for −${GAME_CONFIG.grenadeDamage} ${lifeCfg().label}…`;
-    grenadeApplyShieldBtn.style.display = hasShields ? 'inline-block' : 'none';
-    // No shields means there's nothing to actually choose between -- don't
-    // make the player click through a decision that isn't one. Hide both
-    // buttons and resolve it as an unshielded hit on its own after a beat.
-    grenadeBraceBtn.style.display = hasShields ? 'inline-block' : 'none';
-    grenadeBraceBtn.textContent = "Don't apply — brace!";
+    const pool = Object.values(FUN_FACT_QUESTIONS || {});
+    const q = pool.length ? pool[Math.floor(Math.random()*pool.length)] : null;
+    grenadeShieldPrompt.textContent = q ? q.prompt : '';
+    grenadeShieldOptions.innerHTML = '';
+    if(q){
+      q.options.forEach((op,i)=>{
+        const b = document.createElement('button');
+        b.className = 'mcq-option'; b.type = 'button';
+        b.innerHTML = `<span class="opt-key">${String.fromCharCode(65+i)}</span>${escapeHtml(op)}`;
+        b.addEventListener('click', ()=> resolveGrenade(i===q.correctIndex));
+        grenadeShieldOptions.appendChild(b);
+      });
+    }
     grenadeOverlay.classList.add('active');
     SoundFX.wrong();
-    if(!hasShields){
+    // No fun fact question available at all (empty pool) -- nothing to
+    // answer, so resolve as an unshielded hit on its own after a beat
+    // rather than stranding the player on a dead screen.
+    if(!q){
       setTimeout(()=>{ if(screenState==='grenade') resolveGrenade(false); }, 1400);
     }
   }
-  function resolveGrenade(useShield){
+  function resolveGrenade(shielded){
     if(screenState!=='grenade') return;
-    const shielded = useShield && mp.shields > 0;
     grenadeOverlay.classList.remove('active'); // the rest plays out on the track itself
-    if(shielded){ mp.shields -= 1; updateGiftHUD(); }
     playGrenadeAnimation(shielded, ()=>{
       // impact
       if(shielded){
@@ -3800,8 +3881,7 @@
     ctx.strokeStyle = `rgba(255,120,90,${alpha*0.6})`; ctx.lineWidth = 3*SCALE;
     ctx.beginPath(); ctx.arc(x + dx, y + dy, R*1.25, 0, Math.PI*2); ctx.stroke();
   }
-  grenadeApplyShieldBtn.addEventListener('click', ()=> resolveGrenade(true));
-  grenadeBraceBtn.addEventListener('click', ()=> resolveGrenade(false));
+
 
   mcqContinueBtn.addEventListener('click', ()=>{
     mcqModal.classList.remove('active');
@@ -3854,6 +3934,21 @@
     })();
   }
 
+  // A full-screen takeover (same freeze-then-3-2-1-resume pattern as the
+  // grenade warning) instead of just a toast -- easy to miss a small toast
+  // mid-race, and this is a room-wide moment worth actually noticing.
+  function showGiftUnlockAnnouncement(){
+    screenState = 'giftUnlock';
+    syncHudVisibility();
+    giftUnlockOverlay.classList.add('active');
+    SoundFX.pickup();
+    setTimeout(()=>{
+      if(screenState!=='giftUnlock') return; // quit/ended meanwhile
+      giftUnlockOverlay.classList.remove('active');
+      startResumeCountdown(1500);
+    }, 2500);
+  }
+
   // ---------- update / draw ----------
   function update(dt){
     if(mp.incomingQueue && mp.incomingQueue.length){ processIncomingGrenades(); if(screenState!=='running') return; }
@@ -3894,26 +3989,37 @@
       }
     }
 
-    obstacleTimer -= dt*1000;
-    glucoseTimer -= dt*1000;
+    // Bomb Hell (see startBombHell/the room listener): while it's running
+    // on my track, topic/glucose/gift spawning just freezes (their timers
+    // don't even count down, so nothing bursts out the moment it ends) and
+    // bombs spawn on a much tighter timer instead -- "just a lot of bombs".
+    const inBombHell = mp.bombHellEndsAt && serverNow() < mp.bombHellEndsAt;
+    if(!inBombHell){
+      obstacleTimer -= dt*1000;
+      glucoseTimer -= dt*1000;
+      if(obstacleTimer <= 0){
+        spawnTopicBlock();
+        obstacleTimer = GAME_CONFIG.obstacleSpawnBaseMs + Math.random()*GAME_CONFIG.obstacleSpawnRandMs;
+      }
+      if(glucoseTimer <= 0){
+        spawnGlucosePickup();
+        glucoseTimer = GAME_CONFIG.glucoseSpawnBaseMs + Math.random()*GAME_CONFIG.glucoseSpawnRandMs;
+      }
+    }
     bombTimer -= dt*1000;
-    if(obstacleTimer <= 0){
-      spawnTopicBlock();
-      obstacleTimer = GAME_CONFIG.obstacleSpawnBaseMs + Math.random()*GAME_CONFIG.obstacleSpawnRandMs;
-    }
-    if(glucoseTimer <= 0){
-      spawnGlucosePickup();
-      glucoseTimer = GAME_CONFIG.glucoseSpawnBaseMs + Math.random()*GAME_CONFIG.glucoseSpawnRandMs;
-    }
     if(bombTimer <= 0){
       spawnBomb();
-      // Easy stages see fewer bombs, hard stages more (see GAME_CONFIG.bombIntervalByDifficulty)
-      const diffMult = (GAME_CONFIG.bombIntervalByDifficulty || {})[stageDifficulty()] || 1;
-      bombTimer = (GAME_CONFIG.bombSpawnBaseMs + Math.random()*GAME_CONFIG.bombSpawnRandMs) * diffMult;
+      if(inBombHell){
+        bombTimer = 150 + Math.random()*150;
+      } else {
+        // Easy stages see fewer bombs, hard stages more (see GAME_CONFIG.bombIntervalByDifficulty)
+        const diffMult = (GAME_CONFIG.bombIntervalByDifficulty || {})[stageDifficulty()] || 1;
+        bombTimer = (GAME_CONFIG.bombSpawnBaseMs + Math.random()*GAME_CONFIG.bombSpawnRandMs) * diffMult;
+      }
     }
     // Group Race gift questions -- rolled on their own timer once unlocked,
     // with the odds tilted toward whoever is further down the leaderboard.
-    if(mp.active && mp.giftsUnlocked){
+    if(!inBombHell && mp.active && mp.giftsUnlocked){
       mp.giftTimer -= dt*1000;
       if(mp.giftTimer <= 0){
         mp.giftTimer = GAME_CONFIG.giftSpawnBaseMs + Math.random()*GAME_CONFIG.giftSpawnRandMs;
@@ -3944,12 +4050,21 @@
         } else if(e.type==='topic' || e.type==='gift'){
           openMCQ(e);
         } else if(e.type==='bomb'){
-          glucose -= GAME_CONFIG.bombDamage;
-          updateGlucoseUI();
-          popup(e.x, laneY(e.lane)-24, `💣 -${GAME_CONFIG.bombDamage} ${lifeCfg().label}`, 'var(--danger)');
-          flashRed();
-          SoundFX.damage();
-          if(glucose < 0 && screenState==='running'){ endRun('loss'); }
+          // A held shield (from the gift shop) blocks any bomb -- a regular
+          // passively-spawned one, or one from someone else's Bomb Hell --
+          // instead of a grenade now. Consumed on the first hit either way.
+          if(mp.shields > 0){
+            mp.shields -= 1; updateGiftHUD(); mpSyncMyState();
+            popup(e.x, laneY(e.lane)-24, '🛡 Blocked!', '#4fc3f7');
+            SoundFX.shieldBlock();
+          } else {
+            glucose -= GAME_CONFIG.bombDamage;
+            updateGlucoseUI();
+            popup(e.x, laneY(e.lane)-24, `💣 -${GAME_CONFIG.bombDamage} ${lifeCfg().label}`, 'var(--danger)');
+            flashRed();
+            SoundFX.damage();
+            if(glucose < 0 && screenState==='running'){ endRun('loss'); }
+          }
         }
       }
     }
@@ -3967,6 +4082,9 @@
              glucoseGlow:'rgba(255,210,63,.35)', glucose:'#ffd23f', glucoseRing:null,
              topicGlowAlpha:'40', topicFillAlpha:'2b', topicStrokeDarken:0 },
     light: { bg:'#fff1f5', laneLine:'rgba(214,16,106,.16)', wall:'#f6c3d4', wallFade:'rgba(246,195,212,0)',
+             glucoseGlow:'rgba(235,160,0,.28)', glucose:'#f2b400', glucoseRing:'#a6720a',
+             topicGlowAlpha:'30', topicFillAlpha:'5c', topicStrokeDarken:0.22 },
+    white: { bg:'#ffffff', laneLine:'rgba(32,34,42,.14)', wall:'#e4e6ea', wallFade:'rgba(228,230,234,0)',
              glucoseGlow:'rgba(235,160,0,.28)', glucose:'#f2b400', glucoseRing:'#a6720a',
              topicGlowAlpha:'30', topicFillAlpha:'5c', topicStrokeDarken:0.22 },
   };
@@ -4794,7 +4912,7 @@
   applyTheme(currentTheme);
   applyFont(currentFont);
   applyGameSpeed(gameSpeedPref);
-  themeToggleBtn.addEventListener('click', ()=> applyTheme(currentTheme==='light' ? 'dark' : 'light'));
+  themeToggleBtn.addEventListener('click', ()=> applyTheme(THEME_CYCLE[(THEME_CYCLE.indexOf(currentTheme)+1) % THEME_CYCLE.length]));
   document.getElementById('langSelect').addEventListener('change', e=> applyLanguage(e.target.value));
   // Native (packaged iOS/Android) can't use the web popup flow at all --
   // Google blocks its OAuth popup inside an embedded WebView. Capacitor's
@@ -5061,7 +5179,7 @@
     // fromId/fromName) -- kept around just long enough for resolveGrenade()
     // to tell the thrower what happened. seenGrenadeResults mirrors
     // seenIncoming but for results flowing the other way, back to a thrower.
-    pendingGrenade:null, seenGrenadeResults:new Set(),
+    pendingGrenade:null, seenGrenadeResults:new Set(), seenEvents:new Set(), bombHellEndsAt:null,
     roomListenerRef:null, countdownStarted:false, theme:RUNNABLE_THEMES[0], selectedTheme:RUNNABLE_THEMES[0],
     // filterCourse/filterTopics/filterClasses describe an optional narrowing
     // within the chosen course -- empty topic/class lists mean "the whole
@@ -5354,22 +5472,39 @@
           }
           startCatchUpCountdown();
         }
-        // Gift questions switch on once enough of the room has reached
-        // Stage II (GAME_CONFIG.giftUnlockShare) -- everyone sees the same
-        // moment since it's computed from the shared roster.
+        // Gift questions switch on once the room as a whole has answered
+        // enough questions -- N players need N*3 (GAME_CONFIG.
+        // giftUnlockQuestionsPerPlayer) answered between them, right or
+        // wrong, combined -- everyone sees the same moment since it's
+        // computed from the shared roster.
         if(!mp.giftsUnlocked){
           const ids = Object.keys(roster);
-          const reached = ids.filter(pid=>(roster[pid].stageIndex||0) >= 1).length;
-          if(ids.length && reached/ids.length >= GAME_CONFIG.giftUnlockShare){
+          const totalAnswered = ids.reduce((sum,pid)=> sum + (roster[pid].correctCount||0) + (roster[pid].incorrectCount||0), 0);
+          if(ids.length && totalAnswered >= ids.length * GAME_CONFIG.giftUnlockQuestionsPerPlayer){
             mp.giftsUnlocked = true;
             mp.giftFirstRollDone = false;
             mp.giftTimer = 2500;
             updateGiftHUD();
-            if(!mp.finished && screenState!=='over') mpShowEliminationToast('🎁 Gift questions are live — answer one to arm a grenade or a shield!');
+            // Only take over the screen from the normal running state --
+            // mid-question, mid-grenade, paused, or already over all stay
+            // undisturbed; the unlock itself still happened either way.
+            if(screenState==='running') showGiftUnlockAnnouncement();
           }
         }
         noteIncomingGrenades(roster[mp.playerId]);
         noteGrenadeResults(roster[mp.playerId]);
+        noteRoomEvents(room.events);
+        // Bomb Hell affects everyone EXCEPT whoever activated it -- they
+        // keep racing normally. A fresh bombHellEndsAt (different from the
+        // one I've already reacted to) means it just started: clear
+        // questions/glucose/gifts already on screen down to bombs only,
+        // and update(dt) below keeps it that way (with denser bomb
+        // spawning) until the shared deadline passes.
+        if(room.bombHellEndsAt && room.bombHellEndsAt > serverNow() && room.bombHellFromId !== mp.playerId && mp.bombHellEndsAt !== room.bombHellEndsAt){
+          mp.bombHellEndsAt = room.bombHellEndsAt;
+          entities = entities.filter(e=>e.type==='bomb');
+          if(!mp.finished && screenState!=='over') mpShowEliminationToast(`💣 BOMB HELL! ${room.bombHellFromName || 'Someone'} unleashed it — dodge for your life!`);
+        }
       }
 
       // While my own race has ended but the match isn't resolved yet, keep
@@ -5562,7 +5697,7 @@
     stageProgress = {};
     Object.keys(currentStages()[0].requirements).forEach(t=>stageProgress[t]=0);
     mpOpponentPanel.style.display = 'block';
-    mp.shields = 0; mp.giftsUnlocked = false; mp.giftFirstRollDone = false; mp.giftTimer = 0; mp.seenIncoming = new Set(); mp.incomingQueue = [];
+    mp.shields = 0; mp.giftsUnlocked = false; mp.giftFirstRollDone = false; mp.giftTimer = 0; mp.seenIncoming = new Set(); mp.incomingQueue = []; mp.bombHellEndsAt = null;
     clearTimeout(mp.catchUpTimer); mp.catchUpEndsAt = null; mp.catchUpReason = null; mp.catchUpFinisherName = null;
     catchUpBanner.style.display = 'none';
     updateGiftHUD();
@@ -5701,7 +5836,7 @@
       myName:'Player', finished:false, roomListenerRef:null, countdownStarted:false, theme:RUNNABLE_THEMES[0], selectedTheme:RUNNABLE_THEMES[0],
       filterCourse:null, filterTopics:[], filterClasses:[],
       shields:0, giftsUnlocked:false, giftFirstRollDone:false, giftTimer:0, seenIncoming:new Set(), incomingQueue:[], speed:'normal',
-      pendingGrenade:null, seenGrenadeResults:new Set(),
+      pendingGrenade:null, seenGrenadeResults:new Set(), seenEvents:new Set(), bombHellEndsAt:null,
       catchUpEndsAt:null, catchUpReason:null, catchUpFinisherName:null, catchUpTimer:null };
     mpOpponentPanel.style.display = 'none';
     grenadeOverlay.classList.remove('active');
@@ -5710,7 +5845,7 @@
   }
 
   // ---------- init ----------
-  const GAME_VERSION = '2026-09-17-grenade-hits-everyone'; // bump this string whenever you send friends a new copy of the file
+  const GAME_VERSION = '2026-09-18-gift-system-redesign'; // bump this string whenever you send friends a new copy of the file
   console.log('[Runner Game] version', GAME_VERSION);
   document.getElementById('versionTag').textContent = `version ${GAME_VERSION}`;
   function renderManualLifeText(){
@@ -5754,6 +5889,14 @@
       updateGiftHUD();
     }
     window.__runnerDebug = {
+      // Read-only peeks at module-scoped run state (glucose/shields/entity
+      // types on screen) for automated checks -- nothing here mutates
+      // anything, module-scoped vars otherwise aren't reachable from
+      // outside the <script type="module"> at all.
+      get glucose(){ return glucose; },
+      get shields(){ return mp.shields; },
+      get bombHellEndsAt(){ return mp.bombHellEndsAt; },
+      get entityTypes(){ return entities.map(e=>e.type); },
       // A read-only peek at module-scoped tutorial/canvas state for
       // automated checks -- nothing here mutates anything.
       tutorialSnapshot(){
@@ -5764,7 +5907,11 @@
           dimLife: lifeLabel.classList.contains('tc-dim'), dimStage: stageLine.classList.contains('tc-dim'), dimScore: scoreHudBlock.classList.contains('tc-dim'),
           stageChipsVisible: tutorialStageChips.style.display==='flex', stageChipsHtml: tutorialStageChips.innerHTML };
       },
-      // simulateGrenade(shieldsHeld): during a run, stages an incoming grenade as if a rival threw it.
+      // simulateGrenade(shieldsHeld): during a run, stages an incoming
+      // grenade as if a rival threw it -- the target defends by answering a
+      // FUN_FACT_QUESTIONS question now, shields no longer apply to
+      // grenades (only bombs), so `shields` here just lets you also check
+      // updateGiftHUD()'s display while doing it.
       simulateGrenade(shields){
         if(screenState!=='running') return 'Start a run first (Runner or Custom run), then call this while it is running.';
         fakeSoloRaceContext();
@@ -5774,17 +5921,17 @@
         return 'Incoming grenade staged.';
       },
       // spawnGift(): also fakes two rival racers (see fakeSoloRaceContext)
-      // so answering it correctly shows the real shop with real racers to
-      // throw the grenade at, not just a shield-only preview.
+      // so answering it correctly shows the real shop with a real racer to
+      // throw a grenade at, not just a life/shield-only preview.
       spawnGift(){
         if(screenState!=='running') return 'Start a run first.';
         fakeSoloRaceContext();
         spawnGiftBlock();
-        return 'Gift block spawned -- steer into it, answer correctly, and the shop (shield, or a grenade thrown at both fake rivals at once) will show under the explanation.';
+        return 'Gift block spawned -- steer into it, answer correctly, and the shop (2 of 4 gifts at random) will show under the explanation.';
       },
       // Renders the gift shop straight away (as if a gift question had just
       // been answered correctly), with fakeSoloRaceContext()'s two rivals as
-      // real throw targets -- skips needing to actually steer into a gift
+      // real grenade targets -- skips needing to actually steer into a gift
       // block and answer it right, for testing the shop UI itself.
       forceGiftShop(){
         if(screenState!=='running') return 'Start a run first.';
@@ -5793,10 +5940,36 @@
         renderGiftShop();
         return 'Gift shop rendered.';
       },
+      forceGiftUnlockAnnouncement(){
+        if(screenState!=='running') return 'Start a run first.';
+        showGiftUnlockAnnouncement();
+        return 'Gift unlock announcement shown.';
+      },
+      // Fakes Bomb Hell arriving from someone else (bombHellFromId differs
+      // from mp.playerId, matching the real "not the activator" check) --
+      // clears non-bomb entities and sets mp.bombHellEndsAt directly,
+      // without a real room.
+      forceBombHell(){
+        if(screenState!=='running') return 'Start a run first.';
+        fakeSoloRaceContext();
+        mp.bombHellEndsAt = serverNow() + 10000;
+        entities = entities.filter(e=>e.type==='bomb');
+        mpShowEliminationToast('💣 BOMB HELL! Debug rival unleashed it — dodge for your life!');
+        return 'Bomb Hell active for 10s.';
+      },
       // Drops the just-spawned gift block right in front of you on your
       // current lane, so you don't have to actually steer into it --
       // handy for automated checks of what happens after.
       showToast(text){ mpShowEliminationToast(text); return 'shown'; },
+      // Feeds a fake room events log through noteRoomEvents() -- lets the
+      // "someone threw a grenade" broadcast be previewed/tested without a
+      // real room (mp.roomCode stays unset, so its own cleanup writes
+      // harmlessly no-op).
+      simulateRoomEvent(fromName){
+        fakeSoloRaceContext();
+        noteRoomEvents({ ['debug-'+Date.now()]: { type:'grenade', fromId:'debug-other', fromName: fromName||'Debug rival', at:Date.now() } });
+        return mpEliminationToast.textContent;
+      },
       setLanguage(lang){ applyLanguage(lang); return currentLang; },
       tx,
       // Previews the catch-up countdown banner without touching Firebase
@@ -5843,6 +6016,14 @@
         if(!g) return 'No un-hit gift block on screen -- call spawnGift() first.';
         g.lane = player.targetLane; g.x = PLAYER_X + 20;
         return 'Moved onto your lane -- it should open next frame.';
+      },
+      // Drops a fresh bomb right in your lane -- for checking a held
+      // shield actually blocks it (see the type==='bomb' branch in
+      // update()) without waiting on the normal spawn timer.
+      forceBombCollision(){
+        if(screenState!=='running') return 'Start a run first.';
+        entities.push({ x: PLAYER_X + 20, lane: player.targetLane, r:20*SCALE, type:'bomb', hit:false });
+        return 'Bomb placed in your lane -- it should resolve next frame.';
       },
     };
     console.log('[Runner Game] debug helpers: window.__runnerDebug.simulateGrenade(shields), .spawnGift()');
