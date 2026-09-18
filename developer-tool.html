@@ -340,7 +340,7 @@
     <section data-section="lectures">
       <div class="section-head">
         <h2>Lectures <button class="info-btn" data-info="lectures" title="How this works">i</button></h2>
-        <p>Every lecture in every course, with its learning outcomes — for checking what a lecture actually covers, not what's been tagged to it yet.</p>
+        <p>Every lecture in a course, with its learning outcomes — for checking what a lecture actually covers, not what's been tagged to it yet. Pick a course below to narrow the list to just that one, or leave it on "— pick a course —" to see every course at once.</p>
       </div>
       <div class="card">
         <h2 style="margin-top:0;">➕ Add or update lectures <button class="info-btn" data-info="lecture-grid" title="How this works">i</button></h2>
@@ -733,14 +733,28 @@
     <section data-section="analysis">
       <div class="section-head">
         <h2>Data analysis <button class="info-btn" data-info="analytics" title="How this works">i</button></h2>
-        <p>Correct/wrong counts per question from every player and every mode. No per-player data, just totals.</p>
+        <p>How players are actually doing against the content — correct/wrong counts from every player and every mode. No per-player data, just totals.</p>
       </div>
       <div class="card">
-        <div id="analyticsLockNote" style="display:none;"></div>
-        <div id="analyticsContent">
-          <div class="btn-row"><button id="analyticsRefreshBtn">🔄 Refresh</button><span id="analyticsStatus" class="status"></span></div>
-          <div id="analyticsTableWrap" style="margin-top:12px;overflow-x:auto;"></div>
-        </div>
+        <div class="btn-row"><button id="analyticsRefreshBtn">🔄 Refresh</button><span id="analyticsStatus" class="status"></span></div>
+        <div class="struct-stats" id="analyticsSummary" style="margin-top:12px;"></div>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">By course</h2>
+        <p class="card-sub">Sorted hardest first (lowest accuracy).</p>
+        <div id="analyticsByCourse" style="overflow-x:auto;"></div>
+      </div>
+      <div class="card">
+        <details class="more"><summary>By topic</summary><div>
+          <p class="card-sub" style="margin-top:10px;">Every topic with at least one recorded answer, hardest first.</p>
+          <div id="analyticsByTopic" style="overflow-x:auto;"></div>
+        </div></details>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">Hardest questions</h2>
+        <p class="card-sub">Sorted by miss rate. Low-attempt questions are noisy (one wrong answer out of one attempt is a 100% miss rate) — raise the minimum to filter those out.</p>
+        <div class="btn-row"><label style="font-weight:normal;font-size:13px;">Minimum attempts <input type="number" id="analyticsMinAttempts" value="3" min="0" style="width:60px;margin-left:6px;"></label></div>
+        <div id="analyticsTableWrap" style="margin-top:12px;overflow-x:auto;"></div>
       </div>
     </section>
   </main>
@@ -792,7 +806,7 @@
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-18-missing-lecture-routes-to-lectures-tab'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-18-richer-data-analysis'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -2440,9 +2454,14 @@
     if(!isNaN(na) && !isNaN(nb) && na!==nb) return na-nb;
     return a.localeCompare(b);
   }
+  // Scoped to whichever course is picked in the "Add or update lectures"
+  // grid above it -- browsing every course's full lecture table at once
+  // isn't useful once you're focused on adding to one of them. Leaving the
+  // picker on "— pick a course —" shows all of them, same as before.
   function renderLectures(){
     const lecturesList = document.getElementById('lecturesList');
-    const courses = Object.values(KNOWN_COURSES);
+    const selectedCode = lecAdd_course.value;
+    const courses = selectedCode ? [KNOWN_COURSES[selectedCode]].filter(Boolean) : Object.values(KNOWN_COURSES);
     if(!courses.length){ lecturesList.innerHTML = `<div class="card"><div class="struct-empty">— no courses yet —</div></div>`; return; }
     lecturesList.innerHTML = courses.map(c=>{
       const classes = Object.entries(c.classes||{}).sort((a,b)=> lectureKeySort(a[0], b[0]));
@@ -2530,7 +2549,7 @@
     if(errors.length) html += `<div class="status bad" style="margin-top:6px;">⚠️ ${esc2(errors.join(' '))}</div>`;
     lecAdd_preview.innerHTML = html;
   }
-  lecAdd_course.addEventListener('change', renderLecAddPreview);
+  lecAdd_course.addEventListener('change', ()=>{ renderLecAddPreview(); renderLectures(); });
   document.getElementById('lecAdd_parseBtn').addEventListener('click', ()=>{
     if(!requireContributorIdentity()) return;
     const { valid, errors } = parseLecAddGrid();
@@ -3094,6 +3113,52 @@
     Object.entries(RD.THEMES).forEach(([themeId, theme])=> Object.entries(theme.topics).forEach(([topicId, topic])=> Object.entries(topic.items).forEach(([itemId, item])=>{ idx[itemId] = { themeId, topicId, item }; })));
     return idx;
   }
+  let analyticsRowsCache = [];
+  // Groups the same per-question rows up to whatever level a caller wants
+  // (course, or course+topic) -- shared by the "By course" and "By topic"
+  // cards below so they can't drift out of sync with each other or with the
+  // per-question table underneath.
+  function groupAnalyticsRows(rows, keyFn, labelFn){
+    const groups = {};
+    rows.forEach(r=>{
+      const key = keyFn(r); if(key==null) return;
+      if(!groups[key]) groups[key] = { label: labelFn(r), correct:0, wrong:0 };
+      groups[key].correct += r.correct; groups[key].wrong += r.wrong;
+    });
+    return Object.values(groups).map(g=>({ ...g, total: g.correct+g.wrong, accuracy: g.correct/(g.correct+g.wrong) })).sort((a,b)=> a.accuracy - b.accuracy || b.total - a.total);
+  }
+  function accuracyBarHtml(accuracy){
+    const pct = Math.round(accuracy*100);
+    const color = accuracy < 0.5 ? 'var(--danger)' : accuracy < 0.75 ? 'var(--warn)' : 'var(--good)';
+    return `<div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;max-width:140px;height:8px;border-radius:4px;background:var(--line);overflow:hidden;"><div style="width:${pct}%;height:100%;background:${color};"></div></div><span>${pct}%</span></div>`;
+  }
+  function renderAnalyticsGroupTable(containerId, rows, colLabel){
+    const el = document.getElementById(containerId);
+    if(!rows.length){ el.innerHTML = '<p class="card-sub">No answer data recorded yet.</p>'; return; }
+    el.innerHTML = `<table class="analytics-table"><thead><tr><th>${colLabel}</th><th>Answered</th><th>Accuracy</th></tr></thead><tbody>${rows.map(g=>`<tr><td>${esc2(g.label)}</td><td>${g.total}</td><td>${accuracyBarHtml(g.accuracy)}</td></tr>`).join('')}</tbody></table>`;
+  }
+  function renderAnalyticsSummary(rows){
+    const el = document.getElementById('analyticsSummary');
+    if(!rows.length){ el.innerHTML = ''; return; }
+    const totalAnswers = rows.reduce((s,r)=> s+r.total, 0);
+    const totalCorrect = rows.reduce((s,r)=> s+r.correct, 0);
+    const totalQuestionsInGame = countAll(RD).questions;
+    const mostAnswered = rows.reduce((max,r)=> r.total > (max?max.total:0) ? r : max, null);
+    el.innerHTML = [
+      `<span><b>${totalAnswers.toLocaleString()}</b> answers recorded</span>`,
+      `<span><b>${Math.round(100*totalCorrect/totalAnswers)}%</b> overall accuracy</span>`,
+      `<span><b>${rows.length}</b> / ${totalQuestionsInGame} questions have any data <span style="color:var(--muted);">(${Math.round(100*rows.length/(totalQuestionsInGame||1))}% coverage)</span></span>`,
+      mostAnswered ? `<span>Most answered: <b>${esc2((mostAnswered.prompt||'').slice(0,40))}${(mostAnswered.prompt||'').length>40?'…':''}</b> (${mostAnswered.total})</span>` : '',
+    ].filter(Boolean).join('');
+  }
+  function renderAnalyticsTable(){
+    const minAttempts = Math.max(0, parseInt(document.getElementById('analyticsMinAttempts').value, 10) || 0);
+    const rows = analyticsRowsCache.filter(r=>r.total >= minAttempts).sort((a,b)=> b.missRate - a.missRate || b.total - a.total);
+    if(!rows.length){ analyticsTableWrap.innerHTML = '<p class="card-sub">No questions meet that minimum attempts.</p>'; }
+    else analyticsTableWrap.innerHTML = `<table class="analytics-table"><thead><tr><th>Course</th><th>Topic</th><th>Item</th><th>Question</th><th>Correct</th><th>Wrong</th><th>Miss rate</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc2(r.courseLabel)}</td><td>${esc2(r.topic)}</td><td>${esc2(r.itemLabel)}</td><td>${esc2((r.prompt||'').slice(0,90))}${(r.prompt||'').length>90?'…':''}</td><td>${r.correct}</td><td>${r.wrong}</td><td>${Math.round(r.missRate*100)}%</td></tr>`).join('')}</tbody></table>`;
+    analyticsStatus.textContent = `${rows.length} of ${analyticsRowsCache.length} question${analyticsRowsCache.length===1?'':'s'} with answer data shown.`;
+  }
+  document.getElementById('analyticsMinAttempts').addEventListener('input', renderAnalyticsTable);
   function loadAnalytics(){
     if(!maintainerUnlocked) return;
     if(!firebaseReady){ analyticsStatus.className = 'status bad'; analyticsStatus.textContent = 'Not connected — check your internet connection and hit Refresh.'; return; }
@@ -3107,11 +3172,14 @@
         const saqEntry = (isSaq && entry) ? entry.item.saq?.[Number(qId.slice(3))] : null;
         const prompt = q ? q.prompt : saqEntry ? saqEntry.prompt : '(question not found — deleted or edited since)';
         const correct = s.correct||0, wrong = s.wrong||0, total = correct+wrong;
-        return { itemLabel: entry ? entry.item.label : itemId, prompt, correct, wrong, total, course: entry ? entry.themeId : '', topic: entry ? ((RD.THEMES[entry.themeId]?.topics?.[entry.topicId]||{}).label || entry.topicId) : '', missRate: total ? wrong/total : 0 };
-      }).filter(r=>r.total>0).sort((a,b)=> b.missRate - a.missRate || b.total - a.total);
-      if(!rows.length){ analyticsTableWrap.innerHTML = '<p class="card-sub">No answer data recorded yet.</p>'; }
-      else analyticsTableWrap.innerHTML = `<table class="analytics-table"><thead><tr><th>Course</th><th>Topic</th><th>Item</th><th>Question</th><th>Correct</th><th>Wrong</th><th>Miss rate</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc2(r.course)}</td><td>${esc2(r.topic)}</td><td>${esc2(r.itemLabel)}</td><td>${esc2((r.prompt||'').slice(0,90))}${(r.prompt||'').length>90?'…':''}</td><td>${r.correct}</td><td>${r.wrong}</td><td>${Math.round(r.missRate*100)}%</td></tr>`).join('')}</tbody></table>`;
-      analyticsStatus.textContent = `${rows.length} question${rows.length===1?'':'s'} with answer data.`;
+        const courseId = entry ? entry.themeId : '';
+        return { itemLabel: entry ? entry.item.label : itemId, prompt, correct, wrong, total, courseId, courseLabel: courseId ? ((RD.THEMES[courseId]||{}).label || courseId) : '(unknown)', topicId: entry ? entry.topicId : '', topic: entry ? ((RD.THEMES[entry.themeId]?.topics?.[entry.topicId]||{}).label || entry.topicId) : '', missRate: total ? wrong/total : 0 };
+      }).filter(r=>r.total>0);
+      analyticsRowsCache = rows;
+      renderAnalyticsSummary(rows);
+      renderAnalyticsGroupTable('analyticsByCourse', groupAnalyticsRows(rows, r=>r.courseId, r=>r.courseLabel), 'Course');
+      renderAnalyticsGroupTable('analyticsByTopic', groupAnalyticsRows(rows, r=>r.courseId+'::'+r.topicId, r=>`${r.courseLabel} · ${r.topic}`), 'Course · Topic');
+      renderAnalyticsTable();
     }).catch(err=>{ analyticsStatus.className = 'status bad'; analyticsStatus.textContent = 'Failed to load — check your connection and try again.'; console.warn('[Analytics] load failed', err); });
   }
   document.getElementById('analyticsRefreshBtn').addEventListener('click', loadAnalytics);
@@ -3246,7 +3314,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
       <p>Every time a player answers a question, the game runs a Firebase <em>transaction</em> on <code>stats/&lt;itemId&gt;::&lt;questionId&gt;</code> that increments <code>correct</code> or <code>wrong</code>. A transaction reads the current value and writes the new one atomically, so two players answering at the same instant can't lose an increment.</p>
       <pre>runTransaction(ref(db, 'stats/bcrabl_x::q-genetics-a1'),
   cur => ({ ...(cur||{}), wrong: ((cur&&cur.wrong)||0) + 1 }));</pre>
-      <p>No per-player data is stored — only totals — which is why this table can be shown to the whole team. This page reads the branch once with <code>get()</code>, joins each key back to its question text through the loaded data, and sorts by miss rate.</p>` },
+      <p>No per-player data is stored — only totals — which is why this page can be shown to the whole team. It reads the branch once with <code>get()</code>, joins each key back to its question/item/topic/course through the loaded data, and builds everything else client-side from that one fetch: the summary cards, the by-course and by-topic accuracy breakdowns (grouped and re-sorted from the same rows, so they can't drift out of sync with each other), and the per-question table. The "minimum attempts" filter on that table doesn't refetch anything — it just re-filters and re-sorts the cached rows, which is also why coverage (<code>rows.length</code> vs every question in <code>game-data.js</code>) only needs one extra count, not another request.</p>` },
     'github-check': { title:'Checking against GitHub', tags:['raw.githubusercontent','cache-busting','eval with a shadowed window'], body:`
       <p>GitHub serves every committed file as plain text at <code>raw.githubusercontent.com/&lt;user&gt;/&lt;repo&gt;/main/&lt;file&gt;</code>. The tool fetches <code>game-data.js</code> from there with <code>?_=&lt;timestamp&gt;</code> appended so the CDN can't hand back a cached copy.</p>
       <p>To count what's in the remote file without touching this page's own data, it's evaluated inside a function that declares a <em>local</em> variable named <code>window</code>: the file's <code>window.RUNNER_DATA = …</code> lands in that local object instead of the real one.</p>
@@ -3260,7 +3328,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
       <p>There's no separate "contributors" list — this page just groups everything that already carries a <code>contributorName</code>/<code>contributorEmail</code> by email: merged items and questions (stamped once when <code>applyEntry</code> merges them, and preserved through later edits by someone else), plus anything still sitting in the shared queue, including reports.</p>
       <p>Someone with no email on file (content merged before attribution existed, or a report filed without filling in the identity box) is grouped by name instead, under "(no email)".</p>` },
     lectures: { title:'Where lecture data comes from', tags:['COURSES', 'read-only'], body:`
-      <p>Straight from <code>COURSES[&lt;code&gt;].classes[&lt;L#&gt;]</code> in <code>game-data.js</code> — the same lectures an item/question can cite via its <code>course</code>/<code>class</code> fields. This list doesn't touch items or questions at all, just the lecture list and whatever <code>outcomes</code> each one carries.</p>
+      <p>Straight from <code>COURSES[&lt;code&gt;].classes[&lt;L#&gt;]</code> in <code>game-data.js</code> — the same lectures an item/question can cite via its <code>course</code>/<code>class</code> fields. This list doesn't touch items or questions at all, just the lecture list and whatever <code>outcomes</code> each one carries. It's scoped to whichever course is picked in the "Add or update lectures" box above it, so it stays readable once there's more than one course.</p>
       <p>Add or update lectures with the pasteable table above it, or the "🧭 Learning outcomes" form under Add content — like everything else, it goes to the shared queue and only shows up here once merged.</p>` },
     'lecture-grid': { title:'Adding lectures in bulk', tags:['lectureOutcomes', 'create-or-update'], body:`
       <p>Same paste-a-range-from-a-spreadsheet interaction as the questions grid, sized to three columns: <b>Lecture #</b> (the class key, e.g. <code>L16</code>), <b>Name</b>, and <b>LO</b> (learning outcomes joined with <code>;</code>). One course at a time — pick it from the dropdown first.</p>
@@ -3329,7 +3397,19 @@ const themesDecl  = text.indexOf('const THEMES = {');
   renderItem(); renderQuestion(); renderCourse(); renderStructureList();
   renderBatch();
   if(new URLSearchParams(location.search).has('debug')){
-    window.__devToolDebug = { get batch(){ return batch; }, renderBatch, showTab, showPane, generateMergedFile, KNOWN_ITEMS, KNOWN_TOPICS, KNOWN_THEMES, KNOWN_COURSES, RD, renderStructureList, renderQuestionBank, renderContributors, buildContributorMap, renderLectures };
+    window.__devToolDebug = {
+      get batch(){ return batch; }, renderBatch, showTab, showPane, generateMergedFile, KNOWN_ITEMS, KNOWN_TOPICS, KNOWN_THEMES, KNOWN_COURSES, RD, renderStructureList, renderQuestionBank, renderContributors, buildContributorMap, renderLectures,
+      // Feeds fake rows through the same render path loadAnalytics() uses,
+      // without a real Firebase fetch -- lets the Data analysis cards be
+      // tested with Firebase blocked (this project's standing test rule).
+      testRenderAnalytics(rows){
+        analyticsRowsCache = rows;
+        renderAnalyticsSummary(rows);
+        renderAnalyticsGroupTable('analyticsByCourse', groupAnalyticsRows(rows, r=>r.courseId, r=>r.courseLabel), 'Course');
+        renderAnalyticsGroupTable('analyticsByTopic', groupAnalyticsRows(rows, r=>r.courseId+'::'+r.topicId, r=>`${r.courseLabel} · ${r.topic}`), 'Course · Topic');
+        renderAnalyticsTable();
+      },
+    };
   }
 </script>
 </body>
