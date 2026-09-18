@@ -601,7 +601,7 @@
       <div class="subpane active" data-pane="csv-grid">
         <div class="card">
           <h2>Paste directly from Google Sheets / Excel</h2>
-          <p class="card-sub">Same columns as the CSV tab above (minus <code>mechanism</code> — edit that from the item form instead), but as an editable table — no need to export to CSV first. Select a range in your spreadsheet, copy, click a cell here, and paste: it fills in as many cells as you copied, growing the table if needed. Fix anything by hand, add or remove rows, then check &amp; queue exactly like the CSV tab. Every row is a question — <b>Description/Fun facts describe the item</b>, not the question, so only fill those in on a row that's introducing a brand-new item; they're ignored on every other row.</p>
+          <p class="card-sub">Same columns as the CSV tab above, minus <code>description</code>/<code>mechanism</code>/<code>funfacts</code> — those describe the <b>item</b>, not the question, so add/edit them from the item form instead. This table is questions only. Select a range in your spreadsheet, copy, click a cell here, and paste: it fills in as many cells as you copied, growing the table if needed. Fix anything by hand, add or remove rows, then check &amp; queue exactly like the CSV tab. A row whose <code>item</code> doesn't exist yet still creates a bare item with just that label — open it afterward to fill in the rest.</p>
           <div style="overflow-x:auto;max-width:100%;">
             <table class="cols grid-import" id="gridImportTable">
               <thead><tr id="gridImportHeaderRow"></tr></thead>
@@ -793,7 +793,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-18-funfact-question-bank'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-18-safe-remerge'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -2184,9 +2184,8 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     ['questionid','Question ID'], ['course','Course'], ['lecture','Lecture'], ['topic','Topic'], ['item','Item'],
     ['prompt','Prompt'], ['optiona','Option A'], ['optionb','Option B'], ['optionc','Option C'], ['optiond','Option D'],
     ['correct','Correct'], ['explanation','Explanation'], ['hashtags','Hashtags'], ['difficulty','Difficulty'],
-    ['description','Description (new item only)'], ['funfacts','Fun facts (new item only)'],
   ];
-  const GRID_WIDE_COLS = new Set(['prompt','explanation','description']);
+  const GRID_WIDE_COLS = new Set(['prompt','explanation']);
   const gridHeaderRow = document.getElementById('gridImportHeaderRow');
   const gridBody = document.getElementById('gridImportBody');
   const grid_preview = document.getElementById('grid_preview');
@@ -2782,7 +2781,12 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
     }
     if(entry.type === 'delete-item'){ const th = themes[o.theme]; if(th && th.topics[o.topicId]) delete th.topics[o.topicId].items[o.itemId]; return; }
     if(entry.type === 'delete-question'){ const item = themes[o.theme]?.topics[o.topicId]?.items[o.itemId]; if(item && item.questions) item.questions = item.questions.filter(q=>q.id!==o.questionId); return; }
-    if(entry.type === 'course'){ themes[o.id] = { label:o.label, icon:o.icon, blurb:o.blurb, topics:{} }; return; }
+    // If this course already exists (e.g. this "new course" entry is being
+    // re-applied because it was never cleared from the queue after an
+    // earlier merge already created it), keep its existing topics rather
+    // than resetting to {} -- otherwise a leftover queue entry would wipe
+    // out every topic/item added to that course since.
+    if(entry.type === 'course'){ themes[o.id] = { label:o.label, icon:o.icon, blurb:o.blurb, topics:(themes[o.id]||{}).topics||{} }; return; }
     if(entry.type === 'topic'){ const th = themes[o.theme]; if(th) th.topics[o.topicId] = th.topics[o.topicId] || { label:o.label, icon:o.icon, color:'#c58bff', items:{} }; return; }
     if(entry.type === 'item' || entry.type === 'edit-item'){
       applyCourseInfo(o.courseInfo);
@@ -2808,7 +2812,14 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
       item.questions = item.questions || [];
       const q = questionDataObject(o);
       q.contributorName = entry.contributorName; q.contributorEmail = entry.contributorEmail;
-      item.questions.push(q); return;
+      // Re-applying this same "new question" entry a second time (it was
+      // never cleared from the queue after an earlier merge already added
+      // it) replaces the existing copy in place instead of appending a
+      // duplicate -- qId is fixed at submission time, so this is exactly
+      // the same question either way.
+      const existingIdx = item.questions.findIndex(eq=>eq.id===q.id);
+      if(existingIdx >= 0) item.questions[existingIdx] = q; else item.questions.push(q);
+      return;
     }
     if(entry.type === 'edit-question'){
       const item = themes[o.theme]?.topics?.[o.topic]?.items?.[o.itemId]; if(!item || !item.questions) return;
