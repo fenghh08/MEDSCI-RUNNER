@@ -850,7 +850,7 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-18-pending-course-recognized'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-18-prefill-missing-ref-hints'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -2062,14 +2062,61 @@ MEDS3002,L14,Cancer Hallmarks,&quot;Identify the BCR-ABL fusion as a hallmark of
   function importMissingRefHintsHtml(errors){
     const joined = errors.join(' ');
     const hints = [];
-    if(/(?:course|theme) "[^"]*" doesn't (?:match any existing course|exist)/.test(joined)) hints.push(`<button type="button" class="link-btn" data-goto-add-pane="course">➕ Add the missing course</button>`);
-    if(/topic "[^"]*" doesn't (?:match any topic under|exist)/.test(joined)) hints.push(`<button type="button" class="link-btn" data-goto-add-pane="topic">➕ Add the missing topic</button>`);
-    if(/lecture "[^"]*" doesn't exist under/.test(joined)) hints.push(`<button type="button" class="link-btn" data-goto-add-pane="item">➕ Add the missing lecture (via a new item)</button>`);
+    const courseMatch = joined.match(/(?:course|theme) "([^"]*)" doesn't (?:match any existing course|exist)/);
+    if(courseMatch) hints.push(`<button type="button" class="link-btn" data-goto-add-pane="course" data-preset-course-name="${esc2(courseMatch[1])}">➕ Add the missing course</button>`);
+    const topicMatch = joined.match(/topic "([^"]*)" doesn't (?:match any topic under|exist under) ([^,]*)/);
+    if(topicMatch) hints.push(`<button type="button" class="link-btn" data-goto-add-pane="topic" data-preset-topic-course="${esc2(topicMatch[2].trim())}" data-preset-topic-name="${esc2(topicMatch[1])}">➕ Add the missing topic</button>`);
+    const lectureMatch = joined.match(/lecture "([^"]*)" doesn't exist under(?: course)? ([^,]*)/);
+    if(lectureMatch) hints.push(`<button type="button" class="link-btn" data-goto-add-pane="item" data-preset-lecture-course="${esc2(lectureMatch[2].trim())}" data-preset-lecture-key="${esc2(lectureMatch[1])}">➕ Add the missing lecture (via a new item)</button>`);
     return hints.length ? ` ${hints.join(' ')}` : '';
+  }
+  // A course name/id in an error message can be either -- the various
+  // importers embed whichever they happened to have on hand (label for the
+  // grid/lecture importer, raw theme id for the CSV item importer).
+  function resolveThemeId(text){
+    const t = KNOWN_THEMES.find(t=> t.id.toLowerCase()===text.toLowerCase() || t.label.toLowerCase()===text.toLowerCase());
+    return t ? t.id : null;
+  }
+  function resolveCourseCode(text){
+    if(KNOWN_COURSES[text]) return text;
+    const code = Object.keys(KNOWN_COURSES).find(c=>c.toLowerCase()===text.toLowerCase());
+    return code || null;
   }
   document.addEventListener('click', e=>{
     const btn = e.target.closest('[data-goto-add-pane]'); if(!btn) return;
-    showTab('add'); showPane('add', btn.dataset.gotoAddPane);
+    const pane = btn.dataset.gotoAddPane;
+    showTab('add'); showPane('add', pane);
+    // Landing on an empty form after being told exactly what's missing is a
+    // dead end of its own -- pre-fill whatever the error already told us,
+    // so the row that failed can usually be requeued in two clicks.
+    if(pane==='course' && btn.dataset.presetCourseName){
+      c_label.value = btn.dataset.presetCourseName; renderCourse(); c_label.focus();
+    }
+    if(pane==='topic'){
+      // A course that only just landed in KNOWN_THEMES (e.g. still pending,
+      // never merged) hasn't necessarily made it into this <select>'s
+      // <option> list yet -- that only happens on demand. Refresh it first,
+      // or setting .value to a not-yet-listed id silently no-ops.
+      fillThemeSelect(newTopicTheme);
+      const themeId = btn.dataset.presetTopicCourse ? resolveThemeId(btn.dataset.presetTopicCourse) : null;
+      if(themeId){ newTopicTheme.value = themeId; newTopicTheme.dispatchEvent(new Event('change')); }
+      if(btn.dataset.presetTopicName) newTopicLabelInput.value = btn.dataset.presetTopicName;
+      newTopicLabelInput.focus();
+    }
+    if(pane==='item' && btn.dataset.presetLectureCourse){
+      // i_course/i_newClassBlock/etc live inside initCourseClassPicker()'s own
+      // closure, not as top-level consts like i_theme/i_topic -- fetch by id.
+      const courseCode = resolveCourseCode(btn.dataset.presetLectureCourse);
+      const i_course = document.getElementById('i_course'), i_newClassBlock = document.getElementById('i_newClassBlock'),
+        i_newClassToggle = document.getElementById('i_newClassToggle'), i_newClassKey = document.getElementById('i_newClassKey'), i_newClassLabel = document.getElementById('i_newClassLabel');
+      if(courseCode){
+        refreshCourseSelects();
+        i_course.value = courseCode; i_course.dispatchEvent(new Event('change'));
+        if(!i_newClassBlock.classList.contains('show')) i_newClassToggle.click();
+        if(btn.dataset.presetLectureKey) i_newClassKey.value = btn.dataset.presetLectureKey;
+        i_newClassLabel.focus();
+      }
+    }
   });
   function renderCsvItemPreview(){
     if(!csvitem_textarea.value.trim()){ csvitem_preview.textContent = ''; return; }
