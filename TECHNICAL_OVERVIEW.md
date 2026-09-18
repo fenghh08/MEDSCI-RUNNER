@@ -12,7 +12,7 @@ Google sign-in, Firebase, the native app build (`www/`, `capacitor.config.ts`, `
 ```
 medsci-runner.html   the whole game (HTML + CSS + one <script type="module">)
 game-data.js         every course / topic / item / question, as plain JS data
-developer-tool.html  maintainer content editor (never shipped in the app)
+developer-tool.html  admin content editor (never shipped in the app)
 icons/               topic + theme icons drawn on the canvas and in menus
 images/              a few legacy image files (item images are links now)
 scripts/copy-web-assets.js   rebuilds www/ from the files above
@@ -100,22 +100,25 @@ Everything is one JSON tree. The paths the code reads and writes:
 | `rooms/<CODE>/players/<targetId>/incoming/<pushKey>` | A racer who throws the Grenade gift at a chosen target | The targeted racer (via the same room listener) | `{ fromName, fromId, at }` — one thrown grenade. The target removes the key once it has played out, so it never replays. |
 | `rooms/<CODE>/players/<throwerId>/grenadeResults/<pushKey>` | The target, once a grenade resolves | The original thrower (via the same room listener) | `{ targetName, shielded, at }` — tells the thrower whether it was blocked or landed, as a toast. The thrower removes the key once shown, so it never replays. |
 | `rooms/<CODE>/events/<pushKey>` | Whoever triggers the event (currently: a grenade thrower) | Every racer in the room (via the same room listener), except the event's own source | `{ type, fromId, fromName, at }` — a shared, room-wide "here's what just happened" log so everyone sees it, not just the people directly involved. Kept to one line per event on purpose. Each client tracks which keys it's already shown (`mp.seenEvents`) instead of removing them, since (unlike `incoming`/`grenadeResults`) more than one client needs to read each entry. |
-| `stats/<itemId>::<qId>` | The game, every time any player answers (a transaction that increments `correct` or `wrong`) | `developer-tool.html` → Data analysis tab (maintainer-only) | Aggregate per-question correct/wrong counts, used for the miss-rate table |
-| `contributions/<pushKey>` | The game's "Contribute" section on an item page, the ⚠️ **Report question** button under any answered question, and the dev tool's "Add to batch" | `developer-tool.html` → Team Queue | Suggested fun facts / notes / flags / question reports (`flag-question`, with the reason, prompt and ids) / new items+questions, waiting for a maintainer to review and merge into `game-data.js` |
+| `stats/<itemId>::<qId>` | The game, every time any player answers (a transaction that increments `correct` or `wrong`) | `developer-tool.html` → Data analysis tab (admin-only) | Aggregate per-question correct/wrong counts, used for the miss-rate table |
+| `contributions/<pushKey>` | The game's "Contribute" section on an item page, the ⚠️ **Report question** button under any answered question, and the dev tool's "Add to batch" | `developer-tool.html` → Team Queue | Suggested fun facts / notes / flags / question reports (`flag-question`, with the reason, prompt and ids) / new items+questions, waiting for an admin to review and merge into `game-data.js` |
 | `users/<uid>/sync/<key>` | The game, whenever a **signed-in** player changes something syncable | The game, on sign-in and live afterwards | `theme`, `font`, `gameSpeed`, `lang` (interface language), `playerCustomization`, `srsState` (spaced-repetition history, merged per-entry by newest `lastSeen`) |
 | `.info/serverTimeOffset` | Firebase itself | The game | Clock offset between this device and Firebase's servers, so the Group Race countdown is the same on every device even if someone's clock is wrong |
 
 Nothing a player submits ever appears to other players directly — content only becomes real
-when a maintainer merges it into `game-data.js` through the dev tool.
+when an admin merges it into `game-data.js` through the dev tool.
 
-### 2.4 The dev tool's "maintainer PIN"
+### 2.4 The dev tool's "admin PIN"
 
 The dev tool's destructive sections (delete/overwrite content, Data analysis, Contributors,
 merging the queue) sit behind a PIN check that lives *in the HTML*. It's a convenience gate to stop
 a casual opener clicking the wrong button — it is **not** security. Anyone who can read the file
-can read the PIN, and the database's real protection is the Security Rules in the console. The
-Contributors and Data analysis tabs in the sidenav are hidden entirely until the PIN is entered
-(`applyMaintainerLockUI()`), rather than merely showing a locked placeholder.
+can read the PIN, and the database's real protection is the Security Rules in the console. Unlocking
+also requires the "Your name" field to match an entry in a hardcoded `ADMIN_NAMES` list (case- and
+whitespace-insensitive) — same deterrent-not-security caveat, it just means the PIN alone isn't
+enough. The Contributors and Data analysis tabs in the sidenav (and the Course chip under Add
+content) are hidden entirely until unlocked (`applyMaintainerLockUI()`), rather than merely showing
+a locked placeholder.
 
 ---
 
@@ -185,7 +188,7 @@ the bridge (`window.Capacitor`) that lets the page call native plugins like Goog
   `scripts/copy-web-assets.js`, which wipes it and copies:
   - `medsci-runner.html` → `www/index.html` (renamed — the WebView loads `index.html`)
   - `game-data.js`, `icons/`, `images/`
-  - and deliberately **not** `developer-tool.html` (maintainer-only, has write access).
+  - and deliberately **not** `developer-tool.html` (admin-only, has write access).
 - Because it's a copy, **any change to the root files is invisible to the app until you rebuild
   it**. The workflow is:
 
@@ -358,7 +361,7 @@ Authentication → Settings → Authorized domains**. Nothing else changes betwe
 hosted copy — same files, same Firebase project, same `game-data.js`.
 
 `www/`, `ios/`, `android/`, `node_modules/` and `developer-tool.html` are in the repo too, so
-they are technically reachable on the site; that's harmless (the tool is a maintainer page
+they are technically reachable on the site; that's harmless (the tool is an admin page
 anyway, and the PIN was never security — see 2.4), but don't put anything there you wouldn't
 want public.
 
