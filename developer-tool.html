@@ -299,6 +299,7 @@
     <div class="nav-title">Review</div>
     <button id="tabQueue" data-tab="queue">👥 <span>Team queue</span><span class="badge" id="queueTabBadge"></span></button>
     <button id="tabReports" data-tab="reports">⚠️ <span>Reports</span><span class="badge" id="reportsTabBadge"></span></button>
+    <button id="tabFeedback" data-tab="feedback">💬 <span>Feedback</span></button>
     <button id="tabMaintainer" data-tab="maintainer">🛠 <span>Admin</span></button>
     <div class="nav-title" id="navTitleMaintainerTools" style="display:none;">Admin tools</div>
     <button id="tabContributors" data-tab="contributors" style="display:none;">🙋 <span>Contributors</span></button>
@@ -712,6 +713,30 @@
       </div>
     </section>
 
+    <!-- ================= FEEDBACK ================= -->
+    <section data-section="feedback">
+      <div class="section-head">
+        <h2>Feedback <button class="info-btn" data-info="feedback" title="How this works">i</button></h2>
+        <p>Trouble with the tool, something confusing, a bug, or an idea? Say so here. Anyone can submit — only admins can read what's been sent in.</p>
+      </div>
+      <div class="card">
+        <label class="field"><span class="fl-label">Type <span class="req">*</span></span>
+          <select id="feedback_type">
+            <option value="Feedback">💬 General feedback</option>
+            <option value="Troubleshooting">🐛 Something's not working</option>
+            <option value="Suggestion">💡 Suggestion</option>
+            <option value="Idea">✨ Idea</option>
+          </select>
+        </label>
+        <label class="field"><span class="fl-label">Message <span class="req">*</span></span><textarea id="feedback_message" rows="5" placeholder="What's going on, or what would help?"></textarea></label>
+        <div class="btn-row"><button class="primary" id="feedback_addBatch">Send</button><span id="feedback_status" class="status"></span></div>
+      </div>
+      <div class="card" id="feedbackListCard">
+        <h2 style="margin-top:0;">Submitted so far <span class="struct-qbadge" id="feedbackCount"></span></h2>
+        <div id="feedbackList"></div>
+      </div>
+    </section>
+
     <!-- ================= MAINTAINER ================= -->
     <section data-section="maintainer">
       <div class="section-head">
@@ -864,7 +889,7 @@
   })();
 
   // ---------------- Data: everything derives from game-data.js ----------------
-  const TOOL_VERSION = '2026-09-19-start-here-reorg-admin-list-review'; // bump when handing teammates a new copy
+  const TOOL_VERSION = '2026-09-20-feedback-tab'; // bump when handing teammates a new copy
   const GAME_VERSION_FOR_CHECK = '2026-09-15-meds3003-landing'; // the game version this copy of the tool shipped with
   console.log('[Content Tool] version', TOOL_VERSION);
 
@@ -979,6 +1004,7 @@
     const activeTab = document.querySelector('.sidenav [data-tab].active');
     if(!maintainerUnlocked && activeTab && ['contributors','analysis'].includes(activeTab.dataset.tab)) showTab('structure');
     if(maintainerUnlocked) loadAnalytics();
+    renderFeedbackList(); // shows/hides the list itself depending on maintainerUnlocked
   }
   document.getElementById('maintainerUnlockBtn').addEventListener('click', ()=>{
     const input = document.getElementById('maintainerPinInput');
@@ -2756,6 +2782,7 @@
     else { delete batch[key]; renderBatch(); }
   }
   const isReport = e => e.type==='flag-item' || e.type==='flag-question';
+  const isFeedback = e => e.type==='feedback';
   // Shared by the row-level Edit button and the report detail view -- jumps
   // straight to fixing whatever a report is actually about. Re-derives a
   // question's location from live content (not the report's own stored
@@ -2815,12 +2842,13 @@
   // (new items with edits, new questions with edits) since the "is it new
   // or an edit" distinction only matters once you open a row.
   function renderQueueStats(all){
-    const counts = { item:0, question:0, deletion:0, report:0, other:0 };
+    const counts = { item:0, question:0, deletion:0, report:0, feedback:0, other:0 };
     all.forEach(([,e])=>{
       if(e.type==='item' || e.type==='edit-item') counts.item++;
       else if(e.type==='question' || e.type==='edit-question') counts.question++;
       else if(e.type==='delete-item' || e.type==='delete-question' || e.type==='delete-course') counts.deletion++;
       else if(e.type==='flag-item' || e.type==='flag-question') counts.report++;
+      else if(e.type==='feedback') counts.feedback++;
       else counts.other++; // course, topic, lectureOutcomes
     });
     queueStats.innerHTML = `<span><b>${all.length}</b> total</span><span><b>${counts.item}</b> item${counts.item===1?'':'s'}</span><span><b>${counts.question}</b> question${counts.question===1?'':'s'}</span><span><b>${counts.deletion}</b> deletion${counts.deletion===1?'':'s'} requested</span><span><b>${counts.report}</b> report${counts.report===1?'':'s'}</span>${counts.other?`<span><b>${counts.other}</b> other</span>`:''}`;
@@ -2878,12 +2906,13 @@
     syncKnownFromQueue();
     const all = Object.entries(batch);
     renderQueueStats(all);
-    const contentEntries = all.filter(([k,e])=>!isReport(e)).sort((a,b)=> (a[1].createdAt||0) - (b[1].createdAt||0));
+    const contentEntries = all.filter(([k,e])=>!isReport(e) && !isFeedback(e)).sort((a,b)=> (a[1].createdAt||0) - (b[1].createdAt||0));
     const reportEntries = all.filter(([k,e])=>isReport(e)).sort((a,b)=> (a[1].createdAt||0) - (b[1].createdAt||0));
     queueTabBadge.textContent = contentEntries.length ? String(contentEntries.length) : '';
     reportsTabBadge.textContent = reportEntries.length ? String(reportEntries.length) : '';
     renderQueueRows(batchListContent, contentEntries, 'Nothing to merge yet — add something from "Add content" or "Bulk import".');
     renderQueueRows(batchListReports, reportEntries, 'No reports from players yet.');
+    renderFeedbackList();
   }
   function fullBatchText(){
     const entries = Object.values(batch).sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
@@ -2894,6 +2923,48 @@
   }
   document.getElementById('batchCopyAll').addEventListener('click', ()=>{ if(!Object.keys(batch).length){ toast('Queue is empty'); return; } copyText(fullBatchText()); });
   document.getElementById('batchDownload').addEventListener('click', ()=>{ if(!Object.keys(batch).length){ toast('Queue is empty'); return; } downloadText(`contribution-queue-${new Date().toISOString().slice(0,10)}.txt`, fullBatchText()); });
+
+  // ======================================================================
+  // FEEDBACK — anyone can send it, only an admin can read what's been sent.
+  // Lands in the same shared queue as everything else (type:'feedback'),
+  // but is filtered out of Content to merge, out of the merge itself (see
+  // isFeedback() in generateMergedFile()), and out of "copy queue as text"
+  // -- the only place it's ever listed is this tab, and only once unlocked.
+  // ======================================================================
+  const FEEDBACK_ICONS = { Feedback:'💬', Troubleshooting:'🐛', Suggestion:'💡', Idea:'✨' };
+  document.getElementById('feedback_addBatch').addEventListener('click', ()=>{
+    if(!requireContributorIdentity()) return;
+    const type = document.getElementById('feedback_type').value;
+    const message = document.getElementById('feedback_message').value.trim();
+    if(!message){ toast('Write a message first'); document.getElementById('feedback_message').focus(); return; }
+    pushToQueue({ type:'feedback', title: message.slice(0,50), note:`${FEEDBACK_ICONS[type]||'💬'} ${type}`, data:{ feedbackType:type, message } });
+    document.getElementById('feedback_status').className = 'status ok';
+    document.getElementById('feedback_status').textContent = '✓ Sent — thanks!';
+    document.getElementById('feedback_message').value = '';
+  });
+  function renderFeedbackList(){
+    const card = document.getElementById('feedbackListCard'), list = document.getElementById('feedbackList'), count = document.getElementById('feedbackCount');
+    if(!maintainerUnlocked){
+      count.textContent = '';
+      list.innerHTML = `<div class="struct-empty">🔒 Only admins can see what's been submitted — unlock <button type="button" class="link-btn" data-goto="maintainer">Admin</button> to read it.</div>`;
+      return;
+    }
+    const entries = Object.entries(batch).filter(([k,e])=>isFeedback(e)).sort((a,b)=> (b[1].createdAt||0) - (a[1].createdAt||0));
+    count.textContent = entries.length ? String(entries.length) : '';
+    if(!entries.length){ list.innerHTML = '<div class="struct-empty">— nothing sent in yet —</div>'; return; }
+    list.innerHTML = entries.map(([key, e])=>{
+      const d = e.data || {};
+      return `<div class="q-existing-row" style="align-items:flex-start;">
+        <span><b>${FEEDBACK_ICONS[d.feedbackType]||'💬'} ${esc2(d.feedbackType||'Feedback')}</b> <span style="color:var(--muted);">· ${esc2(e.contributorName||'Anonymous')}${e.contributorEmail?` (${esc2(e.contributorEmail)})`:''} · ${e.createdAt?new Date(e.createdAt).toLocaleString():''}</span><br>
+          <span style="white-space:pre-wrap;">${esc2(d.message||'')}</span></span>
+        <button type="button" class="subtle list-remove-feedback" data-key="${esc2(key)}" title="Remove (once dealt with)">✕</button>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('.list-remove-feedback').forEach(btn=> btn.addEventListener('click', ()=>{
+      if(!requireMaintainerUnlock()) return;
+      removeFromQueue(btn.dataset.key);
+    }));
+  }
 
   // ======================================================================
   // MAINTAINER — merge the queue into a complete game-data.js
@@ -3043,7 +3114,7 @@
     const entries = Object.entries(batch).map(([key, entry])=>({ key, ...entry })).sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
     let appliedCount = 0, skippedNoData = 0; const mergedKeys = [];
     entries.forEach(entry=>{
-      if(isReport(entry)) return; // reports are for a human to read; they only leave the queue by hand
+      if(isReport(entry) || isFeedback(entry)) return; // reports and feedback are for a human to read; they only leave the queue by hand
       if(!entry.data){ skippedNoData++; return; }
       applyEntry(entry, courses, themes, funFactQuestions); appliedCount++; mergedKeys.push(entry.key);
     });
@@ -3420,6 +3491,7 @@
     if(which==='questionbank'){ fillBankCourseSelect(); fillBankTopicSelect(); fillBankLectureSelect(); renderQuestionBank(); }
     if(which==='contributors') renderContributors();
     if(which==='analysis') loadAnalytics();
+    if(which==='feedback') renderFeedbackList();
     window.scrollTo({ top:0 });
   }
   function showPane(section, pane){
@@ -3530,6 +3602,9 @@ const themesDecl  = text.indexOf('const THEMES = {');
     'lecture-grid': { title:'Adding lectures in bulk', tags:['lectureOutcomes', 'create-or-update'], body:`
       <p>Same paste-a-range-from-a-spreadsheet interaction as the questions grid, sized to three columns: <b>Lecture #</b> (the class key, e.g. <code>L16</code>), <b>Name</b>, and <b>LO</b> (learning outcomes joined with <code>;</code>). One course at a time — pick it from the dropdown first.</p>
       <p>A row queues the same <code>lectureOutcomes</code> entry type the Learning outcomes form uses. On merge, <code>applyEntry()</code> creates <code>COURSES.&lt;course&gt;.classes.&lt;L#&gt;</code> if that key doesn't exist yet, or merges onto it if it does — a blank <b>LO</b> cell never wipes outcomes that are already there, it just leaves them alone.</p>` },
+    feedback: { title:'Where feedback goes', tags:['type:\'feedback\'','admin-only read','excluded from merge'], body:`
+      <p>Lands in the same shared Firebase queue as everything else, as a <code>type:'feedback'</code> entry — but it's filtered out everywhere content shows up: not in Content to merge, not in "copy queue as text", and <code>generateMergedFile()</code> skips it explicitly (the same way it skips reports) so it can never accidentally get swept up and deleted the next time someone clicks "Remove the merged entries from the queue".</p>
+      <p>The list on this tab is the only place it's ever shown, and only once Admin mode is unlocked — <code>renderFeedbackList()</code> shows a locked note instead of the list otherwise. Removing one (✕) is admin-only and permanent — there's no "un-remove", so only clear one out once it's actually been dealt with.</p>` },
   };
   const infoPanel = document.getElementById('infoPanel'), infoBackdrop = document.getElementById('infoBackdrop');
   function openInfo(key){
