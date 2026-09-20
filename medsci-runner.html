@@ -888,6 +888,7 @@
           <span id="mcqPracticeProgress"></span>
           <button type="button" class="secondary" id="mcqEndPracticeBtn" style="font-size:11px;padding:4px 12px;">End practice</button>
         </div>
+        <div id="mcqRunProgress" style="display:none;margin-bottom:10px;font-size:11px;color:var(--hud-dim);"></div>
         <div class="mcq-cat" id="mcqCat" style="color:var(--hud-dim);display:flex;justify-content:space-between;align-items:center;"><span id="mcqCatLabel">TOPIC</span><span><span id="mcqGiftTag" style="display:none;color:#ffd54d;margin-right:10px;">🎁 Gift question</span><span id="mcqDifficulty"></span></span></div>
         <div id="mcqTimerWrap" style="height:4px;background:var(--panel-line);border-radius:2px;margin:6px 0 10px;overflow:hidden;">
           <div id="mcqTimerBar" style="height:100%;width:100%;background:var(--membrane);transition:width 1s linear, background 0.3s;"></div>
@@ -1652,7 +1653,15 @@
     });
   });
 
-  function lifeCfg(){ return LIFE_CONFIG; }
+  // LIFE_CONFIG may be one global { label, icon } or keyed by course id
+  // (game-data.js currently keys it by course) — accept either, and always
+  // fall back to the default so callers never see an undefined label/icon.
+  const LIFE_DEFAULT = { label:'Life', icon:'🩸' };
+  function lifeCfg(){
+    if(LIFE_CONFIG && LIFE_CONFIG.label) return { ...LIFE_DEFAULT, ...LIFE_CONFIG };
+    const perCourse = LIFE_CONFIG && LIFE_CONFIG[currentCancerId];
+    return { ...LIFE_DEFAULT, ...(perCourse || {}) };
+  }
 
 /* ======================================================================
    ICONS — any "icon" field (on a cancer, topic, or elsewhere) can be either
@@ -1919,6 +1928,7 @@
   const practiceStartBtn = document.getElementById('practiceStartBtn');
   const mcqPracticeBar = document.getElementById('mcqPracticeBar');
   const mcqPracticeProgress = document.getElementById('mcqPracticeProgress');
+  const mcqRunProgress = document.getElementById('mcqRunProgress');
   const mcqEndPracticeBtn = document.getElementById('mcqEndPracticeBtn');
 
   const customModeCard = document.getElementById('customModeCard');
@@ -2529,6 +2539,7 @@
     if(practiceQueue.length===0){ endPracticeSession(); return; }
     const next = practiceQueue.shift();
     mcqPracticeBar.style.display = 'flex';
+    mcqRunProgress.style.display = 'none';
     mcqPracticeProgress.textContent = `Practice · ${practiceAnswered} answered (${practiceCorrect} correct) · ${practiceQueue.length} left`;
     presentQuestion(next.q, next.topic);
   }
@@ -3248,6 +3259,16 @@
     mcqTimerWrap.style.display = timed ? 'block' : 'none';
     if(timed) startMcqTimer(); else clearMcqTimer();
   }
+  // Game-mode counterpart of the practice bar: how many more correct answers
+  // this stage needs, and how many the whole run still needs after that.
+  function updateRunProgress(){
+    const stages = currentStages();
+    const left = st => Object.entries(st.requirements).reduce((sum,[topic,need])=> sum + Math.max(0, need - (stageProgress[topic]||0)), 0);
+    const stageLeft = left(stages[stageIndex]);
+    const runLeft = stages.slice(stageIndex+1).reduce((sum,st)=> sum + Object.values(st.requirements).reduce((a,b)=>a+b, 0), stageLeft);
+    mcqRunProgress.textContent = t('Stage {stage} · {n} correct to go · {total} to finish the run', { stage:stages[stageIndex].roman, n:stageLeft, total:runLeft });
+    mcqRunProgress.style.display = 'block';
+  }
   function openMCQ(entity){
     pendingEntity = entity;
     quizMode = 'runner';
@@ -3271,6 +3292,7 @@
     activeQuestionTheme = (currentCancerId==='custom' && q.theme) ? q.theme : currentCancerId;
     presentQuestion(q, entity.topic);
     mcqPracticeBar.style.display = 'none';
+    updateRunProgress();
     mcqIsGift = entity.type==='gift';
     mcqGiftTag.style.display = mcqIsGift ? 'inline' : 'none';
   }
@@ -4030,7 +4052,7 @@
     if(bombTimer <= 0){
       spawnBomb();
       if(inBombHell){
-        bombTimer = 150 + Math.random()*150;
+        bombTimer = 180 + Math.random()*180; // was 150–300ms; ~17% fewer bombs
       } else {
         // Easy stages see fewer bombs, hard stages more (see GAME_CONFIG.bombIntervalByDifficulty)
         const diffMult = (GAME_CONFIG.bombIntervalByDifficulty || {})[stageDifficulty()] || 1;
