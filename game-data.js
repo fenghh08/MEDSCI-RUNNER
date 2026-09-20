@@ -6076,7 +6076,7 @@
       },
     },
     'AMED3003': {
-      'label': 'Diagnostics and Biomarkers',
+      'label': 'AMED3003',
       'icon': '📘',
       'blurb': 'Diagnostic sciences have evolved at a rapid pace and provide the cornerstone of our health care system. Effective diagnostic assays enable the identification of people who have, or are at risk of, a disease, and guide their treatment. Research into the pathophysiology of disease underpins the discovery of novel biomarkers and in turn, the development of revolutionary diagnostic assays that make use of state-of-the-art molecular and cellular methods. In this unit you will explore a diverse range of diagnostic tests and gain valuable practical experience in a number of core diagnostic methodologies, many of which are currently used in hospital laboratories. Together we will also cover the regulatory, social, and ethical aspects of the use of biomarkers and diagnostic tests and explore the pathways to their translation into clinical practice. By undertaking this unit, you will develop your understanding of diagnostic assays and biomarkers and acquire the skills needed to embark on a career in diagnostic sciences.',
       'topics': {},
