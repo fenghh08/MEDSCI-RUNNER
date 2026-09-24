@@ -404,7 +404,7 @@
                                // get oriented instead of getting dropped straight back next to whatever piled up
     obstacleSpawnBaseMs: 300,  // topic-block spawn interval = base + random(0..rand) -- widened per playtester
                                // feedback that questions/obstacles were coming at the player too frequently
-    obstacleSpawnRandMs: 470,
+    obstacleSpawnRandMs: 300,
     glucoseSpawnBaseMs: 600,   // life-pickup spawn interval = base + random(0..rand)
     glucoseSpawnRandMs: 300,
     initialObstacleDelayMs: 1200, // delay before the very first topic block spawns
@@ -414,8 +414,8 @@
                                    // in medsci-runner.html) to use your own image instead of the emoji
     bombSpawnBaseMs: 800,        // bomb spawn interval — base + random(0..rand) -- widened alongside obstacleSpawn* above
     bombSpawnRandMs: 1600,
-    bombHellSpawnBaseMs: 165,    // bomb interval DURING a Group Race Bomb Hell (the 10s gift attack) -- far tighter
-    bombHellSpawnRandMs: 165,    // than the normal one above; lower both numbers for an even denser storm
+    bombHellSpawnBaseMs: 160,    // bomb interval DURING a Group Race Bomb Hell (the 10s gift attack) -- far tighter
+    bombHellSpawnRandMs: 130,    // than the normal one above; lower both numbers for an even denser storm
     scoreCorrectWeight: 50,    // Group Race ranking score = correct*this - incorrect*this + life*this + stageIndex*stageWeight
     scoreIncorrectWeight: 35,
     scoreLifeWeight: 0,
