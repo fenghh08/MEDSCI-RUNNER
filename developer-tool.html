@@ -491,6 +491,12 @@
   .sec-group::after{ content:''; flex:1; height:1px; background:var(--line); }
   .card > h3.card-title{ margin:0 0 4px; font-size:15.5px; }
   .ml-empty{ padding:26px; text-align:center; color:var(--muted); font-size:13.5px; border:1px dashed var(--line); border-radius:12px; }
+  /* The worked example shown when a lecture has no concepts yet -- inert,
+     and visibly a demo rather than something you can click. */
+  .ml-concept.sample{ margin-top:10px; pointer-events:none; opacity:.75; background:#fbfbfd; border-style:dashed; }
+  .ml-concept.sample .mlc-head{ cursor:default; }
+  .ml-sample-key{ font-size:12.5px; color:var(--muted); line-height:1.6; margin:8px 2px 0; }
+  .ml-sample-key b{ color:var(--ink); }
 </style>
 </head>
 <body>
@@ -563,11 +569,13 @@
 
       <div class="card" style="border-color:var(--accent-line);background:var(--accent-soft);">
         <h3 class="card-title">The order to do things in</h3>
-        <p class="card-sub" style="margin-bottom:12px;">A question needs a concept, a concept needs a topic (module), and a topic needs a course. So you build downwards. If the course and topic you need already exist, skip straight to step 3.</p>
+        <p class="card-sub" style="margin-bottom:12px;">A question needs a concept, a concept needs a topic (module), and a topic needs a course. Your lecture has to exist before anything can point at it. So you build downwards, and each of the first three is a one-off. Skip past whatever already exists.</p>
         <ol class="start-order">
-          <li><b>Add the course</b> — the unit itself, e.g. AMED3003. Admin only, and it's a one-off. Its lectures go in at the same time.
-            <div class="btn-row"><button type="button" data-goto="add">✚ Add anything → Course</button><button type="button" data-goto="lectures">📚 Lectures</button></div></li>
-          <li><b>Add the topic (module)</b> — the grouping inside that course, e.g. Diagnostics. Also a one-off, and anyone can do it.
+          <li><b>Add the course</b> — the unit itself, e.g. AMED3003. Admin only, and it's done once per unit.
+            <div class="btn-row"><button type="button" data-goto="add">✚ Add anything → Course</button></div></li>
+          <li><b>Add its lectures</b> — one row each: the number (<code>L14</code>), the name, and the learning outcomes separated by semicolons. Anyone can do this, and you can paste the whole list from a spreadsheet at once. Re-adding an existing number updates that lecture rather than duplicating it.
+            <div class="btn-row"><button type="button" data-goto="lectures">📚 Lectures</button></div></li>
+          <li><b>Add the topic (module)</b> — the grouping inside that course, e.g. Diagnostics. Anyone can do it.
             <div class="btn-row"><button type="button" data-goto="add">✚ Add anything → Topic (Module)</button></div></li>
           <li><b>Then add your content</b> — concepts and questions, as often as you like. This is the part you'll actually spend time in.
             <div class="btn-row"><button type="button" class="primary" data-goto="mylecture">🎓 My lecture</button></div></li>
@@ -645,6 +653,7 @@
           <label class="field"><span class="fl-label">Lecture</span><select id="ml_lecture"></select></label>
         </div>
         <div class="btn-row"><button class="primary" id="ml_openBtn">Open this lecture →</button></div>
+        <p class="card-sub" style="margin:10px 0 0;">Lecture not in the list? It has to be added first — one row with its number, name and learning outcomes. <button type="button" class="link-btn" data-goto="lectures">📚 Add it under Lectures →</button></p>
       </div>
 
       <div id="ml_workspace" style="display:none;">
@@ -653,7 +662,7 @@
           <div class="ml-stats" id="ml_barStats"></div>
           <button id="ml_changeBtn">Change lecture</button>
         </div>
-        <p class="ml-lead">Click a concept to see what's already in it. <b>Add your question to one that fits</b> rather than making a new one.</p>
+        <p class="ml-lead">Each concept is a toggle — click one to see what's already inside it. <b>Add your question to one that fits</b> rather than making a new one.</p>
         <div id="ml_concepts"></div>
         <div class="ml-newbox">
           <h3 style="margin:0 0 4px;font-size:14.5px;">Nothing above fits?</h3>
@@ -4601,7 +4610,29 @@
     }
 
     if(!items.length){
-      ml_concepts.innerHTML = `<div class="ml-empty">No concepts are tagged to this lecture yet.<br>Add the first one below — then add your questions to it.</div>`;
+      // An empty list used to be a dead end: the tour and the instructions
+      // both talk about "rows" that aren't on screen yet. Show a dummy one so
+      // the shape of the thing is obvious before the first real one exists.
+      ml_concepts.innerHTML = `
+        <div class="ml-empty" style="text-align:left;">
+          <b style="color:var(--ink);">Nothing is tagged to this lecture yet.</b>
+          <div style="margin-top:6px;">A <b>concept</b> is one study-guide page, and questions hang off it. Every concept in this lecture shows up here as a toggle you can open. One looks like this:</div>
+        </div>
+        <div class="ml-concept sample">
+          <div class="mlc-head">
+            <span class="mlc-chev">▶</span>
+            <span class="mlc-name">Biomarkers</span>
+            <span class="mlc-count">3 questions</span>
+            <span class="mlc-warn">+ description</span>
+            <span class="mlc-actions"><button class="mlc-add" type="button" disabled>+ Question</button></span>
+          </div>
+        </div>
+        <div class="ml-sample-key">
+          <div><b>Click the toggle</b> to open the study-guide page as a student sees it, plus the questions already on it.</div>
+          <div><b>+ Question</b> adds a question to that concept — the usual way in.</div>
+          <div><b>+ description</b> appears when students would see a blank page, and writing one takes a moment.</div>
+          <div style="color:var(--accent);font-weight:600;">Add your first real concept below to get started.</div>
+        </div>`;
       return;
     }
     // Most-developed concepts first: the ones worth adding to are at the top.
@@ -5059,7 +5090,7 @@
     host.innerHTML = `
       <div class="card">
         <h3 class="card-title" style="margin-top:0;">The one-line version</h3>
-        <p class="card-sub" style="font-size:14px;">A <b>question</b> hangs off a <b>concept</b>. A concept sits in a <b>topic</b> — what a course calls a <b>module</b> — inside a <b>course</b>. A <b>lecture</b> is a label you put on a concept — it runs sideways across topics, it isn't another level.</p>
+        <p class="card-sub" style="font-size:14px;">A <b>question</b> hangs off a <b>concept</b>. A concept sits in a <b>topic</b> — what a course calls a <b>module</b> — inside a <b>course</b>. Every concept also records <b>which lecture taught it</b>. That is not a fourth level: the concepts from one lecture can sit in different topics.</p>
         <div class="dm-chain">
           <span class="dm-pill" style="--tc:${DM_COLORS.course}">🎓 Course</span><span class="dm-arrow">→</span>
           <span class="dm-pill" style="--tc:${DM_COLORS.topic}">🧬 Topic (Module)</span><span class="dm-arrow">→</span>
@@ -5068,9 +5099,9 @@
         </div>
         <div class="dm-chain" style="margin-top:10px;">
           <span class="dm-pill" style="--tc:${DM_COLORS.lecture}">📚 Lecture</span>
-          <span class="dm-arrow">tagged onto a</span>
+          <span class="dm-arrow">is recorded on a</span>
           <span class="dm-pill" style="--tc:${DM_COLORS.concept}">📄 Concept</span>
-          <span class="dm-note" style="margin:0;">— one concept can carry several</span>
+          <span class="dm-note" style="margin:0;">— and a concept can name more than one</span>
         </div>
       </div>
 
@@ -5094,7 +5125,7 @@
 
       <div class="card">
         <h3 class="card-title" style="margin-top:0;">Where the lecture fits</h3>
-        <p class="card-sub">The lecture isn't a level of the tree. It's a label on a concept, so one lecture reaches across topics, and one concept can belong to more than one lecture.</p>
+        <p class="card-sub">You don't put concepts inside a lecture. Each concept names the lecture that taught it, which is why the concepts from one lecture can sit in different topics — and why a concept taught in two lectures can name both.</p>
         ${lecture ? `
           <div class="dm-node" style="--tc:${DM_COLORS.lecture};margin-left:0;">
             <div class="dm-kind">📚 Lecture</div>
@@ -5128,7 +5159,7 @@
               <td>One multiple-choice question a student answers mid-run. Belongs to exactly one concept.</td>
               <td><button type="button" class="link-btn" data-goto="mylecture">My lecture</button>, <button type="button" class="link-btn" data-goto="add">Add anything</button> or <button type="button" class="link-btn" data-goto="csv">Bulk import</button></td></tr>
             <tr><td class="dm-word">📚 Lecture<div class="dm-alias">class</div></td>
-              <td>One session in the course's timetable, with its own learning outcomes. A label on a concept rather than a level of the tree.</td>
+              <td>One session in the course's timetable, with its own learning outcomes. Concepts aren't stored inside it — each concept names the lecture that taught it.</td>
               <td><button type="button" class="link-btn" data-goto="lectures">Lectures</button></td></tr>
           </tbody>
         </table>
@@ -5137,7 +5168,7 @@
       <div class="card">
         <h3 class="card-title" style="margin-top:0;">Four things that catch people out</h3>
         <div class="dm-gotcha"><b>A question can't be filed under a lecture directly.</b> It goes on a concept, and it shows up under whichever lecture that concept is tagged to. If a question lands in the wrong lecture, the concept's tag is what to fix.</div>
-        <div class="dm-gotcha"><b>Topics and lectures are different axes.</b> A topic is how the game groups cards for students. A lecture is where it sat in the timetable. One lecture's concepts can be spread across several topics, which is why picking a lecture in the study guide preview hides the topic row.</div>
+        <div class="dm-gotcha"><b>Topics and lectures don't line up.</b> A topic is how the game groups cards for students. A lecture is where it was taught. One lecture's concepts can be spread across several topics, which is why picking a lecture in the study guide preview hides the topic row.</div>
         <div class="dm-gotcha"><b>A concept is meant to be reused.</b> Several questions on one concept give students something to revise. One question each means the study guide fills with near-duplicates — ${n.concepts ? `right now <b>${n.concepts}</b> concepts hold <b>${n.questions}</b> questions` : 'that'} is the number to keep an eye on.</div>
         <div class="dm-gotcha"><b>Nothing you add is live straight away.</b> Everything lands in the <button type="button" class="link-btn" data-goto="queue">Team queue</button> and reaches the game only once an admin merges it. Until then it shows with a ⏳ badge.</div>
       </div>
@@ -5194,7 +5225,7 @@
     datamap: { title:'Drawn from the data, not from a picture', tags:['RUNNER_DATA','worked example'], body:`
       <p>Every box on this page is read out of <code>RUNNER_DATA</code> when you open the tab — the worked example is whichever concept currently has the most questions and a lecture tag, and the counts are live. A hand-drawn diagram would quietly go stale; this one can't.</p>
       <p>The shape itself: <code>THEMES[course].topics[topic].items[item].questions[]</code>. Four levels, and that's the whole tree. The lecture is <i>not</i> in it — it's two fields on an item (<code>course</code> and <code>class</code>) joined into the display string you see, e.g. <code>MEDS3002 L14 Cancer Hallmarks</code>. An item can carry several by putting each on its own line of <code>relatedCourse</code>.</p>
-      <p>That's why lecture filtering has to search every topic: a lecture is a label that crosses the tree sideways rather than a branch of it.</p>`, file:'developer-tool.html — renderDataMap(), dmPickExample(), dmCounts()' },
+      <p>That's why lecture filtering has to search every topic: the lecture is a field on the item, not a branch of the tree, so there's no single place to look it up.</p>`, file:'developer-tool.html — renderDataMap(), dmPickExample(), dmCounts()' },
     overview: { title:'How it all fits together', tags:['architecture','no build step'], body:`
       <p><b>For contributors:</b> fill in the template sheet (one row per question; a separate tab for lectures and learning outcomes) → paste the rows into <b>Bulk import</b> or <b>Lectures</b> → they land in the shared <b>Team queue</b> → an admin merges them into the game. That's the whole loop; the Start here tab walks it step by step.</p>
       <p><b>Under the hood:</b> three files do everything — <b>medsci-runner.html</b> (the game), <b>game-data.js</b> (every course, item and question as plain data) and <b>this page</b> (the content tool). No framework, no bundler, no server — each file is opened straight from the folder or from GitHub Pages.</p>
@@ -5322,14 +5353,17 @@ const themesDecl  = text.indexOf('const THEMES = {');
   const DEV_TOURS = {
     single: {
       label: 'Adding a few by hand',
-      blurb: 'For a lecturer with a handful of questions for their own lecture. About a minute.',
+      blurb: 'For a lecturer adding questions to their own lecture. Two minutes, start to finish.',
       icon: '🎓',
       steps: [
         { tab:'start', sel:'#contributorName', title:'First, your name and email', caption:'Type these once — nothing can be queued without them. It\'s how your work is credited and how an admin can reach you about it. Only an admin can see whose submission is whose.' },
-        { tab:'datamap', sel:'section[data-section="datamap"] .dm-chain', title:'What goes where', caption:'A question hangs off a concept, a concept sits in a topic (module), inside a course. A lecture is a label on a concept. You only ever add the question — the rest already exists.' },
-        { tab:'mylecture', sel:'#ml_pickerCard', title:'Pick your lecture once', caption:'Choose your course and lecture, and the page narrows to just the concepts that lecture covers. You won\'t be asked to choose a topic or an item anywhere after this.', fallbackSel:'#ml_changeBtn' },
-        { tab:'mylecture', sel:'#ml_concepts', title:'Add to a concept that already exists', caption:'Each row is a concept from your lecture, with how many questions it already has. Click one to see what a student reads, then hit + Question and type yours in. Reusing a concept is what makes the study guide worth revising from.', fallbackSel:'#ml_pickerCard' },
-        { tab:'mylecture', sel:'.ml-newbox', title:'Only if nothing fits', caption:'A genuinely new concept goes in here, and the name is checked against what already exists so you don\'t end up with two of the same thing. Write its description while you\'re there — students see a blank page otherwise.', fallbackSel:'#ml_pickerCard' },
+        { tab:'datamap', sel:'section[data-section="datamap"] .dm-chain', title:'What goes where', caption:'A question sits on a concept. A concept sits in a topic (module), inside a course. Every concept also records which lecture taught it, and that is how this tool finds yours.' },
+        { tab:'lectures', sel:'#lecturesList', title:'Is your lecture listed?', caption:'Your lecture has to exist before you can add anything to it. Pick your course at the top and this list shows every lecture it has, with the learning outcomes each one covers. Find yours before going any further.', fallbackSel:'#lecAdd_course' },
+        { tab:'lectures', sel:'#lecAddTable', title:'Adding a lecture', caption:'Not listed? Add it here. Choose the course, then fill one row: the number (L14), the name, and the learning outcomes separated by semicolons. Type it or paste a block straight from a spreadsheet. Putting an existing number in updates that lecture instead of making a second one. Then Check & add all to queue.' },
+        { tab:'mylecture', sel:'#ml_pickerCard', title:'Pick your lecture', caption:'Choose your course and lecture. Everything below then shows only that lecture\'s concepts.', fallbackSel:'#ml_changeBtn' },
+        { tab:'mylecture', sel:'#ml_concepts', title:'Add your question to a concept', caption:'Each toggle is one concept from your lecture, showing how many questions it already has. Hit + Question on the one yours is about, type the prompt and the options, mark the right one, and add it to the queue. Reusing a concept is what gives students something to revise from. If your lecture has none yet, this shows a worked example of a toggle so you can see what to expect.', fallbackSel:'#ml_pickerCard' },
+        { tab:'mylecture', sel:'#ml_concepts', title:'Check what a student sees', caption:'Open a toggle to see the study-guide page as students meet it in the game. A missing description shows as a gap you can fill on the spot, and the questions already on that concept are listed underneath.', fallbackSel:'#ml_pickerCard' },
+        { tab:'mylecture', sel:'.ml-newbox', title:'Only if nothing fits', caption:'A genuinely new concept goes in here, and the name is checked against what already exists so you don\'t end up with two of the same thing. Write its description straight away — students see a blank page otherwise.', fallbackSel:'#ml_pickerCard' },
         { tab:'add', sel:'#addChips', title:'Anything outside your own lecture', caption:'Add anything has the full forms — a question, a study guide item, a topic (module), lecture outcomes, a fun-fact question — each with a live preview of how it looks in the game. Creating a whole course is admin-only.' },
         { tab:'queue', sel:'#batchListContent', title:'Where it lands', caption:'Everything you add waits here, live, for an admin to merge it. Open a row for the full detail and fix your own before it goes in. Players\' in-game reports live under Reports.' },
         { tab:'start', sel:'[data-info="overview"]', title:'That\'s the whole loop', caption:'Every ⓘ opens a short note about that part of the tool. Reopen either tour any time from the 🎬 button at the top of the sidebar.', final:true },
@@ -5353,9 +5387,12 @@ const themesDecl  = text.indexOf('const THEMES = {');
   let devTourKey = 'single';
   let devTourSteps = DEV_TOURS.single.steps;
   let devTourStep = 0;
+  let devTourOpen = false;
+  let devTourTrackTimers = [];
   const T = { spotlight: document.getElementById('devTutorialSpotlight'), caption: document.getElementById('devTutorialCaption'), title: document.getElementById('devTutorialTitle'), text: document.getElementById('devTutorialCaptionText'), dots: document.getElementById('devTutorialDots'), back: document.getElementById('devTutorialBackBtn'), skip: document.getElementById('devTutorialSkipBtn'), next: document.getElementById('devTutorialNextBtn'), close: document.getElementById('devTutorialCloseBtn') };
   function tourTarget(step){ let el = step.sel && document.querySelector(step.sel); if(el && el.offsetParent===null && step.fallbackSel) el = document.querySelector(step.fallbackSel); return (el && el.offsetParent!==null) ? el : null; }
   function trackDevTourSpotlight(){
+    if(!devTourOpen){ T.spotlight.style.display = 'none'; return; }
     const step = devTourSteps[devTourStep], target = step && tourTarget(step);
     if(!target){ T.spotlight.style.display = 'none'; return; }
     const r = target.getBoundingClientRect(), pad = 6;
@@ -5373,7 +5410,11 @@ const themesDecl  = text.indexOf('const THEMES = {');
     T.skip.style.display = step.final ? 'none' : 'inline-block';
     T.caption.style.display = 'block';
     const target = tourTarget(step); if(target) target.scrollIntoView({ block:'center', behavior:'smooth' });
-    setTimeout(trackDevTourSpotlight, 280);
+    // Re-measure a few times: one 280ms shot landed while a long smooth
+    // scroll was still running, leaving the ring on the previous step's
+    // element. Re-tracking is idempotent, so extra passes cost nothing.
+    devTourTrackTimers.forEach(clearTimeout);
+    devTourTrackTimers = [60, 220, 450, 750].map(ms=> setTimeout(trackDevTourSpotlight, ms));
   }
   // The 🎬 button asks which route you're here for, then runs that tour.
   const P = { box: document.getElementById('devTourPicker'), list: document.getElementById('devTourPickerList'), cancel: document.getElementById('devTourPickerCancel') };
@@ -5392,11 +5433,12 @@ const themesDecl  = text.indexOf('const THEMES = {');
     devTourKey = DEV_TOURS[which] ? which : 'single';
     devTourSteps = DEV_TOURS[devTourKey].steps;
     devTourStep = 0;
+    devTourOpen = true;
     T.close.style.display = 'block';
     renderDevTourStep();
     window.addEventListener('resize', trackDevTourSpotlight); window.addEventListener('scroll', trackDevTourSpotlight, true);
   }
-  function closeDevTour(){ closeDevTourPicker(); T.spotlight.style.display = 'none'; T.caption.style.display = 'none'; T.close.style.display = 'none'; window.removeEventListener('resize', trackDevTourSpotlight); window.removeEventListener('scroll', trackDevTourSpotlight, true); }
+  function closeDevTour(){ devTourOpen = false; devTourTrackTimers.forEach(clearTimeout); devTourTrackTimers = []; closeDevTourPicker(); T.spotlight.style.display = 'none'; T.caption.style.display = 'none'; T.close.style.display = 'none'; window.removeEventListener('resize', trackDevTourSpotlight); window.removeEventListener('scroll', trackDevTourSpotlight, true); }
   function devTourAdvance(dir){ const step = devTourSteps[devTourStep]; if(dir>0 && step.final){ closeDevTour(); return; } devTourStep = Math.max(0, Math.min(devTourSteps.length-1, devTourStep+dir)); renderDevTourStep(); }
   document.getElementById('devTutorialBtn').addEventListener('click', openDevTourPicker);
   P.cancel.addEventListener('click', closeDevTourPicker);
