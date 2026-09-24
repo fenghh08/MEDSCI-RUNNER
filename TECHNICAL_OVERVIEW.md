@@ -13,9 +13,12 @@ Google sign-in, Firebase, the native app build (`www/`, `capacitor.config.ts`, `
 medsci-runner.html   the whole game (HTML + CSS + one <script type="module">)
 game-data.js         every course / topic / item / question, as plain JS data
 developer-tool.html  admin content editor (never shipped in the app)
-icons/               topic + theme icons drawn on the canvas and in menus
+icons/               topic + theme icons drawn on the canvas and in menus,
+                     plus app-icon-*.png (the favicon / touch icon set)
 images/              a few legacy image files (item images are links now)
+MEDS3888_App_Icon_Without_Book.png   master artwork the app icons are built from
 scripts/copy-web-assets.js   rebuilds www/ from the files above
+scripts/make-icons.js        rebuilds icons/app-icon-*.png from the master artwork
 www/                 GENERATED copy of the game that the phone app wraps
 capacitor.config.ts  tells Capacitor what to wrap and which sign-in providers to enable
 ios/  android/       the native Xcode / Android Studio projects (generated shells + Firebase config)
