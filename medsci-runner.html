@@ -2748,7 +2748,26 @@
       resumeIntoRunning();
     };
   }
+  // True once THIS race is fully resolved (Group Race) -- see the big
+  // comment above the call sites for why this has to be checked before
+  // resuming, not just once when the result first arrives.
+  function mpRaceAlreadyOver(){ return mp.active && mp.finished; }
+  // Closes out whatever overlay is still open (MCQ or stage-intro scenario)
+  // instead of resuming through it, and makes sure the result screen -- 
+  // already computed, possibly just sitting behind that overlay -- is the
+  // thing actually left on screen.
+  function abandonIntoResult(){
+    clearMcqTimer();
+    mcqModal.classList.remove('active');
+    scenarioOverlay.classList.remove('active');
+    resumeIndicator.style.display = 'none';
+    pendingEntity = null; pendingQuestion = null;
+    screenState = 'over';
+    syncHudVisibility();
+    showScreen('over');
+  }
   function resumeIntoRunning(){
+    if(mpRaceAlreadyOver()){ abandonIntoResult(); return; }
     screenState = 'running';
     syncHudVisibility();
     [landingScreen, pauseScreen, overScreen].forEach(s=>s.classList.remove('active'));
@@ -3970,6 +3989,7 @@
 
 
   mcqContinueBtn.addEventListener('click', ()=>{
+    if(mpRaceAlreadyOver()){ abandonIntoResult(); return; }
     mcqModal.classList.remove('active');
     if(quizMode==='practice'){
       pendingQuestion = null;
@@ -4007,6 +4027,7 @@
       if(screenState !== 'resuming'){ resumeIndicator.style.display = 'none'; return; } // interrupted (paused/quit/etc)
       const remain = resumeAt - performance.now();
       if(remain <= 0){
+        if(mpRaceAlreadyOver()){ abandonIntoResult(); return; }
         resumeIndicator.style.display = 'none';
         screenState = 'running';
         syncHudVisibility();
