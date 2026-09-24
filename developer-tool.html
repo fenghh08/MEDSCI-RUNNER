@@ -394,6 +394,35 @@
   .mlc-warn:hover{ background:#fdeec6; }
   .mlc-pending{ font-size:12px; color:#7a5a12; background:#fff7e6; border:1px solid #f0d9a8; border-radius:10px; padding:2px 9px; white-space:nowrap; }
   .mlc-detail{ border-top:1px solid var(--line); background:#fafbfd; padding:14px 16px; font-size:13px; line-height:1.55; }
+  /* ---- the student's-eye simulator ----
+     A copy of the game's own study-guide panel, in the game's own default
+     colours (--panel/--hud-ink/--membrane from medsci-runner.html), so a
+     lecturer sees the page as a student meets it rather than a description
+     of it. Gaps show as dashed placeholders, in position. */
+  .ml-simcap{ font-size:12px; color:var(--muted); margin:0 0 8px; }
+  .ml-phone{ background:#150409; border:1px solid rgba(255,93,143,.3); border-radius:16px; padding:18px 20px 20px;
+    box-shadow:0 6px 24px rgba(20,5,12,.28); max-width:520px; color:#ffe9ef; }
+  .ml-phone .mp-bar{ display:flex; align-items:center; gap:8px; font-size:11px; color:#c98a9c;
+    border-bottom:1px solid rgba(255,93,143,.22); padding-bottom:10px; margin-bottom:12px; font-family:var(--mono); }
+  .ml-phone .mp-back{ border:1px solid rgba(255,93,143,.3); border-radius:14px; padding:3px 10px; color:#ffe9ef; }
+  .ml-phone .mp-cat{ font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:#c98a9c; margin-bottom:2px; }
+  .ml-phone .mp-name{ font-family:Georgia,'Iowan Old Style',serif; font-style:italic; font-size:23px; margin:0 0 8px; color:#ffe9ef; }
+  .ml-phone .mp-course{ font-size:11.5px; color:#c98a9c; margin:-4px 0 10px; }
+  .ml-phone .mp-chips{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+  .ml-phone .mp-chip{ font-size:11px; padding:3px 9px; border-radius:20px; border:1px solid rgba(255,93,143,.22); color:#c98a9c; }
+  .ml-phone .mp-desc{ font-size:13px; line-height:1.55; margin:0 0 12px; color:#ffe9ef; }
+  .ml-phone .mp-sub{ font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#c98a9c; margin:14px 0 6px; }
+  .ml-phone .mp-facts{ margin:0; padding-left:18px; font-size:12.5px; line-height:1.6; color:#ffe9ef; }
+  .ml-phone .mp-quizwrap{ text-align:center; margin:18px 0 4px; }
+  .ml-phone .mp-quiz{ display:inline-block; background:#ff5d8f; color:#1a0508; font-weight:700; border-radius:22px; padding:10px 26px; font-size:13px; }
+  .ml-phone .mp-quiz.off{ background:transparent; color:#c98a9c; border:1px dashed rgba(255,93,143,.4); font-weight:400; }
+  .ml-phone .mp-blank{ border:1px dashed rgba(255,93,143,.45); border-radius:8px; padding:8px 11px; font-size:12px;
+    color:#c98a9c; font-style:italic; margin:0 0 12px; }
+  .ml-phone .mp-blank button{ background:none; border:none; padding:0; color:#ff8fb3; text-decoration:underline;
+    cursor:pointer; font-size:12px; font-style:normal; }
+  .mlc-quizlist{ margin-top:14px; }
+  .mlc-quizlist .mld-q{ padding:7px 0; border-bottom:1px solid #eef0f5; }
+  .mlc-quizlist .mld-q:last-child{ border-bottom:none; }
   .mlc-detail .mld-more{ border:none; background:none; padding:0; margin:12px 0 0; }
   .mlc-detail .mld-more>summary{ font-size:12.5px; color:var(--muted); cursor:pointer; padding:0; }
   .mlc-detail .mld-more[open]>summary{ margin-bottom:10px; }
@@ -4458,13 +4487,30 @@
       `${items.length} concept${items.length===1?'':'s'} · ${totalQ} question${totalQ===1?'':'s'}` +
       (totalP ? ` <span style="color:#7a5a12;">+${totalP} waiting for review</span>` : '') +
       (thin ? `<br><span style="color:#7a5a12;">${thin} need more questions</span>` : '');
-    // Topic select for a new concept: only the topics this course actually uses.
-    const themeIds = new Set(items.map(it=>it.theme));
-    if(!themeIds.size) KNOWN_THEMES.forEach(t=>themeIds.add(t.id));
-    const topics = Object.entries(KNOWN_TOPICS).filter(([,t])=>themeIds.has(t.theme));
-    ml_newTopic.innerHTML = topics.length
-      ? topics.map(([id,t])=>`<option value="${id}">${esc2(t.label)}</option>`).join('')
-      : '<option value="">(no topics yet)</option>';
+    // Topic select for a new concept: only the topics this course actually
+    // uses. A lecture with no concepts yet has nothing to infer from, so it
+    // falls back to the course itself -- offering every course's topics there
+    // was how an AMED3003 lecture ended up listing MEDS3002's.
+    const themeIds = new Set(items.map(it=>it.theme).filter(Boolean));
+    if(!themeIds.size && RD.THEMES[mlCourse]) themeIds.add(mlCourse);
+    const topics = Object.entries(KNOWN_TOPICS).filter(([,t])=> themeIds.has(t.theme));
+    const topicOption = ([id,t]) => `<option value="${id}">${esc2(t.label)}</option>`;
+    if(!topics.length){
+      // This course has no topics of its own yet, so a new concept has to go
+      // somewhere else -- say so rather than looking like a plain list.
+      const all = Object.entries(KNOWN_TOPICS);
+      ml_newTopic.innerHTML = all.length
+        ? [...new Set(all.map(([,t])=>t.theme))].map(tid=>
+            `<optgroup label="${esc2((RD.THEMES[tid]||{}).label || tid)}">`
+            + all.filter(([,t])=>t.theme===tid).map(topicOption).join('') + `</optgroup>`).join('')
+        : '<option value="">(no topics yet)</option>';
+    } else if(themeIds.size > 1){
+      ml_newTopic.innerHTML = [...themeIds].map(tid=>
+        `<optgroup label="${esc2((RD.THEMES[tid]||{}).label || tid)}">`
+        + topics.filter(([,t])=>t.theme===tid).map(topicOption).join('') + `</optgroup>`).join('');
+    } else {
+      ml_newTopic.innerHTML = topics.map(topicOption).join('');
+    }
 
     if(!items.length){
       ml_concepts.innerHTML = `<div class="ml-empty">No concepts are tagged to this lecture yet.<br>Add the first one below — then add your questions to it.</div>`;
@@ -4513,21 +4559,46 @@
     const pending = mlPendingQuestions(itemId);
     const qs = live.questions || [];
     const list = arr => (arr||[]).filter(Boolean);
-    const block = (title, html) => `<div class="mld-block"><h4>${title}</h4>${html}</div>`;
-    const missing = what => `<div class="mld-missing">No ${what} yet — students see a blank section here.</div>`;
-    // Only the two things they came to check: what students read, and what
-    // is already asked. The rest of the study-guide fields fold away -- the
-    // full dump was what made this page feel like a wall.
-    let html = '';
-    html += block('What students read', live.description ? esc2(live.description)
-      : `<div class="mld-missing">Nothing written yet. <button type="button" class="link-btn" data-ml-desc="${esc2(itemId)}">Write it now</button></div>`);
+    const topicLabel = (KNOWN_TOPICS[known.topic] || {}).label || '';
+    const courseLine = mlCourse ? courseDisplayString(mlCourse, mlClass) : '';
+    // The study guide as the student meets it, not a summary of it. Same
+    // running order and same wording as #itemDetailWrap in medsci-runner.html,
+    // so what's missing is missing in the place they'd have read it.
+    const blank = (text, action) => `<div class="mp-blank">${text}${action||''}</div>`;
+    const writeIt = ` <button type="button" data-ml-desc="${esc2(itemId)}">Write it now</button>`;
+    const section = (title, html) => `<div class="mp-sub">${title}</div>${html}`;
+    const bullets = arr => `<ul class="mp-facts">${arr.map(f=>`<li>${esc2(f)}</li>`).join('')}</ul>`;
+
+    let phone = `<div class="mp-bar"><span class="mp-back">← All topics</span><span>Study guide</span></div>`;
+    phone += `<div class="mp-cat">${esc2(topicLabel)}</div>`;
+    phone += `<h3 class="mp-name">${esc2(live.label || known.label || itemId)}</h3>`;
+    if(courseLine) phone += `<div class="mp-course">🎓 ${esc2(courseLine)}</div>`;
+    phone += list(live.hashtags).length
+      ? `<div class="mp-chips">${list(live.hashtags).map(h=>`<span class="mp-chip">#${esc2(h)}</span>`).join('')}</div>` : '';
+    phone += live.description
+      ? `<p class="mp-desc">${esc2(live.description)}</p>`
+      : blank('This is where the description goes. Students currently see nothing here.', writeIt);
+    if(live.mechanism) phone += section('Mechanism', `<p class="mp-desc">${esc2(live.mechanism)}</p>`);
+    if(list(live.funFacts).length) phone += section('Fun facts', bullets(list(live.funFacts)));
+    if(list(live.notes).length) phone += section('Notes / tips', bullets(list(live.notes)));
+    if(list(live.activeRecall).length) phone += section('🧠 Active recall',
+      `<p class="mp-desc" style="margin-top:-2px;">Test yourself!</p>${bullets(list(live.activeRecall))}`);
+    if(list(live.saq).length) phone += section('✍️ Short-answer questions', bullets(list(live.saq).map(s=>s.prompt||'')));
+    phone += `<div class="mp-quizwrap">${qs.length
+      ? `<span class="mp-quiz">🧠 Quiz</span>`
+      : `<span class="mp-quiz off">no Quiz button — this concept has no questions yet</span>`}</div>`;
+    if(list(live.refs).length) phone += section('References', bullets(list(live.refs).map(r=> typeof r==='string'?r:(r.label||r.url||''))));
+    if(list(live.images).length) phone += section('Images', bullets(list(live.images).map(i=> typeof i==='string'?i:(i.caption||i.url||''))));
+
+    let html = `<p class="ml-simcap">👀 <b>What a student sees.</b> This is the study-guide page inside the game, with your content in it.</p>
+      <div class="ml-phone">${phone}</div>`;
+
+    // The questions aren't on that page -- they sit behind the Quiz button --
+    // so they're listed separately rather than pretended into the preview.
     const qHtml = qs.map(q=>`<div class="mld-q">${esc2(q.prompt)}<div class="mld-opt">✓ ${esc2((q.options||[])[q.correctIndex] || '—')}</div></div>`).join('')
       + pending.map(q=>`<div class="mld-q pending">⏳ ${esc2(q.prompt)}<div class="mld-opt">✓ ${esc2((q.options||[])[q.correctIndex] || '—')} · waiting for an admin to merge it</div></div>`).join('');
-    html += block(`Questions already here (${qs.length}${pending.length?` + ${pending.length} waiting`:''})`, qHtml || missing('questions'));
-    const extra = (live.mechanism ? block('How it works', esc2(live.mechanism)) : '')
-      + (list(live.funFacts).length ? block('Fun facts', `<ul>${list(live.funFacts).map(f=>`<li>${esc2(f)}</li>`).join('')}</ul>`) : '')
-      + (list(live.activeRecall).length ? block('Active recall prompts', `<ul>${list(live.activeRecall).map(f=>`<li>${esc2(f)}</li>`).join('')}</ul>`) : '');
-    if(extra) html += `<details class="mld-more"><summary>Rest of the study guide for this concept</summary>${extra}</details>`;
+    html += `<div class="mlc-quizlist"><h4>Behind the 🧠 Quiz button (${qs.length}${pending.length?` + ${pending.length} waiting`:''})</h4>`
+      + (qHtml || `<div class="mld-missing">Nothing yet — so the Quiz button doesn't appear for students.</div>`) + `</div>`;
     html += `<div class="mld-foot"><button type="button" class="link-btn" data-ml-full="${esc2(itemId)}">Open the full editor for this concept →</button></div>`;
     el.innerHTML = html;
     el.style.display = 'block';
