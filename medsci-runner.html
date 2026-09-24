@@ -439,7 +439,7 @@
   .lb-row > span:first-child{ overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:0; }
   .lb-row > span:last-child{ flex-shrink:0; white-space:nowrap; }
   #mpLeaderboardPanel{ max-height:170px; overflow-y:auto; }
-  /* Lecturer (non-racing host) view */
+  /* Host-only (non-racing host) view */
   .spec-row{ display:grid; grid-template-columns:28px minmax(0,1fr) 54px 118px 66px 56px; align-items:center; gap:8px; background:var(--bg-1);
     border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px; margin-bottom:6px; font-size:12.5px; }
   .spec-row.head{ background:transparent; border-color:transparent; color:var(--hud-dim); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; padding-top:0; padding-bottom:0; }
@@ -801,7 +801,7 @@
         </label>
         <label class="field" style="max-width:340px;margin:0 auto 16px;display:flex;align-items:flex-start;gap:10px;text-align:left;cursor:pointer;">
           <input type="checkbox" id="mpHostSpectateChk" style="margin-top:3px;flex-shrink:0;">
-          <span><b>🎤 I'm the lecturer — I won't race</b><br><span style="font-size:11.5px;color:var(--hud-dim);">You'll get a live leaderboard with everyone's life, and a breakdown of the questions people got wrong once the race is over.</span></span>
+          <span><b>🎤 Just host — I won't race</b><br><span style="font-size:11.5px;color:var(--hud-dim);">You'll get a live leaderboard with everyone's life, and a breakdown of the questions people got wrong once the race is over.</span></span>
         </label>
         <div class="p-sub" style="margin-top:0;">Course</div>
         <div class="cancer-grid" id="mpThemeGrid" style="max-width:400px;margin:0 auto 16px;"></div>
@@ -887,7 +887,7 @@
       </div>
     </div>
 
-    <!-- GROUP RACE: lecturer (non-racing host) view -->
+    <!-- GROUP RACE: host-only (non-racing host) view -->
     <div class="screen" id="spectatorScreen">
       <h2 id="specTitle">Live leaderboard</h2>
       <p class="desc" id="specSub"></p>
@@ -2207,12 +2207,21 @@
     const st = currentStages()[stageIndex];
     return (st && st.difficulty) || null;
   }
+  // No question is asked twice in one run until the pool for that topic
+  // is used up. Queues are per course|topic|stage-difficulty, so without
+  // this record a topic that comes up in two stages dealt from two separate
+  // shuffles of the same pool and could repeat a question; it also stops two
+  // copies of the same question (same wording, different ids) both appearing.
+  const askedThisRun = new Set();
+  const promptKeyOf = q => 'p:' + String(q.prompt||'').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const questionIdKeyOf = q => (q.itemId||'') + '::' + q.id;
+  const alreadyAsked = q => askedThisRun.has(questionIdKeyOf(q)) || askedThisRun.has(promptKeyOf(q));
   function nextQuestion(cancerId, topicId, preferDifficulty){
     const key = cancerId+'|'+topicId+'|'+(preferDifficulty||'');
-    if(!questionQueues[key] || questionQueues[key].length===0){
-      let source;
-      if(cancerId==='custom' && customPoolByTopic) source = customPoolByTopic[topicId] || [];
-      else source = QUESTIONS_BY_THEME_TOPIC[cancerId]?.[topicId] || [];
+    let source;
+    if(cancerId==='custom' && customPoolByTopic) source = customPoolByTopic[topicId] || [];
+    else source = QUESTIONS_BY_THEME_TOPIC[cancerId]?.[topicId] || [];
+    const buildQueue = ()=>{
       if(preferDifficulty){
         const preferred = source.filter(q=>(q.difficulty||'medium')===preferDifficulty);
         const rest = source.filter(q=>(q.difficulty||'medium')!==preferDifficulty);
@@ -2220,9 +2229,24 @@
       } else {
         questionQueues[key] = shuffle(source);
       }
+    };
+    let q = null;
+    for(let pass = 0; pass < 2 && !q; pass++){
+      if(!questionQueues[key] || questionQueues[key].length===0) buildQueue();
+      while(questionQueues[key].length){
+        const cand = questionQueues[key].shift();
+        if(!alreadyAsked(cand)){ q = cand; break; }
+      }
     }
-    const q = questionQueues[key].shift();
+    if(!q){
+      // Every question in this topic's pool has been asked this run, so a
+      // repeat is unavoidable: forget just this pool and start a fresh cycle.
+      source.forEach(x=>{ askedThisRun.delete(questionIdKeyOf(x)); askedThisRun.delete(promptKeyOf(x)); });
+      buildQueue();
+      q = questionQueues[key].shift();
+    }
     if(!q) return q;
+    askedThisRun.add(questionIdKeyOf(q)); askedThisRun.add(promptKeyOf(q));
     // Shuffle the option order every time a question is served, so the
     // correct answer isn't always in the same position it was authored in.
     const order = shuffle(q.options.map((_,i)=>i));
@@ -2645,6 +2669,7 @@
     obstacleTimer = GAME_CONFIG.initialObstacleDelayMs; glucoseTimer = GAME_CONFIG.initialGlucoseDelayMs;
     bombTimer = GAME_CONFIG.bombSpawnBaseMs + Math.random()*GAME_CONFIG.bombSpawnRandMs;
     Object.keys(questionQueues).forEach(k=>delete questionQueues[k]);
+    askedThisRun.clear();
     updateGlucoseUI();
   }
   // Whole HUD (glucose/score/leaderboard) only ever shows while actually
@@ -5374,7 +5399,7 @@
     // seenIncoming but for results flowing the other way, back to a thrower.
     pendingGrenade:null, seenGrenadeResults:new Set(), seenEvents:new Set(), bombHellEndsAt:null, bombHellLeftMs:0, giftUnlockPending:false,
     roomListenerRef:null, countdownStarted:false, theme:RUNNABLE_THEMES[0], selectedTheme:RUNNABLE_THEMES[0],
-    // isSpectator: the host is the lecturer and isn't racing (no player
+    // isSpectator: the host is only hosting and isn't racing (no player
     // node in the room) -- they get the live leaderboard + results view
     // instead of the game. lastRoom/specTimer drive that view.
     isSpectator:false, lastRoom:null, specTimer:null,
@@ -5556,7 +5581,7 @@
         speed: mp.speed,
         ...(spectate ? { hostRole:'spectator' } : {}), // omitted (not undefined) for a normal host -- RTDB rejects undefined
       });
-      // A lecturer isn't a racer: no player node, so every roster-based rule
+      // A host-only host isn't a racer: no player node, so every roster-based rule
       // (who's done, gift unlock, who can win) only ever sees the students.
       if(!spectate){
         await set(ref(fbdb, `rooms/${code}/players/${mp.playerId}`), {
@@ -5567,7 +5592,7 @@
       mpWaitView.style.display = 'block';
       mpWaitTitle.textContent = 'Waiting for racers…';
       mpRoomCodeDisplay.textContent = code;
-      mpWaitPlaying.textContent = describeMpSelection() + (spectate ? ' · You’re the lecturer (not racing)' : '');
+      mpWaitPlaying.textContent = describeMpSelection() + (spectate ? ' · You’re hosting only (not racing)' : '');
       mpStartRaceBtn.style.display = 'none';
       mpAttachRoomListener();
     } finally {
@@ -5926,7 +5951,7 @@
   }
   // Per-question tally for THIS race only (rooms/<CODE>/qstats/<key>): n
   // answered, c correct, p0..p3 = times each authored option was picked,
-  // skip = timeouts. Plain counts, no player ids -- the lecturer's results
+  // skip = timeouts. Plain counts, no player ids -- the host's results
   // view reads it to show which questions the room missed most.
   function recordRoomQuestionStat(itemId, qId, correct, authoredIndex){
     if(!mp.active || !mp.roomCode || !firebaseReady || !itemId || !qId) return;
@@ -5939,7 +5964,7 @@
       return c;
     }).catch(()=>{});
   }
-  // ---------- lecturer (non-racing host) view ----------
+  // ---------- host-only (non-racing host) view ----------
   function mpShowSpectator(){
     currentCancerId = mp.theme || RUNNABLE_THEMES[0]; // so lifeCfg() uses this course's life wording
     mpWaitView.style.display = 'none';
@@ -6109,7 +6134,7 @@
     if(!room || room.winner) return;
     const roster = room.players || {};
     const ids = Object.keys(roster);
-    if(ids.length < (room.hostRole==='spectator' ? 1 : 2)) return; // need at least 2 racers for a result -- 1 is enough when the host is a non-racing lecturer
+    if(ids.length < (room.hostRole==='spectator' ? 1 : 2)) return; // need at least 2 racers for a result -- 1 is enough when the host isn't racing
     if(!ids.every(pid=>roster[pid].done)) return; // still waiting on someone
     const ranked = mpRankedRoster(roster);
     const topScore = ranked[0].score;
