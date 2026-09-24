@@ -61,7 +61,7 @@
                           const COURSES = {
     'MEDS3002': {
       'code': 'MEDS3002',
-      'label': 'Cancer / Medical Science',
+      'label': 'Breakthroughs in Medical Science',
       'classes': {
         'L1': {
           'label': 'Transcriptional regulation of gene expression, genome organisation',
@@ -318,7 +318,7 @@
     },
     'MEDS3003': {
       'code': 'MEDS3003',
-      'label': 'Advanced Therapeutics',
+      'label': 'Horizons in Medical Sciences',
       'classes': {
         'L2': {
           'label': 'Mass Spectrometry',
@@ -451,7 +451,7 @@
     'MEDS3002': {
       'label': 'MEDS3002',
       'icon': '🎗️',
-      'blurb': 'Cancer / Medical Science',
+      'blurb': 'Breakthroughs in Medical Science explores how current medical knowledge informs the development of future treatments and promotes healthier lifestyle choices. You will examine medical challenges where existing treatments are either inadequate or entirely absent, and consider innovative approaches to address these gaps. Through collaborative inquiry, you will contribute your skills and expertise to evaluating both the short-term and long-term impacts of emerging therapies. In doing so, you will critically analyse the societal and ethical implications of these advancements, contributing to a deeper understanding of medicine’s evolving role in human health.',
       'topics': {
         'genetics': {
           'label': 'Genetics',

@@ -337,6 +337,20 @@
   .mlc-count{ font-size:12px; color:var(--muted); background:#f4f5f9; border-radius:10px; padding:2px 9px; white-space:nowrap; }
   .ml-concept.thin .mlc-count{ background:#fff7e6; color:#7a5a12; }
   .mlc-head .mlc-actions{ margin-left:auto; display:flex; gap:8px; align-items:center; }
+  .mlc-warn{ font-size:12px; color:#8a1f1f; background:#fdecec; border:1px solid #f3c3c3; border-radius:10px; padding:2px 9px; white-space:nowrap; }
+  .mlc-pending{ font-size:12px; color:#7a5a12; background:#fff7e6; border:1px solid #f0d9a8; border-radius:10px; padding:2px 9px; white-space:nowrap; }
+  .mlc-name{ cursor:pointer; }
+  .mlc-name:hover{ color:var(--accent); text-decoration:underline; }
+  .mlc-detail{ border-top:1px solid var(--line); background:#fafbfd; padding:14px 16px; font-size:13px; line-height:1.55; }
+  .mlc-detail h4{ margin:0 0 4px; font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .mlc-detail .mld-block{ margin-bottom:12px; }
+  .mlc-detail .mld-block:last-child{ margin-bottom:0; }
+  .mlc-detail ul{ margin:0; padding-left:18px; }
+  .mlc-detail .mld-missing{ color:#7a5a12; background:#fff7e6; border:1px solid #f0d9a8; border-radius:8px; padding:7px 11px; font-size:12.5px; }
+  .mlc-detail .mld-q{ padding:7px 0; border-bottom:1px solid #eef0f5; }
+  .mlc-detail .mld-q:last-child{ border-bottom:none; }
+  .mlc-detail .mld-q .mld-opt{ color:var(--muted); font-size:12px; margin-top:3px; }
+  .mlc-detail .mld-q.pending{ color:#7a5a12; }
   .mlc-qlist{ border-top:1px solid var(--line); background:#fafbfd; padding:4px 16px 10px; font-size:12.5px; }
   .mlc-qlist div{ padding:6px 0; border-bottom:1px solid #eef0f5; color:#444; }
   .mlc-qlist div:last-child{ border-bottom:none; }
@@ -530,6 +544,7 @@
     <section data-section="guidesim">
       <div class="section-head">
         <h2>Study guide preview <button class="info-btn" data-info="guidesim" title="How this works">i</button></h2>
+        <p id="simPendingNote" class="ml-dupe" style="display:none;"></p>
         <p>The study guide the way students see it — course → topic → item — with a ⚠ warning on every card that's missing something. Choose which gaps to flag, open a card, and hit Edit to fix it from there. This shows what's in <code>game-data.js</code> right now, so a fix appears here once an admin merges it.</p>
       </div>
       <div class="card">
@@ -543,6 +558,7 @@
         <div id="simBrowse">
           <div class="sim-label">Course</div><div class="sim-tabs" id="simCourseTabs"></div>
           <div class="sim-label" id="simTopicLabel">Topic</div><div class="sim-tabs" id="simTopicTabs"></div>
+          <div class="sim-label">Lecture</div><div class="sim-tabs" id="simLectureTabs"></div>
         </div>
         <input type="text" id="simSearch" class="sim-search" placeholder="🔍 Search this list by name, description, or #tag…">
         <div class="sim-summary" id="simSummary"></div>
@@ -3009,15 +3025,24 @@
   // Walks RD.THEMES -- the same object the game's study guide walks -- so
   // it always shows exactly what students see, plus a warning on any card
   // that fails one of the INCOMPLETE_FIELDS tests the user ticked.
-  const simState = { theme:null, topic:null, itemId:null };
+  const simState = { theme:null, topic:null, itemId:null, lecture:'' }; // lecture '' = all
   const simEls = {
     title: document.getElementById('simTitle'), blurb: document.getElementById('simBlurb'), browse: document.getElementById('simBrowse'),
     courseTabs: document.getElementById('simCourseTabs'), topicTabs: document.getElementById('simTopicTabs'), topicLabel: document.getElementById('simTopicLabel'),
+    lectureTabs: document.getElementById('simLectureTabs'),
     search: document.getElementById('simSearch'), summary: document.getElementById('simSummary'), grid: document.getElementById('simGrid'), detail: document.getElementById('simDetail'),
     checks: document.getElementById('simWarnChecks'), onlyWarn: document.getElementById('simOnlyWarn'),
   };
   function simActive(){ return new Set([...simEls.checks.querySelectorAll('.simwarn-check:checked')].map(cb=>cb.value)); }
-  function simItems(themeId, topicId){ return Object.entries(RD.THEMES[themeId]?.topics?.[topicId]?.items || {}); }
+  function simItems(themeId, topicId){
+    const all = Object.entries(RD.THEMES[themeId]?.topics?.[topicId]?.items || {});
+    if(!simState.lecture) return all;
+    const want = courseDisplayString(themeId, simState.lecture);
+    return all.filter(([, it])=>{
+      if(it.course===themeId && it.class===simState.lecture) return true;
+      return String(it.relatedCourse||'').split('\n').map(x=>x.trim()).filter(Boolean).includes(want);
+    });
+  }
   function simGapCount(themeId, topicId, active){ return simItems(themeId, topicId).filter(([, item])=> itemGaps(item, active).length).length; }
   function simCardHtml(themeId, topicId, itemId, item, active, subtitle){
     const gaps = itemGaps(item, active);
@@ -3029,6 +3054,19 @@
     </button>`;
   }
   function renderGuideSim(){
+    // This page is deliberately what STUDENTS see, i.e. what's actually in
+    // game-data.js -- anything still in the queue isn't in the game yet.
+    // Saying so explicitly, because "I added it and it's not here" reads as
+    // the tool having dropped it.
+    const note = document.getElementById('simPendingNote');
+    if(note){
+      const q = Object.values(batch||{}).filter(e=>e && e.type==='question').length;
+      const i = Object.values(batch||{}).filter(e=>e && e.type==='item').length;
+      if(q || i){
+        note.style.display = 'block';
+        note.innerHTML = `⏳ <b>${i?`${i} concept${i===1?'':'s'}`:''}${i&&q?' and ':''}${q?`${q} question${q===1?'':'s'}`:''}</b> waiting in the <button type="button" class="link-btn" data-goto="queue">Team queue</button> — they'll appear here once an admin merges them.`;
+      } else note.style.display = 'none';
+    }
     if(!simEls.checks.children.length){
       simEls.checks.innerHTML = INCOMPLETE_FIELDS.map(f=>`<label><input type="checkbox" class="simwarn-check" value="${f.key}" ${f.core?'checked':''}> ${f.label}</label>`).join('');
       simEls.checks.querySelectorAll('.simwarn-check').forEach(cb=>cb.addEventListener('change', renderGuideSim));
@@ -3062,6 +3100,26 @@
       const n = simGapCount(simState.theme, topicId, active);
       return `<button type="button" class="sim-tab topic${topicId===simState.topic?' active':''}" style="--tc:${esc2(meta.color)}" data-sim-topic="${esc2(topicId)}">${esc2(meta.icon||'')} ${esc2(meta.label)}${n?`<span class="sim-tab-warn" title="${n} item${n===1?'':'s'} with a warning">${n}</span>`:''}</button>`;
     }).join('') : `<span class="struct-empty" style="margin:0;">— no topics yet —</span>`;
+
+    // Lecture chips -- the thing a lecturer actually needs to find their own
+    // items among a topic's 13. Only lectures that have items in this course
+    // are offered, with how many of them are flagged.
+    const lecClasses = (KNOWN_COURSES[simState.theme] || {}).classes || {};
+    const lecKeys = Object.keys(lecClasses).filter(k=>{
+      const want = courseDisplayString(simState.theme, k);
+      return Object.values(theme.topics).some(tp=> Object.values(tp.items||{}).some(it=>
+        (it.course===simState.theme && it.class===k) ||
+        String(it.relatedCourse||'').split('\n').map(x=>x.trim()).includes(want)));
+    });
+    if(simState.lecture && !lecKeys.includes(simState.lecture)) simState.lecture = '';
+    simEls.lectureTabs.innerHTML = lecKeys.length
+      ? `<button type="button" class="sim-tab${simState.lecture?'':' active'}" data-sim-lecture="">All lectures</button>` + lecKeys.map(k=>{
+          const saved = simState.lecture; simState.lecture = k;
+          const n = Object.keys(theme.topics).reduce((sum, tId)=> sum + simGapCount(simState.theme, tId, active), 0);
+          simState.lecture = saved;
+          return `<button type="button" class="sim-tab${k===simState.lecture?' active':''}" data-sim-lecture="${esc2(k)}" title="${esc2(lecClasses[k].label||'')}">${esc2(k)}${n?`<span class="sim-tab-warn" title="${n} with a warning">${n}</span>`:''}</button>`;
+        }).join('')
+      : `<span class="struct-empty" style="margin:0;">— no lectures tagged in this course yet —</span>`;
 
     if(showingDetail){ renderSimDetail(simState.theme, simState.topic, simState.itemId, detailItem, active); return; }
 
@@ -3137,12 +3195,17 @@
   }
   simEls.courseTabs.addEventListener('click', e=>{
     const btn = e.target.closest('[data-sim-theme]'); if(!btn) return;
-    Object.assign(simState, { theme:btn.dataset.simTheme, topic:null, itemId:null });
+    Object.assign(simState, { lecture:'', theme:btn.dataset.simTheme, topic:null, itemId:null });
     simEls.search.value = ''; renderGuideSim();
   });
   simEls.topicTabs.addEventListener('click', e=>{
     const btn = e.target.closest('[data-sim-topic]'); if(!btn) return;
     Object.assign(simState, { topic:btn.dataset.simTopic, itemId:null });
+    simEls.search.value = ''; renderGuideSim();
+  });
+  simEls.lectureTabs.addEventListener('click', e=>{
+    const btn = e.target.closest('[data-sim-lecture]'); if(!btn) return;
+    Object.assign(simState, { lecture:btn.dataset.simLecture, itemId:null });
     simEls.search.value = ''; renderGuideSim();
   });
   simEls.search.addEventListener('input', ()=>{ simState.itemId = null; renderGuideSim(); });
@@ -3364,7 +3427,7 @@
       }
     });
   }
-  function attachQueueListener(){ fbOnValue(fbRef(fbdb, 'contributions'), snap=>{ batch = snap.val() || {}; renderBatch(); }); }
+  function attachQueueListener(){ fbOnValue(fbRef(fbdb, 'contributions'), snap=>{ batch = snap.val() || {}; renderBatch(); mlRefreshIfOpen(); }); }
   // Fire-and-forget write; the onValue listener re-renders once it round-trips, so everyone sees the same list.
   function pushToQueue(entry){
     entry.contributorName = currentContributorName();
@@ -4201,6 +4264,24 @@
     for(const th of Object.values(RD.THEMES)) for(const tp of Object.values(th.topics)) if(tp.items[id]) return tp.items[id];
     return null;
   }
+  // Anything this lecturer has added that an admin hasn't merged yet still
+  // lives in the shared queue, not in game-data.js -- so without this a
+  // question they just added showed the concept still on "0 questions",
+  // which reads as the tool having lost it.
+  function mlPendingQuestions(itemId){
+    return Object.values(batch || {})
+      .filter(e=> e && (e.type==='question') && e.data && e.data.itemId===itemId)
+      .map(e=> e.data);
+  }
+  // An edit-item entry queued for this concept that fills the description
+  // in -- so the card stops nagging once they've written one.
+  function mlPendingDescription(itemId){
+    return Object.values(batch || {}).some(e=> e && (e.type==='edit-item'||e.type==='item') && e.data
+      && e.data.itemId===itemId && (e.data.description||'').trim());
+  }
+  function mlPendingConcepts(){
+    return Object.values(batch || {}).filter(e=> e && e.type==='item' && e.data).map(e=> e.data);
+  }
   function mlOpen(course, cls){
     mlCourse = course; mlClass = cls;
     try{ localStorage.setItem(ML_KEY, JSON.stringify({ course, cls })); }catch(e){}
@@ -4214,10 +4295,13 @@
     document.getElementById('ml_barTitle').innerHTML = `🎓 ${esc2(c.code||mlCourse)} ${esc2(mlClass)}<small>${esc2(lec.label||'')}</small>`;
     const items = mlItemsForLecture(mlCourse, mlClass);
     const counts = items.map(it=> (mlLiveItem(it.id)?.questions || []).length);
+    const pends = items.map(it=> mlPendingQuestions(it.id).length);
     const totalQ = counts.reduce((a,b)=>a+b, 0);
-    const thin = counts.filter(n=>n<=1).length;
+    const totalP = pends.reduce((a,b)=>a+b, 0);
+    const thin = counts.filter((n,i)=> n + pends[i] <= 1).length;
     document.getElementById('ml_barStats').innerHTML =
       `${items.length} concept${items.length===1?'':'s'} · ${totalQ} question${totalQ===1?'':'s'}` +
+      (totalP ? ` <span style="color:#7a5a12;">+${totalP} waiting for review</span>` : '') +
       (thin ? `<br><span style="color:#7a5a12;">${thin} with 1 or none — add to those first</span>` : '');
     // Topic select for a new concept: only the topics this course actually uses.
     const themeIds = new Set(items.map(it=>it.theme));
@@ -4232,23 +4316,105 @@
       return;
     }
     // Most-developed concepts first: the ones worth adding to are at the top.
-    const rows = items.map((it,i)=>({ it, n:counts[i] })).sort((a,b)=> b.n - a.n || a.it.label.localeCompare(b.it.label));
-    ml_concepts.innerHTML = rows.map(({it,n})=>{
-      const live = mlLiveItem(it.id);
-      const qs = (live?.questions || []);
-      return `<div class="ml-concept${n<=1?' thin':''}" data-item="${esc2(it.id)}">
+    const rows = items.map((it,i)=>({ it, n:counts[i], pend:pends[i] })).sort((a,b)=> (b.n+b.pend) - (a.n+a.pend) || a.it.label.localeCompare(b.it.label));
+    ml_concepts.innerHTML = rows.map(({it,n,pend})=>{
+      const liveIt = mlLiveItem(it.id);
+      const needsDesc = !liveIt || !((liveIt.description||'').trim()) || (liveIt.description||'').trim()==='(add a description)';
+      const descPending = mlPendingDescription(it.id);
+      return `<div class="ml-concept${(n+pend)<=1?' thin':''}" data-item="${esc2(it.id)}">
         <div class="mlc-head">
-          <span class="mlc-name">${esc2(it.label)}</span>
+          <span class="mlc-name" data-ml-open="${esc2(it.id)}" title="See what's inside this concept">${esc2(it.label)}</span>
           <span class="mlc-count">${n} question${n===1?'':'s'}</span>
+          ${pend?`<span class="mlc-pending">+${pend} waiting for review</span>`:''}
+          ${needsDesc && !descPending ? `<span class="mlc-warn">⚠ No description</span>` : ''}
+          ${descPending ? `<span class="mlc-pending">📝 description waiting for review</span>` : ''}
           <span class="mlc-actions">
-            ${qs.length?`<button data-ml-toggle="${esc2(it.id)}">See questions</button>`:''}
+            ${needsDesc && !descPending ? `<button data-ml-desc="${esc2(it.id)}">✏️ Write the description</button>` : ''}
+            <button data-ml-open="${esc2(it.id)}">See what's inside</button>
             <button class="primary" data-ml-add="${esc2(it.id)}">+ Add question here</button>
           </span>
         </div>
-        ${qs.length?`<div class="mlc-qlist" data-ml-qlist="${esc2(it.id)}" style="display:none;">${qs.map(q=>`<div>${esc2(q.prompt)}</div>`).join('')}</div>`:''}
+        <div class="mlc-form" data-ml-descform="${esc2(it.id)}" style="display:none;"></div>
+        <div class="mlc-detail" data-ml-detail="${esc2(it.id)}" style="display:none;"></div>
         <div class="mlc-form" data-ml-form="${esc2(it.id)}" style="display:none;"></div>
       </div>`;
     }).join('');
+  }
+  // --- "See what's inside": the concept's study-guide content plus every
+  //     question on it, including ones still waiting for review ---
+  function mlOpenDetail(itemId){
+    const el = ml_concepts.querySelector(`[data-ml-detail="${CSS.escape(itemId)}"]`);
+    if(!el) return;
+    if(el.style.display==='block'){ el.style.display='none'; el.innerHTML=''; return; }
+    ml_concepts.querySelectorAll('.mlc-detail').forEach(d=>{ d.style.display='none'; d.innerHTML=''; });
+    const known = KNOWN_ITEMS.find(it=>it.id===itemId) || {};
+    // A concept added this session isn't in game-data.js yet -- fall back to
+    // whatever is sitting in the queue for it.
+    const live = mlLiveItem(itemId) || mlPendingConcepts().find(d=>d.itemId===itemId) || {};
+    const pending = mlPendingQuestions(itemId);
+    const qs = live.questions || [];
+    const list = arr => (arr||[]).filter(Boolean);
+    const block = (title, html) => `<div class="mld-block"><h4>${title}</h4>${html}</div>`;
+    const missing = what => `<div class="mld-missing">No ${what} yet — students see a blank section here. Add it under <b>Add anything → Study guide item</b>.</div>`;
+    let html = '';
+    html += block('What it is', live.description ? esc2(live.description)
+      : `<div class="mld-missing">No description yet — students see a blank section here. <button type="button" class="link-btn" data-ml-desc="${esc2(itemId)}">Write it now</button></div>`);
+    if(live.mechanism) html += block('How it works', esc2(live.mechanism));
+    if(list(live.funFacts).length) html += block('Fun facts', `<ul>${list(live.funFacts).map(f=>`<li>${esc2(f)}</li>`).join('')}</ul>`);
+    if(list(live.activeRecall).length) html += block('Active recall prompts', `<ul>${list(live.activeRecall).map(f=>`<li>${esc2(f)}</li>`).join('')}</ul>`);
+    const qHtml = qs.map(q=>`<div class="mld-q">${esc2(q.prompt)}<div class="mld-opt">✓ ${esc2((q.options||[])[q.correctIndex] || '—')}</div></div>`).join('')
+      + pending.map(q=>`<div class="mld-q pending">⏳ ${esc2(q.prompt)}<div class="mld-opt">✓ ${esc2((q.options||[])[q.correctIndex] || '—')} · waiting for an admin to merge it</div></div>`).join('');
+    html += block(`Questions (${qs.length}${pending.length?` + ${pending.length} waiting`:''})`, qHtml || missing('questions'));
+    html += `<div class="mld-block" style="margin-top:14px;"><button data-ml-full="${esc2(itemId)}">✏️ Open the full editor for this concept</button></div>`;
+    el.innerHTML = html;
+    el.style.display = 'block';
+  }
+  // --- writing a concept's description without leaving this page ---
+  // Queues an edit-item entry built from the concept as it stands, with
+  // just the description swapped in, so nothing else about it is disturbed
+  // and its existing questions are carried through untouched.
+  function mlOpenDescForm(itemId){
+    const box = ml_concepts.querySelector(`[data-ml-descform="${CSS.escape(itemId)}"]`);
+    if(!box) return;
+    if(box.style.display==='block'){ box.style.display='none'; box.innerHTML=''; return; }
+    ml_concepts.querySelectorAll('[data-ml-descform]').forEach(b=>{ b.style.display='none'; b.innerHTML=''; });
+    const known = KNOWN_ITEMS.find(it=>it.id===itemId) || {};
+    const live = mlLiveItem(itemId);
+    box.innerHTML = `
+      <label class="field"><span class="fl-label">What is ${esc2(known.label||'this')}?</span>
+        <span class="fl-help">Two or three sentences, the way you'd explain it in the lecture. This is what students read in the study guide.</span>
+        <textarea data-mld="text" rows="3" placeholder="e.g. A reciprocal translocation t(9;22) fuses BCR and ABL1, creating an always-on tyrosine kinase. The diagnostic hallmark of CML."></textarea></label>
+      <label class="field"><span class="fl-label">How it works <span style="font-weight:normal;color:var(--muted);">(optional)</span></span>
+        <textarea data-mld="mech" rows="2" placeholder="The mechanism, if it needs one."></textarea></label>
+      <div class="btn-row"><button class="primary" data-mld="save">+ Add to queue</button><button data-mld="cancel">Cancel</button></div>`;
+    box.style.display = 'block';
+    if(live){ box.querySelector('[data-mld="mech"]').value = live.mechanism || ''; }
+    box.querySelector('[data-mld="cancel"]').addEventListener('click', ()=>{ box.style.display='none'; box.innerHTML=''; });
+    box.querySelector('[data-mld="save"]').addEventListener('click', ()=> mlSaveDesc(itemId, box));
+    box.querySelector('[data-mld="text"]').focus();
+  }
+  function mlSaveDesc(itemId, box){
+    if(!requireContributorIdentity()) return;
+    const description = box.querySelector('[data-mld="text"]').value.trim();
+    if(!description){ toast('Write the description first'); return; }
+    const known = KNOWN_ITEMS.find(it=>it.id===itemId) || {};
+    const live = mlLiveItem(itemId);
+    if(!live){ toast('This concept is still waiting for review — add its description once an admin merges it'); return; }
+    const o = {
+      itemId, label: live.label || known.label || itemId,
+      theme: known.theme, topicId: known.topic,
+      description, mechanism: box.querySelector('[data-mld="mech"]').value.trim(),
+      images: live.images || [], funFacts: live.funFacts || [], notes: live.notes || [],
+      activeRecall: live.activeRecall || [], saq: live.saq || [], refs: live.refs || [], hashtags: live.hashtags || [],
+      course: live.course || '', class: live.class || '', relatedCourseOverride: live.relatedCourse || null,
+      usingNewTopic:false, addCourseSnippet:'', addClassSnippet:'',
+      editingItemId: itemId, existingQuestions: live.questions || [], courseInfo: blankCourseInfo(),
+    };
+    pushToQueue({ type:'edit-item', title:o.label, code:itemCodeString(o),
+      note:`✏️ Edit · 🎓 ${courseDisplayString(mlCourse, mlClass)} · description`, data:o });
+    toast('Description added to the queue');
+    box.style.display='none'; box.innerHTML='';
+    mlRender();
   }
   // --- the small question form that opens inside a concept card ---
   function mlQuestionFormHtml(itemId){
@@ -4372,14 +4538,29 @@
   ml_concepts.addEventListener('click', e=>{
     const add = e.target.closest('[data-ml-add]');
     if(add){ mlOpenForm(add.dataset.mlAdd); return; }
-    const tog = e.target.closest('[data-ml-toggle]');
-    if(tog){
-      const list = ml_concepts.querySelector(`[data-ml-qlist="${CSS.escape(tog.dataset.mlToggle)}"]`);
-      if(list){ const open = list.style.display==='block'; list.style.display = open?'none':'block'; tog.textContent = open?'See questions':'Hide questions'; }
+    const desc = e.target.closest('[data-ml-desc]');
+    if(desc){ mlOpenDescForm(desc.dataset.mlDesc); return; }
+    const full = e.target.closest('[data-ml-full]');
+    if(full){
+      // Only a concept that's actually in game-data.js can be edited -- one
+      // still sitting in the queue has nothing to load yet.
+      if(!mlLiveItem(full.dataset.mlFull)){ toast('This concept is still waiting for review — it can be edited once an admin merges it'); return; }
+      showTab('add'); showPane('add','item');
+      document.getElementById('i_editModeToggle').checked = true;
+      document.getElementById('i_editModeToggle').dispatchEvent(new Event('change'));
+      const sel = document.getElementById('i_editItemSelect');
+      sel.value = full.dataset.mlFull; sel.dispatchEvent(new Event('change'));
+      return;
     }
+    const open = e.target.closest('[data-ml-open]');
+    if(open){ mlOpenDetail(open.dataset.mlOpen); return; }
   });
   ml_newName.addEventListener('input', mlCheckDupe);
   document.getElementById('ml_newBtn').addEventListener('click', mlAddConcept);
+  function mlRefreshIfOpen(){
+    const sec = document.querySelector('section[data-section="mylecture"]');
+    if(sec && sec.classList.contains('active') && ml_workspace.style.display !== 'none') mlRender();
+  }
   function mlInit(){
     mlFillCourses();
     try{

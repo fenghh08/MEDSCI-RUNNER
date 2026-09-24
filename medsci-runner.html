@@ -2421,7 +2421,15 @@
       const c = THEMES[id];
       const card = document.createElement('button');
       card.className = 'pick-card';
-      card.innerHTML = `<span class="cc-icon">${iconHTML(c.icon,26)}</span><span class="cc-name">${c.label}</span><span class="cc-blurb">${c.blurb.length <= 60 ? c.blurb : (COURSES[id]?.label || c.blurb)}</span>`;
+      // Subtitle is the course's NAME (COURSES[id].label) whenever it has
+      // one, falling back to the blurb. It used to prefer the blurb, which
+      // meant a course whose name and blurb had drifted apart showed the
+      // blurb and the name never appeared anywhere (reported: "I gave the
+      // name before, why is the course name not changed?"). A long blurb
+      // belongs on the course hub, not squeezed onto a card.
+      const courseName = (COURSES[id] && COURSES[id].label) || '';
+      const sub = courseName || c.blurb || '';
+      card.innerHTML = `<span class="cc-icon">${iconHTML(c.icon,26)}</span><span class="cc-name">${c.label}</span><span class="cc-blurb">${escapeHtml(sub)}</span>`;
       card.addEventListener('click', ()=> openBrief(id));
       cancerGrid.appendChild(card);
     });
