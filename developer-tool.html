@@ -332,7 +332,22 @@
   /* developer tour */
   #devTutorialSpotlight{ position:fixed; z-index:9000; border-radius:10px; pointer-events:none; display:none; box-shadow:0 0 0 9999px rgba(20,30,60,.62); outline:2px solid var(--accent); outline-offset:3px; transition:top .25s, left .25s, width .25s, height .25s; }
   #devTutorialCaption{ position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:9001; display:none; background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 20px; max-width:560px; width:92vw; text-align:center; box-shadow:0 12px 40px -10px rgba(0,0,0,.35); }
+  /* Same card as the tour caption, shown first so the two routes in never
+     make each other sit through the wrong half. */
+  #devTourPicker{ position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:9001; display:none;
+    background:#fff; border:1px solid var(--line); border-radius:14px; padding:20px 22px; max-width:520px; width:92vw;
+    text-align:center; box-shadow:0 12px 40px -10px rgba(0,0,0,.35); }
+  #devTourPicker .dt-title{ font-size:16px; font-weight:700; margin:0 0 6px; }
+  #devTourPicker .dt-caption{ font-size:12.5px; line-height:1.5; color:var(--muted); margin:0 0 14px; }
+  .dt-choice{ display:flex; align-items:flex-start; gap:12px; width:100%; text-align:left; background:#fff;
+    border:1px solid var(--line); border-radius:12px; padding:13px 15px; margin-bottom:9px; cursor:pointer; }
+  .dt-choice:hover{ border-color:var(--accent); background:var(--accent-soft); }
+  .dt-choice .dtc-icon{ font-size:20px; line-height:1.2; }
+  .dt-choice .dtc-name{ display:block; font-weight:700; font-size:14px; }
+  .dt-choice .dtc-blurb{ display:block; font-size:12.5px; color:var(--muted); line-height:1.45; margin-top:2px; }
   #devTutorialCaption .dt-title{ font-size:15px; font-weight:700; margin:0 0 6px; }
+  #devTutorialCaption .dt-which{ display:block; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--accent); font-weight:700; margin-bottom:3px; }
   #devTutorialCaption .dt-caption{ font-size:13px; line-height:1.5; color:var(--muted); margin:0 0 10px; }
   #devTutorialCaption .dt-dots{ display:flex; gap:5px; justify-content:center; margin-bottom:10px; }
   #devTutorialCaption .dt-dot{ width:6px; height:6px; border-radius:50%; background:var(--line-strong); }
@@ -481,6 +496,12 @@
 <body>
 <div id="devTutorialSpotlight"></div>
 <button id="devTutorialCloseBtn" title="Close tour">✕</button>
+<div id="devTourPicker">
+  <div class="dt-title">Which tour?</div>
+  <div class="dt-caption">Both are written for people adding content, not for admins — nothing here needs the PIN.</div>
+  <div id="devTourPickerList"></div>
+  <div class="btn-row" style="justify-content:center;"><button id="devTourPickerCancel">Not now</button></div>
+</div>
 <div id="devTutorialCaption">
   <div class="dt-title" id="devTutorialTitle">—</div>
   <div class="dt-caption" id="devTutorialCaptionText"></div>
@@ -5294,31 +5315,59 @@ const themesDecl  = text.indexOf('const THEMES = {');
   // ======================================================================
   // TOUR
   // ======================================================================
-  const DEV_TOUR_STEPS = [
-    { tab:'start', sel:'#contributorName', title:'Your name and email', caption:'Type these once — required before anything can be queued. It\'s how your work is credited, and how an admin can reach you about it. Only an admin can see whose submission is whose.' },
-    { tab:'start', sel:'section[data-section="start"] .card', title:'The whole flow', caption:'Fill in the template sheet → paste it in → it lands in the team queue → an admin merges it. Start here walks through it; the buttons jump straight to each step.' },
-    { tab:'csv', sel:'#gridImportTable', title:'Paste questions', caption:'The main way in. Select a range in Sheets/Excel, copy, click a cell here, and paste — it fills in and grows the table. Every row is checked as you go; a missing course/topic/lecture gets a button straight to the fix.' },
-    { tab:'lectures', sel:'#lecAddTable', title:'Paste lectures & outcomes', caption:'Same paste-a-range idea, for a course\'s lecture list: lecture number, name, learning outcomes. Pick the course first; the list below narrows to it.' },
-    { tab:'add', sel:'#addChips', title:'Or one at a time', caption:'A study guide item, a question, a topic, lecture outcomes, or a fun-fact question — with a live preview of how it looks in the game. (Creating a whole course is admin-only.)' },
-    { tab:'queue', sel:'#batchListContent', title:'Team queue', caption:'Everything anyone added, live. Open a row for the full detail, fix your own if needed, and an admin removes it once it\'s merged. Players\' in-game reports live under Reports.' },
-    { tab:'maintainer', sel:'#maintainerLockGate', title:'Admin', caption:'Needs the PIN and a name on the admin list. Merge the queue into a new game-data.js, refresh the merge template, check the folder against GitHub — and unlock Contributors and Data analysis.', fallbackSel:'#mergeGenerateBtn' },
-    { tab:'start', sel:'[data-info="overview"]', title:'Curious how it works?', caption:'Every ⓘ opens a short technical note about that part — the pasteable table, the Firebase queue, the merge, the PIN. Reopen this tour any time from the 🎬 button.', final:true },
-  ];
+  // Two tours, because the two ways in have almost nothing in common: a
+  // lecturer adding a handful of questions by hand never touches the sheet,
+  // and someone importing a whole course never opens the single-item form.
+  // One combined tour made each of them sit through the other's half.
+  const DEV_TOURS = {
+    single: {
+      label: 'Adding a few by hand',
+      blurb: 'For a lecturer with a handful of questions for their own lecture. About a minute.',
+      icon: '🎓',
+      steps: [
+        { tab:'start', sel:'#contributorName', title:'First, your name and email', caption:'Type these once — nothing can be queued without them. It\'s how your work is credited and how an admin can reach you about it. Only an admin can see whose submission is whose.' },
+        { tab:'datamap', sel:'section[data-section="datamap"] .dm-chain', title:'What goes where', caption:'A question hangs off a concept, a concept sits in a topic (module), inside a course. A lecture is a label on a concept. You only ever add the question — the rest already exists.' },
+        { tab:'mylecture', sel:'#ml_pickerCard', title:'Pick your lecture once', caption:'Choose your course and lecture, and the page narrows to just the concepts that lecture covers. You won\'t be asked to choose a topic or an item anywhere after this.', fallbackSel:'#ml_changeBtn' },
+        { tab:'mylecture', sel:'#ml_concepts', title:'Add to a concept that already exists', caption:'Each row is a concept from your lecture, with how many questions it already has. Click one to see what a student reads, then hit + Question and type yours in. Reusing a concept is what makes the study guide worth revising from.', fallbackSel:'#ml_pickerCard' },
+        { tab:'mylecture', sel:'.ml-newbox', title:'Only if nothing fits', caption:'A genuinely new concept goes in here, and the name is checked against what already exists so you don\'t end up with two of the same thing. Write its description while you\'re there — students see a blank page otherwise.', fallbackSel:'#ml_pickerCard' },
+        { tab:'add', sel:'#addChips', title:'Anything outside your own lecture', caption:'Add anything has the full forms — a question, a study guide item, a topic (module), lecture outcomes, a fun-fact question — each with a live preview of how it looks in the game. Creating a whole course is admin-only.' },
+        { tab:'queue', sel:'#batchListContent', title:'Where it lands', caption:'Everything you add waits here, live, for an admin to merge it. Open a row for the full detail and fix your own before it goes in. Players\' in-game reports live under Reports.' },
+        { tab:'start', sel:'[data-info="overview"]', title:'That\'s the whole loop', caption:'Every ⓘ opens a short note about that part of the tool. Reopen either tour any time from the 🎬 button at the top of the sidebar.', final:true },
+      ],
+    },
+    bulk: {
+      label: 'Importing a whole course',
+      blurb: 'For loading many questions or a full lecture list from a spreadsheet. About a minute.',
+      icon: '📄',
+      steps: [
+        { tab:'start', sel:'#contributorName', title:'First, your name and email', caption:'Type these once — nothing can be queued without them. It\'s how your work is credited and how an admin can reach you about it. Only an admin can see whose submission is whose.' },
+        { tab:'start', sel:'section[data-section="start"] .card', title:'Build in order', caption:'A question needs a concept, a concept needs a topic (module), a topic needs a course. Courses and topics must already exist before a pasted row can point at them, so those go in first.' },
+        { tab:'csv', sel:'#gridImportTable', title:'Paste the questions', caption:'Select a range in Sheets or Excel, copy, click a cell here and paste — it fills in and grows the table to fit. Every row is checked as you type; a missing course, topic or lecture gets a button straight to the fix.' },
+        { tab:'lectures', sel:'#lecAddTable', title:'Paste the lecture list', caption:'The same paste-a-range idea for a course\'s lectures: number, name, and the learning outcomes separated by semicolons. Pick the course first and the list below narrows to it.' },
+        { tab:'guidesim', sel:'#simWarnChecks', title:'Check what\'s missing', caption:'The study guide preview shows every concept as a student sees it, with a warning on anything missing a description, questions or images. Tick which gaps to flag, and filter by lecture to see only your own.' },
+        { tab:'queue', sel:'#batchListContent', title:'Team queue', caption:'A big paste lands here as many rows at once, live for the whole team. Check them over and fix your own. An admin merges the lot in one go — you don\'t have to do anything else.' },
+        { tab:'start', sel:'[data-info="overview"]', title:'That\'s the whole loop', caption:'Every ⓘ opens a short note about that part of the tool. Reopen either tour any time from the 🎬 button at the top of the sidebar.', final:true },
+      ],
+    },
+  };
+  let devTourKey = 'single';
+  let devTourSteps = DEV_TOURS.single.steps;
   let devTourStep = 0;
   const T = { spotlight: document.getElementById('devTutorialSpotlight'), caption: document.getElementById('devTutorialCaption'), title: document.getElementById('devTutorialTitle'), text: document.getElementById('devTutorialCaptionText'), dots: document.getElementById('devTutorialDots'), back: document.getElementById('devTutorialBackBtn'), skip: document.getElementById('devTutorialSkipBtn'), next: document.getElementById('devTutorialNextBtn'), close: document.getElementById('devTutorialCloseBtn') };
   function tourTarget(step){ let el = step.sel && document.querySelector(step.sel); if(el && el.offsetParent===null && step.fallbackSel) el = document.querySelector(step.fallbackSel); return (el && el.offsetParent!==null) ? el : null; }
   function trackDevTourSpotlight(){
-    const step = DEV_TOUR_STEPS[devTourStep], target = step && tourTarget(step);
+    const step = devTourSteps[devTourStep], target = step && tourTarget(step);
     if(!target){ T.spotlight.style.display = 'none'; return; }
     const r = target.getBoundingClientRect(), pad = 6;
     Object.assign(T.spotlight.style, { display:'block', top:(r.top-pad)+'px', left:(r.left-pad)+'px', width:(r.width+pad*2)+'px', height:(r.height+pad*2)+'px' });
   }
   function renderDevTourStep(){
-    const step = DEV_TOUR_STEPS[devTourStep];
+    const step = devTourSteps[devTourStep];
     if(step.tab) showTab(step.tab);
     if(step.pane) showPane(step.pane[0], step.pane[1]);
-    T.title.textContent = step.title; T.text.textContent = step.caption;
-    T.dots.innerHTML = DEV_TOUR_STEPS.map((_,i)=>`<span class="dt-dot${i===devTourStep?' on':''}"></span>`).join('');
+    T.title.innerHTML = `<span class="dt-which">${esc2(DEV_TOURS[devTourKey].icon)} ${esc2(DEV_TOURS[devTourKey].label)}</span>${esc2(step.title)}`;
+    T.text.textContent = step.caption;
+    T.dots.innerHTML = devTourSteps.map((_,i)=>`<span class="dt-dot${i===devTourStep?' on':''}"></span>`).join('');
     T.back.style.display = devTourStep===0 ? 'none' : 'inline-block';
     T.next.textContent = step.final ? 'Done' : 'Next →';
     T.skip.style.display = step.final ? 'none' : 'inline-block';
@@ -5326,10 +5375,31 @@ const themesDecl  = text.indexOf('const THEMES = {');
     const target = tourTarget(step); if(target) target.scrollIntoView({ block:'center', behavior:'smooth' });
     setTimeout(trackDevTourSpotlight, 280);
   }
-  function openDevTour(){ devTourStep = 0; T.close.style.display = 'block'; renderDevTourStep(); window.addEventListener('resize', trackDevTourSpotlight); window.addEventListener('scroll', trackDevTourSpotlight, true); }
-  function closeDevTour(){ T.spotlight.style.display = 'none'; T.caption.style.display = 'none'; T.close.style.display = 'none'; window.removeEventListener('resize', trackDevTourSpotlight); window.removeEventListener('scroll', trackDevTourSpotlight, true); }
-  function devTourAdvance(dir){ const step = DEV_TOUR_STEPS[devTourStep]; if(dir>0 && step.final){ closeDevTour(); return; } devTourStep = Math.max(0, Math.min(DEV_TOUR_STEPS.length-1, devTourStep+dir)); renderDevTourStep(); }
-  document.getElementById('devTutorialBtn').addEventListener('click', openDevTour);
+  // The 🎬 button asks which route you're here for, then runs that tour.
+  const P = { box: document.getElementById('devTourPicker'), list: document.getElementById('devTourPickerList'), cancel: document.getElementById('devTourPickerCancel') };
+  function openDevTourPicker(){
+    P.list.innerHTML = Object.entries(DEV_TOURS).map(([key, t])=>
+      `<button type="button" class="dt-choice" data-tour="${key}">
+         <span class="dtc-icon">${t.icon}</span>
+         <span><span class="dtc-name">${esc2(t.label)}</span><span class="dtc-blurb">${esc2(t.blurb)}</span></span>
+       </button>`).join('');
+    P.list.querySelectorAll('[data-tour]').forEach(b=> b.addEventListener('click', ()=> openDevTour(b.dataset.tour)));
+    P.box.style.display = 'block';
+  }
+  function closeDevTourPicker(){ P.box.style.display = 'none'; }
+  function openDevTour(which){
+    closeDevTourPicker();
+    devTourKey = DEV_TOURS[which] ? which : 'single';
+    devTourSteps = DEV_TOURS[devTourKey].steps;
+    devTourStep = 0;
+    T.close.style.display = 'block';
+    renderDevTourStep();
+    window.addEventListener('resize', trackDevTourSpotlight); window.addEventListener('scroll', trackDevTourSpotlight, true);
+  }
+  function closeDevTour(){ closeDevTourPicker(); T.spotlight.style.display = 'none'; T.caption.style.display = 'none'; T.close.style.display = 'none'; window.removeEventListener('resize', trackDevTourSpotlight); window.removeEventListener('scroll', trackDevTourSpotlight, true); }
+  function devTourAdvance(dir){ const step = devTourSteps[devTourStep]; if(dir>0 && step.final){ closeDevTour(); return; } devTourStep = Math.max(0, Math.min(devTourSteps.length-1, devTourStep+dir)); renderDevTourStep(); }
+  document.getElementById('devTutorialBtn').addEventListener('click', openDevTourPicker);
+  P.cancel.addEventListener('click', closeDevTourPicker);
   T.close.addEventListener('click', closeDevTour); T.skip.addEventListener('click', closeDevTour);
   T.back.addEventListener('click', ()=> devTourAdvance(-1)); T.next.addEventListener('click', ()=> devTourAdvance(1));
 
@@ -5346,9 +5416,10 @@ const themesDecl  = text.indexOf('const THEMES = {');
       get batch(){ return batch; }, renderBatch, showTab, showPane, generateMergedFile, KNOWN_ITEMS, KNOWN_TOPICS, KNOWN_THEMES, KNOWN_COURSES, RD, renderStructureList, renderQuestionBank, renderContributors, buildContributorMap, renderLectures,
       // Lets a test walk every tour step and confirm its selector still
       // resolves -- the tour went stale once before (pointed at a removed
-      // element) and nothing caught it. Lazy so DEV_TOUR_STEPS, declared
+      // element) and nothing caught it. Lazy so DEV_TOURS, declared
       // further down, is past its TDZ by the time this is called.
-      tourSteps(){ return DEV_TOUR_STEPS; },
+      tourSteps(){ return [].concat(...Object.values(DEV_TOURS).map(t=>t.steps)); },
+      tours(){ return DEV_TOURS; },
       // Feeds fake rows through the same render path loadAnalytics() uses,
       // without a real Firebase fetch -- lets the Data analysis cards be
       // tested with Firebase blocked (this project's standing test rule).
