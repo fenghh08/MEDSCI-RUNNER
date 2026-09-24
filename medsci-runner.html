@@ -152,7 +152,10 @@
      the life block and the buttons) instead of floating over the lanes --
      portrait phones have no free strip there, so it drops below the HUD. */
   #stallWarning{ top:10px; z-index:23; }
-  @media (orientation:portrait){ #stallWarning{ top:var(--hud-clearance, 70px); z-index:6; } }
+  /* On a phone the road's far end is the whole top half of the screen, so
+     a box there hides exactly what the player needs to see coming. Docked
+     to the bottom instead, beside the cell, where it blocks nothing. */
+  @media (orientation:portrait){ #stallWarning{ top:auto; bottom:8px; z-index:6; font-size:11px; padding:5px 12px; max-width:min(94vw, 360px); } }
   /* Sits a bit lower than the (rarer, red) stall warning so the two can
      coexist without overlapping if both happen to be up at once. */
   #catchUpBanner{ top:48px; z-index:23; border-color:#ffd54d; color:#ffd54d; }
@@ -2953,6 +2956,8 @@
   // thing actually left on screen.
   function abandonIntoResult(){
     clearMcqTimer();
+    mp.giftUnlockPending = false;
+    giftUnlockOverlay.classList.remove('active');
     mcqModal.classList.remove('active');
     scenarioOverlay.classList.remove('active');
     resumeIndicator.style.display = 'none';
@@ -4288,13 +4293,21 @@
   // grenade warning) instead of just a toast -- easy to miss a small toast
   // mid-race, and this is a room-wide moment worth actually noticing.
   function showGiftUnlockAnnouncement(){
+    // Nothing to announce once my run (or the whole race) is over -- gifts
+    // can't be collected any more, and this used to paint itself over the
+    // results screen and stay there (reported: "after win, gift mode screen
+    // still show up").
+    if(mp.finished || screenState==='over' || mpRaceAlreadyOver()){ mp.giftUnlockPending = false; return; }
     screenState = 'giftUnlock';
     syncHudVisibility();
     giftUnlockOverlay.classList.add('active');
     SoundFX.pickup();
     setTimeout(()=>{
-      if(screenState!=='giftUnlock') return; // quit/ended meanwhile
+      // Hide it ALWAYS, even if the race resolved or I quit during these
+      // 2.5s -- the early return used to skip the hide too, which is what
+      // left it stuck over the results screen.
       giftUnlockOverlay.classList.remove('active');
+      if(screenState!=='giftUnlock') return; // quit/ended meanwhile -- don't hand control back
       startResumeCountdown(1500);
     }, 2500);
   }
