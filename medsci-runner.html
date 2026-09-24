@@ -108,6 +108,9 @@
        modal's close button can end up under the status bar. */
     position:relative; }
   h1{ font-family:var(--display); font-weight:400; font-style:italic; font-size:24px; margin:0 0 8px 2px; flex-shrink:0; }
+  /* The artwork carries its own rounded edge and transparent corners, so it
+     needs no frame -- just enough lift to sit on the italic baseline. */
+  h1 .title-icon{ width:32px; height:32px; vertical-align:-8px; margin-right:9px; }
   /* Hidden while actually playing (see syncHudVisibility, which toggles
      this alongside the HUD/lane buttons) -- frees up the title's vertical
      space for #stageEl (its flex:1 sibling) to grow into, which matters
@@ -600,7 +603,7 @@
 </head>
 <body>
 <div id="wrap">
-  <h1>Run Morris Run!</h1>
+  <h1><img src="icons/app-icon-180.png" alt="" class="title-icon">Run Morris Run!</h1>
   <p id="versionTag" style="display:none;">version —</p>
 
   <div id="stageEl">
