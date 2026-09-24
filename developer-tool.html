@@ -58,6 +58,10 @@
   .sidenav button.active{ background:var(--accent-soft); color:var(--accent); font-weight:600; }
   .sidenav button .badge{ margin-left:auto; font-size:11px; background:var(--accent); color:#fff; border-radius:10px; padding:1px 7px; }
   .sidenav button .badge:empty{ display:none; }
+  .sidenav .nav-home{ margin-bottom:4px; font-weight:600; }
+  .sidenav .nav-tag{ margin-left:auto; font-size:10px; letter-spacing:.04em; text-transform:uppercase; background:#e8f7ee; color:#1c7a45;
+    border:1px solid #bfe6cf; border-radius:8px; padding:1px 6px; font-weight:600; }
+  .sidenav button.active .nav-tag{ background:#fff; }
   .sidenav .nav-help{ font-size:11.5px; color:var(--muted); margin:14px 12px 0; line-height:1.45; }
   main{ padding:22px 26px 60px; max-width:1240px; width:100%; }
   section[data-section]{ display:none; }
@@ -314,6 +318,43 @@
   #devTutorialCaption .dt-dot{ width:6px; height:6px; border-radius:50%; background:var(--line-strong); }
   #devTutorialCaption .dt-dot.on{ background:var(--accent); }
   #devTutorialCloseBtn{ position:fixed; top:14px; right:14px; z-index:9002; display:none; width:32px; height:32px; border-radius:8px; padding:0; }
+
+  /* ---- My lecture: the lecture-first flow for teaching staff ----
+     Deliberately hides topic/item/theme wording. The concept list is scoped
+     to the chosen lecture so it stays short and reuse is the obvious move --
+     89 of 139 items in one course ended up with a single question each,
+     which is what this is built to stop. */
+  .ml-bar{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; background:var(--accent-soft); border:1px solid var(--line);
+    border-radius:12px; padding:12px 16px; margin-bottom:16px; }
+  .ml-bar .ml-lec{ font-size:16px; font-weight:600; color:var(--accent); }
+  .ml-bar .ml-lec small{ display:block; font-weight:400; color:var(--muted); font-size:12.5px; margin-top:2px; }
+  .ml-bar .ml-stats{ font-size:12.5px; color:var(--muted); margin-left:auto; text-align:right; }
+  .ml-lead{ font-size:13px; color:var(--muted); line-height:1.55; margin:0 0 14px; max-width:720px; }
+  .ml-concept{ border:1px solid var(--line); border-radius:12px; margin-bottom:10px; background:#fff; overflow:hidden; }
+  .ml-concept.thin{ border-color:#f0d9a8; }
+  .mlc-head{ display:flex; align-items:center; gap:12px; padding:13px 16px; }
+  .mlc-name{ font-weight:600; font-size:14.5px; }
+  .mlc-count{ font-size:12px; color:var(--muted); background:#f4f5f9; border-radius:10px; padding:2px 9px; white-space:nowrap; }
+  .ml-concept.thin .mlc-count{ background:#fff7e6; color:#7a5a12; }
+  .mlc-head .mlc-actions{ margin-left:auto; display:flex; gap:8px; align-items:center; }
+  .mlc-qlist{ border-top:1px solid var(--line); background:#fafbfd; padding:4px 16px 10px; font-size:12.5px; }
+  .mlc-qlist div{ padding:6px 0; border-bottom:1px solid #eef0f5; color:#444; }
+  .mlc-qlist div:last-child{ border-bottom:none; }
+  .mlc-form{ border-top:1px solid var(--line); padding:16px; background:#fbfaff; }
+  .mlq-opt{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .mlq-opt input[type=text]{ flex:1; }
+  .mlq-opt .mlq-del{ background:none; border:none; color:var(--muted); cursor:pointer; font-size:15px; padding:4px 8px; }
+  .ml-newbox{ border:1px dashed var(--line); border-radius:12px; padding:16px; margin-top:18px; background:#fff; }
+  .ml-dupe{ margin-top:10px; padding:10px 13px; border-radius:9px; background:#fff7e6; border:1px solid #f0d9a8; color:#7a5a12; font-size:12.5px; line-height:1.5; }
+  .ml-dupe button{ margin:6px 6px 0 0; }
+  /* Splits a long stack of cards into scannable groups (Data analysis). */
+  .sec-group{ display:flex; align-items:baseline; gap:10px; margin:26px 0 10px; }
+  .sec-group:first-of-type{ margin-top:6px; }
+  .sec-group h3{ margin:0; font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+  .sec-group span{ font-size:12.5px; color:var(--muted); }
+  .sec-group::after{ content:''; flex:1; height:1px; background:var(--line); }
+  .card > h3.card-title{ margin:0 0 4px; font-size:15.5px; }
+  .ml-empty{ padding:26px; text-align:center; color:var(--muted); font-size:13.5px; border:1px dashed var(--line); border-radius:12px; }
 </style>
 </head>
 <body>
@@ -348,21 +389,22 @@
 
 <div class="shell">
   <nav class="sidenav">
-    <div class="nav-title">Contribute</div>
-    <button id="tabStart" data-tab="start" class="active">🚀 <span>Start here</span></button>
+    <button id="tabStart" data-tab="start" class="active nav-home">🚀 <span>Start here</span></button>
+    <div class="nav-title">Add content</div>
+    <button id="tabMyLecture" data-tab="mylecture">🎓 <span>My lecture</span><span class="nav-tag">easy</span></button>
+    <button id="tabAdd" data-tab="add">✚ <span>Add anything</span></button>
     <button id="tabCsv" data-tab="csv">📄 <span>Bulk import</span></button>
+    <div class="nav-title">Browse what's there</div>
+    <button id="tabStructure" data-tab="structure">📖 <span>All content</span></button>
     <button id="tabLectures" data-tab="lectures">📚 <span>Lectures</span></button>
-    <button id="tabAdd" data-tab="add">✚ <span>Add content</span></button>
-    <div class="nav-title">Browse</div>
-    <button id="tabStructure" data-tab="structure">📖 <span>Browse content</span></button>
-    <button id="tabGuideSim" data-tab="guidesim">🎓 <span>Study guide preview</span></button>
     <button id="tabQuestionBank" data-tab="questionbank">🗃️ <span>Question bank</span></button>
+    <button id="tabGuideSim" data-tab="guidesim">👁 <span>Study guide preview</span></button>
     <div class="nav-title">Review</div>
     <button id="tabQueue" data-tab="queue">👥 <span>Team queue</span><span class="badge" id="queueTabBadge"></span></button>
     <button id="tabReports" data-tab="reports">⚠️ <span>Reports</span><span class="badge" id="reportsTabBadge"></span></button>
     <button id="tabFeedback" data-tab="feedback">💬 <span>Feedback</span></button>
-    <button id="tabMaintainer" data-tab="maintainer">🛠 <span>Admin</span></button>
-    <div class="nav-title" id="navTitleMaintainerTools" style="display:none;">Admin tools</div>
+    <div class="nav-title">Admin</div>
+    <button id="tabMaintainer" data-tab="maintainer">🛠 <span>Merge &amp; settings</span></button>
     <button id="tabContributors" data-tab="contributors" style="display:none;">🙋 <span>Contributors</span></button>
     <button id="tabDataAnalysis" data-tab="analysis" style="display:none;">📊 <span>Data analysis</span></button>
     <div class="nav-help">Everything you add goes to the shared Team queue first. Nothing reaches the game until the admin merges it.</div>
@@ -375,18 +417,24 @@
         <h2>Start here <button class="info-btn" data-info="overview" title="How this works">i</button></h2>
         <p>The whole flow in four steps. Most people only ever need the first three — the sheet, paste it in, done. Nothing you add touches the game until an admin merges it, so there's no way to break anything.</p>
       </div>
+      <div class="card" style="border-color:var(--accent-line);background:var(--accent-soft);">
+        <h3 class="card-title">🎓 Teaching a lecture? Start here instead</h3>
+        <p class="card-sub" style="margin-bottom:10px;">If you just want to add a few questions for your own lecture — for a workshop, say — you don't need the sheet or any of the steps below. Pick your lecture and type them straight in.</p>
+        <div class="btn-row"><button type="button" class="primary" data-goto="mylecture">🎓 Add questions for my lecture</button></div>
+      </div>
+      <div class="sec-group"><h3>Adding a lot at once</h3><span>the four-step route for a whole course</span></div>
       <div class="card">
-        <h2 style="margin-top:0;">1 · Get the template sheet</h2>
+        <h3 class="card-title">1 · Get the template sheet</h3>
         <p class="card-sub">Work in Google Sheets — one row per question. Make a copy of the template so you have the exact column layout; there's a tab in it for questions and one for lectures. Type your name and email at the top of this page too — that's how your work gets credited, and how an admin can reach you about it.</p>
         <div class="btn-row"><a class="link-btn" style="font-size:13px;text-decoration:none;" href="https://docs.google.com/spreadsheets/d/1BlL64j0qI--hMyGCwRw3hcRho6tvo_-CfkiIAf01ZG4/edit?usp=sharing" target="_blank" rel="noopener">📋 Open the template sheet ↗</a></div>
       </div>
       <div class="card">
-        <h2 style="margin-top:0;">2 · Fill it in</h2>
+        <h3 class="card-title">2 · Fill it in</h3>
         <p class="card-sub"><b>Questions:</b> course code (e.g. <code>MEDS3002</code>), lecture (e.g. <code>L14</code>), topic, item name, the prompt, four options, and which is correct. If the item doesn't exist yet it's created for you. <b>Lectures &amp; learning outcomes:</b> lecture number, name, and the outcomes separated by semicolons — one row per lecture, on the lectures tab of the sheet.</p>
         <p class="card-sub">Topics and courses have to exist before a row can point at them. Topics you can add yourself under Add content; a brand-new course is admin-only — ask one of the admins and it takes a minute.</p>
       </div>
       <div class="card">
-        <h2 style="margin-top:0;">3 · Paste it into the tool</h2>
+        <h3 class="card-title">3 · Paste it into the tool</h3>
         <p class="card-sub">Select the filled-in rows in your sheet, copy, then click a cell in the table here and paste — it fills every cell you copied and grows the table if needed. Each row is checked as you go; anything missing gets a note and, where possible, a button straight to the fix.</p>
         <div class="btn-row">
           <button type="button" class="primary" data-goto="csv">📄 Paste questions (Bulk import)</button>
@@ -405,6 +453,44 @@
           <tr><td>Add or edit questions, items, topics, lectures and learning outcomes; request deletions; flag anything for review</td><td>Create a course; merge the queue into the real game file; remove things from the queue; see who contributed what; read the answer analytics</td></tr>
         </table>
         <p class="card-sub" style="margin-top:8px;">Admins: Eason, Sara, Caitlin, Stephanie, Valerie, Henry — unlock under <button type="button" class="link-btn" data-goto="maintainer">Admin</button> with the PIN.</p>
+      </div>
+    </section>
+
+
+    <!-- ================= MY LECTURE (lecture-first flow for teaching staff) ================= -->
+    <section data-section="mylecture">
+      <div class="section-head">
+        <h2>My lecture <button class="info-btn" data-info="mylecture" title="How this works">i</button></h2>
+        <p>Pick your lecture once, then add questions straight to it. Everything goes to the Team queue for review, same as anywhere else.</p>
+      </div>
+
+      <div class="card" id="ml_pickerCard">
+        <h3 style="margin-top:0;">Which lecture are you adding for?</h3>
+        <div class="row2">
+          <label class="field"><span class="fl-label">Course</span><select id="ml_course"></select></label>
+          <label class="field"><span class="fl-label">Lecture</span><select id="ml_lecture"></select></label>
+        </div>
+        <div class="btn-row"><button class="primary" id="ml_openBtn">Open this lecture →</button></div>
+      </div>
+
+      <div id="ml_workspace" style="display:none;">
+        <div class="ml-bar">
+          <div class="ml-lec" id="ml_barTitle">—<small id="ml_barSub"></small></div>
+          <div class="ml-stats" id="ml_barStats"></div>
+          <button id="ml_changeBtn">Change lecture</button>
+        </div>
+        <p class="ml-lead">Add each question to the concept it's about. <b>Reuse a concept wherever you can</b> — a concept with a single question doesn't give students anything to revise from, and the study guide fills up with near-duplicates.</p>
+        <div id="ml_concepts"></div>
+        <div class="ml-newbox">
+          <h3 style="margin:0 0 4px;font-size:14.5px;">Nothing above fits?</h3>
+          <p class="card-sub" style="margin:0 0 10px;">Only add a new concept if this question is genuinely about something the list doesn't cover.</p>
+          <div class="row2">
+            <label class="field" style="margin-bottom:0;"><span class="fl-label">New concept name</span><input type="text" id="ml_newName" placeholder="e.g. Krebs cycle"></label>
+            <label class="field" style="margin-bottom:0;"><span class="fl-label">Group it under</span><select id="ml_newTopic"></select></label>
+          </div>
+          <div id="ml_dupeWarn"></div>
+          <div class="btn-row"><button id="ml_newBtn">+ Add this concept</button></div>
+        </div>
       </div>
     </section>
 
@@ -918,14 +1004,20 @@
         <div class="btn-row"><button id="analyticsRefreshBtn">🔄 Refresh</button><span id="analyticsStatus" class="status"></span></div>
         <div class="struct-stats" id="analyticsSummary" style="margin-top:12px;"></div>
       </div>
+      <div class="sec-group"><h3>Worth acting on</h3><span>questions the data says are broken or mistagged</span></div>
       <div class="card">
-        <h2 style="margin-top:0;">⚠️ Needs review <span class="struct-qbadge" id="needsReviewCount"></span></h2>
+        <h3 class="card-title">⚠️ Needs review <span class="struct-qbadge" id="needsReviewCount"></span></h3>
         <p class="card-sub">Auto-surfaced: a high miss rate with enough attempts to trust it, or a difficulty tag that doesn't match how the question actually performs (e.g. tagged "easy" but missed most of the time). Flag one straight to the team's Reports queue, or jump in and fix it yourself.</p>
         <div id="needsReviewList"></div>
       </div>
       <div class="card">
-        <h2 style="margin-top:0;">📐 Question quality <span class="struct-qbadge" id="qualityCount"></span></h2>
-        <p class="card-sub">Uses each player's <b>first</b> attempt only. <b>% correct</b> is how hard the question is; <b>D</b> (discrimination index) is how much better the strongest players do than the weakest — the share of the top 27% (by their own accuracy on other questions) who got it right minus the share of the bottom 27%. A low D means the question isn't telling students apart, and the verdict separates the two reasons: <b>too easy</b> (nearly everyone is right, so D is naturally low) versus <b>poorly written</b> (mid-difficulty, yet strong players do no better than weak ones). D ≥ 0.40 excellent · 0.30–0.39 good · 0.20–0.29 fair · 0.10–0.19 marginal · under 0.10 poor · negative means check the marked answer.</p>
+        <h3 class="card-title">📐 Question quality <span class="struct-qbadge" id="qualityCount"></span></h3>
+        <p class="card-sub">Uses each player's <b>first</b> attempt only. <b>% correct</b> is how hard a question is; <b>D</b> is how well it separates strong students from weak ones. A low D means it isn't telling them apart.</p>
+        <details class="more" style="margin:-2px 0 10px;"><summary>What the numbers mean</summary><div>
+          <p class="card-sub" style="margin-top:8px;"><b>D (discrimination index)</b> — the share of the top 27% of players (by their accuracy on everything else) who got this right, minus the share of the bottom 27%.</p>
+          <p class="card-sub">D ≥ 0.40 excellent · 0.30–0.39 good · 0.20–0.29 fair · 0.10–0.19 marginal · under 0.10 poor · <b>negative means check the marked answer</b>.</p>
+          <p class="card-sub">A low D has two very different causes, and the verdict column separates them: <b>too easy</b> (nearly everyone is right, so D is naturally low — fine, just not discriminating) versus <b>poorly written</b> (mid-difficulty, yet strong players do no better than weak ones — that one needs a look).</p>
+        </div></details>
         <div class="btn-row" style="align-items:center;">
           <label style="font-weight:normal;font-size:13px;">Show
             <select id="qualityFilter" style="margin-left:6px;">
@@ -938,8 +1030,9 @@
         </div>
         <div id="qualityTableWrap" style="margin-top:12px;overflow-x:auto;"></div>
       </div>
+      <div class="sec-group"><h3>Where students struggle</h3><span>by course and topic, not question by question</span></div>
       <div class="card">
-        <h2 style="margin-top:0;">By course</h2>
+        <h3 class="card-title">By course</h3>
         <p class="card-sub">Sorted hardest first (lowest accuracy).</p>
         <div id="analyticsByCourse" style="overflow-x:auto;"></div>
       </div>
@@ -949,8 +1042,9 @@
           <div id="analyticsByTopic" style="overflow-x:auto;"></div>
         </div></details>
       </div>
+      <div class="sec-group"><h3>Question by question</h3><span>the full ranked list</span></div>
       <div class="card">
-        <h2 style="margin-top:0;">Hardest questions</h2>
+        <h3 class="card-title">Hardest questions</h3>
         <p class="card-sub">Sorted by miss rate. Low-attempt questions are noisy (one wrong answer out of one attempt is a 100% miss rate) — raise the minimum to filter those out.</p>
         <div class="btn-row"><label style="font-weight:normal;font-size:13px;">Minimum attempts <input type="number" id="analyticsMinAttempts" value="3" min="0" style="width:60px;margin-left:6px;"></label></div>
         <div id="analyticsTableWrap" style="margin-top:12px;overflow-x:auto;"></div>
@@ -1107,7 +1201,10 @@
   function applyMaintainerLockUI(){
     maintainerLockGate.style.display = maintainerUnlocked ? 'none' : 'block';
     maintainerLockedContent.style.display = maintainerUnlocked ? 'block' : 'none';
-    ['navTitleMaintainerTools','tabContributors','tabDataAnalysis'].forEach(id=>{ document.getElementById(id).style.display = maintainerUnlocked ? '' : 'none'; });
+    // Contributors/Data analysis now sit under the always-visible Admin
+    // heading (the old admin-only heading is gone), so only the two buttons
+    // toggle -- guarded so a missing id can never break the whole unlock.
+    ['tabContributors','tabDataAnalysis'].forEach(id=>{ const el = document.getElementById(id); if(el) el.style.display = maintainerUnlocked ? '' : 'none'; });
     // The Course chip/pane under Add content is admin-only too -- hide the
     // chip entirely rather than showing it and blocking on submit, and if a
     // non-admin is somehow sitting on that pane when locking (e.g. it was
@@ -4055,9 +4152,249 @@
   // ======================================================================
   // NAVIGATION
   // ======================================================================
+
+  // ======================================================================
+  // MY LECTURE -- the lecture-first flow for teaching staff
+  // ----------------------------------------------------------------------
+  // Lecturers think in lectures, not in the game's theme/topic/item tree,
+  // and "item" has no equivalent in a normal uni question bank. So this
+  // page asks for a lecture once, then shows only the concepts already
+  // tagged to THAT lecture -- a short, familiar list -- with adding a
+  // question to an existing concept as the obvious action. Creating a new
+  // concept is deliberately secondary and name-checked against what's
+  // already there, because the alternative (a fresh concept per question)
+  // is what left one course with 89 single-question items.
+  // Everything here ends up in the same Team queue via pushToQueue().
+  // ======================================================================
+  const ML_KEY = 'runnerToolMyLecture';
+  let mlCourse = '', mlClass = '';
+  const ml_course = document.getElementById('ml_course'), ml_lecture = document.getElementById('ml_lecture');
+  const ml_pickerCard = document.getElementById('ml_pickerCard'), ml_workspace = document.getElementById('ml_workspace');
+  const ml_concepts = document.getElementById('ml_concepts'), ml_newTopic = document.getElementById('ml_newTopic');
+  const ml_newName = document.getElementById('ml_newName'), ml_dupeWarn = document.getElementById('ml_dupeWarn');
+
+  function mlFillCourses(){
+    const codes = Object.keys(KNOWN_COURSES);
+    ml_course.innerHTML = codes.map(c=>`<option value="${c}">${esc2(KNOWN_COURSES[c].code)} — ${esc2(KNOWN_COURSES[c].label||'')}</option>`).join('');
+    if(mlCourse && KNOWN_COURSES[mlCourse]) ml_course.value = mlCourse;
+    mlFillLectures();
+  }
+  function mlFillLectures(){
+    const c = KNOWN_COURSES[ml_course.value];
+    const classes = c ? c.classes : {};
+    const keys = Object.keys(classes);
+    ml_lecture.innerHTML = keys.length
+      ? keys.map(k=>`<option value="${k}">${esc2(k)} — ${esc2(classes[k].label||'')}</option>`).join('')
+      : '<option value="">(this course has no lectures yet)</option>';
+    if(mlClass && classes[mlClass]) ml_lecture.value = mlClass;
+  }
+  // Every item tagged to this lecture -- including ones that merely "span"
+  // it, so a shared concept shows up under each lecture that teaches it.
+  function mlItemsForLecture(course, cls){
+    const want = courseDisplayString(course, cls);
+    return KNOWN_ITEMS.filter(it=>{
+      if(it.course===course && it.class===cls) return true;
+      return String(it.relatedCourse||'').split('\n').map(x=>x.trim()).filter(Boolean).includes(want);
+    });
+  }
+  function mlLiveItem(id){
+    for(const th of Object.values(RD.THEMES)) for(const tp of Object.values(th.topics)) if(tp.items[id]) return tp.items[id];
+    return null;
+  }
+  function mlOpen(course, cls){
+    mlCourse = course; mlClass = cls;
+    try{ localStorage.setItem(ML_KEY, JSON.stringify({ course, cls })); }catch(e){}
+    ml_pickerCard.style.display = 'none';
+    ml_workspace.style.display = 'block';
+    mlRender();
+  }
+  function mlRender(){
+    const c = KNOWN_COURSES[mlCourse] || { code:mlCourse, classes:{} };
+    const lec = (c.classes||{})[mlClass] || {};
+    document.getElementById('ml_barTitle').innerHTML = `🎓 ${esc2(c.code||mlCourse)} ${esc2(mlClass)}<small>${esc2(lec.label||'')}</small>`;
+    const items = mlItemsForLecture(mlCourse, mlClass);
+    const counts = items.map(it=> (mlLiveItem(it.id)?.questions || []).length);
+    const totalQ = counts.reduce((a,b)=>a+b, 0);
+    const thin = counts.filter(n=>n<=1).length;
+    document.getElementById('ml_barStats').innerHTML =
+      `${items.length} concept${items.length===1?'':'s'} · ${totalQ} question${totalQ===1?'':'s'}` +
+      (thin ? `<br><span style="color:#7a5a12;">${thin} with 1 or none — add to those first</span>` : '');
+    // Topic select for a new concept: only the topics this course actually uses.
+    const themeIds = new Set(items.map(it=>it.theme));
+    if(!themeIds.size) KNOWN_THEMES.forEach(t=>themeIds.add(t.id));
+    const topics = Object.entries(KNOWN_TOPICS).filter(([,t])=>themeIds.has(t.theme));
+    ml_newTopic.innerHTML = topics.length
+      ? topics.map(([id,t])=>`<option value="${id}">${esc2(t.label)}</option>`).join('')
+      : '<option value="">(no topics yet)</option>';
+
+    if(!items.length){
+      ml_concepts.innerHTML = `<div class="ml-empty">No concepts are tagged to this lecture yet.<br>Add the first one below — then add your questions to it.</div>`;
+      return;
+    }
+    // Most-developed concepts first: the ones worth adding to are at the top.
+    const rows = items.map((it,i)=>({ it, n:counts[i] })).sort((a,b)=> b.n - a.n || a.it.label.localeCompare(b.it.label));
+    ml_concepts.innerHTML = rows.map(({it,n})=>{
+      const live = mlLiveItem(it.id);
+      const qs = (live?.questions || []);
+      return `<div class="ml-concept${n<=1?' thin':''}" data-item="${esc2(it.id)}">
+        <div class="mlc-head">
+          <span class="mlc-name">${esc2(it.label)}</span>
+          <span class="mlc-count">${n} question${n===1?'':'s'}</span>
+          <span class="mlc-actions">
+            ${qs.length?`<button data-ml-toggle="${esc2(it.id)}">See questions</button>`:''}
+            <button class="primary" data-ml-add="${esc2(it.id)}">+ Add question here</button>
+          </span>
+        </div>
+        ${qs.length?`<div class="mlc-qlist" data-ml-qlist="${esc2(it.id)}" style="display:none;">${qs.map(q=>`<div>${esc2(q.prompt)}</div>`).join('')}</div>`:''}
+        <div class="mlc-form" data-ml-form="${esc2(it.id)}" style="display:none;"></div>
+      </div>`;
+    }).join('');
+  }
+  // --- the small question form that opens inside a concept card ---
+  function mlQuestionFormHtml(itemId){
+    return `
+      <label class="field"><span class="fl-label">Question</span><textarea data-mlf="prompt" rows="2" placeholder="e.g. Which enzyme commits acetyl-CoA to the Krebs cycle?"></textarea></label>
+      <label class="field"><span class="fl-label">Answer options</span><span class="fl-help">Tick the correct one.</span><div data-mlf="opts"></div></label>
+      <button data-mlf="addopt">+ Add option</button>
+      <label class="field" style="margin-top:10px;"><span class="fl-label">Why it's correct</span><span class="fl-help">Optional — shown to students after they answer.</span><textarea data-mlf="explain" rows="2"></textarea></label>
+      <label class="field" style="max-width:200px;"><span class="fl-label">Difficulty</span><select data-mlf="difficulty"><option value="easy">🟢 Easy</option><option value="medium" selected>🟡 Medium</option><option value="hard">🔴 Hard</option></select></label>
+      <div class="btn-row"><button class="primary" data-mlf="save">+ Add to queue</button><button data-mlf="cancel">Cancel</button></div>`;
+  }
+  function mlBuildOptionRows(box, n){
+    box.innerHTML = '';
+    for(let i=0;i<n;i++) mlAddOptionRow(box, i===0);
+  }
+  function mlAddOptionRow(box, checked){
+    const row = document.createElement('div');
+    row.className = 'mlq-opt';
+    row.innerHTML = `<input type="radio" name="mlq-${box.dataset.grp}"${checked?' checked':''}><input type="text" placeholder="Answer option"><button class="mlq-del" title="Remove">✕</button>`;
+    row.querySelector('.mlq-del').addEventListener('click', ()=>{
+      if(box.children.length<=2){ toast('Keep at least two options'); return; }
+      const wasChecked = row.querySelector('input[type=radio]').checked;
+      row.remove();
+      if(wasChecked) box.querySelector('input[type=radio]').checked = true;
+    });
+    box.appendChild(row);
+  }
+  function mlOpenForm(itemId){
+    const form = ml_concepts.querySelector(`[data-ml-form="${CSS.escape(itemId)}"]`);
+    if(!form) return;
+    if(form.style.display==='block'){ form.style.display='none'; return; }
+    ml_concepts.querySelectorAll('.mlc-form').forEach(f=>{ f.style.display='none'; f.innerHTML=''; });
+    form.innerHTML = mlQuestionFormHtml(itemId);
+    form.style.display = 'block';
+    const box = form.querySelector('[data-mlf="opts"]');
+    box.dataset.grp = itemId;
+    mlBuildOptionRows(box, 4);
+    form.querySelector('[data-mlf="addopt"]').addEventListener('click', ()=>{
+      if(box.children.length>=6){ toast('6 options is the maximum'); return; }
+      mlAddOptionRow(box, false);
+    });
+    form.querySelector('[data-mlf="cancel"]').addEventListener('click', ()=>{ form.style.display='none'; form.innerHTML=''; });
+    form.querySelector('[data-mlf="save"]').addEventListener('click', ()=> mlSaveQuestion(itemId, form));
+    form.querySelector('[data-mlf="prompt"]').focus();
+  }
+  function mlSaveQuestion(itemId, form){
+    if(!requireContributorIdentity()) return;
+    const prompt = form.querySelector('[data-mlf="prompt"]').value.trim();
+    if(!prompt){ toast('Write the question first'); return; }
+    const rows = [...form.querySelectorAll('.mlq-opt')];
+    const options = rows.map(r=>r.querySelector('input[type=text]').value.trim());
+    const correctIndex = Math.max(0, rows.findIndex(r=>r.querySelector('input[type=radio]').checked));
+    if(options.filter(Boolean).length < 2){ toast('Fill in at least two answer options'); return; }
+    if(!options[correctIndex]){ toast('The option you ticked as correct is empty'); return; }
+    // Drop blanks, keeping the ticked one pointing at the same answer.
+    const correctText = options[correctIndex];
+    const kept = options.filter(Boolean);
+    const known = KNOWN_ITEMS.find(it=>it.id===itemId) || {};
+    const o = {
+      prompt, options:kept, correctIndex: kept.indexOf(correctText),
+      explanation: form.querySelector('[data-mlf="explain"]').value.trim(),
+      difficulty: form.querySelector('[data-mlf="difficulty"]').value,
+      hashtags: [], theme: known.theme, topic: known.topic, itemId,
+      qId: 'q-' + (known.topic||'x') + '-' + randSuffix(), editingQuestionId: null,
+      // Inherits the concept's own lecture -- that's the whole point of
+      // being here, so nothing is written to override it.
+      course:'', class:'', relatedCourseOverride:null, addCourseSnippet:'', addClassSnippet:'',
+    };
+    pushToQueue({ type:'question', title:prompt.slice(0,50), code:questionCodeString(o),
+      note:`🎓 ${courseDisplayString(mlCourse, mlClass)} · ${esc2(known.label||itemId)}`, data:o });
+    toast('Added to the queue');
+    form.style.display='none'; form.innerHTML='';
+  }
+  // --- new concept, with a near-duplicate check against the whole course ---
+  function mlCheckDupe(){
+    const name = ml_newName.value.trim();
+    ml_dupeWarn.innerHTML = '';
+    if(name.length < 3) return;
+    const mine = bigramSet(normQ(name));
+    const hits = KNOWN_ITEMS
+      .filter(it=>it.course===mlCourse || !it.course)
+      .map(it=>({ it, sim: diceSets(mine, bigramSet(normQ(it.label))) }))
+      .filter(x=>x.sim > 0.45)
+      .sort((a,b)=>b.sim-a.sim).slice(0,3);
+    if(!hits.length) return;
+    const inLecture = new Set(mlItemsForLecture(mlCourse, mlClass).map(i=>i.id));
+    ml_dupeWarn.innerHTML = `<div class="ml-dupe"><b>These already exist — could your question go on one of them instead?</b><br>` +
+      hits.map(h=>`${esc2(h.it.label)}${inLecture.has(h.it.id) ? ' <span style="color:#1c7a45;">(already in this lecture)</span>' : ` <span style="color:var(--muted);">(${esc2(courseDisplayString(h.it.course, h.it.class)||'no lecture')})</span>`}`).join('<br>') +
+      `</div>`;
+  }
+  function mlAddConcept(){
+    if(!requireContributorIdentity()) return;
+    const label = ml_newName.value.trim();
+    if(!label){ toast('Give the concept a name'); ml_newName.focus(); return; }
+    const topicId = ml_newTopic.value;
+    if(!topicId){ toast('Pick what to group it under'); return; }
+    const theme = (KNOWN_TOPICS[topicId]||{}).theme || (KNOWN_THEMES[0]||{}).id;
+    const itemId = slugify(label) + '_' + randSuffix();
+    const o = {
+      itemId, label, theme, topicId, images:[],
+      description:'', mechanism:'', funFacts:[], notes:[], activeRecall:[], saq:[], refs:[], hashtags:[],
+      course: mlCourse, class: mlClass, relatedCourseOverride:null,
+      usingNewTopic:false, addCourseSnippet:'', addClassSnippet:'', editingItemId:null, courseInfo: blankCourseInfo(),
+    };
+    KNOWN_ITEMS.push({ id:itemId, theme, topic:topicId, label, course:mlCourse, class:mlClass, relatedCourse:'' });
+    pushToQueue({ type:'item', title:label, code:itemCodeString(o),
+      note:`🎓 ${courseDisplayString(mlCourse, mlClass)} · new concept`, data:o });
+    toast('Concept added to the queue — you can add questions to it now');
+    ml_newName.value = ''; ml_dupeWarn.innerHTML = '';
+    mlRender();
+  }
+  ml_course.addEventListener('change', mlFillLectures);
+  document.getElementById('ml_openBtn').addEventListener('click', ()=>{
+    if(!ml_lecture.value){ toast('This course has no lectures yet — add one under Lectures first'); return; }
+    mlOpen(ml_course.value, ml_lecture.value);
+  });
+  document.getElementById('ml_changeBtn').addEventListener('click', ()=>{
+    ml_workspace.style.display = 'none'; ml_pickerCard.style.display = 'block';
+    mlFillCourses();
+  });
+  ml_concepts.addEventListener('click', e=>{
+    const add = e.target.closest('[data-ml-add]');
+    if(add){ mlOpenForm(add.dataset.mlAdd); return; }
+    const tog = e.target.closest('[data-ml-toggle]');
+    if(tog){
+      const list = ml_concepts.querySelector(`[data-ml-qlist="${CSS.escape(tog.dataset.mlToggle)}"]`);
+      if(list){ const open = list.style.display==='block'; list.style.display = open?'none':'block'; tog.textContent = open?'See questions':'Hide questions'; }
+    }
+  });
+  ml_newName.addEventListener('input', mlCheckDupe);
+  document.getElementById('ml_newBtn').addEventListener('click', mlAddConcept);
+  function mlInit(){
+    mlFillCourses();
+    try{
+      const saved = JSON.parse(localStorage.getItem(ML_KEY)||'null');
+      if(saved && KNOWN_COURSES[saved.course] && KNOWN_COURSES[saved.course].classes[saved.cls]){
+        ml_course.value = saved.course; mlFillLectures(); ml_lecture.value = saved.cls;
+        mlOpen(saved.course, saved.cls);
+      }
+    }catch(e){}
+  }
+
   function showTab(which){
     document.querySelectorAll('.sidenav [data-tab]').forEach(b=> b.classList.toggle('active', b.dataset.tab===which));
     document.querySelectorAll('section[data-section]').forEach(s=> s.classList.toggle('active', s.dataset.section===which));
+    if(which==='mylecture'){ mlFillCourses(); if(ml_workspace.style.display!=='none') mlRender(); }
     if(which==='structure') renderStructureList();
     if(which==='guidesim') renderGuideSim();
     if(which==='lectures'){ renderLectures(); fillLecAddCourseSelect(); }
@@ -4081,6 +4418,14 @@
   // ⓘ HOW THIS WORKS — short technical notes for the curious
   // ======================================================================
   const INFO_NOTES = {
+    mylecture: { title:'My lecture', tags:['lecture-first','concepts'], body:`
+      <p>Adding questions the way teaching staff actually think: pick your lecture, then add questions to the concepts it already covers.</p>
+      <p>A <b>concept</b> is what the game calls an "item" — the study-guide page a question hangs off. There's no equivalent in a normal
+      uni question bank, so this page never asks you to browse the whole list: it shows only the concepts tagged to <i>your</i> lecture.</p>
+      <p><b>Why reuse matters:</b> a concept with a single question gives students nothing to revise from, and the study guide fills with
+      near-duplicates. One course here ended up with 89 single-question concepts that way. Adding a new concept is still one click — it's
+      just deliberately the second option, and the name is checked against what already exists.</p>
+      <p>Everything you add goes to the Team queue for review, exactly like the full <b>Add anything</b> form.</p>`},
     overview: { title:'How it all fits together', tags:['architecture','no build step'], body:`
       <p><b>For contributors:</b> fill in the template sheet (one row per question; a separate tab for lectures and learning outcomes) → paste the rows into <b>Bulk import</b> or <b>Lectures</b> → they land in the shared <b>Team queue</b> → an admin merges them into the game. That's the whole loop; the Start here tab walks it step by step.</p>
       <p><b>Under the hood:</b> three files do everything — <b>medsci-runner.html</b> (the game), <b>game-data.js</b> (every course, item and question as plain data) and <b>this page</b> (the content tool). No framework, no bundler, no server — each file is opened straight from the folder or from GitHub Pages.</p>
@@ -4244,6 +4589,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
   applyMaintainerLockUI();
   renderIncompleteFilterChecks();
   renderItem(); renderQuestion(); renderCourse(); renderStructureList();
+  mlInit();
   renderBatch();
   if(new URLSearchParams(location.search).has('debug')){
     window.__devToolDebug = {
