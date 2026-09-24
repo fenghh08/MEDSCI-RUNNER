@@ -439,6 +439,10 @@
   .lb-row > span:first-child{ overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:0; }
   .lb-row > span:last-child{ flex-shrink:0; white-space:nowrap; }
   #mpLeaderboardPanel{ max-height:170px; overflow-y:auto; }
+  .host-ctl{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:center; margin:0 auto 12px; padding:10px 14px;
+    border:1px solid var(--panel-line); border-radius:12px; background:var(--bg-1); font-size:12.5px; }
+  .host-ctl input{ width:60px; text-align:center; font-family:var(--mono); font-size:13px; background:var(--bg-0); color:var(--hud-ink);
+    border:1px solid var(--panel-line); border-radius:8px; padding:5px 4px; }
   /* Host-only (non-racing host) view */
   .spec-row{ display:grid; grid-template-columns:28px minmax(0,1fr) 54px 118px 66px 56px; align-items:center; gap:8px; background:var(--bg-1);
     border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px; margin-bottom:6px; font-size:12.5px; }
@@ -873,6 +877,12 @@
         <button class="secondary" id="quitFromPauseBtn">🏠 Quit to menu</button>
         <button class="secondary" id="endGameFromPauseBtn" style="border-color:var(--danger);color:var(--danger);">🏁 End game &amp; view summary</button>
       </div>
+      <div class="host-ctl" id="pauseHostControls" style="display:none;margin-top:14px;">
+        <b>Host</b>
+        <button class="secondary" id="pauseEndNowBtn" style="border-color:var(--danger);color:var(--danger);">⏹ End race for everyone</button>
+        <span>or in <input type="number" id="pauseEndSecs" min="1" max="90" value="30"> s <span style="color:var(--hud-dim);">(max 90)</span></span>
+        <button class="secondary" id="pauseEndCountdownBtn">⏱ Start countdown</button>
+      </div>
     </div>
 
     <!-- GAME OVER -->
@@ -891,6 +901,11 @@
     <div class="screen" id="spectatorScreen">
       <h2 id="specTitle">Live leaderboard</h2>
       <p class="desc" id="specSub"></p>
+      <div class="host-ctl" id="specHostControls" style="display:none;">
+        <button class="secondary" id="specEndNowBtn" style="border-color:var(--danger);color:var(--danger);">⏹ End race now</button>
+        <span>or end in <input type="number" id="specEndSecs" min="1" max="90" value="30"> s <span style="color:var(--hud-dim);">(max 90)</span></span>
+        <button class="secondary" id="specEndCountdownBtn">⏱ Start countdown</button>
+      </div>
       <div id="specBanner" style="display:none;margin:0 auto 12px;padding:6px 14px;border:1px solid #ffd54d;color:#ffd54d;border-radius:20px;font-size:12.5px;"></div>
       <div id="specBoard" style="width:100%;max-width:680px;text-align:left;"></div>
       <div id="specInsights" style="display:none;width:100%;max-width:680px;text-align:left;margin-top:20px;"></div>
@@ -2835,6 +2850,7 @@
     syncHudVisibility();
     pauseBtn.textContent = '▶';
     pauseStatus.textContent = `Stage ${currentStages()[stageIndex].roman} · ${lifeCfg().label} ${Math.round(glucose)}`;
+    pauseHostControls.style.display = (mp.active && mp.isHost && !mp.finished) ? 'flex' : 'none';
     showScreen('paused');
   }
   function resumeGame(){
@@ -5368,6 +5384,7 @@
   const mpStartRaceBtn = document.getElementById('mpStartRaceBtn');
   const mpHostSpectateChk = document.getElementById('mpHostSpectateChk');
   const spectatorScreen = document.getElementById('spectatorScreen');
+  const specHostControls = document.getElementById('specHostControls'), pauseHostControls = document.getElementById('pauseHostControls');
   const specTitle = document.getElementById('specTitle'), specSub = document.getElementById('specSub'), specBanner = document.getElementById('specBanner');
   const specBoard = document.getElementById('specBoard'), specInsights = document.getElementById('specInsights'), specLeaveBtn = document.getElementById('specLeaveBtn');
   const mpCountdownOverlay = document.getElementById('mpCountdownOverlay');
@@ -5402,7 +5419,7 @@
     // isSpectator: the host is only hosting and isn't racing (no player
     // node in the room) -- they get the live leaderboard + results view
     // instead of the game. lastRoom/specTimer drive that view.
-    isSpectator:false, lastRoom:null, specTimer:null,
+    isSpectator:false, lastRoom:null, specTimer:null, hostEndTimer:null,
     // filterCourse/filterTopics/filterClasses describe an optional narrowing
     // within the chosen course -- empty topic/class lists mean "the whole
     // course". Populated from the host's own checkbox picks, or (for a
@@ -5689,7 +5706,10 @@
         // startCatchUpWindow/mpMarkDone). Every client picks it up here, the
         // moment it becomes true on the room, and starts its OWN local
         // countdown toward the same shared deadline.
-        if(room.raceEndsAt && !mp.catchUpEndsAt && screenState!=='over'){
+        if(room.raceEndsAt && mp.catchUpEndsAt !== room.raceEndsAt && screenState!=='over'){
+          // (!== not just "unset": the host can replace the deadline with
+          // their own, e.g. end-in-30s while a catch-up window was running.)
+          clearTimeout(mp.catchUpTimer);
           mp.catchUpEndsAt = room.raceEndsAt;
           mp.catchUpReason = room.raceEndsReason || 'finished';
           if(room.raceEndsByName){
@@ -5795,7 +5815,7 @@
         const reason = p.doneReason || (p.finishedWin ? 'finished' : 'eliminated');
         const text = reason==='finished' ? `🏁 ${p.name} finished!`
           : reason==='ended' ? `🚪 ${p.name} left the race`
-          : reason==='timeup' ? `⌛ ${p.name}'s catch-up time is up`
+          : reason==='timeup' ? `⌛ ${p.name} ran out of time`
           : `💀 ${p.name} is out!`;
         mpShowEliminationToast(text);
       }
@@ -5845,7 +5865,9 @@
         return;
       }
       const secs = Math.ceil(remain/1000);
-      catchUpBanner.textContent = mp.catchUpReason==='last-standing'
+      catchUpBanner.textContent = mp.catchUpReason==='host'
+        ? `⏱ The host is ending the race — ${secs}s left`
+        : mp.catchUpReason==='last-standing'
         ? `🏁 You're the last one racing! ${secs}s left to set the best score`
         : `🏁 ${mp.catchUpFinisherName} finished! ${secs}s left to out-score them`;
       mp.catchUpTimer = setTimeout(tick, 250);
@@ -5949,6 +5971,47 @@
     updateHUD();
     resumeIntoRunning();
   }
+  // ---------- host: end the race for everyone (now, or after a countdown) ----------
+  // Reuses the room's shared deadline (raceEndsAt): every racer's client
+  // already counts down to it and, at zero, ends its own run (forceEndForCatchUp
+  // -> 'timeup'), which is what lets the race resolve normally. The host's
+  // write replaces any catch-up window that was already running. Seconds are
+  // clamped to 0-90 (0 = now).
+  const HOST_END_MAX_SECONDS = 90;
+  function mpHostEndRace(seconds){
+    if(!mp.isHost || !mp.roomCode || !mp.active && !mp.isSpectator || mp.finished) return;
+    const secs = Math.max(0, Math.min(HOST_END_MAX_SECONDS, Math.round(seconds) || 0));
+    fbUpdate(ref(fbdb, `rooms/${mp.roomCode}`), { raceEndsAt: serverNow() + secs * 1000, raceEndsReason:'host', raceEndsByName: mp.myName }).catch(()=>{});
+    clearTimeout(mp.hostEndTimer);
+    mp.hostEndTimer = setTimeout(mpHostSweepStragglers, secs * 1000 + 5000);
+  }
+  // A racer whose device is asleep or offline never marks themselves done, which
+  // would hold the result back forever. A few seconds after the deadline the
+  // host closes out anyone still open, using their last synced stats.
+  function mpHostSweepStragglers(){
+    const room = mp.lastRoom;
+    if(!room || room.status === 'finished' || !mp.roomCode) return;
+    const updates = {};
+    Object.entries(room.players || {}).forEach(([pid, p])=>{ if(!p.done){ updates[pid + '/done'] = true; updates[pid + '/doneReason'] = 'timeup'; } });
+    if(Object.keys(updates).length) fbUpdate(ref(fbdb, `rooms/${mp.roomCode}/players`), updates).catch(()=>{});
+  }
+  function hostEndSecondsFrom(input){
+    const v = Math.max(1, Math.min(HOST_END_MAX_SECONDS, parseInt(input.value, 10) || 30));
+    input.value = v;
+    return v;
+  }
+  ['spec', 'pause'].forEach(prefix=>{
+    const now = document.getElementById(prefix + 'EndNowBtn'), go = document.getElementById(prefix + 'EndCountdownBtn'), secsEl = document.getElementById(prefix + 'EndSecs');
+    now.addEventListener('click', ()=>{
+      if(!confirm('End the race for everyone right now?')) return;
+      mpHostEndRace(0); // the pause screen (if that's where this came from) closes itself when the run ends
+    });
+    go.addEventListener('click', ()=>{
+      mpHostEndRace(hostEndSecondsFrom(secsEl));
+      if(prefix === 'pause') resumeGame();
+    });
+    secsEl.addEventListener('change', ()=> hostEndSecondsFrom(secsEl));
+  });
   // Per-question tally for THIS race only (rooms/<CODE>/qstats/<key>): n
   // answered, c correct, p0..p3 = times each authored option was picked,
   // skip = timeouts. Plain counts, no player ids -- the host's results
@@ -5982,6 +6045,7 @@
     const finished = room.status === 'finished';
     const racing = ranked.filter(p=>!p.done).length;
     specTitle.textContent = finished ? '🏁 Race over' : 'Live leaderboard';
+    specHostControls.style.display = (!finished && mp.isHost) ? 'flex' : 'none';
     if(finished){
       const winner = room.winner;
       const winnerName = winner && winner !== 'draw' ? (roster[winner]||{}).name : null;
@@ -5993,7 +6057,8 @@
     if(!finished && room.raceEndsAt){
       const left = Math.max(0, Math.ceil((room.raceEndsAt - serverNow()) / 1000));
       const who = room.raceEndsByName || 'A racer';
-      specBanner.textContent = room.raceEndsReason === 'last-standing' ? `⏱ ${who} is the last one racing — ${left}s left to catch up` : `⏱ ${who} finished — everyone else has ${left}s left`;
+      specBanner.textContent = room.raceEndsReason === 'host' ? `⏱ Race ends in ${left}s`
+        : room.raceEndsReason === 'last-standing' ? `⏱ ${who} is the last one racing — ${left}s left to catch up` : `⏱ ${who} finished — everyone else has ${left}s left`;
       specBanner.style.display = 'block';
     } else specBanner.style.display = 'none';
     const rows = ranked.map((p, i)=>{
@@ -6172,6 +6237,7 @@
     if(mp.roomListenerRef){ off(mp.roomListenerRef); }
     clearTimeout(mp.catchUpTimer);
     clearInterval(mp.specTimer);
+    clearTimeout(mp.hostEndTimer);
     catchUpBanner.style.display = 'none';
     mp = { active:false, roomCode:null, playerId:null, isHost:false, roster:{}, knownDone:new Set(),
       myName:'Player', finished:false, roomListenerRef:null, countdownStarted:false, theme:RUNNABLE_THEMES[0], selectedTheme:RUNNABLE_THEMES[0],
@@ -6179,7 +6245,7 @@
       shields:0, giftsUnlocked:false, giftFirstRollDone:false, giftTimer:0, seenIncoming:new Set(), incomingQueue:[], speed:'normal',
       pendingGrenade:null, seenGrenadeResults:new Set(), seenEvents:new Set(), bombHellEndsAt:null, bombHellLeftMs:0, giftUnlockPending:false,
       catchUpEndsAt:null, catchUpReason:null, catchUpFinisherName:null, catchUpTimer:null,
-      isSpectator:false, lastRoom:null, specTimer:null };
+      isSpectator:false, lastRoom:null, specTimer:null, hostEndTimer:null };
     mpOpponentPanel.style.display = 'none';
     grenadeOverlay.classList.remove('active');
     updateGiftHUD();
