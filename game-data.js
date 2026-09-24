@@ -368,7 +368,7 @@
    GAME_CONFIG — every tunable number lives here in one place.
    ====================================================================== */
   const GAME_CONFIG = {
-    baseSpeed: 600,            // px/s at Stage I
+    baseSpeed: 700,            // px/s at Stage I
     speedRampPerStage: 40,     // added per stage index (0-based) — one-time bump on stage change
     speedRampPerSecond: 10,    // added continuously for every second survived — this is what makes it feel gradual
     maxSpeed: 1000,             // speed never exceeds this
@@ -377,10 +377,10 @@
     wrongAnswerPenalty: 40,    // life lost per wrong MCQ answer
     postAnswerPauseMs: 2000,   // brief freeze after clicking Continue, before the run resumes -- gives a beat to
                                // get oriented instead of getting dropped straight back next to whatever piled up
-    obstacleSpawnBaseMs: 500,  // topic-block spawn interval = base + random(0..rand) -- widened per playtester
+    obstacleSpawnBaseMs: 300,  // topic-block spawn interval = base + random(0..rand) -- widened per playtester
                                // feedback that questions/obstacles were coming at the player too frequently
-    obstacleSpawnRandMs: 700,
-    glucoseSpawnBaseMs: 550,   // life-pickup spawn interval = base + random(0..rand)
+    obstacleSpawnRandMs: 470,
+    glucoseSpawnBaseMs: 600,   // life-pickup spawn interval = base + random(0..rand)
     glucoseSpawnRandMs: 300,
     initialObstacleDelayMs: 1200, // delay before the very first topic block spawns
     initialGlucoseDelayMs: 500,   // delay before the very first life pickup spawns
@@ -389,6 +389,8 @@
                                    // in medsci-runner.html) to use your own image instead of the emoji
     bombSpawnBaseMs: 800,        // bomb spawn interval — base + random(0..rand) -- widened alongside obstacleSpawn* above
     bombSpawnRandMs: 1600,
+    bombHellSpawnBaseMs: 165,    // bomb interval DURING a Group Race Bomb Hell (the 10s gift attack) -- far tighter
+    bombHellSpawnRandMs: 165,    // than the normal one above; lower both numbers for an even denser storm
     scoreCorrectWeight: 50,    // Group Race ranking score = correct*this - incorrect*this + life*this + stageIndex*stageWeight
     scoreIncorrectWeight: 35,
     scoreLifeWeight: 0,
