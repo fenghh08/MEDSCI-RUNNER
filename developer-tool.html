@@ -210,6 +210,24 @@
   .sim-quiz{ display:inline-block; background:var(--accent); color:var(--accent-ink); font-family:var(--mono); font-weight:700; border-radius:22px; padding:10px 24px; margin:14px 0 4px; }
   .sim-section{ border-top:1px solid var(--line); margin-top:16px; padding-top:4px; }
 
+  /* ---------- answer stats: verdict badges + per-option percentages ---------- */
+  .qual-badge{ display:inline-block; font-size:11px; font-weight:600; padding:1px 8px; border-radius:10px; border:1px solid var(--line-strong); background:#fff; color:var(--muted); white-space:nowrap; }
+  .qual-badge.excellent, .qual-badge.good{ background:var(--good-soft); color:var(--good); border-color:#b7e3d3; }
+  .qual-badge.fair, .qual-badge.ok, .qual-badge.easy{ background:var(--info-soft); color:var(--info); border-color:#c3d4f5; }
+  .qual-badge.weak, .qual-badge.hard{ background:var(--warn-soft); color:var(--warn); border-color:#f6d5a5; }
+  .qual-badge.poor, .qual-badge.bad{ background:var(--danger-soft); color:var(--danger); border-color:#f0b9c5; }
+  .opt-stat{ display:grid; grid-template-columns:20px 44px 120px 1fr; align-items:center; gap:8px; padding:3px 0; font-size:12.5px; }
+  .opt-stat.nostats{ grid-template-columns:20px 1fr; }
+  .opt-stat .opt-letter{ font-weight:700; color:var(--muted); }
+  .opt-stat .opt-pct{ font-weight:700; text-align:right; font-variant-numeric:tabular-nums; }
+  .opt-stat .opt-bar{ height:8px; border-radius:4px; background:var(--line); overflow:hidden; }
+  .opt-stat .opt-bar > span{ display:block; height:100%; background:var(--faint); }
+  .opt-stat.key .opt-bar > span{ background:var(--good); }
+  .opt-stat.key .opt-text{ color:var(--good); font-weight:600; }
+  details.bank-preview{ margin-top:8px; }
+  details.bank-preview > summary{ cursor:pointer; font-size:12.5px; color:var(--muted); }
+  .bank-preview-body{ padding:8px 0 2px; }
+
   /* queue */
   .queue-item{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin-bottom:8px; }
   .queue-item.qi-mine{ border-left:4px solid var(--info); background:var(--info-soft); }
@@ -465,6 +483,16 @@
         <h2>Question bank <button class="info-btn" data-info="questionbank" title="How this works">i</button></h2>
         <p>Every question already in <code>game-data.js</code> as one flat, filterable list — pick a course, topic or lecture instead of expanding items one at a time under Browse content.</p>
       </div>
+      <details class="more" id="dupDetails"><summary>🔁 Duplicate questions <span class="struct-qbadge" id="dupCount"></span></summary><div>
+        <p class="card-sub">Questions that were added twice — the same prompt, or a near-identical one with the same answer — across every course, including new questions still waiting in the Team queue. Look at each group, keep the best one, and delete the rest.</p>
+        <label class="field" style="max-width:340px;margin-bottom:10px;"><span class="fl-label">How similar counts as a duplicate</span>
+          <select id="dupSensitivity">
+            <option value="1">Identical wording only</option>
+            <option value="0.85" selected>Very similar (85%+ match)</option>
+            <option value="0.7">Similar (70%+ match) — may include false alarms</option>
+          </select></label>
+        <div id="dupList"></div>
+      </div></details>
       <div class="card">
         <div class="row2" style="margin-bottom:10px;">
           <label class="field"><span class="fl-label">Course</span><select id="bank_course"></select></label>
@@ -474,6 +502,15 @@
           <label class="field"><span class="fl-label">Lecture</span><select id="bank_lecture"></select></label>
           <label class="field"><span class="fl-label">Search</span><input type="text" id="bank_search" placeholder="🔍 Prompt or item name…"></label>
         </div>
+        <label class="field" id="bank_qualityWrap" style="display:none;max-width:420px;margin-bottom:10px;"><span class="fl-label">Answer quality <span style="font-weight:400;color:var(--muted);">(admin — from real player answers)</span></span>
+          <select id="bank_quality">
+            <option value="">All questions</option>
+            <option value="attention">Needs attention — poor discrimination, possibly miskeyed, or a distractor beats the key</option>
+            <option value="easy">Too easy</option>
+            <option value="hard">Very hard</option>
+            <option value="good">Good — discriminates well</option>
+            <option value="nodata">Not enough data yet</option>
+          </select></label>
         <div id="bank_count" class="card-sub" style="margin-bottom:8px;"></div>
         <div id="bank_list"></div>
       </div>
@@ -875,6 +912,21 @@
         <h2 style="margin-top:0;">⚠️ Needs review <span class="struct-qbadge" id="needsReviewCount"></span></h2>
         <p class="card-sub">Auto-surfaced: a high miss rate with enough attempts to trust it, or a difficulty tag that doesn't match how the question actually performs (e.g. tagged "easy" but missed most of the time). Flag one straight to the team's Reports queue, or jump in and fix it yourself.</p>
         <div id="needsReviewList"></div>
+      </div>
+      <div class="card">
+        <h2 style="margin-top:0;">📐 Question quality <span class="struct-qbadge" id="qualityCount"></span></h2>
+        <p class="card-sub">Uses each player's <b>first</b> attempt only. <b>% correct</b> is how hard the question is; <b>D</b> (discrimination index) is how much better the strongest players do than the weakest — the share of the top 27% (by their own accuracy on other questions) who got it right minus the share of the bottom 27%. A low D means the question isn't telling students apart, and the verdict separates the two reasons: <b>too easy</b> (nearly everyone is right, so D is naturally low) versus <b>poorly written</b> (mid-difficulty, yet strong players do no better than weak ones). D ≥ 0.40 excellent · 0.30–0.39 good · 0.20–0.29 fair · 0.10–0.19 marginal · under 0.10 poor · negative means check the marked answer.</p>
+        <div class="btn-row" style="align-items:center;">
+          <label style="font-weight:normal;font-size:13px;">Show
+            <select id="qualityFilter" style="margin-left:6px;">
+              <option value="attention">Needs attention</option>
+              <option value="all">Everything with data</option>
+              <option value="easy">Too easy</option>
+              <option value="hard">Very hard</option>
+              <option value="good">Good</option>
+            </select></label>
+        </div>
+        <div id="qualityTableWrap" style="margin-top:12px;overflow-x:auto;"></div>
       </div>
       <div class="card">
         <h2 style="margin-top:0;">By course</h2>
@@ -1715,7 +1767,197 @@
     sel.disabled = false;
     sel.innerHTML = '<option value="">All lectures</option>' + Object.entries(classes).map(([k,v])=>`<option value="${k}">${esc2(k)} — ${esc2(v.label)}</option>`).join('');
   }
+  // ======================================================================
+  // ANSWER STATS: option picks, difficulty, and the discrimination index (D)
+  // ======================================================================
+  // The game writes plain counts to stats/<itemId>::<qId>/first on each
+  // player's FIRST attempt: how often each authored option was chosen
+  // (p0..p3, skip) and the answer bucketed by that player's own prior
+  // accuracy (ab/b00..b19). No per-player record exists anywhere.
+  //   difficulty  p = share of first attempts that were correct
+  //   D           = p(correct) among the top 27% of responders by prior
+  //                 accuracy  minus  p(correct) among the bottom 27%
+  // "Poorly written" and "easy" both give a low D, so the verdict also
+  // looks at p: a question nearly everyone gets right is *easy*, one that
+  // mid-difficulty players get right no more often than weak players is
+  // the one to rewrite. Stats are read only in admin mode.
+  const STATS_MIN_FIRST = 10, D_MIN_BANDED = 20, D_LOW_CONFIDENCE = 40, D_GROUP = 0.27, EASY_P = 0.90, HARD_P = 0.25, OPTION_LETTERS = 'ABCDEFGH';
+  let statsRaw = null, statsPromise = null, statsFailed = false;
+  function fetchStats(force){
+    if(!maintainerUnlocked) return Promise.resolve(null);
+    if(statsPromise && !force) return statsPromise;
+    statsPromise = firebaseInitPromise.then(()=>{
+      if(!firebaseReady){ statsFailed = true; return null; }
+      statsFailed = false;
+      return fbGet(fbRef(fbdb, 'stats')).then(snap=>{ statsRaw = snap.val() || {}; return statsRaw; });
+    }).catch(err=>{ statsPromise = null; throw err; });
+    return statsPromise;
+  }
+  function parseFirst(s){
+    const f = s && s.first;
+    if(!f || !f.n) return null;
+    const ab = f.ab || {};
+    return {
+      n: f.n, c: f.c || 0, picks: { ...(f.picks || {}) },
+      bins: Array.from({ length:20 }, (_, i)=>{ const b = ab['b' + String(i).padStart(2, '0')]; return { n:(b && b.n) || 0, c:(b && b.c) || 0 }; }),
+    };
+  }
+  function discriminationFromBins(bins){
+    const N = bins.reduce((sum, b)=> sum + b.n, 0);
+    if(N < D_MIN_BANDED) return { N, D:null };
+    const k = N * D_GROUP, order = bins.map((_, i)=> i);
+    // Bands are 5% wide, so the 27% cut usually lands inside a band; take a
+    // proportional slice of it rather than all-or-nothing.
+    const share = idxs=>{ let need = k, right = 0; for(const i of idxs){ const b = bins[i]; if(!b.n || need <= 0) continue; const use = Math.min(need, b.n); right += b.c * (use / b.n); need -= use; } return right / k; };
+    const pU = share(order.slice().reverse()), pL = share(order);
+    return { N, D: pU - pL, pU, pL, lowConfidence: N < D_LOW_CONFIDENCE };
+  }
+  function questionQuality(first, correctIndex, optionCount){
+    if(!first || first.n < STATS_MIN_FIRST){
+      return { tag:'na', label:'Not enough data', reasons:[first ? `${first.n} first attempt${first.n===1?'':'s'} so far — needs ${STATS_MIN_FIRST}+` : 'no first-attempt data yet (it starts collecting once players use the game version that logs option picks)'], p:null, D:null, disc:null, beatsKey:null };
+    }
+    const p = first.c / first.n, pct = Math.round(p * 100), disc = discriminationFromBins(first.bins), D = disc.D;
+    const reasons = [];
+    let beatsKey = null;
+    const dead = [];
+    for(let i = 0; i < optionCount; i++){
+      if(i === correctIndex) continue;
+      const share = (first.picks['p' + i] || 0) / first.n;
+      if(share > p && (!beatsKey || share > beatsKey.share)) beatsKey = { i, share };
+      if(share < 0.05) dead.push(`${OPTION_LETTERS[i]} (${Math.round(share * 100)}%)`);
+    }
+    let tag, label;
+    if(p >= EASY_P){
+      // Checked first: near a 100% ceiling D is just noise (even slightly
+      // negative), and a question nearly everyone gets right isn't miskeyed.
+      tag = 'easy'; label = 'Too easy';
+      reasons.push(`${pct}% get it right first time, so it can't tell students apart (D is naturally low when almost everyone is correct)`);
+    } else if(D !== null && D <= -0.05){
+      tag = 'bad'; label = 'Possibly miskeyed or misleading';
+      reasons.push(`stronger players do worse than weaker ones (D ${D.toFixed(2)}) — check the marked answer and the wording`);
+    } else if(D === null){
+      tag = p <= HARD_P ? 'hard' : 'ok'; label = p <= HARD_P ? 'Very hard' : 'Looks fine so far';
+      reasons.push(`discrimination needs ${D_MIN_BANDED}+ answers from established players (have ${disc.N})`);
+      if(p <= HARD_P) reasons.push(`only ${pct}% get it right first time`);
+    } else if(D < 0.10){
+      tag = 'poor'; label = 'Poor discrimination';
+      reasons.push(p <= HARD_P
+        ? `very hard (${pct}% correct) and strong players do no better than weak ones — likely ambiguous or wrongly keyed`
+        : `${pct}% correct, yet strong and weak players do about equally well — likely poorly written or ambiguous`);
+    } else if(D < 0.20){ tag = 'weak'; label = 'Marginal'; reasons.push(`D ${D.toFixed(2)} — usable, but worth tightening the wording or the distractors`); }
+    else if(D < 0.30){ tag = 'fair'; label = 'Fair'; }
+    else if(D < 0.40){ tag = 'good'; label = 'Good'; }
+    else { tag = 'excellent'; label = 'Excellent'; }
+    if(p <= HARD_P && ['fair','good','excellent'].includes(tag)) reasons.push(`hard (${pct}% correct) but it does separate strong from weak players`);
+    if(beatsKey){
+      reasons.push(`more students pick ${OPTION_LETTERS[beatsKey.i]} (${Math.round(beatsKey.share * 100)}%) than the marked answer (${pct}%) — check the key`);
+      if(['ok','fair','good','excellent'].includes(tag)){ tag = 'weak'; label = 'A distractor beats the key'; }
+    }
+    if(dead.length) reasons.push(`almost nobody picks ${dead.join(', ')} — weak distractor${dead.length===1?'':'s'}`);
+    if(disc.lowConfidence) reasons.push(`D is based on only ${disc.N} established players — treat as a hint`);
+    return { tag, label, reasons, p, D, disc, beatsKey };
+  }
+  function qualityBadgeHtml(q){
+    if(!q || q.tag === 'na') return '';
+    return `<span class="qual-badge ${q.tag}" title="${esc2(q.reasons.join('; ')).replace(/"/g,'&quot;')}">${esc2(q.label)}${q.D !== null ? ` · D ${q.D.toFixed(2)}` : ''}</span>`;
+  }
+  // "A 50%  ▇▇▇▇  option text" per option, the key in green. Without stats it
+  // is just the option list, so the same block works as a plain preview.
+  function optionStatsHtml(options, correctIndex, first){
+    const rows = options.map((op, i)=>{
+      const isKey = i === correctIndex;
+      if(!first) return `<div class="opt-stat nostats${isKey?' key':''}"><span class="opt-letter">${OPTION_LETTERS[i]}</span><span class="opt-text">${isKey?'✓ ':''}${esc2(op)}</span></div>`;
+      const pct = Math.round(100 * (first.picks['p' + i] || 0) / first.n);
+      return `<div class="opt-stat${isKey?' key':''}"><span class="opt-letter">${OPTION_LETTERS[i]}</span><span class="opt-pct">${pct}%</span><span class="opt-bar"><span style="width:${pct}%"></span></span><span class="opt-text">${isKey?'✓ ':''}${esc2(op)}</span></div>`;
+    }).join('');
+    const skipped = first && first.picks.skip ? `<div class="card-sub" style="margin:2px 0 0;">Timed out: ${Math.round(100 * first.picks.skip / first.n)}%</div>` : '';
+    const note = first ? `<div class="card-sub" style="margin:4px 0 0;">Share of ${first.n} first attempts (a player's repeat tries aren't counted).</div>` : '';
+    return rows + skipped + note;
+  }
+  // ======================================================================
+  // DUPLICATE QUESTIONS
+  // ======================================================================
+  // Two questions are duplicates when their prompts match (identical after
+  // ignoring case/punctuation, or a bigram-Dice score over the sensitivity
+  // threshold) AND they agree on the answer: same correct-answer text or
+  // largely the same options. Wording alone isn't enough -- "enzymes in DNA
+  // methylation" vs "enzymes in histone methylation" are near-identical text
+  // but different questions. Identical prompts are always flagged, and shown
+  // with a warning when their answers disagree.
+  function normQ(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function bigramSet(s){ const t = s.replace(/\s/g, ''), set = new Set(); for(let i = 0; i < t.length - 1; i++) set.add(t.slice(i, i + 2)); return set; }
+  function diceSets(a, b){ if(!a.size || !b.size) return 0; let inter = 0; a.forEach(x=>{ if(b.has(x)) inter++; }); return 2 * inter / (a.size + b.size); }
+  function collectQuestionsForDupes(){
+    const out = allQuestionsRich().map(r=> ({ ...r, source:'game' }));
+    if(typeof batch === 'object'){
+      Object.entries(batch).forEach(([key, e])=>{
+        const d = e && e.data;
+        if(!e || e.type !== 'question' || !d || !d.prompt) return;
+        out.push({ source:'queue', queueKey:key, qId:d.qId, prompt:d.prompt, options:d.options||[], correctIndex:d.correctIndex, difficulty:d.difficulty||'medium',
+          themeId:d.theme, topicId:d.topic, itemId:d.itemId, itemLabel:(KNOWN_ITEMS.find(it=>it.id===d.itemId)||{}).label || d.itemId,
+          contributorName:e.contributorName, contributorEmail:e.contributorEmail });
+      });
+    }
+    return out;
+  }
+  function findDuplicateGroups(threshold){
+    const qs = collectQuestionsForDupes().map(q=>{
+      const norm = normQ(q.prompt), opts = (q.options||[]).map(normQ);
+      return { ...q, norm, grams:bigramSet(norm), answer:normQ((q.options||[])[q.correctIndex]), optGrams:bigramSet(opts.slice().sort().join(' ')) };
+    }).filter(q=> q.norm);
+    const parent = qs.map((_, i)=> i);
+    const find = i=> parent[i] === i ? i : (parent[i] = find(parent[i]));
+    const pairSim = {};
+    for(let i = 0; i < qs.length; i++){
+      for(let j = i + 1; j < qs.length; j++){
+        const a = qs[i], b = qs[j];
+        const promptSim = a.norm === b.norm ? 1 : diceSets(a.grams, b.grams);
+        if(promptSim < threshold) continue;
+        const sameAnswer = a.answer && a.answer === b.answer;
+        if(promptSim < 1 && !sameAnswer && diceSets(a.optGrams, b.optGrams) < 0.8) continue;
+        pairSim[i + '|' + j] = promptSim;
+        parent[find(j)] = find(i);
+      }
+    }
+    const byRoot = {};
+    qs.forEach((q, i)=>{ (byRoot[find(i)] ||= []).push(i); });
+    return Object.values(byRoot).filter(g=> g.length > 1).map(idxs=>{
+      let minSim = 1;
+      idxs.forEach(i=> idxs.forEach(j=>{ if(i < j && pairSim[i + '|' + j] != null) minSim = Math.min(minSim, pairSim[i + '|' + j]); }));
+      const members = idxs.map(i=> qs[i]);
+      const answers = new Set(members.map(m=> m.answer));
+      return { members, minSim, sameAnswer: answers.size === 1 };
+    }).sort((a, b)=> b.minSim - a.minSim || b.members.length - a.members.length);
+  }
+  function renderDuplicates(){
+    const list = document.getElementById('dupList'), countEl = document.getElementById('dupCount');
+    const groups = findDuplicateGroups(parseFloat(document.getElementById('dupSensitivity').value) || 0.85);
+    countEl.textContent = groups.length ? `${groups.length} group${groups.length===1?'':'s'}` : '';
+    if(!groups.length){ list.innerHTML = `<div class="struct-empty" style="margin-left:0;">— no duplicates found at this setting —</div>`; return; }
+    const diffColor = { easy:'var(--good)', medium:'#caa33b', hard:'var(--danger)' };
+    list.innerHTML = groups.map((g, gi)=>{
+      const kind = g.minSim === 1 ? 'Identical wording' : `Very similar wording (${Math.round(g.minSim * 100)}% match)`;
+      const verdict = g.sameAnswer ? `<span class="qual-badge good">Same answer — safe to keep just one</span>` : `<span class="qual-badge poor">Different answers — one of them may be wrong</span>`;
+      const rows = g.members.map(m=>{
+        const themeLabel = (KNOWN_THEMES.find(t=>t.id===m.themeId)||{}).label || m.themeId;
+        const topicLabel = (KNOWN_TOPICS[m.topicId]||{}).label || m.topicId;
+        const who = (maintainerUnlocked && m.contributorEmail) ? ` · Added by ${esc2(m.contributorName||'Anonymous')} (${esc2(m.contributorEmail)})` : '';
+        const actions = m.source === 'queue'
+          ? `<span class="struct-edit-link" style="opacity:.7;">⏳ Still in the Team queue</span>`
+          : `<button type="button" class="struct-edit-link" data-edit-question="${esc2(m.qId)}">✏️ Edit</button><button type="button" class="danger struct-edit-link" data-delete-question="${esc2(m.itemId)}::${esc2(m.themeId)}::${esc2(m.topicId)}::${esc2(m.qId)}">🗑 Delete</button>`;
+        return `<div class="queue-item"><div class="qi-row"><div>
+          <div class="qi-label">${esc2(m.prompt)}</div>
+          <div class="qi-meta">${esc2(themeLabel)} · ${esc2(topicLabel)} · <b>${esc2(m.itemLabel)}</b> · <span style="color:${diffColor[m.difficulty]||'inherit'}">${esc2(m.difficulty)}</span>${who}</div>
+          <div class="qi-meta">✓ ${esc2((m.options||[])[m.correctIndex] || '(no answer set)')}</div></div>
+          <div class="qi-actions">${actions}</div></div></div>`;
+      }).join('');
+      return `<div style="margin-bottom:16px;"><div style="margin:0 0 6px;font-weight:600;">Group ${gi+1} · ${g.members.length} questions · <span style="color:var(--muted);font-weight:400;">${kind}</span> ${verdict}</div>${rows}</div>`;
+    }).join('');
+    wireEditButtons(list);
+  }
+  document.getElementById('dupSensitivity').addEventListener('change', renderDuplicates);
   document.getElementById('bank_course').addEventListener('change', ()=>{ fillBankTopicSelect(); fillBankLectureSelect(); renderQuestionBank(); });
+  document.getElementById('bank_quality').addEventListener('change', renderQuestionBank);
   document.getElementById('bank_topic').addEventListener('change', renderQuestionBank);
   document.getElementById('bank_lecture').addEventListener('change', renderQuestionBank);
   document.getElementById('bank_search').addEventListener('input', renderQuestionBank);
@@ -1729,20 +1971,39 @@
     if(topicId) rows = rows.filter(r=>r.topicId===topicId);
     if(lectureKey) rows = rows.filter(r=>r.class===lectureKey);
     if(search) rows = rows.filter(r=> r.prompt.toLowerCase().includes(search) || r.itemLabel.toLowerCase().includes(search));
-    document.getElementById('bank_count').textContent = `${rows.length} question${rows.length===1?'':'s'}`;
+    // Answer stats are admin-only (same rule as the Data analysis tab), loaded
+    // once and re-rendered when they arrive.
+    const qualityWrap = document.getElementById('bank_qualityWrap'), qualitySel = document.getElementById('bank_quality');
+    qualityWrap.style.display = maintainerUnlocked ? '' : 'none';
+    if(!maintainerUnlocked) qualitySel.value = '';
+    if(maintainerUnlocked && !statsRaw && !statsPromise) fetchStats().then(()=> renderQuestionBank()).catch(()=>{});
+    const withStats = rows.map(r=>{
+      const first = (maintainerUnlocked && statsRaw) ? parseFirst(statsRaw[`${r.itemId}::${r.qId}`]) : null;
+      return { r, first, quality: (maintainerUnlocked && statsRaw) ? questionQuality(first, r.correctIndex, (r.options||[]).length) : null };
+    });
+    const qFilter = maintainerUnlocked ? qualitySel.value : '';
+    const qGroups = { attention:['bad','poor','weak'], easy:['easy'], hard:['hard'], good:['good','excellent'], nodata:['na'] };
+    const shown = qFilter ? withStats.filter(x=> x.quality && qGroups[qFilter].includes(x.quality.tag)) : withStats;
+    const statsNote = !maintainerUnlocked ? '' : (statsRaw ? ` · 📊 answer stats loaded` : (statsFailed ? ` · 📊 answer stats unavailable (offline)` : ` · 📊 loading answer stats…`));
+    document.getElementById('bank_count').textContent = `${shown.length} question${shown.length===1?'':'s'}${statsNote}`;
     const diffColor = { easy:'var(--good)', medium:'#caa33b', hard:'var(--danger)' };
     const bankList = document.getElementById('bank_list');
-    bankList.innerHTML = rows.map(r=>{
+    bankList.innerHTML = shown.map(({ r, first, quality })=>{
       const themeLabel = (KNOWN_THEMES.find(t=>t.id===r.themeId)||{}).label || r.themeId;
       const topicLabel = (KNOWN_TOPICS[r.topicId]||{}).label || r.topicId;
       const attribution = (maintainerUnlocked && r.contributorEmail) ? ` · Added by ${esc2(r.contributorName||'Anonymous')} (${esc2(r.contributorEmail)})` : '';
+      const badge = qualityBadgeHtml(quality);
+      const previewSummary = first ? `Options &amp; answer stats <span style="color:var(--faint);">· ${first.n} first attempts</span>` : 'Options';
+      const reasons = quality && quality.reasons.length && quality.tag !== 'na' ? `<ul class="p-facts" style="margin-top:8px;">${quality.reasons.map(x=>`<li>${esc2(x)}</li>`).join('')}</ul>` : '';
+      const noStatsNote = (maintainerUnlocked && statsRaw && !first) ? `<div class="card-sub" style="margin:6px 0 0;">No first-attempt answers recorded for this question yet.</div>` : '';
       return `<div class="queue-item"><div class="qi-row">
-        <div><div class="qi-label">${esc2(r.prompt.slice(0,90))}${r.prompt.length>90?'…':''}</div>
+        <div><div class="qi-label">${esc2(r.prompt.slice(0,90))}${r.prompt.length>90?'…':''} ${badge}</div>
         <div class="qi-meta">${esc2(themeLabel)} · ${esc2(topicLabel)} · <b>${esc2(r.itemLabel)}</b>${r.class?` · ${esc2(r.class)}`:''} · <span style="color:${diffColor[r.difficulty]||'inherit'}">${esc2(r.difficulty)}</span>${attribution}</div></div>
         <div class="qi-actions">
           <button type="button" class="struct-edit-link" data-edit-question="${esc2(r.qId)}">✏️ Edit</button>
           <button type="button" class="danger struct-edit-link" data-delete-question="${esc2(r.itemId)}::${esc2(r.themeId)}::${esc2(r.topicId)}::${esc2(r.qId)}">🗑 Delete</button>
-        </div></div></div>`;
+        </div></div>
+        <details class="bank-preview"><summary>${previewSummary}</summary><div class="bank-preview-body"><div class="struct-q-prompt" style="margin-bottom:6px;">${esc2(r.prompt)}</div>${optionStatsHtml(r.options||[], r.correctIndex, first)}${noStatsNote}${reasons}</div></details></div>`;
     }).join('') || '<p class="batch-empty">No questions match these filters.</p>';
     wireEditButtons(bankList);
   }
@@ -3582,7 +3843,7 @@
         if(row.isSaq){
           cell.innerHTML = `<div class="struct-q-prompt">${esc2(row.prompt)}</div><div class="struct-q-explain">Model answer: ${esc2(row.explanation||'(none)')}</div><button type="button" class="struct-edit-link" data-edit-item="${esc2(row.itemId)}">✏️ Open item</button>`;
         } else if(row.options){
-          cell.innerHTML = `<div class="struct-q-prompt">${esc2(row.prompt)}</div>${row.options.map((op,oi)=>`<div class="struct-q-opt${oi===row.correctIndex?' correct':''}">${oi===row.correctIndex?'✓':'·'} ${esc2(op)}</div>`).join('')}${row.explanation?`<div class="struct-q-explain">${esc2(row.explanation)}</div>`:''}<button type="button" class="struct-edit-link" data-edit-question="${esc2(row.qId)}">✏️ Edit this question</button>`;
+          cell.innerHTML = `<div class="struct-q-prompt">${esc2(row.prompt)}</div>${qualityBadgeHtml(row.quality)}${optionStatsHtml(row.options, row.correctIndex, row.first)}${row.explanation?`<div class="struct-q-explain">${esc2(row.explanation)}</div>`:''}<button type="button" class="struct-edit-link" data-edit-question="${esc2(row.qId)}">✏️ Edit this question</button>`;
         } else {
           cell.innerHTML = `<div class="struct-q-prompt">${esc2(row.prompt)}</div><p class="card-sub" style="margin:6px 0 0;">Couldn't find this question in the current content — it may have been deleted or edited since this stat was recorded.</p>`;
         }
@@ -3607,6 +3868,8 @@
       if(r.missRate >= REVIEW_MISS_RATE) reasons.push(`missed ${pct}% of the time over ${r.total} attempts`);
       if(r.difficulty==='easy' && r.missRate > 0.5) reasons.push(`tagged "easy" but missed ${pct}% of the time — may be mis-tagged or unclear`);
       if(r.difficulty==='hard' && r.missRate < 0.15) reasons.push(`tagged "hard" but only missed ${pct}% of the time — may be too easy for its tag`);
+      if(r.quality && ['bad','poor'].includes(r.quality.tag)) reasons.push(`${r.quality.label.toLowerCase()} — ${r.quality.reasons[0]}`);
+      if(r.quality && r.quality.beatsKey) reasons.push(r.quality.reasons.find(x=>x.startsWith('more students pick')));
       if(reasons.length) out.push({ ...r, reasons });
     });
     return out.sort((a,b)=> b.missRate - a.missRate || b.total - a.total);
@@ -3642,6 +3905,41 @@
       renderNeedsReview();
     }));
   }
+  const QUALITY_GROUPS = { attention:['bad','poor','weak'], easy:['easy'], hard:['hard'], good:['good','excellent'] };
+  const QUALITY_ORDER = { bad:0, poor:1, weak:2, hard:3, easy:4, ok:5, fair:6, good:7, excellent:8, na:9 };
+  function renderQualityTable(){
+    const wrap = document.getElementById('qualityTableWrap');
+    const filter = document.getElementById('qualityFilter').value;
+    const withData = analyticsRowsCache.filter(r=> r.quality && r.quality.tag !== 'na');
+    const attention = withData.filter(r=> QUALITY_GROUPS.attention.includes(r.quality.tag)).length;
+    document.getElementById('qualityCount').textContent = attention ? String(attention) : '';
+    const rows = withData.filter(r=> filter==='all' || QUALITY_GROUPS[filter].includes(r.quality.tag))
+      .sort((a,b)=> QUALITY_ORDER[a.quality.tag] - QUALITY_ORDER[b.quality.tag] || (a.quality.D ?? 9) - (b.quality.D ?? 9) || b.first.n - a.first.n);
+    if(!rows.length){
+      wrap.innerHTML = `<div class="struct-empty" style="margin-left:0;">${withData.length ? '— nothing in this group —' : `— no question has ${STATS_MIN_FIRST}+ first-attempt answers yet. This fills in as players use the version of the game that logs option picks —`}</div>`;
+      return;
+    }
+    wrap.innerHTML = `<table class="analytics-table"><thead><tr><th>Question</th><th>Item</th><th>First tries</th><th>% correct</th><th>D</th><th>Verdict</th><th></th></tr></thead><tbody>${rows.map((r,i)=>`
+      <tr><td>${esc2((r.prompt||'').slice(0,80))}${(r.prompt||'').length>80?'…':''}</td><td>${esc2(r.itemLabel)}</td><td>${r.first.n}</td><td>${accuracyBarHtml(r.quality.p)}</td>
+        <td>${r.quality.D === null ? '—' : r.quality.D.toFixed(2) + (r.quality.disc.lowConfidence ? '*' : '')}</td><td>${qualityBadgeHtml(r.quality)}</td>
+        <td><button type="button" class="subtle" data-quality-detail="${i}">Detail ▾</button></td></tr>
+      <tr data-quality-detail-row="${i}" style="display:none;"><td colspan="7" style="background:var(--bg-1);"></td></tr>`).join('')}</tbody></table>
+      <p class="card-sub" style="margin-top:8px;">* D based on fewer than ${D_LOW_CONFIDENCE} established players — treat as a hint. "—" means fewer than ${D_MIN_BANDED} answers from players with enough history to place them.</p>`;
+    wrap.querySelectorAll('[data-quality-detail]').forEach(btn=> btn.addEventListener('click', ()=>{
+      const i = btn.dataset.qualityDetail, r = rows[i], detailRow = wrap.querySelector(`[data-quality-detail-row="${i}"]`);
+      const wasOpen = detailRow.style.display !== 'none';
+      wrap.querySelectorAll('[data-quality-detail-row]').forEach(tr=> tr.style.display = 'none');
+      wrap.querySelectorAll('[data-quality-detail]').forEach(b=> b.textContent = 'Detail ▾');
+      if(wasOpen) return;
+      detailRow.style.display = ''; btn.textContent = 'Detail ▴';
+      const d = r.quality.disc;
+      const groups = d && d.D !== null ? `<div class="card-sub" style="margin:6px 0;">Top 27%: <b>${Math.round(d.pU*100)}%</b> correct · Bottom 27%: <b>${Math.round(d.pL*100)}%</b> correct (from ${d.N} established players)</div>` : '';
+      const cell = detailRow.querySelector('td');
+      cell.innerHTML = `<div class="struct-q-prompt">${esc2(r.prompt)}</div>${optionStatsHtml(r.options, r.correctIndex, r.first)}${groups}<ul class="p-facts" style="margin-top:6px;">${r.quality.reasons.map(x=>`<li>${esc2(x)}</li>`).join('')}</ul><button type="button" class="struct-edit-link" data-edit-question="${esc2(r.qId)}">✏️ Edit question</button>`;
+      wireEditButtons(cell);
+    }));
+  }
+  document.getElementById('qualityFilter').addEventListener('change', renderQualityTable);
   function renderAnalyticsEasiest(){
     const el = document.getElementById('analyticsEasiestWrap');
     const rows = analyticsRowsCache.filter(r=>r.total >= REVIEW_MIN_ATTEMPTS).sort((a,b)=> a.missRate - b.missRate || b.total - a.total).slice(0, 15);
@@ -3650,10 +3948,10 @@
   }
   function loadAnalytics(){
     if(!maintainerUnlocked) return;
-    if(!firebaseReady){ analyticsStatus.className = 'status bad'; analyticsStatus.textContent = 'Not connected — check your internet connection and hit Refresh.'; return; }
     analyticsStatus.className = 'status'; analyticsStatus.textContent = 'Loading…';
-    fbGet(fbRef(fbdb, 'stats')).then(snap=>{
-      const stats = snap.val() || {}, idx = buildItemIndex();
+    fetchStats(true).then(stats=>{
+      if(stats === null){ analyticsStatus.className = 'status bad'; analyticsStatus.textContent = 'Not connected — check your internet connection and hit Refresh.'; return; }
+      const idx = buildItemIndex();
       const rows = Object.entries(stats).map(([key, s])=>{
         const sep = key.lastIndexOf('::'), itemId = sep>=0 ? key.slice(0, sep) : key, qId = sep>=0 ? key.slice(sep+2) : '';
         const entry = idx[itemId], isSaq = qId.startsWith('saq');
@@ -3662,6 +3960,7 @@
         const prompt = q ? q.prompt : saqEntry ? saqEntry.prompt : '(question not found — deleted or edited since)';
         const correct = s.correct||0, wrong = s.wrong||0, total = correct+wrong;
         const courseId = entry ? entry.themeId : '';
+        const first = parseFirst(s);
         return {
           itemLabel: entry ? entry.item.label : itemId, prompt, correct, wrong, total, courseId,
           courseLabel: courseId ? ((RD.THEMES[courseId]||{}).label || courseId) : '(unknown)',
@@ -3672,6 +3971,7 @@
           itemId, qId, isSaq, options: q ? q.options : null, correctIndex: q ? q.correctIndex : null,
           explanation: q ? q.explanation : (saqEntry ? saqEntry.modelAnswer : ''),
           difficulty: q ? (q.difficulty || 'medium') : null,
+          first, quality: q ? questionQuality(first, q.correctIndex, (q.options||[]).length) : null,
         };
       }).filter(r=>r.total>0);
       analyticsRowsCache = rows;
@@ -3679,6 +3979,7 @@
       renderAnalyticsGroupTable('analyticsByCourse', groupAnalyticsRows(rows, r=>r.courseId, r=>r.courseLabel), 'Course');
       renderAnalyticsGroupTable('analyticsByTopic', groupAnalyticsRows(rows, r=>r.courseId+'::'+r.topicId, r=>`${r.courseLabel} · ${r.topic}`), 'Course · Topic');
       renderNeedsReview();
+      renderQualityTable();
       renderAnalyticsTable();
       renderAnalyticsEasiest();
     }).catch(err=>{ analyticsStatus.className = 'status bad'; analyticsStatus.textContent = 'Failed to load — check your connection and try again.'; console.warn('[Analytics] load failed', err); });
@@ -3726,7 +4027,7 @@
     if(which==='structure') renderStructureList();
     if(which==='guidesim') renderGuideSim();
     if(which==='lectures'){ renderLectures(); fillLecAddCourseSelect(); }
-    if(which==='questionbank'){ fillBankCourseSelect(); fillBankTopicSelect(); fillBankLectureSelect(); renderQuestionBank(); }
+    if(which==='questionbank'){ fillBankCourseSelect(); fillBankTopicSelect(); fillBankLectureSelect(); renderQuestionBank(); renderDuplicates(); }
     if(which==='contributors') renderContributors();
     if(which==='analysis') loadAnalytics();
     if(which==='feedback') renderFeedbackList();
@@ -3927,9 +4228,14 @@ const themesDecl  = text.indexOf('const THEMES = {');
         renderAnalyticsGroupTable('analyticsByCourse', groupAnalyticsRows(rows, r=>r.courseId, r=>r.courseLabel), 'Course');
         renderAnalyticsGroupTable('analyticsByTopic', groupAnalyticsRows(rows, r=>r.courseId+'::'+r.topicId, r=>`${r.courseLabel} · ${r.topic}`), 'Course · Topic');
         renderNeedsReview();
+        renderQualityTable();
         renderAnalyticsTable();
         renderAnalyticsEasiest();
       },
+      // Fake the Firebase stats fetch (Firebase is blocked in tests), then
+      // loadAnalytics()/renderQuestionBank() run their real code paths.
+      stubStats(raw){ maintainerUnlocked = true; statsRaw = raw; statsPromise = Promise.resolve(raw); fetchStats = ()=> Promise.resolve(raw); },
+      loadAnalytics, renderDuplicates, findDuplicateGroups, allQuestionsRich, questionQuality, discriminationFromBins,
     };
   }
 </script>
