@@ -348,7 +348,14 @@
   #devTutorialCaption .dt-title{ font-size:15px; font-weight:700; margin:0 0 6px; }
   #devTutorialCaption .dt-which{ display:block; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
     color:var(--accent); font-weight:700; margin-bottom:3px; }
-  #devTutorialCaption .dt-caption{ font-size:13px; line-height:1.5; color:var(--muted); margin:0 0 10px; }
+  #devTutorialCaption .dt-caption{ font-size:13px; line-height:1.9; color:var(--muted); margin:0 0 10px; }
+  /* Captions name real buttons and tabs constantly. As plain prose they
+     read as ordinary words, so they're drawn the way they look on screen. */
+  #devTutorialCaption .dt-btn{ display:inline-block; background:var(--accent); color:#fff; border-radius:7px;
+    padding:2px 8px; font-size:12px; font-weight:700; white-space:nowrap; vertical-align:baseline; }
+  #devTutorialCaption .dt-tab{ display:inline-block; background:var(--accent-soft); color:var(--accent);
+    border:1px solid var(--accent-line); border-radius:7px; padding:1px 8px; font-size:12px; font-weight:700;
+    white-space:nowrap; vertical-align:baseline; }
   #devTutorialCaption .dt-dots{ display:flex; gap:5px; justify-content:center; margin-bottom:10px; }
   #devTutorialCaption .dt-dot{ width:6px; height:6px; border-radius:50%; background:var(--line-strong); }
   #devTutorialCaption .dt-dot.on{ background:var(--accent); }
@@ -5351,15 +5358,15 @@ const themesDecl  = text.indexOf('const THEMES = {');
       steps: [
         { tab:'start', sel:'#contributorName', title:'First, your name and email', caption:'Type these once — nothing can be queued without them. It\'s how your work is credited and how an admin can reach you about it. Only an admin can see whose submission is whose.' },
         { tab:'datamap', sel:'section[data-section="datamap"] .dm-chain', title:'What goes where', caption:'A question sits on a concept. A concept sits in a topic (module), inside a course. Every concept also records which lecture taught it, and that is how this tool finds yours.' },
-        { tab:'lectures', sel:'#lecturesList', title:'Is your lecture listed?', caption:'Your lecture has to exist before you can add anything to it. Pick your course at the top of this page and this list shows every lecture it has, with the learning outcomes each one covers. Find yours before going any further.', fallbackSel:'#lecAdd_course' },
-        { tab:'lectures', sel:'#lecAddTable', title:'Adding a lecture', caption:'Not listed? Add it here. Choose the course, then fill one row: the number (L14), the name, and the learning outcomes separated by semicolons. Type it or paste a block straight from a spreadsheet. Putting an existing lecture number will update that lecture instead of making a second one. Then Check & add all to queue.' },
-        { tab:'mylecture', sel:'#ml_pickerCard', title:'Pick your lecture', caption:'Choose your course and lecture. Everything below then shows only that lecture\'s concepts.', fallbackSel:'#ml_changeBtn' },
-        { tab:'mylecture', sel:'#ml_concepts', title:'Add your question to a concept', caption:'Each toggle is one concept from your lecture, showing how many questions it already has. Hit + Question on the one yours is about, type the prompt and the options, mark the right one, and add it to the queue. Reusing a concept is what gives students something to revise from. If your lecture has none yet, this shows a worked example of a toggle so you can see what to expect.', fallbackSel:'#ml_pickerCard' },
-        { tab:'mylecture', sel:'#ml_concepts', title:'Check what a student sees', caption:'Open a toggle to see the study-guide page as students meet it in the game. A missing description shows as a gap you can fill on the spot, and the questions already on that concept are listed underneath.', fallbackSel:'#ml_pickerCard' },
-        { tab:'mylecture', sel:'.ml-newbox', title:'Only if nothing fits', caption:'A genuinely new concept goes in here, and the name is checked against what already exists so you don\'t end up with two of the same thing. Write its description straight away — students see a blank page otherwise.', fallbackSel:'#ml_pickerCard' },
-        { tab:'add', sel:'#addChips', title:'Anything outside your own lecture', caption:'Add anything has the full forms — a question, a study guide item, a topic (module), lecture outcomes, a fun-fact question — each with a live preview of how it looks in the game. A whole new course goes in there too.' },
-        { tab:'queue', sel:'#batchListContent', title:'Where it lands', caption:'Everything you add waits here, live, for an admin to merge it. Open a row for the full detail and fix your own before it goes in. Players\' in-game reports live under Reports.' },
-        { tab:'start', sel:'[data-info="overview"]', title:'That\'s the whole loop', caption:'Every ⓘ opens a short note about that part of the tool. Reopen either tour any time from the 🎬 button at the top of the sidebar.', final:true },
+        { tab:'lectures', sel:'#lecturesList', title:'Is your lecture listed?', caption:'Your lecture has to exist before you can add anything to it. Pick your course in the {{Course}} box at the top of this page, and this list shows every lecture it has with the learning outcomes each one covers. Find yours before going any further.', fallbackSel:'#lecAdd_course' },
+        { tab:'lectures', sel:'#lecAddTable', title:'Adding a lecture', caption:'Not listed? Add it here. Choose the course, then fill one row: the number (L14), the name, and the learning outcomes separated by semicolons. Type it or paste a block straight from a spreadsheet. Putting an existing lecture number will update that lecture instead of making a second one. Then hit {{Check & add all to queue}}.' },
+        { tab:'mylecture', sel:'#ml_pickerCard', title:'Pick your lecture', caption:'Choose your course and lecture, then {{Open this lecture →}}. Everything after that shows only your lecture\'s concepts.', fallbackSel:'#ml_changeBtn' },
+        { tab:'mylecture', sel:'#ml_concepts', title:'Add your question to a concept', caption:'Each toggle is one concept from your lecture, showing how many questions it already has. Hit {{+ Question}} on the concept you want to add to, type the prompt and the options, mark the right one, then {{+ Add to queue}}. Reusing a concept is what gives students something to revise from. If your lecture has no concepts or questions yet, a worked example of a toggle is shown so you can see what to expect.', fallbackSel:'#ml_pickerCard' },
+        { tab:'mylecture', sel:'#ml_concepts', title:'Check what a student sees', caption:'Open a toggle to see the study-guide page as students meet it in the game. A missing description shows as a gap with a {{Write it now}} link, and the questions already on that concept are listed underneath.', fallbackSel:'#ml_pickerCard' },
+        { tab:'mylecture', sel:'.ml-newbox', title:'Only if nothing fits', caption:'A genuinely new concept goes in here with {{+ Add this concept}}, and the name is checked against what already exists so you don\'t end up with two of the same thing. Write its description straight away — students see a blank page otherwise.', fallbackSel:'#ml_pickerCard' },
+        { tab:'add', sel:'#addChips', title:'Anything outside your own lecture', caption:'[[Add anything]] has the full forms — {{❓ Question}}, {{📄 Study guide item}}, {{🗂️ Topic (Module)}}, {{📚 Course}}, {{🧭 Learning outcomes}}, {{🎲 Fun fact question}} — each with a live preview of how it looks in the game.' },
+        { tab:'queue', sel:'#batchListContent', title:'Where it lands', caption:'Everything you add waits in [[Team queue]], live, for an admin to merge it. Open a row for the full detail and fix your own before it goes in. Players\' in-game reports live under [[Reports]] instead.' },
+        { tab:'start', sel:'[data-info="overview"]', title:'That\'s the whole loop', caption:'Every {{ⓘ}} opens a short note about that part of the tool. Reopen either tour any time from {{🎬 Take the tour}} at the top of the sidebar.', final:true },
       ],
     },
     bulk: {
@@ -5369,11 +5376,11 @@ const themesDecl  = text.indexOf('const THEMES = {');
       steps: [
         { tab:'start', sel:'#contributorName', title:'First, your name and email', caption:'Type these once — nothing can be queued without them. It\'s how your work is credited and how an admin can reach you about it. Only an admin can see whose submission is whose.' },
         { tab:'start', sel:'section[data-section="start"] .card', title:'Build in order', caption:'A question needs a concept, a concept needs a topic (module), a topic needs a course. Courses and topics must already exist before a pasted row can point at them, so those go in first.' },
-        { tab:'csv', sel:'#gridImportTable', title:'Paste the questions', caption:'Select a range in Sheets or Excel, copy, click a cell here and paste — it fills in and grows the table to fit. Every row is checked as you type; a missing course, topic or lecture gets a button straight to the fix.' },
-        { tab:'lectures', sel:'#lecAddTable', title:'Paste the lecture list', caption:'The same paste-a-range idea for a course\'s lectures: number, name, and the learning outcomes separated by semicolons. Pick the course first and the list below narrows to it.' },
-        { tab:'guidesim', sel:'#simWarnChecks', title:'Check what\'s missing', caption:'The study guide preview shows every concept as a student sees it, with a warning on anything missing a description, questions or images. Tick which gaps to flag, and filter by lecture to see only your own.' },
-        { tab:'queue', sel:'#batchListContent', title:'Team queue', caption:'A big paste lands here as many rows at once, live for the whole team. Check them over and fix your own. An admin merges the lot in one go — you don\'t have to do anything else.' },
-        { tab:'start', sel:'[data-info="overview"]', title:'That\'s the whole loop', caption:'Every ⓘ opens a short note about that part of the tool. Reopen either tour any time from the 🎬 button at the top of the sidebar.', final:true },
+        { tab:'csv', sel:'#gridImportTable', title:'Paste the questions', caption:'Select a range in Sheets or Excel, copy, click a cell here and paste — it fills in and grows the table to fit. Every row is checked as you type; a missing course, topic or lecture gets a button straight to the fix. Then {{Check & add all to queue}}.' },
+        { tab:'lectures', sel:'#lecAddTable', title:'Paste the lecture list', caption:'The same paste-a-range idea for a course\'s lectures: number, name, and the learning outcomes separated by semicolons. Pick the course first and the list below narrows to it, then {{Check & add all to queue}}.' },
+        { tab:'guidesim', sel:'#simWarnChecks', title:'Check what\'s missing', caption:'[[Study guide preview]] shows every concept as a student sees it, with a warning on anything missing a description, questions or images. Tick which gaps to flag, and use the {{Lecture}} row to see only your own.' },
+        { tab:'queue', sel:'#batchListContent', title:'Team queue', caption:'A big paste lands in [[Team queue]] as many rows at once, live for the whole team. Check them over and fix your own. An admin merges the lot in one go — you don\'t have to do anything else.' },
+        { tab:'start', sel:'[data-info="overview"]', title:'That\'s the whole loop', caption:'Every {{ⓘ}} opens a short note about that part of the tool. Reopen either tour any time from {{🎬 Take the tour}} at the top of the sidebar.', final:true },
       ],
     },
   };
@@ -5381,6 +5388,13 @@ const themesDecl  = text.indexOf('const THEMES = {');
   let devTourSteps = DEV_TOURS.single.steps;
   let devTourStep = 0;
   let devTourOpen = false;
+  // Caption mini-markup: {{...}} is a button you click, [[...]] is a tab in
+  // the sidebar. Escaped first, so caption text is never treated as HTML.
+  function dtMarkup(text){
+    return esc2(String(text||''))
+      .replace(/\{\{([^}]+)\}\}/g, '<span class="dt-btn">$1</span>')
+      .replace(/\[\[([^\]]+)\]\]/g, '<span class="dt-tab">$1</span>');
+  }
   let devTourTrackTimers = [];
   const T = { spotlight: document.getElementById('devTutorialSpotlight'), caption: document.getElementById('devTutorialCaption'), title: document.getElementById('devTutorialTitle'), text: document.getElementById('devTutorialCaptionText'), dots: document.getElementById('devTutorialDots'), back: document.getElementById('devTutorialBackBtn'), skip: document.getElementById('devTutorialSkipBtn'), next: document.getElementById('devTutorialNextBtn'), close: document.getElementById('devTutorialCloseBtn') };
   function tourTarget(step){ let el = step.sel && document.querySelector(step.sel); if(el && el.offsetParent===null && step.fallbackSel) el = document.querySelector(step.fallbackSel); return (el && el.offsetParent!==null) ? el : null; }
@@ -5396,7 +5410,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
     if(step.tab) showTab(step.tab);
     if(step.pane) showPane(step.pane[0], step.pane[1]);
     T.title.innerHTML = `<span class="dt-which">${esc2(DEV_TOURS[devTourKey].icon)} ${esc2(DEV_TOURS[devTourKey].label)}</span>${esc2(step.title)}`;
-    T.text.textContent = step.caption;
+    T.text.innerHTML = dtMarkup(step.caption);
     T.dots.innerHTML = devTourSteps.map((_,i)=>`<span class="dt-dot${i===devTourStep?' on':''}"></span>`).join('');
     T.back.style.display = devTourStep===0 ? 'none' : 'inline-block';
     T.next.textContent = step.final ? 'Done' : 'Next →';
