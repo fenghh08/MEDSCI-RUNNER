@@ -214,6 +214,10 @@
   .sim-badges{ display:flex; gap:4px; flex-wrap:wrap; margin-top:6px; }
   .sim-badge{ font-size:10.5px; padding:1px 7px; border-radius:10px; background:#fff; color:var(--warn); border:1px solid #f6d5a5; font-family:var(--sans); }
   .sim-badge.core{ background:var(--danger-soft); color:var(--danger); border-color:#f0b9c5; }
+  /* Still in the Team queue: shown so it doesn't look lost, dashed so it
+     never reads as already live in the game. */
+  .sim-card.pending{ background:#fffdf6; border-style:dashed; border-color:#e8d49a; border-left-style:solid; border-left-color:#d9a92e; }
+  .sim-badge.pending{ background:#fff7e6; color:#7a5a12; border-color:#f0d9a8; }
   .sim-back{ margin-bottom:10px; }
   .sim-item-cat{ font-size:11px; letter-spacing:.1em; text-transform:uppercase; font-family:var(--mono); font-weight:700; }
   .sim-item-name{ font-family:Georgia,'Iowan Old Style',serif; font-style:italic; font-weight:700; font-size:26px; margin:2px 0 6px; }
@@ -558,8 +562,7 @@
     <section data-section="guidesim">
       <div class="section-head">
         <h2>Study guide preview <button class="info-btn" data-info="guidesim" title="How this works">i</button></h2>
-        <p id="simPendingNote" class="ml-dupe" style="display:none;"></p>
-        <p>The study guide the way students see it — course → topic → item — with a ⚠ warning on every card that's missing something. Choose which gaps to flag, open a card, and hit Edit to fix it from there. This shows what's in <code>game-data.js</code> right now, so a fix appears here once an admin merges it.</p>
+        <p>The study guide the way students see it, with a ⚠ warning on every card that's missing something. Pick your lecture to see only your own cards. Open a card and hit Edit to fix it from there. Anything still in the Team queue shows here too, marked ⏳ waiting for review.</p>
       </div>
       <div class="card">
         <div class="fl-label" style="margin-bottom:6px;">Flag items that are missing…</div>
@@ -571,8 +574,8 @@
         <div class="sim-blurb" id="simBlurb"></div>
         <div id="simBrowse">
           <div class="sim-label">Course</div><div class="sim-tabs" id="simCourseTabs"></div>
-          <div class="sim-label" id="simTopicLabel">Topic</div><div class="sim-tabs" id="simTopicTabs"></div>
           <div class="sim-label">Lecture</div><div class="sim-tabs" id="simLectureTabs"></div>
+          <div id="simTopicRow"><div class="sim-label" id="simTopicLabel">Topic</div><div class="sim-tabs" id="simTopicTabs"></div></div>
         </div>
         <input type="text" id="simSearch" class="sim-search" placeholder="🔍 Search this list by name, description, or #tag…">
         <div class="sim-summary" id="simSummary"></div>
@@ -3048,39 +3051,84 @@
     checks: document.getElementById('simWarnChecks'), onlyWarn: document.getElementById('simOnlyWarn'),
   };
   function simActive(){ return new Set([...simEls.checks.querySelectorAll('.simwarn-check:checked')].map(cb=>cb.value)); }
-  function simItems(themeId, topicId){
-    const all = Object.entries(RD.THEMES[themeId]?.topics?.[topicId]?.items || {});
-    if(!simState.lecture) return all;
-    const want = courseDisplayString(themeId, simState.lecture);
-    return all.filter(([, it])=>{
-      if(it.course===themeId && it.class===simState.lecture) return true;
-      return String(it.relatedCourse||'').split('\n').map(x=>x.trim()).filter(Boolean).includes(want);
-    });
+  function simMatchesLecture(item, lecture, courseCode){
+    if(!lecture) return true;
+    if(item.course===courseCode && item.class===lecture) return true;
+    const want = courseDisplayString(courseCode, lecture);
+    return String(item.relatedCourse||'').split('\n').map(x=>x.trim()).filter(Boolean).includes(want);
   }
-  function simGapCount(themeId, topicId, active){ return simItems(themeId, topicId).filter(([, item])=> itemGaps(item, active).length).length; }
-  function simCardHtml(themeId, topicId, itemId, item, active, subtitle){
+  // Concepts still sitting in the Team queue, shaped like a game-data item so
+  // the same card and detail code renders them. They show in the guide with a
+  // ⏳ badge rather than being invisible until an admin merges -- "I added it
+  // and it isn't here" reads as the tool having lost it.
+  function simPendingRows(){
+    return Object.values(batch||{})
+      .filter(e=> e && e.type==='item' && e.data && e.data.itemId)
+      .map(e=>{
+        const d = e.data;
+        return { theme:d.theme, topicId:d.topicId, itemId:d.itemId, pending:true, item:{
+          label: d.label || d.itemId, description:d.description||'', mechanism:d.mechanism||'',
+          images:d.images||[], funFacts:d.funFacts||[], notes:d.notes||[], activeRecall:d.activeRecall||[],
+          saq:d.saq||[], refs:d.refs||[], hashtags:d.hashtags||[], questions:[],
+          course:d.course||'', class:d.class||'',
+          relatedCourse: d.relatedCourseOverride || (d.course ? courseDisplayString(d.course, d.class) : ''),
+        } };
+      });
+  }
+  // Questions queued against a merged item -- so a card doesn't still read
+  // "No questions" right after someone added three.
+  function simPendingQCount(itemId){
+    return Object.values(batch||{}).filter(e=> e && e.type==='question' && e.data && e.data.itemId===itemId).length;
+  }
+  // The cards for the current view. Picking a lecture spans every topic in
+  // the course, because a lecture rarely sits inside just one -- so the topic
+  // row is redundant (and hidden) once a lecture is chosen.
+  function simRows(themeId, topicId){
+    const theme = RD.THEMES[themeId] || { topics:{} };
+    const lec = simState.lecture;
+    const rows = [];
+    (lec ? Object.keys(theme.topics||{}) : [topicId]).forEach(tid=>{
+      Object.entries(theme.topics?.[tid]?.items || {}).forEach(([itemId, item])=>{
+        if(!simMatchesLecture(item, lec, themeId)) return;
+        rows.push({ theme:themeId, topicId:tid, itemId, item, pending:false });
+      });
+    });
+    simPendingRows().forEach(r=>{
+      if(r.theme !== themeId) return;
+      if(lec ? !simMatchesLecture(r.item, lec, themeId) : r.topicId !== topicId) return;
+      rows.push(r);
+    });
+    return rows;
+  }
+  function simGapCount(themeId, topicId, active){
+    return simRows(themeId, topicId).filter(r=> !r.pending && simItemGaps(r.itemId, r.item, active).length).length;
+  }
+  // Gaps as shown on a card: a queued question counts, so the "No questions"
+  // flag clears the moment someone adds one.
+  function simItemGaps(itemId, item, active){
     const gaps = itemGaps(item, active);
+    return simPendingQCount(itemId) ? gaps.filter(g=> g.key!=='questions') : gaps;
+  }
+  // Whole-course warning total. In lecture mode simGapCount already spans
+  // every topic, so summing per topic would multiply it.
+  function simGapTotal(themeId, active){
+    if(simState.lecture) return simGapCount(themeId, null, active);
+    return Object.keys(RD.THEMES[themeId]?.topics || {}).reduce((s, tid)=> s + simGapCount(themeId, tid, active), 0);
+  }
+  function simCardHtml(themeId, topicId, itemId, item, active, subtitle, pending){
+    const gaps = pending ? [] : simItemGaps(itemId, item, active);
+    const pq = pending ? 0 : simPendingQCount(itemId);
     const meta = RD.TOPICS[topicId] || {};
-    return `<button type="button" class="sim-card${gaps.length?' has-gaps':''}" style="--tc:${esc2(meta.color||'#cfd4e0')}" data-sim-open="${esc2(themeId)}::${esc2(topicId)}::${esc2(itemId)}">
+    const badges = (pending ? [`<span class="sim-badge pending">⏳ Waiting for review</span>`] : [])
+      .concat(pq ? [`<span class="sim-badge pending">⏳ ${pq} question${pq===1?'':'s'} waiting</span>`] : [])
+      .concat(gaps.map(g=>`<span class="sim-badge${g.core?' core':''}">⚠ ${g.badge}</span>`));
+    return `<button type="button" class="sim-card${pending?' pending':''}${gaps.length?' has-gaps':''}" style="--tc:${esc2(meta.color||'#cfd4e0')}" data-sim-open="${esc2(themeId)}::${esc2(topicId)}::${esc2(itemId)}"${pending?' data-sim-pending="1"':''}>
       <span class="sim-card-name">${esc2(item.label)}</span>
       <span class="sim-card-hint">${esc2(subtitle || (item.images && item.images.length ? '🖼 image link' : 'tap for details'))}</span>
-      ${gaps.length ? `<span class="sim-badges">${gaps.map(g=>`<span class="sim-badge${g.core?' core':''}">⚠ ${g.badge}</span>`).join('')}</span>` : ''}
+      ${badges.length ? `<span class="sim-badges">${badges.join('')}</span>` : ''}
     </button>`;
   }
   function renderGuideSim(){
-    // This page is deliberately what STUDENTS see, i.e. what's actually in
-    // game-data.js -- anything still in the queue isn't in the game yet.
-    // Saying so explicitly, because "I added it and it's not here" reads as
-    // the tool having dropped it.
-    const note = document.getElementById('simPendingNote');
-    if(note){
-      const q = Object.values(batch||{}).filter(e=>e && e.type==='question').length;
-      const i = Object.values(batch||{}).filter(e=>e && e.type==='item').length;
-      if(q || i){
-        note.style.display = 'block';
-        note.innerHTML = `⏳ <b>${i?`${i} concept${i===1?'':'s'}`:''}${i&&q?' and ':''}${q?`${q} question${q===1?'':'s'}`:''}</b> waiting in the <button type="button" class="link-btn" data-goto="queue">Team queue</button> — they'll appear here once an admin merges them.`;
-      } else note.style.display = 'none';
-    }
     if(!simEls.checks.children.length){
       simEls.checks.innerHTML = INCOMPLETE_FIELDS.map(f=>`<label><input type="checkbox" class="simwarn-check" value="${f.key}" ${f.core?'checked':''}> ${f.label}</label>`).join('');
       simEls.checks.querySelectorAll('.simwarn-check').forEach(cb=>cb.addEventListener('change', renderGuideSim));
@@ -3092,7 +3140,11 @@
     const topicIds = Object.keys(theme.topics);
     if(!topicIds.includes(simState.topic)) simState.topic = topicIds[0] || null;
 
-    const detailItem = simState.itemId ? RD.THEMES[simState.theme]?.topics?.[simState.topic]?.items?.[simState.itemId] : null;
+    // A card that's still in the queue opens from the queue entry, since it
+    // has nothing in game-data.js to look up yet.
+    const pendingRow = simState.itemId ? simPendingRows().find(r=> r.itemId===simState.itemId) : null;
+    const detailItem = pendingRow ? pendingRow.item
+      : (simState.itemId ? RD.THEMES[simState.theme]?.topics?.[simState.topic]?.items?.[simState.itemId] : null);
     if(simState.itemId && !detailItem) simState.itemId = null;
     const showingDetail = !!detailItem;
     const query = simEls.search.value.trim().toLowerCase().replace(/^#/, '');
@@ -3104,70 +3156,99 @@
     simEls.summary.style.display = simEls.grid.style.display = showingDetail ? 'none' : '';
     simEls.detail.style.display = showingDetail ? 'block' : 'none';
 
-    simEls.courseTabs.innerHTML = themeIds.map(id=>{
+    // Course counts ignore the lecture filter -- a lecture belongs to one
+    // course, so every other chip would otherwise read zero.
+    const savedLec = simState.lecture; simState.lecture = '';
+    const courseCounts = themeIds.map(id=> simGapTotal(id, active));
+    simState.lecture = savedLec;
+    simEls.courseTabs.innerHTML = themeIds.map((id, idx)=>{
       const t = RD.THEMES[id];
-      const n = Object.keys(t.topics).reduce((sum, topicId)=> sum + simGapCount(id, topicId, active), 0);
+      const n = courseCounts[idx];
       return `<button type="button" class="sim-tab${id===simState.theme?' active':''}" data-sim-theme="${esc2(id)}">${esc2(t.icon||'')} ${esc2(t.label)}${n?`<span class="sim-tab-warn" title="${n} item${n===1?'':'s'} with a warning">${n}</span>`:''}</button>`;
     }).join('');
-    simEls.topicTabs.innerHTML = topicIds.length ? topicIds.map(topicId=>{
+    // Topic chips describe the no-lecture view (they're hidden while a
+    // lecture is picked, and clicking one means "show me the whole topic").
+    simState.lecture = '';
+    const topicCounts = topicIds.map(topicId=> simGapCount(simState.theme, topicId, active));
+    simState.lecture = savedLec;
+    simEls.topicTabs.innerHTML = topicIds.length ? topicIds.map((topicId, idx)=>{
       const meta = RD.TOPICS[topicId] || { label:topicId, icon:'', color:'#cfd4e0' };
-      const n = simGapCount(simState.theme, topicId, active);
+      const n = topicCounts[idx];
       return `<button type="button" class="sim-tab topic${topicId===simState.topic?' active':''}" style="--tc:${esc2(meta.color)}" data-sim-topic="${esc2(topicId)}">${esc2(meta.icon||'')} ${esc2(meta.label)}${n?`<span class="sim-tab-warn" title="${n} item${n===1?'':'s'} with a warning">${n}</span>`:''}</button>`;
     }).join('') : `<span class="struct-empty" style="margin:0;">— no topics yet —</span>`;
+    // A lecture spans topics, so the topic row is noise once one is picked.
+    // Set below, once the chosen lecture has been validated against the list.
+    const topicRow = document.getElementById('simTopicRow');
 
     // Lecture chips -- the thing a lecturer actually needs to find their own
     // items among a topic's 13. Only lectures that have items in this course
     // are offered, with how many of them are flagged.
     const lecClasses = (KNOWN_COURSES[simState.theme] || {}).classes || {};
+    const pendingHere = simPendingRows().filter(r=> r.theme===simState.theme);
     const lecKeys = Object.keys(lecClasses).filter(k=>{
-      const want = courseDisplayString(simState.theme, k);
-      return Object.values(theme.topics).some(tp=> Object.values(tp.items||{}).some(it=>
-        (it.course===simState.theme && it.class===k) ||
-        String(it.relatedCourse||'').split('\n').map(x=>x.trim()).includes(want)));
+      if(Object.values(theme.topics).some(tp=> Object.values(tp.items||{}).some(it=> simMatchesLecture(it, k, simState.theme)))) return true;
+      return pendingHere.some(r=> simMatchesLecture(r.item, k, simState.theme));
     });
     if(simState.lecture && !lecKeys.includes(simState.lecture)) simState.lecture = '';
     simEls.lectureTabs.innerHTML = lecKeys.length
       ? `<button type="button" class="sim-tab${simState.lecture?'':' active'}" data-sim-lecture="">All lectures</button>` + lecKeys.map(k=>{
           const saved = simState.lecture; simState.lecture = k;
-          const n = Object.keys(theme.topics).reduce((sum, tId)=> sum + simGapCount(simState.theme, tId, active), 0);
+          const n = simGapTotal(simState.theme, active);
           simState.lecture = saved;
           return `<button type="button" class="sim-tab${k===simState.lecture?' active':''}" data-sim-lecture="${esc2(k)}" title="${esc2(lecClasses[k].label||'')}">${esc2(k)}${n?`<span class="sim-tab-warn" title="${n} with a warning">${n}</span>`:''}</button>`;
         }).join('')
       : `<span class="struct-empty" style="margin:0;">— no lectures tagged in this course yet —</span>`;
+    if(topicRow) topicRow.style.display = simState.lecture ? 'none' : '';
 
-    if(showingDetail){ renderSimDetail(simState.theme, simState.topic, simState.itemId, detailItem, active); return; }
+    if(showingDetail){
+      renderSimDetail(simState.theme, pendingRow ? pendingRow.topicId : simState.topic, simState.itemId, detailItem, active, !!pendingRow);
+      return;
+    }
 
-    let cards = '', shown = 0, flagged = 0, total = 0;
+    // Queued cards go first and are never hidden by "only show warnings" --
+    // they're the thing the person just added and wants to see landed.
+    let cards = '', waiting = '', flagged = 0, total = 0, waitingN = 0;
     if(query){
+      const hit = (item)=> `${item.label} ${item.description||''} ${(item.hashtags||[]).join(' ')}`.toLowerCase().includes(query);
+      simPendingRows().forEach(r=>{
+        if(!hit(r.item)) return;
+        waitingN++;
+        waiting += simCardHtml(r.theme, r.topicId, r.itemId, r.item, active,
+          `${(RD.THEMES[r.theme]||{}).label || r.theme} · waiting for review`, true);
+      });
       Object.entries(RD.THEMES).forEach(([themeId, th])=>{
         Object.entries(th.topics).forEach(([topicId, topic])=>{
           Object.entries(topic.items).forEach(([itemId, item])=>{
-            const blob = `${item.label} ${item.description||''} ${(item.hashtags||[]).join(' ')}`.toLowerCase();
-            if(!blob.includes(query)) return;
+            if(!hit(item)) return;
             total++;
-            const hasGap = itemGaps(item, active).length > 0;
+            const hasGap = simItemGaps(itemId, item, active).length > 0;
             if(hasGap) flagged++;
             if(simEls.onlyWarn.checked && !hasGap) return;
-            shown++;
             cards += simCardHtml(themeId, topicId, itemId, item, active, `${th.label} · ${(RD.TOPICS[topicId]||{}).label || topicId}`);
           });
         });
       });
-      simEls.summary.textContent = `${total} match${total===1?'':'es'} across every course · ${flagged} with a warning`;
+      simEls.summary.innerHTML = `${total} match${total===1?'':'es'} across every course · ${flagged} with a warning`
+        + (waitingN ? ` · <span style="color:#7a5a12;">⏳ ${waitingN} waiting for review</span>` : '');
     } else {
-      simItems(simState.theme, simState.topic).forEach(([itemId, item])=>{
+      simRows(simState.theme, simState.topic).forEach(r=>{
+        if(r.pending){ waitingN++; waiting += simCardHtml(r.theme, r.topicId, r.itemId, r.item, active, null, true); return; }
         total++;
-        const hasGap = itemGaps(item, active).length > 0;
+        const hasGap = simItemGaps(r.itemId, r.item, active).length > 0;
         if(hasGap) flagged++;
         if(simEls.onlyWarn.checked && !hasGap) return;
-        shown++;
-        cards += simCardHtml(simState.theme, simState.topic, itemId, item, active);
+        cards += simCardHtml(simState.theme, r.topicId, r.itemId, r.item, active,
+          simState.lecture ? ((RD.TOPICS[r.topicId]||{}).label || r.topicId) : null);
       });
-      const topicLabel = (RD.TOPICS[simState.topic] || {}).label || '';
-      simEls.summary.innerHTML = total
-        ? (flagged ? `<b>${flagged}</b> of ${total} item${total===1?'':'s'} in ${esc2(topicLabel)} ${flagged===1?'has':'have'} a warning` : `✅ All ${total} item${total===1?'':'s'} in ${esc2(topicLabel)} have everything you're checking for`)
-        : '';
+      const scope = simState.lecture
+        ? `${simState.theme} ${simState.lecture}`
+        : ((RD.TOPICS[simState.topic] || {}).label || '');
+      simEls.summary.innerHTML = (total
+        ? (flagged ? `<b>${flagged}</b> of ${total} item${total===1?'':'s'} in ${esc2(scope)} ${flagged===1?'has':'have'} a warning`
+                   : `✅ All ${total} item${total===1?'':'s'} in ${esc2(scope)} have everything you're checking for`)
+        : '') + (waitingN ? `${total?' · ':''}<span style="color:#7a5a12;">⏳ ${waitingN} waiting for review</span>` : '');
     }
+    cards = waiting + cards;
     simEls.grid.innerHTML = cards || `<div class="struct-empty" style="margin:0;grid-column:1/-1;">${query ? '— nothing matches —' : (simEls.onlyWarn.checked && total ? '— no warnings here —' : '— no items yet —')}</div>`;
     simEls.grid.querySelectorAll('[data-sim-open]').forEach(btn=> btn.addEventListener('click', ()=>{
       const [themeId, topicId, itemId] = btn.dataset.simOpen.split('::');
@@ -3175,9 +3256,12 @@
       renderGuideSim();
     }));
   }
-  function renderSimDetail(themeId, topicId, itemId, item, active){
+  function renderSimDetail(themeId, topicId, itemId, item, active, pending){
     const meta = RD.TOPICS[topicId] || { label:topicId, color:'#6b7385' };
-    const gaps = itemGaps(item, active);
+    // A queued concept isn't in the game yet, so flagging what it's "missing"
+    // and offering an editor that can't load it would both be wrong.
+    const gaps = pending ? [] : simItemGaps(itemId, item, active);
+    const pq = pending ? 0 : simPendingQCount(itemId);
     const gapKeys = new Set(gaps.map(g=>g.key));
     const missing = (key, text)=> gapKeys.has(key) ? `<div class="sim-missing">⚠ ${text}</div>` : '';
     const list = (title, arr, fn)=> (arr||[]).length ? `<div class="p-sub">${title}</div><ul class="p-facts">${arr.map(fn).join('')}</ul>` : '';
@@ -3186,10 +3270,12 @@
     const course = item.course ? courseDisplayString(item.course, item.class) : '';
     const descPresent = !INCOMPLETE_FIELDS.find(f=>f.key==='description').isMissing(item);
     simEls.detail.innerHTML = `
-      <button type="button" class="sim-back" data-sim-back>← ${simEls.search.value.trim() ? 'Back to results' : 'All topics'}</button>
+      <button type="button" class="sim-back" data-sim-back>← ${simEls.search.value.trim() ? 'Back to results' : (simState.lecture ? `Back to ${esc2(simState.lecture)}` : 'All topics')}</button>
       <div class="sim-item-cat" style="color:${esc2(meta.color)};">${esc2(meta.label)}</div>
       <div class="sim-item-name">${esc2(item.label)}</div>
       ${course ? `<div class="sim-item-course">🎓 ${esc2(course)}</div>` : ''}
+      ${pending ? `<div class="sim-alert" style="background:var(--warn-soft);border-color:#f0d9a8;"><span>⏳ <b>Waiting for review.</b> This is how it will look once an admin merges it — it isn't in the game yet.</span></div>` : ''}
+      ${pq ? `<div class="sim-alert" style="background:var(--warn-soft);border-color:#f0d9a8;"><span>⏳ <b>${pq} question${pq===1?'':'s'} waiting for review</b> — not counted below until an admin merges them.</span></div>` : ''}
       ${gaps.length ? `<div class="sim-alert"><span>⚠ Missing: <b>${gaps.map(g=>g.gap).join(', ')}</b></span><button type="button" class="struct-edit-link" data-edit-item="${esc2(itemId)}" style="margin:0;">✏️ Fix in the editor</button></div>` : ''}
       ${(item.hashtags||[]).length ? `<div class="p-chips" style="margin-bottom:10px;">${item.hashtags.map(h=>`<span class="p-chip">#${esc2(h)}</span>`).join('')}</div>` : missing('hashtags', 'No hashtags yet')}
       ${descPresent ? `<p class="p-desc">${esc2(item.description)}</p>` : (gapKeys.has('description') ? missing('description', 'No description yet') : (item.description ? `<p class="p-desc">${esc2(item.description)}</p>` : ''))}
@@ -3202,7 +3288,9 @@
       ${(item.refs||[]).length ? `<div class="p-sub">References</div><p class="p-desc">${item.refs.length} reference${item.refs.length===1?'':'s'}</p>` : (gapKeys.has('refs') ? `<div class="p-sub">References</div>${missing('refs', 'No references yet')}` : '')}
       <div class="sim-section">
         ${qCount ? `<div class="sim-quiz">🧠 Quiz (${qCount} question${qCount===1?'':'s'})</div>` : missing('questions', 'No questions yet — the Quiz button won\'t appear in the game for this item')}
-        <div class="btn-row" style="margin-top:10px;"><button type="button" class="struct-edit-link" data-edit-item="${esc2(itemId)}">✏️ Edit item</button><button type="button" class="struct-edit-link" data-add-question="${esc2(itemId)}">➕ Add a question</button></div>
+        ${pending
+          ? `<p class="card-sub" style="margin:10px 0 0;">It can be edited, and questions added to it, once an admin merges it.</p>`
+          : `<div class="btn-row" style="margin-top:10px;"><button type="button" class="struct-edit-link" data-edit-item="${esc2(itemId)}">✏️ Edit item</button><button type="button" class="struct-edit-link" data-add-question="${esc2(itemId)}">➕ Add a question</button></div>`}
       </div>`;
     simEls.detail.querySelector('[data-sim-back]').addEventListener('click', ()=>{ simState.itemId = null; renderGuideSim(); });
     wireEditButtons(simEls.detail);
@@ -3441,15 +3529,20 @@
       }
     });
   }
-  function attachQueueListener(){ fbOnValue(fbRef(fbdb, 'contributions'), snap=>{ batch = snap.val() || {}; renderBatch(); mlRefreshIfOpen(); }); }
+  function attachQueueListener(){ fbOnValue(fbRef(fbdb, 'contributions'), snap=>{ batch = snap.val() || {}; renderBatch(); mlRefreshIfOpen(); simRefreshIfOpen(); }); }
+  // The guide now shows queued cards, so it has to re-render when the queue moves.
+  function simRefreshIfOpen(){
+    const sec = document.querySelector('section[data-section="guidesim"]');
+    if(sec && sec.classList.contains('active')) renderGuideSim();
+  }
   // Fire-and-forget write; the onValue listener re-renders once it round-trips, so everyone sees the same list.
   function pushToQueue(entry){
     entry.contributorName = currentContributorName();
     entry.contributorEmail = currentContributorEmail();
     entry.createdAt = Date.now();
     if(firebaseReady){
-      fbPush(fbRef(fbdb, 'contributions'), entry).catch(err=>{ console.warn('[Content Tool] Could not write to the shared queue — saving locally instead.', err); batch[`local-${++_localKeyN}`] = entry; renderBatch(); });
-    } else { batch[`local-${++_localKeyN}`] = entry; renderBatch(); }
+      fbPush(fbRef(fbdb, 'contributions'), entry).catch(err=>{ console.warn('[Content Tool] Could not write to the shared queue — saving locally instead.', err); batch[`local-${++_localKeyN}`] = entry; renderBatch(); simRefreshIfOpen(); });
+    } else { batch[`local-${++_localKeyN}`] = entry; renderBatch(); simRefreshIfOpen(); }
   }
   // Overwrites an existing queue entry in place (same key) instead of
   // adding a new one -- used when resuming an edit of something already
@@ -4647,7 +4740,9 @@
     guidesim: { title:'A preview built from the same data as the game', tags:['window.RUNNER_DATA','no second copy'], body:`
       <p>The study guide preview doesn't keep its own copy of anything. It walks <code>RUNNER_DATA.THEMES</code> — the exact object the game's study guide walks — so what you see is what students get after the next merge.</p>
       <p>Each warning is a tiny test on an item (<code>INCOMPLETE_FIELDS[].isMissing(item)</code>): empty description, no questions, and so on. The checkboxes just choose which tests run; a card with any failing test gets the amber warning treatment. The <b>What's missing</b> list under Browse content uses the very same tests, so the two never disagree.</p>
-      <p>Edit and Add a question are the same buttons used everywhere else in the tool — they jump to the item / question form with that item already selected.</p>`, file:'developer-tool.html — renderGuideSim(), itemGaps(), INCOMPLETE_FIELDS' },
+      <p><b>Lecture beats topic.</b> Picking a lecture searches every topic in the course, because a lecture rarely sits inside just one — so the topic row hides while a lecture is chosen. Items tagged to several lectures appear under each of them.</p>
+      <p><b>Waiting for review.</b> Anything still in the Team queue is drawn here too, on a dashed card with a ⏳ badge, so "I added it and it isn't here" can't happen. Those cards aren't counted in the warning totals and can't be edited — they aren't in <code>game-data.js</code> yet. A queued <i>question</i> shows as a badge on the concept it belongs to and clears that concept's "No questions" flag.</p>
+      <p>Edit and Add a question are the same buttons used everywhere else in the tool — they jump to the item / question form with that item already selected.</p>`, file:'developer-tool.html — renderGuideSim(), simRows(), itemGaps(), INCOMPLETE_FIELDS' },
     structure: { title:'Where the data comes from', tags:['<script>','file://','window global'], body:`
       <p>This page can't <code>fetch()</code> a file sitting next to it: browsers block that for pages opened from disk (<code>file://</code>). So <code>game-data.js</code> is loaded the old-fashioned way — a plain <code>&lt;script src&gt;</code> tag in the <code>&lt;head&gt;</code>. The file wraps everything in a function and publishes one global:</p>
       <pre>(function(){
