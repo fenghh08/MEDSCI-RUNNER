@@ -89,6 +89,14 @@
   #wrap{ width:min(97vw, calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right)));
     max-width:1700px;
     height:min(96vh, calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+    /* On iOS/iPadOS `vh` is the viewport with the browser toolbar HIDDEN,
+       so with the toolbar showing this box was taller than the screen and
+       body's centring cropped the HUD off the top (reported from an iPad in
+       landscape). `dvh` tracks the toolbar; the vh line above is the
+       fallback for browsers without it, and max-height is the belt to that
+       braces -- #wrap can never be taller than body's actual box. */
+    height:min(96dvh, calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+    max-height:100%;
     padding:12px; display:flex; flex-direction:column;
     /* Establishes a containing block for the full-bleed modals below
        (#infoModal, #mcqModal, #scenarioOverlay, etc, all `inset:0`) so they
@@ -552,6 +560,36 @@
   #podiumConfetti i{ position:absolute; top:-16px; width:9px; height:14px; border-radius:2px; animation:podConfetti linear forwards; }
   @keyframes podConfetti{ to{ transform:translate3d(var(--dx), 110vh, 0) rotate(720deg); } }
   @media (prefers-reduced-motion:reduce){ .pod-col.show .pod-block, .pod-col.show .pod-who, #podiumMeRow.show{ animation-duration:.01s; } .pod-col.p1.show .pod-avatar{ animation:none; } #podiumConfetti{ display:none; } }
+
+  /* ---- Phone (portrait) race layout ----
+     Reported from a phone race: the HUD's racers list plus the life block
+     covered half the track (things emerged too late to dodge), and the
+     question card was pushed below the HUD so its options needed scrolling. */
+  #mpLbStrip{ display:none; flex-shrink:0; margin-top:8px; background:var(--panel); border:1px solid var(--panel-line); border-radius:10px;
+    padding:6px 10px; font-family:var(--mono); font-size:12px; color:var(--hud-ink); cursor:pointer; -webkit-user-select:none; user-select:none; }
+  #mpLbStrip .lbs-line{ display:flex; justify-content:space-between; gap:8px; align-items:center; }
+  #mpLbStrip .lbs-line > span:first-child{ overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:0; }
+  #mpLbStrip .lbs-line > span:last-child{ flex-shrink:0; white-space:nowrap; color:var(--hud-dim); }
+  #mpLbStrip .lbs-list{ display:none; margin-top:6px; max-height:120px; overflow-y:auto; }
+  #mpLbStrip.open .lbs-list{ display:block; }
+  #mpLbStrip .lb-row{ background:var(--bg-1); color:var(--hud-ink); border-color:var(--panel-line); }
+  @media (orientation:portrait){
+    /* The racers list lives in a strip UNDER the track, never over it. */
+    #mpOpponentPanel{ display:none !important; }
+    body.in-run.mp-race #mpLbStrip{ display:block; }
+    /* A question is the whole screen on a phone: the HUD steps out of the
+       way (visibility, not display, so the track's HUD carve-out stays put
+       underneath) and the card gets the full height. */
+    body.mcq-open #hud{ visibility:hidden; }
+    body.mcq-open #mcqModal{ padding-top:14px; padding-bottom:14px; }
+    body.mcq-open #mcqPanelCard{ max-height:100%; }
+    /* Tighter life block so less of the road's far end sits under it. */
+    #hudRight{ flex-direction:row; }
+    .hud-block{ padding:6px 10px; }
+    .hud-value{ font-size:18px; }
+    .topic-chips{ margin-top:4px; gap:4px; }
+    .topic-chip{ font-size:9.5px; padding:2px 7px; }
+  }
 </style>
 </head>
 <body>
@@ -1161,6 +1199,7 @@
 
   </div>
 
+  <div id="mpLbStrip"></div>
   <div id="controls-mobile">
     <button id="upBtn">◀ lane</button>
     <button id="downBtn">▶ lane</button>
@@ -1870,8 +1909,10 @@
   const laneX = i => fieldL + laneW * i + laneW / 2; // lane centre at the cell's row
   let PLAYER_Y = H * 0.8;
   let FOCAL = 450;   // depth at which things are drawn at half size
-  let ZSPAWN = 900;  // depth things spawn at (a third of full size)
+  const PSPAWN = 0.5; // draw scale things spawn at -- half size, so a bomb is still readable on a phone
+  let ZSPAWN = 450;  // depth things spawn at (= the depth where the scale is PSPAWN)
   let horizonY = 0;  // screen y of the vanishing point (usually above the canvas)
+  const spawnScreenY = () => horizonY + (PLAYER_Y - horizonY)*PSPAWN;
   const projectZ = z => FOCAL/(FOCAL + z);
   function projectLane(lane, z){ const p = projectZ(z); return { x: W/2 + (laneX(lane) - W/2)*p, y: horizonY + (PLAYER_Y - horizonY)*p, s: p }; }
   const projectEntity = e => projectLane(e.lane, e.z);
@@ -1910,12 +1951,15 @@
     PLAYER_Y = topInset + trackH*0.82;
     SCALE = Math.min(laneW/160, trackH/420);
     FOCAL = 450*SCALE;
-    ZSPAWN = 2*FOCAL;
-    // Things emerge halfway under the HUD strip (the very top edge when
-    // there's no HUD) at a third of full size; the vanishing point is
-    // wherever that requires -- solves projectLane(., ZSPAWN).y === ySpawn.
-    const ySpawn = topInset*0.5;
-    horizonY = (3*ySpawn - PLAYER_Y)/2;
+    ZSPAWN = FOCAL*(1/PSPAWN - 1);
+    // Things emerge at PSPAWN of full size from the HUD's lower edge on a
+    // portrait phone (the HUD there spans most of the width, so anything
+    // under it is simply invisible), or from halfway under the HUD strip
+    // on a wide screen (the very top edge when there's no HUD); the
+    // vanishing point is wherever that requires -- solves
+    // projectLane(., ZSPAWN).y === ySpawn.
+    const ySpawn = window.matchMedia('(orientation:portrait)').matches ? topInset : topInset*0.5;
+    horizonY = (ySpawn - PSPAWN*PLAYER_Y)/(1 - PSPAWN);
     // CSS-side clearance stays in CSS px (it pads DOM elements, not the canvas).
     document.documentElement.style.setProperty('--hud-clearance', (hudCss ? Math.ceil(hudCss) + 16 : 20) + 'px');
     // The question/score cards are centred and at most ~520-600px wide: on a
@@ -2778,6 +2822,7 @@
     hud.style.display = inRun ? 'flex' : 'none';
     controlsMobile.classList.toggle('in-run', inRun);
     document.body.classList.toggle('in-run', inRun);
+    document.body.classList.toggle('mcq-open', screenState==='mcq');
     // togglePause() only actually does anything in 'running'/'paused' --
     // during the post-answer "resuming" countdown or a live question it's a
     // no-op, but the button stayed fully lit either way, inviting a tap
@@ -4318,7 +4363,7 @@
     if(bombTimer <= 0){
       spawnBomb();
       if(inBombHell){
-        bombTimer = 180 + Math.random()*180; // was 150–300ms; ~17% fewer bombs
+        bombTimer = GAME_CONFIG.bombHellSpawnBaseMs + Math.random()*GAME_CONFIG.bombHellSpawnRandMs;
       } else {
         // Easy stages see fewer bombs, hard stages more (see GAME_CONFIG.bombIntervalByDifficulty)
         const diffMult = (GAME_CONFIG.bombIntervalByDifficulty || {})[stageDifficulty()] || 1;
@@ -4443,7 +4488,7 @@
     ctx.beginPath(); ctx.moveTo(edge(pTop,-1),0); ctx.lineTo(edge(pBot,-1),H); ctx.moveTo(edge(pTop,1),0); ctx.lineTo(edge(pBot,1),H); ctx.stroke();
     // Fog over the far end so things fade in from the distance rather than
     // popping into view. Cached: gradients aren't free 60x/sec.
-    const fogEnd = topInset*0.5 + 90*SCALE, key = currentTheme+'|'+fogEnd;
+    const fogEnd = spawnScreenY() + 70*SCALE, key = currentTheme+'|'+fogEnd;
     if(!fogGrad || fogGradKey!==key){
       fogGradKey = key;
       fogGrad = ctx.createLinearGradient(0,0,0,fogEnd);
@@ -5507,6 +5552,8 @@
   const mpCountdownText = document.getElementById('mpCountdownText');
   const mpOpponentPanel = document.getElementById('mpOpponentPanel');
   const mpLeaderboardPanel = document.getElementById('mpLeaderboardPanel');
+  const mpLbStrip = document.getElementById('mpLbStrip');
+  mpLbStrip.addEventListener('click', ()=>{ mpLbStrip.classList.toggle('open'); mpRenderLeaderboard(mp.roster); });
   const mpRosterList = document.getElementById('mpRosterList');
   const mpEliminationToast = document.getElementById('mpEliminationToast');
   const resumeIndicator = document.getElementById('resumeIndicator');
@@ -5909,14 +5956,22 @@
   }
   function mpRenderLeaderboard(roster){
     const ranked = mpRankedRoster(roster);
-    mpLeaderboardPanel.innerHTML = ranked.map((p,i)=>{
+    const rows = ranked.map((p,i)=>{
       const isMe = p.pid===mp.playerId;
       // `done` is set for EVERY way a race ends (finished, eliminated, quit),
       // so it has to be checked together with the reason -- previously a
       // finisher also matched the bare `done` test first and showed 💀.
       const status = p.done ? ({ finished:'🏆', ended:'🚪', timeup:'⌛' }[p.doneReason] || (p.finishedWin ? '🏆' : '💀')) : `S${p.stageRoman||'I'}`;
-      return `<div class="lb-row${isMe?' me':''}"><span><span class="lb-rank">#${i+1}</span>${p.name}${isMe?t(' (you)'):''}</span><span>${status} · ${p.score}</span></div>`;
+      return `<div class="lb-row${isMe?' me':''}"><span><span class="lb-rank">#${i+1}</span>${escapeHtml(p.name||'')}${isMe?t(' (you)'):''}</span><span>${status} · ${p.score}</span></div>`;
     }).join('');
+    mpLeaderboardPanel.innerHTML = rows;
+    // Portrait phones get the same list in a strip under the track (CSS
+    // hides the HUD panel there): one line -- my rank and score, and the
+    // leader if that's not me -- that taps open to the full list.
+    const me = ranked.findIndex(p=>p.pid===mp.playerId), lead = ranked[0];
+    const mine = me>=0 ? `#${me+1}/${ranked.length} · ${ranked[me].score}` : `${ranked.length} ${t('racers')}`;
+    const leader = lead && lead.pid!==mp.playerId ? ` · 👑 ${escapeHtml(lead.name||'')} ${lead.score}` : '';
+    mpLbStrip.innerHTML = `<div class="lbs-line"><span>🏁 ${mine}${leader}</span><span>${mpLbStrip.classList.contains('open') ? '▲' : '▼'}</span></div><div class="lbs-list">${rows}</div>`;
   }
   function mpCheckEliminations(roster){
     Object.entries(roster).forEach(([pid,p])=>{
@@ -6072,6 +6127,7 @@
     stageProgress = {};
     Object.keys(currentStages()[0].requirements).forEach(t=>stageProgress[t]=0);
     mpOpponentPanel.style.display = 'block';
+    document.body.classList.add('mp-race');
     mp.shields = 0; mp.giftsUnlocked = false; mp.giftFirstRollDone = false; mp.giftTimer = 0; mp.seenIncoming = new Set(); mp.incomingQueue = []; mp.bombHellEndsAt = null; mp.bombHellLeftMs = 0; mp.giftUnlockPending = false;
     clearTimeout(mp.catchUpTimer); mp.catchUpEndsAt = null; mp.catchUpReason = null; mp.catchUpFinisherName = null;
     catchUpBanner.style.display = 'none';
@@ -6460,6 +6516,7 @@
       catchUpEndsAt:null, catchUpReason:null, catchUpFinisherName:null, catchUpTimer:null,
       isSpectator:false, lastRoom:null, specTimer:null, hostEndTimer:null, specGiftsOn:false, specGiftFlashUntil:0 };
     mpOpponentPanel.style.display = 'none';
+    document.body.classList.remove('mp-race');
     grenadeOverlay.classList.remove('active');
     updateGiftHUD();
     mpSetOverButtons('solo');
