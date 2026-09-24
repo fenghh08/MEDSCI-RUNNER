@@ -1854,18 +1854,27 @@
   // on top of (and hide) the bottom lane (reported: "last lane covered").
   // Always 0 in real gameplay, so this changes nothing there.
   let bottomInset = 0;
-  // The track runs UPWARDS: the three lanes are vertical columns side by
-  // side, the player sits near the bottom and everything (topic blocks,
-  // pickups, bombs) falls down the screen towards them. On a wide desktop /
-  // landscape stage the columns are a centred strip (fieldL..fieldL+fieldW)
-  // so lanes don't stretch across a 1400px canvas -- the sides just show
-  // the vessel wall. laneW/fieldL/fieldW/PLAYER_Y are re-derived in
-  // updateTopInset(), which runs on every resize and HUD change.
+  // The track is a perspective road (Subway Surfers style): three lanes
+  // that narrow towards a vanishing point above the screen, the cell near
+  // the bottom, and everything (topic blocks, pickups, bombs) rolling down
+  // the road towards it, drawn smaller the further away it is. An entity's
+  // position is its lane plus a depth `z` -- 0 at the cell's row, positive
+  // further up the road -- and projectLane() turns that into screen x/y
+  // plus a draw scale. "World units" = screen px at the cell's row, so
+  // entity radii (24*SCALE etc.) work unchanged for collision. fieldL/
+  // fieldW/laneW describe the road at the cell's row; all of these are
+  // re-derived in updateTopInset(), which runs on every resize and HUD
+  // change.
   let fieldW = W, fieldL = 0;
   let laneW = W / LANES;
-  const laneX = i => fieldL + laneW * i + laneW / 2;
+  const laneX = i => fieldL + laneW * i + laneW / 2; // lane centre at the cell's row
   let PLAYER_Y = H * 0.8;
-  const spawnY = () => topInset - 30*SCALE; // just under the HUD strip, so things slide out from beneath it
+  let FOCAL = 450;   // depth at which things are drawn at half size
+  let ZSPAWN = 900;  // depth things spawn at (a third of full size)
+  let horizonY = 0;  // screen y of the vanishing point (usually above the canvas)
+  const projectZ = z => FOCAL/(FOCAL + z);
+  function projectLane(lane, z){ const p = projectZ(z); return { x: W/2 + (laneX(lane) - W/2)*p, y: horizonY + (PLAYER_Y - horizonY)*p, s: p }; }
+  const projectEntity = e => projectLane(e.lane, e.z);
   let SCALE = 1; // multiplies the fixed-pixel entity/player sizes below so they stay proportional to the lane width
 
   // Recomputes topInset from the HUD's real rendered height (0 when it's
@@ -1887,16 +1896,26 @@
     // canvas however tall the HUD gets (it'll overlap a little instead).
     const unitsPerCssPx = stageRect.height ? H / stageRect.height : 1;
     topInset = hudCss ? Math.min(Math.ceil(hudCss * unitsPerCssPx) + 8, Math.round(H * 0.36)) : 0;
-    // The playable strip is at most ~3/4 as wide as the track is tall (a
-    // phone in portrait uses its whole width), the player stands 80% of the
-    // way down the track, and sizes scale off the lane width. 160 = the
-    // original lane size, so entity/player art keeps its proportions.
+    // The road at the cell's row spans nearly the whole width (capped
+    // against the track height on a very wide window -- it still fills the
+    // bottom of the screen because the road widens further below the cell).
+    // The cell stands 82% of the way down the track. Sizes scale off the
+    // lane width (160 = the original lane size, so entity/player art keeps
+    // its proportions) but are capped against the track height so a huge
+    // desktop window doesn't get comically large sprites.
     const trackH = H - topInset - bottomInset;
-    fieldW = Math.min(W, Math.max(240, Math.round(trackH*0.75)));
+    fieldW = Math.min(W*0.92, Math.max(240, Math.round(trackH*1.35)));
     fieldL = Math.round((W - fieldW)/2);
     laneW = fieldW / LANES;
-    PLAYER_Y = topInset + trackH*0.8;
-    SCALE = laneW/160;
+    PLAYER_Y = topInset + trackH*0.82;
+    SCALE = Math.min(laneW/160, trackH/420);
+    FOCAL = 450*SCALE;
+    ZSPAWN = 2*FOCAL;
+    // Things emerge halfway under the HUD strip (the very top edge when
+    // there's no HUD) at a third of full size; the vanishing point is
+    // wherever that requires -- solves projectLane(., ZSPAWN).y === ySpawn.
+    const ySpawn = topInset*0.5;
+    horizonY = (3*ySpawn - PLAYER_Y)/2;
     // CSS-side clearance stays in CSS px (it pads DOM elements, not the canvas).
     document.documentElement.style.setProperty('--hud-clearance', (hudCss ? Math.ceil(hudCss) + 16 : 20) + 'px');
     // The question/score cards are centred and at most ~520-600px wide: on a
@@ -1937,7 +1956,7 @@
       canvas.width = 960; canvas.height = 480;
       W = 960; H = 480;
       updateTopInset();
-      vesselGradLeft = vesselGradRight = null;
+      fogGrad = null;
       return;
     }
     const rect = stageEl.getBoundingClientRect();
@@ -1946,7 +1965,7 @@
     canvas.width = w; canvas.height = h;
     W = w; H = h;
     updateTopInset();
-    vesselGradLeft = vesselGradRight = null;
+    fogGrad = null;
   }
   new ResizeObserver(resizeCanvasForPortrait).observe(stageEl);
   // Belt-and-suspenders alongside ResizeObserver -- WKWebView's rotation
@@ -3126,7 +3145,7 @@
     if(tutorialStep===0) stepTutorialAutoCycle(now);
     stepTutorialDemo(now);
     drawVessel();
-    tutorialEntities.forEach(e=> drawEntity(e));
+    drawEntities(tutorialEntities);
     drawPlayer();
     tutorialRafId = requestAnimationFrame(tutorialFrame);
   }
@@ -3150,7 +3169,7 @@
       tutorialAutoCycle.phaseStart = now;
     }
   }
-  // ---- steps with a `demo`: an entity drifts down from the top and
+  // ---- steps with a `demo`: an entity rolls down the road from the far end and
   // either gets "collected" (player steers to meet it, matching feedback
   // fires, same popup/sound real gameplay uses) or, for `outcome:'avoid'`,
   // just drifts past a player that deliberately stays put -- looping for
@@ -3179,9 +3198,9 @@
     if(tutorialDemo.phase==='approach'){
       if(!avoiding && elapsed>120) player.targetLane = cfg.lane; // start steering toward it shortly after it appears
       const u = Math.min(1, elapsed/APPROACH);
-      const startY = spawnY(), endY = avoiding ? H + 40*SCALE : PLAYER_Y - 90*SCALE;
-      const y = startY + u*(endY - startY);
-      tutorialEntities = [{ y, lane: cfg.lane, r: entityRadiusFor(cfg.type), type: cfg.type, topic: cfg.topic, hit:false }];
+      const startZ = ZSPAWN, endZ = avoiding ? -FOCAL*0.45 : 40*SCALE;
+      const z = startZ + u*(endZ - startZ);
+      tutorialEntities = [{ z, lane: cfg.lane, r: entityRadiusFor(cfg.type), type: cfg.type, topic: cfg.topic, hit:false }];
       if(u>=1){
         if(avoiding) tutorialAvoidFeedback(cfg); else tutorialCollectFeedback(cfg);
         tutorialDemo.phase = 'hold'; tutorialDemo.phaseStart = now;
@@ -3331,29 +3350,29 @@
   // shortly after, so a skipped spawn is harmless, especially with the
   // already-widened gaps in GAME_CONFIG).
   const MIN_ENTITY_GAP = 90;
-  function pickRoomyLane(y){
+  function pickRoomyLane(z){
     for(const lane of shuffle([0,1,2])){
-      if(!entities.some(e => e.lane===lane && Math.abs(e.y-y) < MIN_ENTITY_GAP*SCALE)) return lane;
+      if(!entities.some(e => e.lane===lane && Math.abs(e.z-z) < MIN_ENTITY_GAP*SCALE)) return lane;
     }
     return null;
   }
   function spawnTopicBlock(){
     const active = activeTopicsForStage();
     if(active.length===0) return;
-    const lane = pickRoomyLane(spawnY());
+    const lane = pickRoomyLane(ZSPAWN);
     if(lane===null) return;
     const topic = active[Math.floor(Math.random()*active.length)];
-    entities.push({ y:spawnY(), lane, r:24*SCALE, type:'topic', topic, hit:false });
+    entities.push({ z:ZSPAWN, lane, r:24*SCALE, type:'topic', topic, hit:false });
   }
   function spawnGlucosePickup(){
-    const lane = pickRoomyLane(spawnY());
+    const lane = pickRoomyLane(ZSPAWN);
     if(lane===null) return;
-    entities.push({ y:spawnY(), lane, r:10*SCALE, type:'glucose', hit:false });
+    entities.push({ z:ZSPAWN, lane, r:10*SCALE, type:'glucose', hit:false });
   }
   function spawnBomb(){
-    const lane = pickRoomyLane(spawnY());
+    const lane = pickRoomyLane(ZSPAWN);
     if(lane===null) return;
-    entities.push({ y:spawnY(), lane, r:20*SCALE, type:'bomb', hit:false });
+    entities.push({ z:ZSPAWN, lane, r:20*SCALE, type:'bomb', hit:false });
   }
   // A gift block is a normal topic question with a prize attached: answer
   // it right and you can spend life on a grenade (thrown at a rival right
@@ -3362,10 +3381,10 @@
     const active = activeTopicsForStage();
     if(active.length===0) return;
     if(entities.some(e=>e.type==='gift')) return; // one on screen at a time
-    const lane = pickRoomyLane(spawnY());
+    const lane = pickRoomyLane(ZSPAWN);
     if(lane===null) return;
     const topic = active[Math.floor(Math.random()*active.length)];
-    entities.push({ y:spawnY(), lane, r:24*SCALE, type:'gift', topic, hit:false });
+    entities.push({ z:ZSPAWN, lane, r:24*SCALE, type:'gift', topic, hit:false });
   }
   // 1st place gets giftChanceMin, last place giftChanceMax, linear between.
   function giftChanceForMe(){
@@ -4098,7 +4117,7 @@
     (function frame(now){
       if(screenState!=='grenade') return;
       const t = now - start;
-      drawVessel(); for(const e of entities) drawEntity(e); drawPlayer(); drawFloaters();
+      drawVessel(); drawEntities(entities); drawPlayer(); drawFloaters();
       if(shielded) drawShieldArc(px, py, shieldR, t);
       if(t < FALL){
         const u = t/FALL, k = Math.pow(u, 1.5); // gravity-ish: eases in, lands fast, but stays on screen
@@ -4244,12 +4263,11 @@
     if(mp.giftUnlockPending){ mp.giftUnlockPending = false; showGiftUnlockAnnouncement(); return; }
     survivalTime += dt;
     // GAME_CONFIG's speed numbers are tuned so an entity takes the time to
-    // travel ~850px (spawn to player) on the original landscape grid. The
-    // track now runs top-to-bottom, so scale the speed by the actual
-    // distance an entity travels here (spawn point to the player) over that
-    // 850 -- "time to reach you" stays the same on a phone, a tall window
-    // or the native app's fixed grid.
-    const widthScale = Math.max(0.2, (PLAYER_Y - spawnY())/850);
+    // travel ~850px (spawn to player) on the original landscape grid. Here
+    // the distance is ZSPAWN world units, so scale the speed by ZSPAWN/850
+    // -- "time to reach you" stays the same on a phone, a tall window or
+    // the native app's fixed grid.
+    const widthScale = ZSPAWN/850;
     const mult = speedMultiplier(); // Customise → Game speed (host's pick in a Group Race)
     speed = Math.min(GAME_CONFIG.maxSpeed, GAME_CONFIG.baseSpeed + (stageIndex*GAME_CONFIG.speedRampPerStage) + (survivalTime*GAME_CONFIG.speedRampPerSecond)) * widthScale * mult;
     const desiredX = laneX(player.targetLane);
@@ -4322,20 +4340,21 @@
       }
     }
 
+    roadScroll += speed*dt;
     for(const e of entities){
-      e.y += speed*dt;
+      e.z -= speed*dt;
       // Collision checks the player's actual ANIMATED position (player.x),
       // not player.lane. player.lane snaps to the target lane the instant a
       // key is pressed (see above), while player.x still has to visually
       // slide there over the next few frames — checking .lane meant a
       // question could pop up the moment you pressed a key, before your own
       // character had even started moving toward the block on screen.
-      if(!e.hit && Math.abs(player.x - laneX(e.lane)) < laneW*0.4 && Math.abs(e.y - PLAYER_Y) < e.r+22*SCALE){
+      if(!e.hit && Math.abs(player.x - laneX(e.lane)) < laneW*0.4 && Math.abs(e.z) < e.r+22*SCALE){
         e.hit = true;
         if(e.type==='glucose'){
           glucose += GAME_CONFIG.glucosePickupValue;
           updateGlucoseUI();
-          popup(laneX(e.lane), e.y-24, `+${GAME_CONFIG.glucosePickupValue} ${lifeCfg().label}`, '#3ee6b8');
+          popup(projectEntity(e).x, projectEntity(e).y-24, `+${GAME_CONFIG.glucosePickupValue} ${lifeCfg().label}`, '#3ee6b8');
           SoundFX.pickup();
         } else if(e.type==='topic' || e.type==='gift'){
           openMCQ(e);
@@ -4345,12 +4364,12 @@
           // instead of a grenade now. Consumed on the first hit either way.
           if(mp.shields > 0){
             mp.shields -= 1; updateGiftHUD(); mpSyncMyState();
-            popup(laneX(e.lane), e.y-24, '🛡 Blocked!', '#4fc3f7');
+            popup(projectEntity(e).x, projectEntity(e).y-24, '🛡 Blocked!', '#4fc3f7');
             SoundFX.shieldBlock();
           } else {
             glucose -= GAME_CONFIG.bombDamage;
             updateGlucoseUI();
-            popup(laneX(e.lane), e.y-24, `💣 -${GAME_CONFIG.bombDamage} ${lifeCfg().label}`, 'var(--danger)');
+            popup(projectEntity(e).x, projectEntity(e).y-24, `💣 -${GAME_CONFIG.bombDamage} ${lifeCfg().label}`, 'var(--danger)');
             flashRed();
             SoundFX.damage();
             if(glucose < 0 && screenState==='running'){ endRun('loss'); }
@@ -4358,7 +4377,7 @@
         }
       }
     }
-    entities = entities.filter(e => e.y < H+60 && !(e.hit && e.type!=='topic' && e.type!=='gift'));
+    entities = entities.filter(e => e.z > -FOCAL*0.5 && !(e.hit && e.type!=='topic' && e.type!=='gift'));
     for(const f of floaters){ f.y -= dt*40; f.life -= dt*0.9; }
     floaters = floaters.filter(f=>f.life>0);
   }
@@ -4391,27 +4410,46 @@
   // Cached and reused every frame -- creating a CanvasGradient is not
   // free, and drawVessel used to build these two from scratch 60x/sec.
   // Rebuilt when the theme flips, since the colors come from the palette.
-  let vesselGradLeft = null, vesselGradRight = null, vesselGradKey = null;
+  let roadScroll = 0; // world units travelled -- scrolls the depth ticks so the road itself reads as moving
+  let fogGrad = null, fogGradKey = null;
   function drawVessel(){
     const pal = canvasPalette();
-    ctx.fillStyle = pal.bg; ctx.fillRect(0,0,W,H);
+    const cx = W/2, span = PLAYER_Y - horizonY;
+    const pAt = y => (y - horizonY)/span;      // projection scale for a screen row
+    const edge = (p, k) => cx + k*fieldW*p/2;  // road edge at that scale; k = -1 left, +1 right
+    const pTop = pAt(0), pBot = pAt(H);
+    // Vessel wall everywhere, then the road cut out of it as a trapezoid
+    // that converges on the vanishing point above the screen.
+    ctx.fillStyle = pal.wall; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = pal.bg;
+    ctx.beginPath(); ctx.moveTo(edge(pTop,-1),0); ctx.lineTo(edge(pTop,1),0); ctx.lineTo(edge(pBot,1),H); ctx.lineTo(edge(pBot,-1),H); ctx.closePath(); ctx.fill();
+    // Depth ticks rolling towards the cell -- the sense of speed even when
+    // the road is empty. Fainter the further away.
     ctx.strokeStyle = pal.laneLine; ctx.lineWidth = 2;
-    for(let i=1;i<LANES;i++){ ctx.beginPath(); ctx.moveTo(fieldL+laneW*i, 0); ctx.lineTo(fieldL+laneW*i, H); ctx.stroke(); }
-    // Vessel walls run down both sides of the lane strip: solid outside it
-    // (only visible when the stage is wider than the strip), fading in
-    // along its two edges.
-    const key = currentTheme+'|'+fieldL+'|'+fieldW;
-    if(!vesselGradLeft || vesselGradKey!==key){
-      vesselGradKey = key;
-      vesselGradLeft = ctx.createLinearGradient(fieldL,0,fieldL+40,0);
-      vesselGradLeft.addColorStop(0,pal.wall); vesselGradLeft.addColorStop(1,pal.wallFade);
-      vesselGradRight = ctx.createLinearGradient(fieldL+fieldW-40,0,fieldL+fieldW,0);
-      vesselGradRight.addColorStop(0,pal.wallFade); vesselGradRight.addColorStop(1,pal.wall);
+    const stripe = 150*SCALE, off = roadScroll % stripe;
+    for(let z = ZSPAWN*1.5 - off; z > -FOCAL*0.5; z -= stripe){
+      const p = projectZ(z); if(p <= 0) continue;
+      const y = horizonY + span*p; if(y < 0 || y > H) continue;
+      ctx.globalAlpha = Math.min(1, p);
+      ctx.beginPath(); ctx.moveTo(edge(p,-1), y); ctx.lineTo(edge(p,1), y); ctx.stroke();
     }
-    ctx.fillStyle = pal.wall;
-    if(fieldL>0){ ctx.fillRect(0,0,fieldL,H); ctx.fillRect(fieldL+fieldW,0,W-fieldL-fieldW,H); }
-    ctx.fillStyle = vesselGradLeft; ctx.fillRect(fieldL,0,40,H);
-    ctx.fillStyle = vesselGradRight; ctx.fillRect(fieldL+fieldW-40,0,40,H);
+    ctx.globalAlpha = 1;
+    // Lane dividers, converging on the same point.
+    for(let i=1;i<LANES;i++){
+      const k = (i/LANES)*2 - 1;
+      ctx.beginPath(); ctx.moveTo(cx + k*fieldW*pTop/2, 0); ctx.lineTo(cx + k*fieldW*pBot/2, H); ctx.stroke();
+    }
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(edge(pTop,-1),0); ctx.lineTo(edge(pBot,-1),H); ctx.moveTo(edge(pTop,1),0); ctx.lineTo(edge(pBot,1),H); ctx.stroke();
+    // Fog over the far end so things fade in from the distance rather than
+    // popping into view. Cached: gradients aren't free 60x/sec.
+    const fogEnd = topInset*0.5 + 90*SCALE, key = currentTheme+'|'+fogEnd;
+    if(!fogGrad || fogGradKey!==key){
+      fogGradKey = key;
+      fogGrad = ctx.createLinearGradient(0,0,0,fogEnd);
+      fogGrad.addColorStop(0,pal.wall); fogGrad.addColorStop(1,pal.wallFade);
+    }
+    ctx.fillStyle = fogGrad; ctx.fillRect(0,0,W,fogEnd);
   }
   function darkenColor(hex, amount){
     const n = parseInt(hex.slice(1),16);
@@ -4504,14 +4542,27 @@
   }
   function drawPlayer(){
     const y = PLAYER_Y + Math.sin(player.wob)*2, x = player.x;
+    ctx.fillStyle = 'rgba(0,0,0,.22)';
+    ctx.beginPath(); ctx.ellipse(x, PLAYER_Y + 26*SCALE, 26*SCALE, 8*SCALE, 0, 0, Math.PI*2); ctx.fill();
     drawCellSprite(ctx, x, y, 26*SCALE, playerCustomization, player.wob);
   }
   function roundRect(ctx,x,y,w,h,r){
     ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
     ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
   }
+  // Projects the entity onto the road and draws it scaled by distance --
+  // drawEntityAt() draws at the origin in full-size units.
   function drawEntity(e){
-    const x = laneX(e.lane), y = e.y;
+    const pe = projectEntity(e);
+    if(pe.s <= 0) return;
+    ctx.save(); ctx.translate(pe.x, pe.y); ctx.scale(pe.s, pe.s);
+    drawEntityAt(e);
+    ctx.restore();
+  }
+  // Far things first, so whatever is nearest the cell draws on top.
+  function drawEntities(list){ [...list].sort((a,b)=>b.z-a.z).forEach(drawEntity); }
+  function drawEntityAt(e){
+    const x = 0, y = 0;
     if(e.type==='glucose'){
       // Cheap two-layer glow instead of ctx.shadowBlur -- shadowBlur is one
       // of the more expensive Canvas2D ops, and with several of these on
@@ -4529,7 +4580,7 @@
       // this reads as a naval mine instead: spiky silhouette plus a glow
       // that pulses (staggered per-bomb by position, so a row of them
       // doesn't all pulse in lockstep) rather than sitting static.
-      const pulse = 0.5 + 0.5*Math.sin(survivalTime*6 + e.y*0.05); // 0..1
+      const pulse = 0.5 + 0.5*Math.sin(survivalTime*6 + e.z*0.05); // 0..1
       ctx.fillStyle = `rgba(255,59,92,${0.22 + pulse*0.28})`;
       ctx.beginPath(); ctx.arc(x, y, e.r + (6 + pulse*6)*SCALE, 0, Math.PI*2); ctx.fill();
       ctx.fillStyle = '#1a0508';
@@ -4555,7 +4606,7 @@
       // that box as "another question block" and dodged it just like a
       // risky topic hit instead of grabbing it. A bare glowing icon reads
       // as a pickup instead.
-      const pulse = 0.5 + 0.5*Math.sin(survivalTime*5 + e.y*0.03);
+      const pulse = 0.5 + 0.5*Math.sin(survivalTime*5 + e.z*0.03);
       ctx.fillStyle = `rgba(255,213,77,${0.25 + pulse*0.35})`;
       ctx.beginPath(); ctx.arc(x, y, e.r + (4 + pulse*6)*SCALE, 0, Math.PI*2); ctx.fill();
       drawIconOnCanvas('🎁', x, y, 34*SCALE);
@@ -4590,7 +4641,7 @@
   }
   function draw(){
     drawVessel();
-    for(const e of entities) drawEntity(e);
+    drawEntities(entities);
     drawPlayer();
     drawFloaters();
   }
@@ -6472,7 +6523,7 @@
       tutorialSnapshot(){
         return { step: tutorialStep, totalSteps: TUTORIAL_STEPS.length, title: tutorialTitle.textContent, caption: tutorialCaption.textContent,
           playerTargetLane: player.targetLane, bottomInset, topInset, laneW, PLAYER_Y, H, W,
-          entityCount: tutorialEntities.length, entityY: tutorialEntities[0] && Math.round(tutorialEntities[0].y),
+          entityCount: tutorialEntities.length, entityZ: tutorialEntities[0] && Math.round(tutorialEntities[0].z),
           hudDisplay: hud.style.display,
           dimLife: lifeLabel.classList.contains('tc-dim'), dimStage: stageLine.classList.contains('tc-dim'), dimScore: scoreHudBlock.classList.contains('tc-dim'),
           stageChipsVisible: tutorialStageChips.style.display==='flex', stageChipsHtml: tutorialStageChips.innerHTML };
@@ -6594,7 +6645,7 @@
       forceGiftCollision(){
         const g = entities.find(e=>e.type==='gift' && !e.hit);
         if(!g) return 'No un-hit gift block on screen -- call spawnGift() first.';
-        g.lane = player.targetLane; g.y = PLAYER_Y - 20;
+        g.lane = player.targetLane; g.z = 10;
         return 'Moved onto your lane -- it should open next frame.';
       },
       // Drops a fresh bomb right in your lane -- for checking a held
@@ -6602,7 +6653,7 @@
       // update()) without waiting on the normal spawn timer.
       forceBombCollision(){
         if(screenState!=='running') return 'Start a run first.';
-        entities.push({ y: PLAYER_Y - 20, lane: player.targetLane, r:20*SCALE, type:'bomb', hit:false });
+        entities.push({ z: 10, lane: player.targetLane, r:20*SCALE, type:'bomb', hit:false });
         return 'Bomb placed in your lane -- it should resolve next frame.';
       },
     };
