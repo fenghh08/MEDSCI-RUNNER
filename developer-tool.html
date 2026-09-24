@@ -330,18 +330,32 @@
   .ml-bar .ml-lec small{ display:block; font-weight:400; color:var(--muted); font-size:12.5px; margin-top:2px; }
   .ml-bar .ml-stats{ font-size:12.5px; color:var(--muted); margin-left:auto; text-align:right; }
   .ml-lead{ font-size:13px; color:var(--muted); line-height:1.55; margin:0 0 14px; max-width:720px; }
-  .ml-concept{ border:1px solid var(--line); border-radius:12px; margin-bottom:10px; background:#fff; overflow:hidden; }
-  .ml-concept.thin{ border-color:#f0d9a8; }
-  .mlc-head{ display:flex; align-items:center; gap:12px; padding:13px 16px; }
+  .ml-concept{ border:1px solid var(--line); border-radius:12px; margin-bottom:8px; background:#fff; overflow:hidden; }
+  .ml-concept.open, .ml-concept.busy{ border-color:var(--accent); box-shadow:0 1px 10px rgba(0,0,0,.05); }
+  /* The whole row is the open/close control, so the row carries one button
+     (add a question) instead of three. Anything that needs attention is a
+     single chip that is itself the fix. */
+  .mlc-head{ display:flex; align-items:center; gap:10px; padding:11px 14px; cursor:pointer; }
+  .mlc-head:hover{ background:#fafbfd; }
+  .mlc-chev{ color:var(--muted); font-size:11px; width:10px; flex:none; transition:transform .12s ease; }
+  .ml-concept.open .mlc-chev{ transform:rotate(90deg); }
   .mlc-name{ font-weight:600; font-size:14.5px; }
-  .mlc-count{ font-size:12px; color:var(--muted); background:#f4f5f9; border-radius:10px; padding:2px 9px; white-space:nowrap; }
-  .ml-concept.thin .mlc-count{ background:#fff7e6; color:#7a5a12; }
+  .mlc-count{ font-size:12px; color:var(--muted); white-space:nowrap; }
+  .ml-concept.thin .mlc-count{ color:#9a7a2a; }
   .mlc-head .mlc-actions{ margin-left:auto; display:flex; gap:8px; align-items:center; }
-  .mlc-warn{ font-size:12px; color:#8a1f1f; background:#fdecec; border:1px solid #f3c3c3; border-radius:10px; padding:2px 9px; white-space:nowrap; }
+  /* Quiet until you're on the row -- 13 loud buttons is what made this shout. */
+  .mlc-actions .mlc-add{ font-size:12.5px; padding:5px 11px; color:var(--accent); border-color:var(--line-strong); background:#fff; }
+  .mlc-head:hover .mlc-actions .mlc-add, .ml-concept.open .mlc-actions .mlc-add,
+  .ml-concept.busy .mlc-actions .mlc-add{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .mlc-warn{ font-size:12px; color:#7a5a12; background:#fff7e6; border:1px solid #f0d9a8; border-radius:10px;
+    padding:2px 9px; white-space:nowrap; cursor:pointer; }
+  .mlc-warn:hover{ background:#fdeec6; }
   .mlc-pending{ font-size:12px; color:#7a5a12; background:#fff7e6; border:1px solid #f0d9a8; border-radius:10px; padding:2px 9px; white-space:nowrap; }
-  .mlc-name{ cursor:pointer; }
-  .mlc-name:hover{ color:var(--accent); text-decoration:underline; }
   .mlc-detail{ border-top:1px solid var(--line); background:#fafbfd; padding:14px 16px; font-size:13px; line-height:1.55; }
+  .mlc-detail .mld-more{ border:none; background:none; padding:0; margin:12px 0 0; }
+  .mlc-detail .mld-more>summary{ font-size:12.5px; color:var(--muted); cursor:pointer; padding:0; }
+  .mlc-detail .mld-more[open]>summary{ margin-bottom:10px; }
+  .mlc-detail .mld-foot{ margin-top:12px; padding-top:10px; border-top:1px solid #eef0f5; }
   .mlc-detail h4{ margin:0 0 4px; font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
   .mlc-detail .mld-block{ margin-bottom:12px; }
   .mlc-detail .mld-block:last-child{ margin-bottom:0; }
@@ -493,7 +507,7 @@
           <div class="ml-stats" id="ml_barStats"></div>
           <button id="ml_changeBtn">Change lecture</button>
         </div>
-        <p class="ml-lead">Add each question to the concept it's about. <b>Reuse a concept wherever you can</b> — a concept with a single question doesn't give students anything to revise from, and the study guide fills up with near-duplicates.</p>
+        <p class="ml-lead">Click a concept to see what's already in it. <b>Add your question to one that fits</b> rather than making a new one.</p>
         <div id="ml_concepts"></div>
         <div class="ml-newbox">
           <h3 style="margin:0 0 4px;font-size:14.5px;">Nothing above fits?</h3>
@@ -4302,7 +4316,7 @@
     document.getElementById('ml_barStats').innerHTML =
       `${items.length} concept${items.length===1?'':'s'} · ${totalQ} question${totalQ===1?'':'s'}` +
       (totalP ? ` <span style="color:#7a5a12;">+${totalP} waiting for review</span>` : '') +
-      (thin ? `<br><span style="color:#7a5a12;">${thin} with 1 or none — add to those first</span>` : '');
+      (thin ? `<br><span style="color:#7a5a12;">${thin} need more questions</span>` : '');
     // Topic select for a new concept: only the topics this course actually uses.
     const themeIds = new Set(items.map(it=>it.theme));
     if(!themeIds.size) KNOWN_THEMES.forEach(t=>themeIds.add(t.id));
@@ -4321,17 +4335,18 @@
       const liveIt = mlLiveItem(it.id);
       const needsDesc = !liveIt || !((liveIt.description||'').trim()) || (liveIt.description||'').trim()==='(add a description)';
       const descPending = mlPendingDescription(it.id);
+      // One line per concept: click it to open. The only chip shown is one
+      // that needs doing, and clicking that chip does it.
+      const count = `${n} question${n===1?'':'s'}` + (pend?` · +${pend} waiting`:'');
       return `<div class="ml-concept${(n+pend)<=1?' thin':''}" data-item="${esc2(it.id)}">
-        <div class="mlc-head">
-          <span class="mlc-name" data-ml-open="${esc2(it.id)}" title="See what's inside this concept">${esc2(it.label)}</span>
-          <span class="mlc-count">${n} question${n===1?'':'s'}</span>
-          ${pend?`<span class="mlc-pending">+${pend} waiting for review</span>`:''}
-          ${needsDesc && !descPending ? `<span class="mlc-warn">⚠ No description</span>` : ''}
-          ${descPending ? `<span class="mlc-pending">📝 description waiting for review</span>` : ''}
+        <div class="mlc-head" data-ml-open="${esc2(it.id)}" title="Click to see what's inside">
+          <span class="mlc-chev">▶</span>
+          <span class="mlc-name">${esc2(it.label)}</span>
+          <span class="mlc-count">${count}</span>
+          ${needsDesc && !descPending ? `<span class="mlc-warn" data-ml-desc="${esc2(it.id)}" title="Write the description students read">+ description</span>` : ''}
+          ${descPending ? `<span class="mlc-pending">📝 description waiting</span>` : ''}
           <span class="mlc-actions">
-            ${needsDesc && !descPending ? `<button data-ml-desc="${esc2(it.id)}">✏️ Write the description</button>` : ''}
-            <button data-ml-open="${esc2(it.id)}">See what's inside</button>
-            <button class="primary" data-ml-add="${esc2(it.id)}">+ Add question here</button>
+            <button class="mlc-add" data-ml-add="${esc2(it.id)}">+ Question</button>
           </span>
         </div>
         <div class="mlc-form" data-ml-descform="${esc2(it.id)}" style="display:none;"></div>
@@ -4345,8 +4360,11 @@
   function mlOpenDetail(itemId){
     const el = ml_concepts.querySelector(`[data-ml-detail="${CSS.escape(itemId)}"]`);
     if(!el) return;
-    if(el.style.display==='block'){ el.style.display='none'; el.innerHTML=''; return; }
+    const card = el.closest('.ml-concept');
+    if(el.style.display==='block'){ el.style.display='none'; el.innerHTML=''; if(card) card.classList.remove('open'); return; }
     ml_concepts.querySelectorAll('.mlc-detail').forEach(d=>{ d.style.display='none'; d.innerHTML=''; });
+    ml_concepts.querySelectorAll('.ml-concept.open').forEach(c=>c.classList.remove('open'));
+    if(card) card.classList.add('open');
     const known = KNOWN_ITEMS.find(it=>it.id===itemId) || {};
     // A concept added this session isn't in game-data.js yet -- fall back to
     // whatever is sitting in the queue for it.
@@ -4355,17 +4373,21 @@
     const qs = live.questions || [];
     const list = arr => (arr||[]).filter(Boolean);
     const block = (title, html) => `<div class="mld-block"><h4>${title}</h4>${html}</div>`;
-    const missing = what => `<div class="mld-missing">No ${what} yet — students see a blank section here. Add it under <b>Add anything → Study guide item</b>.</div>`;
+    const missing = what => `<div class="mld-missing">No ${what} yet — students see a blank section here.</div>`;
+    // Only the two things they came to check: what students read, and what
+    // is already asked. The rest of the study-guide fields fold away -- the
+    // full dump was what made this page feel like a wall.
     let html = '';
-    html += block('What it is', live.description ? esc2(live.description)
-      : `<div class="mld-missing">No description yet — students see a blank section here. <button type="button" class="link-btn" data-ml-desc="${esc2(itemId)}">Write it now</button></div>`);
-    if(live.mechanism) html += block('How it works', esc2(live.mechanism));
-    if(list(live.funFacts).length) html += block('Fun facts', `<ul>${list(live.funFacts).map(f=>`<li>${esc2(f)}</li>`).join('')}</ul>`);
-    if(list(live.activeRecall).length) html += block('Active recall prompts', `<ul>${list(live.activeRecall).map(f=>`<li>${esc2(f)}</li>`).join('')}</ul>`);
+    html += block('What students read', live.description ? esc2(live.description)
+      : `<div class="mld-missing">Nothing written yet. <button type="button" class="link-btn" data-ml-desc="${esc2(itemId)}">Write it now</button></div>`);
     const qHtml = qs.map(q=>`<div class="mld-q">${esc2(q.prompt)}<div class="mld-opt">✓ ${esc2((q.options||[])[q.correctIndex] || '—')}</div></div>`).join('')
       + pending.map(q=>`<div class="mld-q pending">⏳ ${esc2(q.prompt)}<div class="mld-opt">✓ ${esc2((q.options||[])[q.correctIndex] || '—')} · waiting for an admin to merge it</div></div>`).join('');
-    html += block(`Questions (${qs.length}${pending.length?` + ${pending.length} waiting`:''})`, qHtml || missing('questions'));
-    html += `<div class="mld-block" style="margin-top:14px;"><button data-ml-full="${esc2(itemId)}">✏️ Open the full editor for this concept</button></div>`;
+    html += block(`Questions already here (${qs.length}${pending.length?` + ${pending.length} waiting`:''})`, qHtml || missing('questions'));
+    const extra = (live.mechanism ? block('How it works', esc2(live.mechanism)) : '')
+      + (list(live.funFacts).length ? block('Fun facts', `<ul>${list(live.funFacts).map(f=>`<li>${esc2(f)}</li>`).join('')}</ul>`) : '')
+      + (list(live.activeRecall).length ? block('Active recall prompts', `<ul>${list(live.activeRecall).map(f=>`<li>${esc2(f)}</li>`).join('')}</ul>`) : '');
+    if(extra) html += `<details class="mld-more"><summary>Rest of the study guide for this concept</summary>${extra}</details>`;
+    html += `<div class="mld-foot"><button type="button" class="link-btn" data-ml-full="${esc2(itemId)}">Open the full editor for this concept →</button></div>`;
     el.innerHTML = html;
     el.style.display = 'block';
   }
@@ -4376,8 +4398,11 @@
   function mlOpenDescForm(itemId){
     const box = ml_concepts.querySelector(`[data-ml-descform="${CSS.escape(itemId)}"]`);
     if(!box) return;
-    if(box.style.display==='block'){ box.style.display='none'; box.innerHTML=''; return; }
+    const dcard = box.closest('.ml-concept');
+    if(box.style.display==='block'){ box.style.display='none'; box.innerHTML=''; if(dcard) dcard.classList.remove('busy'); return; }
     ml_concepts.querySelectorAll('[data-ml-descform]').forEach(b=>{ b.style.display='none'; b.innerHTML=''; });
+    ml_concepts.querySelectorAll('.ml-concept.busy').forEach(c=>c.classList.remove('busy'));
+    if(dcard) dcard.classList.add('busy');
     const known = KNOWN_ITEMS.find(it=>it.id===itemId) || {};
     const live = mlLiveItem(itemId);
     box.innerHTML = `
@@ -4389,7 +4414,7 @@
       <div class="btn-row"><button class="primary" data-mld="save">+ Add to queue</button><button data-mld="cancel">Cancel</button></div>`;
     box.style.display = 'block';
     if(live){ box.querySelector('[data-mld="mech"]').value = live.mechanism || ''; }
-    box.querySelector('[data-mld="cancel"]').addEventListener('click', ()=>{ box.style.display='none'; box.innerHTML=''; });
+    box.querySelector('[data-mld="cancel"]').addEventListener('click', ()=>{ box.style.display='none'; box.innerHTML=''; if(dcard) dcard.classList.remove('busy'); });
     box.querySelector('[data-mld="save"]').addEventListener('click', ()=> mlSaveDesc(itemId, box));
     box.querySelector('[data-mld="text"]').focus();
   }
@@ -4445,8 +4470,11 @@
   function mlOpenForm(itemId){
     const form = ml_concepts.querySelector(`[data-ml-form="${CSS.escape(itemId)}"]`);
     if(!form) return;
-    if(form.style.display==='block'){ form.style.display='none'; return; }
+    const card = form.closest('.ml-concept');
+    if(form.style.display==='block'){ form.style.display='none'; if(card) card.classList.remove('busy'); return; }
     ml_concepts.querySelectorAll('.mlc-form').forEach(f=>{ f.style.display='none'; f.innerHTML=''; });
+    ml_concepts.querySelectorAll('.ml-concept.busy').forEach(c=>c.classList.remove('busy'));
+    if(card) card.classList.add('busy');
     form.innerHTML = mlQuestionFormHtml(itemId);
     form.style.display = 'block';
     const box = form.querySelector('[data-mlf="opts"]');
@@ -4456,7 +4484,7 @@
       if(box.children.length>=6){ toast('6 options is the maximum'); return; }
       mlAddOptionRow(box, false);
     });
-    form.querySelector('[data-mlf="cancel"]').addEventListener('click', ()=>{ form.style.display='none'; form.innerHTML=''; });
+    form.querySelector('[data-mlf="cancel"]').addEventListener('click', ()=>{ form.style.display='none'; form.innerHTML=''; if(card) card.classList.remove('busy'); });
     form.querySelector('[data-mlf="save"]').addEventListener('click', ()=> mlSaveQuestion(itemId, form));
     form.querySelector('[data-mlf="prompt"]').focus();
   }
