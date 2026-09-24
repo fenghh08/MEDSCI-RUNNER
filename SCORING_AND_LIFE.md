@@ -173,6 +173,49 @@ Regardless of mode, each answered MCQ (and each self-graded SAQ) does two extra 
 
 ## 7. Group Race specifics
 
+### Host: end the race for everyone
+
+Any host (racing or not) can end the race early: **End race now**, or **Start countdown** with a
+custom number of seconds (1–90, clamped). It's the same shared deadline as the catch-up window
+below (`raceEndsAt`, with `raceEndsReason:'host'`), so every racer sees "⏱ The host is ending the
+race — Xs left", and at zero each racer's run ends and the race resolves by score as usual. The
+host's deadline replaces a catch-up window already running. A few seconds after it, the host's
+client closes out anyone whose device never reported back (marked `timeup`, last synced stats), so
+one sleeping phone can't hold the result forever. A host who is racing finds the buttons on their
+Pause screen; a host who isn't has them at the top of the live leaderboard.
+
+### Hosting without racing
+
+When hosting, ticking **"Just host — I won't race"** (stored on the room as
+`hostRole:'spectator'`) means the host has no player in the room. Everything roster-based below
+(who's done, gift unlock, who can win) only ever counts the racers, and one racer is enough for
+the race to resolve. The host's screen is a live leaderboard (rank, stage, life bar, ✓/✗, score, the
+shared catch-up countdown); once every racer is done it becomes the final standings plus a
+**question results** view built from the room's `qstats` tally: overall accuracy, the ten most
+missed questions with the share of the room that picked each option, and accuracy by topic.
+
+### The podium
+
+When the race resolves, everyone in the room — racers and a host who isn't racing — first gets a
+short **podium reveal** on top of the results screen: third place's block rises, then second, then
+the winner (with confetti), each with their score counting up. Tied scores share a rank number.
+A racer outside the top three sees their own rank in a row at the bottom. **See full results** (or
+✕) drops to the normal results screen / host leaderboard underneath. It's purely presentational —
+`mpShowPodium()` reads the same ranked roster as everything else.
+
+### The track is a perspective road
+
+The three lanes form a road that narrows towards a vanishing point above the screen (Subway
+Surfers style). The cell sits 82% of the way down; topic blocks, pickups, bombs and gifts roll down
+the road towards it, emerging at half size and growing as they get close — each one has a depth
+`z` (0 at the cell's row) and is drawn scaled by distance. On a wide screen they emerge from under
+the HUD strip; on a portrait phone they emerge at the HUD's lower edge, fully visible. Phones also
+get the racers list as a tappable strip *under* the track instead of in the HUD, and the HUD hides
+while a question is open so the card gets the whole screen. Change lane with ←/→ (or
+A/D), the on-screen ◀/▶ buttons, or a horizontal swipe. The road fills the bottom of the screen
+whatever its width. Speed is scaled so "time from spawn to reaching you" is the same as the
+original sideways track on any screen size.
+
 ### Winning: reaching the end first isn't enough — and neither is being the last one standing
 
 Two different events can start the same **45-second catch-up window** (`catchUpWindowMs`) for

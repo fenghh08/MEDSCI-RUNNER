@@ -571,9 +571,9 @@
         <h3 class="card-title">The order to do things in</h3>
         <p class="card-sub" style="margin-bottom:12px;">A question needs a concept, a concept needs a topic (module), and a topic needs a course. Your lecture has to exist before anything can point at it. So you build downwards, and each of the first three is a one-off. Skip past whatever already exists.</p>
         <ol class="start-order">
-          <li><b>Add the course</b> — the unit itself, e.g. AMED3003. Admin only, and it's done once per unit.
+          <li><b>Add the course</b> — the unit itself, e.g. AMED3003. Its code, name and a one-line description. Done once per unit, and anyone can do it.
             <div class="btn-row"><button type="button" data-goto="add">✚ Add anything → Course</button></div></li>
-          <li><b>Add its lectures</b> — one row each: the number (<code>L14</code>), the name, and the learning outcomes separated by semicolons. Anyone can do this, and you can paste the whole list from a spreadsheet at once. Re-adding an existing number updates that lecture rather than duplicating it.
+          <li><b>Add its lectures</b> — one row each: the number (<code>L14</code>), the name, and the learning outcomes separated by semicolons. Anyone can do this, and you can paste the whole list from a spreadsheet at once. Putting an existing lecture number will update that lecture instead of making a second one.
             <div class="btn-row"><button type="button" data-goto="lectures">📚 Lectures</button></div></li>
           <li><b>Add the topic (module)</b> — the grouping inside that course, e.g. Diagnostics. Anyone can do it.
             <div class="btn-row"><button type="button" data-goto="add">✚ Add anything → Topic (Module)</button></div></li>
@@ -613,7 +613,7 @@
       <div class="card">
         <h3 class="card-title">2 · Fill it in</h3>
         <p class="card-sub"><b>Questions:</b> course code (e.g. <code>MEDS3002</code>), lecture (e.g. <code>L14</code>), topic (module), concept name, the prompt, four options, and which is correct. If the item doesn't exist yet it's created for you. <b>Lectures &amp; learning outcomes:</b> lecture number, name, and the outcomes separated by semicolons — one row per lecture, on the lectures tab of the sheet.</p>
-        <p class="card-sub">Topics (modules) and courses have to exist before a row can point at them — see <b>The order to do things in</b> at the top of this page. A topic you can add yourself under Add anything; a brand-new course is admin-only, so ask one of the admins and it takes a minute.</p>
+        <p class="card-sub">Topics (modules) and courses have to exist before a row can point at them — see <b>The order to do things in</b> at the top of this page. Both can be added under Add anything, and both take about a minute.</p>
       </div>
       <div class="card">
         <h3 class="card-title">3 · Paste it into the tool</h3>
@@ -632,7 +632,7 @@
       <div class="card">
         <h2 style="margin-top:0;">Who can do what</h2>
         <table class="cols"><tr><th>Anyone</th><th>Admin only</th></tr>
-          <tr><td>Add or edit questions, items, topics, lectures and learning outcomes; request deletions; flag anything for review</td><td>Create a course; merge the queue into the real game file; remove things from the queue; see who contributed what; read the answer analytics</td></tr>
+          <tr><td>Add or edit courses, topics, lectures, learning outcomes, concepts and questions; request deletions; flag anything for review</td><td>Merge the queue into the real game file; remove things from the queue; see who contributed what; read the answer analytics</td></tr>
         </table>
         <p class="card-sub" style="margin-top:8px;">Admins: Eason, Sara, Caitlin, Stephanie, Valerie, Henry — unlock under <button type="button" class="link-btn" data-goto="maintainer">Admin</button> with the PIN.</p>
       </div>
@@ -814,7 +814,7 @@
         <button class="chip active" data-pane="item">📄 Study guide item</button>
         <button class="chip" data-pane="question">❓ Question</button>
         <button class="chip" data-pane="topic">🗂️ Topic (Module)</button>
-        <button class="chip" id="courseChip" data-pane="course" style="display:none;">📚 Course</button>
+        <button class="chip" id="courseChip" data-pane="course">📚 Course</button>
         <button class="chip" data-pane="outcomes">🧭 Learning outcomes</button>
         <button class="chip" data-pane="funfact">🎲 Fun fact question</button>
       </div>
@@ -972,7 +972,7 @@
         <div class="two-col">
           <div class="card">
             <h2>New course / subject area</h2>
-            <p class="card-sub">A whole new top-level subject, like "MEDS3002". You'll add topics and items into it afterwards.</p>
+            <p class="card-sub">A whole new unit, like "MEDS3002" — a card of its own on the game's home screen. Check <button type="button" class="link-btn" data-goto="structure">All content</button> first in case it's already there under a different name. Like everything else it goes to the Team queue for an admin to review, and afterwards you add its lectures, topics and concepts.</p>
             <label class="field"><span class="fl-label">Course code <span class="req">*</span></span><span class="fl-help">The unit code, e.g. MEDS3002 — this becomes its id everywhere, including the Lectures tab's course picker.</span><input type="text" id="c_code" placeholder="e.g. MEDS3002"></label>
             <label class="field"><span class="fl-label">Course name <span class="req">*</span></span><span class="fl-help">The readable title shown on its card and in menus.</span><input type="text" id="c_label" placeholder="e.g. Cancer / Medical Science"></label>
             <div class="id-preview" id="c_idPreview">id: —</div>
@@ -1398,13 +1398,9 @@
     // heading (the old admin-only heading is gone), so only the two buttons
     // toggle -- guarded so a missing id can never break the whole unlock.
     ['tabContributors','tabDataAnalysis'].forEach(id=>{ const el = document.getElementById(id); if(el) el.style.display = maintainerUnlocked ? '' : 'none'; });
-    // The Course chip/pane under Add content is admin-only too -- hide the
-    // chip entirely rather than showing it and blocking on submit, and if a
-    // non-admin is somehow sitting on that pane when locking (e.g. it was
-    // open when someone else re-locked the shared PIN state), bounce back
-    // to the default "item" pane instead of leaving a dead-end open.
-    document.getElementById('courseChip').style.display = maintainerUnlocked ? '' : 'none';
-    if(!maintainerUnlocked && document.querySelector('section[data-section="add"] .subpane[data-pane="course"]')?.classList.contains('active')) showPane('add','item');
+    // The Course chip used to be admin-only. It isn't any more -- a course is
+    // a queue entry an admin reviews like any other -- so it's always shown.
+    const courseChip = document.getElementById('courseChip'); if(courseChip) courseChip.style.display = '';
     // Whole-page color swap (see body.maintainer-on in the stylesheet) plus a
     // topbar badge, so it's obvious at a glance whether you're looking at
     // the page as a regular contributor or as an unlocked maintainer --
@@ -2550,7 +2546,10 @@
   function renderCourse(){ const o = buildCourseObject(); c_idPreview.textContent = `id: ${o.id}`; c_codeOut.textContent = courseCodeString(o); }
   document.getElementById('c_copyOne').addEventListener('click', ()=> copyText(courseCodeString(buildCourseObject())));
   document.getElementById('c_addBatch').addEventListener('click', ()=>{
-    if(!requireMaintainerUnlock()) return;
+    // Anyone can propose a course. It's a queue entry like everything else,
+    // so an admin still reviews it before it reaches the game -- gating the
+    // form as well just meant a lecturer with a new unit was stuck waiting
+    // on someone else to type four fields.
     if(!requireContributorIdentity()) return;
     if(!c_code.value.trim()){ toast('Give the course a code first, e.g. MEDS3002'); c_code.focus(); return; }
     if(!c_label.value.trim()){ toast('Give the course a name first'); c_label.focus(); return; }
@@ -2716,11 +2715,7 @@
     const hints = [];
     const courseMatch = joined.match(/(?:course|theme) "([^"]*)" doesn't (?:match any existing course|exist)/);
     if(courseMatch){
-      // Adding a course is admin-only (see courseChip) -- a regular
-      // contributor has nowhere to go for this, so don't link to a form
-      // they can't use. Tell them who to ask instead.
-      if(maintainerUnlocked) hints.push(`<button type="button" class="link-btn" data-goto-add-pane="course" data-preset-course-name="${esc2(courseMatch[1])}">➕ Add the missing course</button>`);
-      else hints.push(`<span style="color:var(--muted);">Ask an admin to add the "${esc2(courseMatch[1])}" course.</span>`);
+      hints.push(`<button type="button" class="link-btn" data-goto-add-pane="course" data-preset-course-name="${esc2(courseMatch[1])}">➕ Add the missing course</button>`);
     }
     const topicMatch = joined.match(/topic "([^"]*)" doesn't (?:match any topic under|exist under) ([^,]*)/);
     if(topicMatch) hints.push(`<button type="button" class="link-btn" data-goto-add-pane="topic" data-preset-topic-course="${esc2(topicMatch[2].trim())}" data-preset-topic-name="${esc2(topicMatch[1])}">➕ Add the missing topic</button>`);
@@ -2751,7 +2746,6 @@
   document.addEventListener('click', e=>{
     const btn = e.target.closest('[data-goto-add-pane]'); if(!btn) return;
     const pane = btn.dataset.gotoAddPane;
-    if(pane==='course' && !maintainerUnlocked) return; // admin-only pane -- importMissingRefHintsHtml doesn't even render this button when locked, but don't navigate there if something else does
     if(pane==='lectures'){
       // Lectures is its own top-level tab, not an Add-content pane -- jump
       // there and drop one prefilled row per missing lecture number into
@@ -3544,9 +3538,8 @@
   }
 
   // ---------------- Add/update lectures via a pasteable grid (Lectures tab) ----------------
-  // Everyone can use this (not maintainer-gated) -- it only ever touches
-  // COURSES.<course>.classes, never THEMES, so it can't create a whole new
-  // course on its own (that stays admin-only, see c_addBatch below).
+  // Only ever touches COURSES.<course>.classes, never THEMES, so it can't
+  // create a whole new course on its own -- that's the Course pane's job.
   const lecAdd_course = document.getElementById('lecAdd_course'), lecAddBody = document.getElementById('lecAddBody'), lecAdd_preview = document.getElementById('lecAdd_preview');
   function fillLecAddCourseSelect(){
     const current = lecAdd_course.value;
@@ -5148,7 +5141,7 @@
           <tbody>
             <tr><td class="dm-word">🎓 Course<div class="dm-alias">theme</div></td>
               <td>A unit of study. What a student picks on the home screen, and the thing every lecture belongs to.</td>
-              <td><button type="button" class="link-btn" data-goto="lectures">Lectures</button></td></tr>
+              <td><button type="button" class="link-btn" data-goto="add">Add anything</button>, then its lectures under <button type="button" class="link-btn" data-goto="lectures">Lectures</button></td></tr>
             <tr><td class="dm-word">🧬 Topic<div class="dm-alias">module</div></td>
               <td>The game's own grouping inside a course — Genetics, Immunology and so on. Chosen for how cards read on screen, not to match the timetable.</td>
               <td>Created alongside a concept in <button type="button" class="link-btn" data-goto="add">Add anything</button></td></tr>
@@ -5358,13 +5351,13 @@ const themesDecl  = text.indexOf('const THEMES = {');
       steps: [
         { tab:'start', sel:'#contributorName', title:'First, your name and email', caption:'Type these once — nothing can be queued without them. It\'s how your work is credited and how an admin can reach you about it. Only an admin can see whose submission is whose.' },
         { tab:'datamap', sel:'section[data-section="datamap"] .dm-chain', title:'What goes where', caption:'A question sits on a concept. A concept sits in a topic (module), inside a course. Every concept also records which lecture taught it, and that is how this tool finds yours.' },
-        { tab:'lectures', sel:'#lecturesList', title:'Is your lecture listed?', caption:'Your lecture has to exist before you can add anything to it. Pick your course at the top and this list shows every lecture it has, with the learning outcomes each one covers. Find yours before going any further.', fallbackSel:'#lecAdd_course' },
-        { tab:'lectures', sel:'#lecAddTable', title:'Adding a lecture', caption:'Not listed? Add it here. Choose the course, then fill one row: the number (L14), the name, and the learning outcomes separated by semicolons. Type it or paste a block straight from a spreadsheet. Putting an existing number in updates that lecture instead of making a second one. Then Check & add all to queue.' },
+        { tab:'lectures', sel:'#lecturesList', title:'Is your lecture listed?', caption:'Your lecture has to exist before you can add anything to it. Pick your course at the top of this page and this list shows every lecture it has, with the learning outcomes each one covers. Find yours before going any further.', fallbackSel:'#lecAdd_course' },
+        { tab:'lectures', sel:'#lecAddTable', title:'Adding a lecture', caption:'Not listed? Add it here. Choose the course, then fill one row: the number (L14), the name, and the learning outcomes separated by semicolons. Type it or paste a block straight from a spreadsheet. Putting an existing lecture number will update that lecture instead of making a second one. Then Check & add all to queue.' },
         { tab:'mylecture', sel:'#ml_pickerCard', title:'Pick your lecture', caption:'Choose your course and lecture. Everything below then shows only that lecture\'s concepts.', fallbackSel:'#ml_changeBtn' },
         { tab:'mylecture', sel:'#ml_concepts', title:'Add your question to a concept', caption:'Each toggle is one concept from your lecture, showing how many questions it already has. Hit + Question on the one yours is about, type the prompt and the options, mark the right one, and add it to the queue. Reusing a concept is what gives students something to revise from. If your lecture has none yet, this shows a worked example of a toggle so you can see what to expect.', fallbackSel:'#ml_pickerCard' },
         { tab:'mylecture', sel:'#ml_concepts', title:'Check what a student sees', caption:'Open a toggle to see the study-guide page as students meet it in the game. A missing description shows as a gap you can fill on the spot, and the questions already on that concept are listed underneath.', fallbackSel:'#ml_pickerCard' },
         { tab:'mylecture', sel:'.ml-newbox', title:'Only if nothing fits', caption:'A genuinely new concept goes in here, and the name is checked against what already exists so you don\'t end up with two of the same thing. Write its description straight away — students see a blank page otherwise.', fallbackSel:'#ml_pickerCard' },
-        { tab:'add', sel:'#addChips', title:'Anything outside your own lecture', caption:'Add anything has the full forms — a question, a study guide item, a topic (module), lecture outcomes, a fun-fact question — each with a live preview of how it looks in the game. Creating a whole course is admin-only.' },
+        { tab:'add', sel:'#addChips', title:'Anything outside your own lecture', caption:'Add anything has the full forms — a question, a study guide item, a topic (module), lecture outcomes, a fun-fact question — each with a live preview of how it looks in the game. A whole new course goes in there too.' },
         { tab:'queue', sel:'#batchListContent', title:'Where it lands', caption:'Everything you add waits here, live, for an admin to merge it. Open a row for the full detail and fix your own before it goes in. Players\' in-game reports live under Reports.' },
         { tab:'start', sel:'[data-info="overview"]', title:'That\'s the whole loop', caption:'Every ⓘ opens a short note about that part of the tool. Reopen either tour any time from the 🎬 button at the top of the sidebar.', final:true },
       ],
