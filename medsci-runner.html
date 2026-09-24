@@ -439,6 +439,29 @@
   .lb-row > span:first-child{ overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:0; }
   .lb-row > span:last-child{ flex-shrink:0; white-space:nowrap; }
   #mpLeaderboardPanel{ max-height:170px; overflow-y:auto; }
+  /* Lecturer (non-racing host) view */
+  .spec-row{ display:grid; grid-template-columns:28px minmax(0,1fr) 54px 118px 66px 56px; align-items:center; gap:8px; background:var(--bg-1);
+    border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px; margin-bottom:6px; font-size:12.5px; }
+  .spec-row.head{ background:transparent; border-color:transparent; color:var(--hud-dim); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; padding-top:0; padding-bottom:0; }
+  .spec-row .spec-name{ overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-weight:600; }
+  .spec-row .spec-num{ text-align:right; white-space:nowrap; }
+  .spec-life{ display:flex; align-items:center; gap:6px; }
+  .spec-life-bar{ flex:1; height:8px; border-radius:4px; background:var(--panel-line); overflow:hidden; }
+  .spec-life-bar > span{ display:block; height:100%; background:var(--good); }
+  .spec-life-bar.low > span{ background:var(--danger); }
+  .spec-life-val{ width:26px; text-align:right; font-variant-numeric:tabular-nums; }
+  .spec-q{ background:var(--bg-1); border:1px solid var(--panel-line); border-radius:10px; padding:10px 12px; margin-bottom:10px; }
+  .spec-q-prompt{ font-weight:600; font-size:13px; margin-bottom:2px; }
+  .spec-q-meta{ font-size:11.5px; color:var(--hud-dim); margin-bottom:6px; }
+  .spec-opt{ display:grid; grid-template-columns:16px 38px 90px minmax(0,1fr); align-items:center; gap:8px; font-size:12px; padding:2px 0; }
+  .spec-opt .spec-pct{ text-align:right; font-weight:700; font-variant-numeric:tabular-nums; }
+  .spec-opt .spec-bar{ height:7px; border-radius:4px; background:var(--panel-line); overflow:hidden; }
+  .spec-opt .spec-bar > span{ display:block; height:100%; background:var(--hud-dim); }
+  .spec-opt.key .spec-bar > span{ background:var(--good); }
+  .spec-opt.key .spec-txt{ color:var(--good); font-weight:600; }
+  .spec-stats{ display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px; color:var(--hud-dim); margin-bottom:10px; }
+  .spec-stats b{ color:var(--hud-ink); }
+  @media (max-width:560px){ .spec-row{ grid-template-columns:24px minmax(0,1fr) 44px 92px 52px; } .spec-row .spec-ans{ display:none; } }
   /* top uses --hud-clearance (see the #mcqModal comment above) so this sits
      just below the HUD however tall it actually is, rather than a fixed
      guess that only fit the original landscape-only HUD sizing. */
@@ -776,6 +799,10 @@
           <span class="fl-label">Your name</span>
           <input type="text" id="mpNameInput" placeholder="e.g. Eason" style="width:100%;font-family:var(--mono);font-size:13px;background:var(--bg-1);color:var(--hud-ink);border:1px solid var(--panel-line);border-radius:8px;padding:8px 10px;">
         </label>
+        <label class="field" style="max-width:340px;margin:0 auto 16px;display:flex;align-items:flex-start;gap:10px;text-align:left;cursor:pointer;">
+          <input type="checkbox" id="mpHostSpectateChk" style="margin-top:3px;flex-shrink:0;">
+          <span><b>🎤 I'm the lecturer — I won't race</b><br><span style="font-size:11.5px;color:var(--hud-dim);">You'll get a live leaderboard with everyone's life, and a breakdown of the questions people got wrong once the race is over.</span></span>
+        </label>
         <div class="p-sub" style="margin-top:0;">Course</div>
         <div class="cancer-grid" id="mpThemeGrid" style="max-width:400px;margin:0 auto 16px;"></div>
         <div class="filter-section">
@@ -857,6 +884,18 @@
         <button class="primary" id="viewSummaryBtn">View summary</button>
         <button class="secondary" id="againBtn">Play again</button>
         <button class="secondary" id="quitFromOverBtn">🏠 Quit to menu</button>
+      </div>
+    </div>
+
+    <!-- GROUP RACE: lecturer (non-racing host) view -->
+    <div class="screen" id="spectatorScreen">
+      <h2 id="specTitle">Live leaderboard</h2>
+      <p class="desc" id="specSub"></p>
+      <div id="specBanner" style="display:none;margin:0 auto 12px;padding:6px 14px;border:1px solid #ffd54d;color:#ffd54d;border-radius:20px;font-size:12.5px;"></div>
+      <div id="specBoard" style="width:100%;max-width:680px;text-align:left;"></div>
+      <div id="specInsights" style="display:none;width:100%;max-width:680px;text-align:left;margin-top:20px;"></div>
+      <div class="btn-row" style="margin-top:16px;">
+        <button class="secondary" id="specLeaveBtn">🏠 Leave</button>
       </div>
     </div>
 
@@ -2196,10 +2235,12 @@
   }
 
   function showScreen(name){
-    [landingScreen, pauseScreen, overScreen].forEach(s=>s.classList.remove('active'));
+    const spectatorEl = document.getElementById('spectatorScreen');
+    [landingScreen, pauseScreen, overScreen, spectatorEl].forEach(s=>s && s.classList.remove('active'));
     if(name==='landing'){ landingScreen.classList.add('active'); refreshReviewModeCardBlurb(); }
     if(name==='paused') pauseScreen.classList.add('active');
     if(name==='over') overScreen.classList.add('active');
+    if(name==='spectator' && spectatorEl) spectatorEl.classList.add('active');
   }
 
   // ---------- landing: cancer picker ----------
@@ -3672,6 +3713,7 @@
     const authoredIndex = (isTimeout || chosenIndex == null || chosenIndex < 0) ? -1 : (q.optionOrder ? q.optionOrder[chosenIndex] : chosenIndex);
     recordSrsAnswer(q.itemId, q.id, correct);
     recordQuestionStat(q.itemId, q.id, correct, authoredIndex, isFirstAttempt);
+    recordRoomQuestionStat(q.itemId, q.id, correct, authoredIndex);
     sessionLog.push({
       mode: quizMode, theme: activeQuestionTheme, stage: quizMode==='runner' ? currentStages()[stageIndex].n : null,
       topic: pendingTopic, itemId: q.itemId,
@@ -5299,6 +5341,10 @@
   const mpWaitPlaying = document.getElementById('mpWaitPlaying');
   const mpCancelBtn = document.getElementById('mpCancelBtn');
   const mpStartRaceBtn = document.getElementById('mpStartRaceBtn');
+  const mpHostSpectateChk = document.getElementById('mpHostSpectateChk');
+  const spectatorScreen = document.getElementById('spectatorScreen');
+  const specTitle = document.getElementById('specTitle'), specSub = document.getElementById('specSub'), specBanner = document.getElementById('specBanner');
+  const specBoard = document.getElementById('specBoard'), specInsights = document.getElementById('specInsights'), specLeaveBtn = document.getElementById('specLeaveBtn');
   const mpCountdownOverlay = document.getElementById('mpCountdownOverlay');
   const mpCountdownText = document.getElementById('mpCountdownText');
   const mpOpponentPanel = document.getElementById('mpOpponentPanel');
@@ -5328,6 +5374,10 @@
     // seenIncoming but for results flowing the other way, back to a thrower.
     pendingGrenade:null, seenGrenadeResults:new Set(), seenEvents:new Set(), bombHellEndsAt:null, bombHellLeftMs:0, giftUnlockPending:false,
     roomListenerRef:null, countdownStarted:false, theme:RUNNABLE_THEMES[0], selectedTheme:RUNNABLE_THEMES[0],
+    // isSpectator: the host is the lecturer and isn't racing (no player
+    // node in the room) -- they get the live leaderboard + results view
+    // instead of the game. lastRoom/specTimer drive that view.
+    isSpectator:false, lastRoom:null, specTimer:null,
     // filterCourse/filterTopics/filterClasses describe an optional narrowing
     // within the chosen course -- empty topic/class lists mean "the whole
     // course". Populated from the host's own checkbox picks, or (for a
@@ -5484,7 +5534,8 @@
     mpHostBtn.disabled = true;
     try{
       const name = mpNameInput.value.trim() || 'Player 1';
-      mp.myName = name; mp.playerId = randId(); mp.isHost = true; mp.finished = false;
+      const spectate = mpHostSpectateChk.checked;
+      mp.myName = name; mp.playerId = randId(); mp.isHost = true; mp.finished = false; mp.isSpectator = spectate;
       mp.filterCourse = mp.selectedTheme;
       // Whole-course picks on a course with a hand-authored STAGES entry
       // (MEDS3002/MEDS2003 today) keep behaving exactly as before -- curated
@@ -5503,15 +5554,20 @@
         status:'waiting', hostId: mp.playerId, hostName: name, createdAt: Date.now(), winner: null,
         theme: mp.theme, filterCourse: mp.filterCourse, filterTopics: mp.filterTopics, filterClasses: mp.filterClasses,
         speed: mp.speed,
+        ...(spectate ? { hostRole:'spectator' } : {}), // omitted (not undefined) for a normal host -- RTDB rejects undefined
       });
-      await set(ref(fbdb, `rooms/${code}/players/${mp.playerId}`), {
-        name, glucose: GAME_CONFIG.startingGlucose, stageIndex:0, stageRoman:'I', correctCount:0, incorrectCount:0, bonusScore:0, done:false, finishedWin:false,
-      });
+      // A lecturer isn't a racer: no player node, so every roster-based rule
+      // (who's done, gift unlock, who can win) only ever sees the students.
+      if(!spectate){
+        await set(ref(fbdb, `rooms/${code}/players/${mp.playerId}`), {
+          name, glucose: GAME_CONFIG.startingGlucose, stageIndex:0, stageRoman:'I', correctCount:0, incorrectCount:0, bonusScore:0, done:false, finishedWin:false,
+        });
+      }
       mpHostSetupView.style.display = 'none';
       mpWaitView.style.display = 'block';
       mpWaitTitle.textContent = 'Waiting for racers…';
       mpRoomCodeDisplay.textContent = code;
-      mpWaitPlaying.textContent = describeMpSelection();
+      mpWaitPlaying.textContent = describeMpSelection() + (spectate ? ' · You’re the lecturer (not racing)' : '');
       mpStartRaceBtn.style.display = 'none';
       mpAttachRoomListener();
     } finally {
@@ -5582,6 +5638,8 @@
       console.log('[GroupRace]', mp.isHost?'HOST':'GUEST', 'room update — status:', room.status, room);
       const roster = room.players || {};
       mp.roster = roster; // everyone, including me
+      mp.lastRoom = room;
+      if(mp.isSpectator && spectatorScreen.classList.contains('active')) renderSpectator(room);
       const others = Object.keys(roster).filter(pid=>pid!==mp.playerId);
 
       if(mpWaitView.style.display==='block' && !mp.active){
@@ -5671,7 +5729,7 @@
       }
       if(room.status==='finished' && !mp.finished){
         mp.finished = true;
-        showMpResult(room);
+        if(mp.isSpectator) mpShowSpectator(); else showMpResult(room);
       }
     });
   }
@@ -5679,7 +5737,7 @@
     const names = Object.entries(roster);
     mpRosterList.innerHTML = names.length
       ? names.map(([pid,p])=>`<div class="roster-row${pid===mp.playerId?' me':''}">${p.name}${pid===mp.playerId?t(' (you)'):''}</div>`).join('')
-      : `<div class="roster-row">Just you so far…</div>`;
+      : `<div class="roster-row">${mp.isSpectator ? 'No racers yet…' : 'Just you so far…'}</div>`;
   }
   function mpScore(p){
     return (p.correctCount||0)*GAME_CONFIG.scoreCorrectWeight - (p.incorrectCount||0)*GAME_CONFIG.scoreIncorrectWeight + (p.glucose||0)*GAME_CONFIG.scoreLifeWeight + (p.stageIndex||0)*GAME_CONFIG.stageWeight + (p.bonusScore||0);
@@ -5819,7 +5877,7 @@
         mpCountdownText.textContent = 'GO!';
         setTimeout(()=>{
           mpCountdownOverlay.classList.remove('active');
-          mpBeginRace();
+          if(mp.isSpectator) mpShowSpectator(); else mpBeginRace();
         }, 300);
         return;
       }
@@ -5866,6 +5924,110 @@
     updateHUD();
     resumeIntoRunning();
   }
+  // Per-question tally for THIS race only (rooms/<CODE>/qstats/<key>): n
+  // answered, c correct, p0..p3 = times each authored option was picked,
+  // skip = timeouts. Plain counts, no player ids -- the lecturer's results
+  // view reads it to show which questions the room missed most.
+  function recordRoomQuestionStat(itemId, qId, correct, authoredIndex){
+    if(!mp.active || !mp.roomCode || !firebaseReady || !itemId || !qId) return;
+    runTransaction(ref(fbdb, `rooms/${mp.roomCode}/qstats/${itemId}::${qId}`), cur=>{
+      const c = cur || {};
+      c.n = (c.n||0) + 1;
+      if(correct) c.c = (c.c||0) + 1;
+      const k = authoredIndex >= 0 ? 'p' + authoredIndex : 'skip';
+      c[k] = (c[k]||0) + 1;
+      return c;
+    }).catch(()=>{});
+  }
+  // ---------- lecturer (non-racing host) view ----------
+  function mpShowSpectator(){
+    currentCancerId = mp.theme || RUNNABLE_THEMES[0]; // so lifeCfg() uses this course's life wording
+    mpWaitView.style.display = 'none';
+    landingScreen.classList.remove('active');
+    showScreen('spectator');
+    clearInterval(mp.specTimer);
+    // The shared catch-up countdown is derived from the room's deadline, so
+    // a once-a-second re-render keeps it ticking between roster updates.
+    mp.specTimer = setInterval(()=>{ if(mp.lastRoom) renderSpectator(mp.lastRoom); }, 1000);
+    if(mp.lastRoom) renderSpectator(mp.lastRoom);
+  }
+  function renderSpectator(room){
+    const roster = room.players || {};
+    const ranked = mpRankedRoster(roster);
+    const finished = room.status === 'finished';
+    const racing = ranked.filter(p=>!p.done).length;
+    specTitle.textContent = finished ? '🏁 Race over' : 'Live leaderboard';
+    if(finished){
+      const winner = room.winner;
+      const winnerName = winner && winner !== 'draw' ? (roster[winner]||{}).name : null;
+      specSub.textContent = winner === 'draw' ? 'Tied for first place.' : (winnerName ? `🏆 ${winnerName} topped the leaderboard.` : '');
+    } else {
+      specSub.textContent = ranked.length ? `${racing} racing · ${ranked.length - racing} finished · ${ranked.length} in the room` : 'Waiting for racers…';
+    }
+    // Shared catch-up window: someone finished (or is the last one racing), everyone else has until raceEndsAt.
+    if(!finished && room.raceEndsAt){
+      const left = Math.max(0, Math.ceil((room.raceEndsAt - serverNow()) / 1000));
+      const who = room.raceEndsByName || 'A racer';
+      specBanner.textContent = room.raceEndsReason === 'last-standing' ? `⏱ ${who} is the last one racing — ${left}s left to catch up` : `⏱ ${who} finished — everyone else has ${left}s left`;
+      specBanner.style.display = 'block';
+    } else specBanner.style.display = 'none';
+    const rows = ranked.map((p, i)=>{
+      const status = p.done ? ({ finished:'🏆', ended:'🚪', timeup:'⌛' }[p.doneReason] || (p.finishedWin ? '🏆' : '💀')) : '';
+      const life = Math.max(0, Math.round(p.glucose||0));
+      const lifePct = Math.max(0, Math.min(100, life));
+      return `<div class="spec-row"><span style="color:var(--hud-dim);">#${i+1}</span>
+        <span class="spec-name">${escapeHtml(p.name||'Racer')}</span>
+        <span class="spec-num">${p.done ? status : escapeHtml(p.stageRoman||'I')}</span>
+        <span class="spec-life"><span class="spec-life-bar${life<20?' low':''}"><span style="width:${lifePct}%"></span></span><span class="spec-life-val">${life}</span></span>
+        <span class="spec-num spec-ans">${p.correctCount||0}✓ ${p.incorrectCount||0}✗</span>
+        <span class="spec-num"><b>${p.score}</b></span></div>`;
+    }).join('');
+    specBoard.innerHTML = ranked.length
+      ? `<div class="spec-row head"><span></span><span>Racer</span><span class="spec-num">Stage</span><span>${escapeHtml(lifeCfg().label)}</span><span class="spec-num spec-ans">Answers</span><span class="spec-num">Score</span></div>${rows}`
+      : `<div class="roster-row">No racers yet…</div>`;
+    specInsights.style.display = finished ? 'block' : 'none';
+    if(finished) specInsights.innerHTML = mpQuestionInsightsHtml(room.qstats);
+  }
+  function mpQuestionInsightsHtml(qstats){
+    const entries = Object.entries(qstats||{}).map(([key, st])=>{
+      const sep = key.lastIndexOf('::');
+      const itemId = key.slice(0, sep), qId = key.slice(sep + 2);
+      const q = ALL_QUESTIONS.find(x=> x.itemId === itemId && x.id === qId);
+      if(!q) return null;
+      const n = st.n||0, c = st.c||0;
+      return { q, st, n, c, wrong: n - c };
+    }).filter(Boolean);
+    if(!entries.length) return `<div class="p-sub" style="margin-top:0;">Question results</div><div class="roster-row">No answers were recorded for this race.</div>`;
+    const totalN = entries.reduce((sum, e)=> sum + e.n, 0), totalC = entries.reduce((sum, e)=> sum + e.c, 0);
+    const missed = entries.filter(e=> e.wrong > 0 && e.n >= 2).sort((a, b)=> b.wrong - a.wrong || (b.wrong / b.n) - (a.wrong / a.n)).slice(0, 10);
+    const letters = 'ABCDEFGH';
+    const qHtml = missed.map(e=>{
+      const opts = e.q.options.map((op, i)=>{
+        const pct = e.n ? Math.round(100 * (e.st['p' + i]||0) / e.n) : 0;
+        const isKey = i === e.q.correctIndex;
+        return `<div class="spec-opt${isKey?' key':''}"><span style="color:var(--hud-dim);font-weight:700;">${letters[i]}</span><span class="spec-pct">${pct}%</span><span class="spec-bar"><span style="width:${pct}%"></span></span><span class="spec-txt">${isKey?'✓ ':''}${escapeHtml(op)}</span></div>`;
+      }).join('');
+      const skipped = e.st.skip ? `<div class="spec-q-meta" style="margin:4px 0 0;">Timed out: ${Math.round(100 * e.st.skip / e.n)}%</div>` : '';
+      const topic = (TOPICS[e.q.topic]||{}).label || '';
+      return `<div class="spec-q"><div class="spec-q-prompt">${escapeHtml(e.q.prompt)}</div>
+        <div class="spec-q-meta">${e.wrong} of ${e.n} answers wrong (${Math.round(100 * e.wrong / e.n)}% missed)${topic ? ' · ' + escapeHtml(topic) : ''}</div>${opts}${skipped}</div>`;
+    }).join('');
+    const byTopic = {};
+    entries.forEach(e=>{ const t = e.q.topic || '?'; (byTopic[t] ||= { n:0, c:0 }); byTopic[t].n += e.n; byTopic[t].c += e.c; });
+    const topicRows = Object.entries(byTopic).sort((a, b)=> (a[1].c / a[1].n) - (b[1].c / b[1].n)).map(([t, v])=>{
+      const pct = Math.round(100 * v.c / v.n);
+      return `<div class="spec-opt" style="grid-template-columns:minmax(0,1fr) 44px 110px;"><span>${escapeHtml((TOPICS[t]||{}).label || t)}</span><span class="spec-pct">${pct}%</span><span class="spec-bar"><span style="width:${pct}%"></span></span></div>`;
+    }).join('');
+    return `<div class="p-sub" style="margin-top:0;">Question results</div>
+      <div class="spec-stats"><span><b>${totalN}</b> answers</span><span><b>${Math.round(100 * totalC / totalN)}%</b> correct overall</span><span><b>${entries.length}</b> different questions</span></div>
+      <div class="p-sub">Most missed questions</div>${qHtml || '<div class="roster-row">Nobody got anything wrong.</div>'}
+      <div class="p-sub">Accuracy by topic <span style="text-transform:none;letter-spacing:0;">(weakest first)</span></div>${topicRows}`;
+  }
+  specLeaveBtn.addEventListener('click', ()=>{
+    if(!mp.finished && !confirm('Leave now? The race carries on for the racers, but you won’t see the results.')) return;
+    mpTeardown();
+    quitToMenu();
+  });
   function mpSyncMyState(){
     if(!mp.active || !mp.roomCode || !mp.playerId) return;
     fbUpdate(ref(fbdb, `rooms/${mp.roomCode}/players/${mp.playerId}`), {
@@ -5947,7 +6109,7 @@
     if(!room || room.winner) return;
     const roster = room.players || {};
     const ids = Object.keys(roster);
-    if(ids.length < 2) return; // need at least 2 racers for a result
+    if(ids.length < (room.hostRole==='spectator' ? 1 : 2)) return; // need at least 2 racers for a result -- 1 is enough when the host is a non-racing lecturer
     if(!ids.every(pid=>roster[pid].done)) return; // still waiting on someone
     const ranked = mpRankedRoster(roster);
     const topScore = ranked[0].score;
@@ -5984,13 +6146,15 @@
   function mpTeardown(){
     if(mp.roomListenerRef){ off(mp.roomListenerRef); }
     clearTimeout(mp.catchUpTimer);
+    clearInterval(mp.specTimer);
     catchUpBanner.style.display = 'none';
     mp = { active:false, roomCode:null, playerId:null, isHost:false, roster:{}, knownDone:new Set(),
       myName:'Player', finished:false, roomListenerRef:null, countdownStarted:false, theme:RUNNABLE_THEMES[0], selectedTheme:RUNNABLE_THEMES[0],
       filterCourse:null, filterTopics:[], filterClasses:[],
       shields:0, giftsUnlocked:false, giftFirstRollDone:false, giftTimer:0, seenIncoming:new Set(), incomingQueue:[], speed:'normal',
       pendingGrenade:null, seenGrenadeResults:new Set(), seenEvents:new Set(), bombHellEndsAt:null, bombHellLeftMs:0, giftUnlockPending:false,
-      catchUpEndsAt:null, catchUpReason:null, catchUpFinisherName:null, catchUpTimer:null };
+      catchUpEndsAt:null, catchUpReason:null, catchUpFinisherName:null, catchUpTimer:null,
+      isSpectator:false, lastRoom:null, specTimer:null };
     mpOpponentPanel.style.display = 'none';
     grenadeOverlay.classList.remove('active');
     updateGiftHUD();
