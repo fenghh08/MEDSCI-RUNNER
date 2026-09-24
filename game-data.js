@@ -360,7 +360,32 @@
     'AMED3003': {
       'code': 'AMED3003',
       'label': 'Diagnostics and Biomarkers',
-      'classes': {},
+      'classes': {
+        'L1': {
+          'label': 'Biomarker',
+        },
+        'L2': {
+          'label': 'Diagnostics',
+        },
+        'L3': {
+          'label': 'Conventional Imaging',
+        },
+        'L4': {
+          'label': 'AI in imaging',
+        },
+        'L5': {
+          'label': 'Pathogen Variants',
+        },
+        'L6': {
+          'label': 'Flow Cytometry',
+        },
+        'L7': {
+          'label': 'Western Blot',
+        },
+        'L8': {
+          'label': 'Gene Therapy',
+        },
+      },
     },
   };
 
