@@ -604,20 +604,13 @@
         </div>
         <!-- Section headings: the course grid IS Runner mode, but with six
              more cards stacked under it, nothing said so -- "pick a course"
-             and "Study & Practice" read as peers. Three labelled groups:
-             the game, the other ways to study, and the two reference views. -->
+             and "Study & Practice" read as peers. Two labelled groups: the
+             game, and the other ways to study. Study guide / Lectures live
+             inside each course's page (briefView), not on this screen. -->
         <div class="p-sub landing-section-title" style="width:100%;max-width:460px;margin:14px auto 6px;">Pick a course</div>
         <div class="cancer-grid" id="cancerGrid"></div>
         <div class="p-sub landing-section-title" style="width:100%;max-width:460px;margin:14px auto 6px;">More ways to study</div>
         <div class="cancer-grid">
-          <button class="pick-card" id="practiceModeCard">
-            <span class="cc-icon">📝</span><span class="cc-name">Study &amp; Practice</span>
-            <span class="cc-blurb">Untimed practice, any topic.</span>
-          </button>
-          <button class="pick-card" id="reviewModeCard">
-            <span class="cc-icon">📅</span><span class="cc-name">Review</span>
-            <span class="cc-blurb" id="reviewModeBlurb">Spaced repetition, questions you've already studied.</span>
-          </button>
           <button class="pick-card" id="customModeCard">
             <span class="cc-icon">🎯</span><span class="cc-name">Custom run</span>
             <span class="cc-blurb">Pick your own question mix.</span>
@@ -626,16 +619,13 @@
             <span class="cc-icon">🆚</span><span class="cc-name">Group Race</span>
             <span class="cc-blurb">Race friends, same stages.</span>
           </button>
-        </div>
-        <div class="p-sub landing-section-title" style="width:100%;max-width:460px;margin:14px auto 6px;">Reference</div>
-        <div class="cancer-grid">
-          <button class="pick-card" id="studyGuideBtnMenu">
-            <span class="cc-icon">📚</span><span class="cc-name">Study guide</span>
-            <span class="cc-blurb">Every item, with notes and facts.</span>
+          <button class="pick-card" id="practiceModeCard">
+            <span class="cc-icon">📝</span><span class="cc-name">Study &amp; Practice</span>
+            <span class="cc-blurb">Untimed practice, any topic.</span>
           </button>
-          <button class="pick-card" id="courseListBtnMenu">
-            <span class="cc-icon">🎓</span><span class="cc-name">Browse by lecture</span>
-            <span class="cc-blurb">Lecture by lecture, with outcomes.</span>
+          <button class="pick-card" id="reviewModeCard">
+            <span class="cc-icon">📅</span><span class="cc-name">Review</span>
+            <span class="cc-blurb" id="reviewModeBlurb">Spaced repetition, questions you've already studied.</span>
           </button>
         </div>
       </div>
@@ -1889,8 +1879,6 @@
   const courseLecturesBtn = document.getElementById('courseLecturesBtn');
   const coursePracticeBtn = document.getElementById('coursePracticeBtn');
   const manualBtn = document.getElementById('manualBtn');
-  const studyGuideBtnMenu = document.getElementById('studyGuideBtnMenu');
-  const courseListBtnMenu = document.getElementById('courseListBtnMenu');
   const customizeBtnMenu = document.getElementById('customizeBtnMenu');
   const themeToggleBtn = document.getElementById('themeToggleBtn');
   const signInBtn = document.getElementById('signInBtn');
@@ -5031,7 +5019,6 @@
   });
 
   guideBtn.addEventListener('click', ()=> openStudyGuide(null, null, null));
-  studyGuideBtnMenu.addEventListener('click', ()=> openStudyGuide(null, null, null));
   studyGuideFromPauseBtn.addEventListener('click', ()=> openStudyGuide(null, null, null));
 
   // ---------- scroll-more affordance ----------
@@ -5158,7 +5145,6 @@
   manualBtn.addEventListener('click', ()=> manualModal.classList.add('active'));
   manualClose.addEventListener('click', ()=> manualModal.classList.remove('active'));
   manualFromPauseBtn.addEventListener('click', ()=> manualModal.classList.add('active'));
-  courseListBtnMenu.addEventListener('click', openCourseList);
   courseListBtnGuide.addEventListener('click', openCourseList);
 
   // ---------- customize (cell appearance) ----------
