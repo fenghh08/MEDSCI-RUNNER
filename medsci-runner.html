@@ -2203,6 +2203,7 @@
       ...q,
       options: order.map(i=>q.options[i]),
       correctIndex: order.indexOf(q.correctIndex),
+      optionOrder: order, // shown position -> authored index, so answer stats can be recorded per authored option
     };
   }
 
@@ -3411,12 +3412,52 @@
   // increments from clobbering each other. Silently does nothing if
   // Group Race's Firebase connection never came up -- this is a nice-to-
   // have, not something that should ever block answering a question.
-  function recordQuestionStat(itemId, qId, correct){
-    if(!firebaseReady || !itemId || !qId) return;
+  //
+  // On a player's FIRST attempt at a question it also records, still as
+  // plain counts under `stats/<key>/first`: how often each authored option
+  // was picked (p0..p3, or `skip` for a timeout), and the answer bucketed by
+  // the player's own prior first-attempt accuracy on this device (`ab/b00`
+  // ..`b19`, 5% steps). The dev tool derives a discrimination index from
+  // those buckets (do stronger players get it right more than weaker ones?)
+  // without any per-player record ever leaving the device. Keys are
+  // prefixed (p0, b07) because Firebase turns sequential numeric keys into
+  // arrays, which would make holes and reads awkward.
+  const ABILITY_KEY = 'runnerFirstAttemptAbility', ABILITY_MIN_ANSWERS = 10, ABILITY_BANDS = 20;
+  function loadAbility(){
+    try{ const a = JSON.parse(localStorage.getItem(ABILITY_KEY)||'null'); if(a && a.n>=0 && a.c>=0) return a; }catch(e){}
+    return { n:0, c:0 };
+  }
+  function bumpAbility(correct){
+    try{ const a = loadAbility(); a.n++; if(correct) a.c++; localStorage.setItem(ABILITY_KEY, JSON.stringify(a)); }catch(e){}
+  }
+  function abilityBandKey(a){
+    if(a.n < ABILITY_MIN_ANSWERS) return null; // too little history to place this player yet
+    return 'b' + String(Math.min(ABILITY_BANDS-1, Math.floor(a.c/a.n*ABILITY_BANDS))).padStart(2,'0');
+  }
+  function recordQuestionStat(itemId, qId, correct, chosenAuthoredIndex, isFirstAttempt){
+    if(!itemId || !qId) return;
+    const ability = isFirstAttempt ? loadAbility() : null;
+    const band = ability ? abilityBandKey(ability) : null;
+    if(isFirstAttempt) bumpAbility(correct); // counts even when Firebase is offline, so the band stays honest
+    if(!firebaseReady) return;
     runTransaction(ref(fbdb, `stats/${itemId}::${qId}`), current => {
       const c = current || {};
       if(correct) c.correct = (c.correct||0) + 1;
       else c.wrong = (c.wrong||0) + 1;
+      if(isFirstAttempt){
+        const f = c.first || (c.first = {});
+        f.n = (f.n||0) + 1;
+        if(correct) f.c = (f.c||0) + 1;
+        const picks = f.picks || (f.picks = {});
+        const pickKey = chosenAuthoredIndex >= 0 ? 'p' + chosenAuthoredIndex : 'skip';
+        picks[pickKey] = (picks[pickKey]||0) + 1;
+        if(band){
+          const ab = f.ab || (f.ab = {});
+          const b = ab[band] || (ab[band] = {});
+          b.n = (b.n||0) + 1;
+          if(correct) b.c = (b.c||0) + 1;
+        }
+      }
       return c;
     }).catch(()=>{});
   }
@@ -3637,8 +3678,12 @@
     if(correct && mcqIsGift && quizMode==='runner') renderGiftShop();
     mcqFeedback.style.display = 'block';
     if(quizMode==='runner') updateHUD();
+    // A repeat attempt is one this device already has a spaced-repetition
+    // entry for -- checked BEFORE recordSrsAnswer() creates it.
+    const isFirstAttempt = !loadSrsState()[srsKeyFor(q.itemId, q.id)];
+    const authoredIndex = (isTimeout || chosenIndex == null || chosenIndex < 0) ? -1 : (q.optionOrder ? q.optionOrder[chosenIndex] : chosenIndex);
     recordSrsAnswer(q.itemId, q.id, correct);
-    recordQuestionStat(q.itemId, q.id, correct);
+    recordQuestionStat(q.itemId, q.id, correct, authoredIndex, isFirstAttempt);
     sessionLog.push({
       mode: quizMode, theme: activeQuestionTheme, stage: quizMode==='runner' ? currentStages()[stageIndex].n : null,
       topic: pendingTopic, itemId: q.itemId,
