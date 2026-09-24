@@ -80,6 +80,15 @@
   .fl-label{ display:block; font-size:12.5px; font-weight:600; margin-bottom:5px; }
   .fl-label .req{ color:var(--accent); }
   .fl-help{ display:block; font-size:12px; color:var(--muted); margin:-2px 0 6px; line-height:1.45; }
+  /* "This question will land in lecture X" -- contributors add questions
+     lecture by lecture, so the inherited lecture has to be visible on the
+     form itself, not hidden inside the More options panel. */
+  .lecture-readout{ font-size:12.5px; line-height:1.5; margin:-2px 0 10px; padding:7px 11px; border-radius:8px;
+    background:var(--chip-bg, #f3f0fb); border:1px solid var(--line, #e3ddf2); color:var(--ink, #2a2340); }
+  .lecture-readout .lr-line{ display:block; }
+  .lecture-readout.lr-none{ background:#fff7e6; border-color:#f0d9a8; color:#7a5a12; }
+  .lecture-readout.lr-override{ background:#eef6ff; border-color:#c3ddf7; color:#1b4a75; }
+  .lecture-readout b{ font-weight:600; }
   input[type=text], input[type=url], input[type=password], textarea, select{ width:100%; font-family:var(--sans); font-size:14px; color:var(--ink);
     background:#fff; border:1px solid var(--line-strong); border-radius:9px; padding:8px 11px; outline:none; transition:border-color .12s, box-shadow .12s; }
   input:focus, textarea:focus, select:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
@@ -619,6 +628,7 @@
               <label class="field"><span class="fl-label">Topic <span class="req">*</span></span><select id="q_topic"></select></label>
             </div>
             <label class="field"><span class="fl-label">Which item is this about? <span class="req">*</span></span><span class="fl-help">Links "View in study guide" from this question.</span><select id="q_itemSelect"></select></label>
+            <div class="lecture-readout" id="q_lectureNow"></div>
             <button type="button" class="link-btn" id="q_customItemToggle">+ It's a new item I'm adding myself (type its id)</button>
             <div class="new-block" id="q_customItemBlock"><input type="text" id="q_customItemId" placeholder="e.g. ibrutinib_ab12 — the id shown on the item form"></div>
             <label class="field" style="margin-top:10px;"><span class="fl-label">Question <span class="req">*</span></span><textarea id="q_prompt" placeholder="e.g. Ibrutinib works by inhibiting which enzyme?"></textarea></label>
@@ -1026,7 +1036,7 @@
   Object.entries(RD.THEMES).forEach(([themeId, theme])=>{
     Object.entries(theme.topics).forEach(([topicId, topic])=>{
       Object.entries(topic.items).forEach(([itemId, item])=>{
-        KNOWN_ITEMS.push({ id:itemId, theme:themeId, topic:topicId, label:item.label, course:item.course||'', class:item.class||'' });
+        KNOWN_ITEMS.push({ id:itemId, theme:themeId, topic:topicId, label:item.label, course:item.course||'', class:item.class||'', relatedCourse:item.relatedCourse||'' });
       });
     });
   });
@@ -2156,7 +2166,31 @@
       ${o.options.map((op,i)=>`<div class="preview-mcq-option${i===o.correctIndex?' correct':''}">${i+1}. ${esc2(op)}${i===o.correctIndex?' ✓':''}</div>`).join('')}
       ${o.explanation ? `<div class="p-sub" style="margin-top:10px;">Explanation shown after answering</div><p class="p-desc">${esc2(o.explanation)}</p>` : ''}`;
   }
-  function renderQuestion(){ const o = buildQuestionObject(); q_codeOut.textContent = questionCodeString(o); renderQuestionPreview(o); }
+  // Shows which lecture this question will actually end up in: the item's
+  // own lecture normally, or the override from "More options" when one is
+  // set. An item that spans several lectures lists all of them.
+  function renderQuestionLecture(o){
+    const el = document.getElementById('q_lectureNow');
+    if(!el) return;
+    el.className = 'lecture-readout';
+    const lines = rc => String(rc||'').split('\n').map(x=>x.trim()).filter(Boolean);
+    const show = (label, arr) => `<span class="lr-line"><b>${label}</b></span>` + arr.map(l=>`<span class="lr-line">🎓 ${esc2(l)}</span>`).join('');
+    // Override first -- it's what actually gets written.
+    const ovr = lines(o.relatedCourseOverride);
+    if(ovr.length){ el.classList.add('lr-override'); el.innerHTML = show('Lecture (set below, not the item\'s):', ovr); return; }
+    if(o.course){
+      const disp = courseDisplayString(o.course, o.class);
+      if(disp){ el.classList.add('lr-override'); el.innerHTML = show('Lecture (set below, not the item\'s):', [disp]); return; }
+    }
+    const item = KNOWN_ITEMS.find(it=>it.id===o.itemId);
+    if(!item){ el.classList.add('lr-none'); el.innerHTML = '<span class="lr-line">🎓 New item — its lecture is whatever you give the item itself.</span>'; return; }
+    const spans = lines(item.relatedCourse);
+    const own = item.course ? courseDisplayString(item.course, item.class) : '';
+    const all = spans.length ? spans : (own ? [own] : []);
+    if(!all.length){ el.classList.add('lr-none'); el.innerHTML = '<span class="lr-line">🎓 This item has no lecture yet — the question won\'t show under any lecture. Set one in More options, or give the item a lecture.</span>'; return; }
+    el.innerHTML = show(all.length>1 ? 'Lecture (from the item — it spans several):' : 'Lecture (from the item):', all);
+  }
+  function renderQuestion(){ const o = buildQuestionObject(); q_codeOut.textContent = questionCodeString(o); renderQuestionPreview(o); renderQuestionLecture(o); }
   document.getElementById('q_copyOne').addEventListener('click', ()=> copyText(questionCodeString(buildQuestionObject())));
   document.getElementById('q_addBatch').addEventListener('click', ()=>{
     if(!requireContributorIdentity()) return;
