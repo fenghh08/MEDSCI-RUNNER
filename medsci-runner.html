@@ -962,6 +962,7 @@
         <button class="primary" id="resumeBtn">Resume (P)</button>
         <button class="secondary" id="restartBtn">Restart</button>
         <button class="secondary" id="studyGuideFromPauseBtn">📚 Study guide</button>
+        <button class="secondary" id="customizeFromPauseBtn">🎨 Customise</button>
         <button class="secondary" id="manualFromPauseBtn">📖 How to play</button>
         <button class="secondary" id="quitFromPauseBtn">🏠 Quit to menu</button>
         <button class="secondary" id="endGameFromPauseBtn" style="border-color:var(--danger);color:var(--danger);">🏁 End game &amp; view summary</button>
@@ -2326,6 +2327,7 @@
   let currentItemDetail = null; // { topicId, itemId, item } for whichever item's page is currently open, so the "Test yourself" button knows what to quiz on without needing its own separate wiring at every call site of openItemDetail()
   let pendingQuestion = null;
   let mcqTimerInterval = null;
+  let mcqSecondsLeft = 0; // survives a pause, so the clock resumes rather than resets
   const MCQ_TIME_LIMIT = 45; // seconds baseline -- run out and it counts as a wrong answer, same as an incorrect pick.
                               // Longer prompts/options get extra time on top of this (see mcqTimeLimitFor below).
   let mcqTimeLimit = MCQ_TIME_LIMIT; // this question's actual limit, recomputed by presentQuestion each time
@@ -2875,7 +2877,7 @@
     // no-op, but the button stayed fully lit either way, inviting a tap
     // that does nothing. Dim it (and stop it intercepting taps) whenever
     // it wouldn't do anything, so its state matches what it'll actually do.
-    pauseBtn.classList.toggle('inactive', inRun && screenState!=='running' && screenState!=='paused');
+    pauseBtn.classList.toggle('inactive', inRun && screenState!=='running' && screenState!=='paused' && !(screenState==='mcq' && quizMode==='runner'));
     updateTopInset();
     // The "how scoring works" popup (tap the SCORE box to open it) only had
     // its own ✕ to close it -- easy to tap by accident (it sits right next
@@ -3018,8 +3020,14 @@
     lastT = performance.now();
     requestAnimationFrame(loop);
   }
+  // Where a pause came from: the road ('running') or a question that was up
+  // ('mcq'). Resuming has to put the player back in the same place.
+  let pausedFrom = 'running';
+  function canPauseFromQuestion(){ return screenState==='mcq' && quizMode==='runner'; }
   function pauseGame(){
-    if(screenState!=='running') return;
+    if(screenState!=='running' && !canPauseFromQuestion()) return;
+    pausedFrom = screenState;
+    if(pausedFrom==='mcq'){ pauseMcqTimer(); mcqModal.classList.remove('active'); }
     screenState = 'paused';
     syncHudVisibility();
     pauseBtn.textContent = '▶';
@@ -3031,10 +3039,20 @@
     if(screenState!=='paused') return;
     pauseBtn.textContent = '⏸';
     pauseScreen.classList.remove('active');
+    if(pausedFrom==='mcq'){
+      // Straight back to the question -- nothing on the road moves while
+      // it's up, so there's nothing to count down into.
+      pausedFrom = 'running';
+      screenState = 'mcq';
+      mcqModal.classList.add('active');
+      syncHudVisibility();
+      resumeMcqTimer();
+      return;
+    }
     startResumeCountdown(3000); // see-through pause + a 3-2-1 count = time to read the track before it moves
   }
   function togglePause(){
-    if(screenState==='running') pauseGame();
+    if(screenState==='running' || canPauseFromQuestion()) pauseGame();
     else if(screenState==='paused') resumeGame();
   }
   function endRun(outcome){
@@ -3411,6 +3429,8 @@
 
   window.addEventListener('keydown', e=>{
     if(mcqModal.classList.contains('active')){
+      const typing = e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+      if(!typing && (e.key==='p' || e.key==='P' || e.key==='Escape') && canPauseFromQuestion()){ e.preventDefault(); pauseGame(); return; }
       if(!mcqAnswered){
         const n = parseInt(e.key,10);
         if(n>=1 && n<=6){
@@ -3510,22 +3530,42 @@
   }
   function startMcqTimer(){
     clearMcqTimer();
-    let secondsLeft = mcqTimeLimit;
+    mcqSecondsLeft = mcqTimeLimit;
     mcqTimerBar.style.transition = 'none';
     mcqTimerBar.style.width = '100%';
     mcqTimerBar.style.background = 'var(--membrane)';
     void mcqTimerBar.offsetWidth; // force the browser to apply the reset above before the next transition starts, or it'd animate FROM the previous question's leftover width instead of a clean 100%
     mcqTimerBar.style.transition = 'width 1s linear, background 0.3s';
+    runMcqTimer();
+  }
+  function runMcqTimer(){
+    clearMcqTimer();
     mcqTimerInterval = setInterval(()=>{
-      secondsLeft--;
-      const pct = Math.max(0, (secondsLeft/mcqTimeLimit)*100);
+      mcqSecondsLeft--;
+      const pct = Math.max(0, (mcqSecondsLeft/mcqTimeLimit)*100);
       mcqTimerBar.style.width = pct + '%';
-      if(secondsLeft <= 10) mcqTimerBar.style.background = 'var(--danger)';
-      if(secondsLeft <= 0){
+      if(mcqSecondsLeft <= 10) mcqTimerBar.style.background = 'var(--danger)';
+      if(mcqSecondsLeft <= 0){
         clearMcqTimer();
         if(!mcqAnswered) answerMCQ(-1, true);
       }
     }, 1000);
+  }
+  // Pausing mid-question stops the clock where it is; resuming carries on
+  // from the same second. Only a clock that was actually running restarts.
+  let mcqTimerWasRunning = false;
+  function pauseMcqTimer(){
+    mcqTimerWasRunning = !!mcqTimerInterval;
+    clearMcqTimer();
+    const pct = Math.max(0, (mcqSecondsLeft/mcqTimeLimit)*100);
+    mcqTimerBar.style.transition = 'none';
+    mcqTimerBar.style.width = pct + '%';
+    void mcqTimerBar.offsetWidth;
+    mcqTimerBar.style.transition = 'width 1s linear, background 0.3s';
+  }
+  function resumeMcqTimer(){
+    if(mcqTimerWasRunning && !mcqAnswered) runMcqTimer();
+    mcqTimerWasRunning = false;
   }
   function presentQuestion(q, topic){
     pendingQuestion = q;
@@ -5491,12 +5531,24 @@
     renderFontRow();
     renderSpeedRow();
   }
-  customizeBtnMenu.addEventListener('click', ()=>{
+  // Opened from the menu or from the pause screen; Back/Save return to
+  // whichever one it came from.
+  let customizeFromPause = false;
+  function openCustomize(fromPause){
+    customizeFromPause = !!fromPause;
     customizeDraft = { ...playerCustomization };
+    if(fromPause) showScreen('landing'); // the customise view lives on the landing screen
     cancerPickView.style.display = 'none';
     customizeView.style.display = 'block';
     renderCustomizeScreen();
-  });
+  }
+  function closeCustomize(){
+    customizeView.style.display = 'none';
+    cancerPickView.style.display = 'block';
+    if(customizeFromPause){ customizeFromPause = false; showScreen('paused'); }
+  }
+  customizeBtnMenu.addEventListener('click', ()=> openCustomize(false));
+  document.getElementById('customizeFromPauseBtn').addEventListener('click', ()=> openCustomize(true));
   customizeRandomizeBtn.addEventListener('click', ()=>{
     customizeDraft = {
       color: CUSTOMIZE_COLORS[Math.floor(Math.random()*CUSTOMIZE_COLORS.length)],
@@ -5505,14 +5557,10 @@
     };
     renderCustomizeScreen();
   });
-  customizeBackBtn.addEventListener('click', ()=>{
-    customizeView.style.display = 'none';
-    cancerPickView.style.display = 'block';
-  });
+  customizeBackBtn.addEventListener('click', closeCustomize);
   customizeSaveBtn.addEventListener('click', ()=>{
     savePlayerCustomization(customizeDraft);
-    customizeView.style.display = 'none';
-    cancerPickView.style.display = 'block';
+    closeCustomize();
   });
 
   // ---------- summary ----------
