@@ -491,6 +491,22 @@
   .lec-row .lec-body li{ margin:2px 0; }
   .lec-empty{ border:1px dashed var(--line-strong); border-radius:11px; padding:18px; text-align:center; color:var(--muted); background:#fbfbfd; }
   @media (max-width:720px){ .lec-row summary{ flex-wrap:wrap; } .lec-row .lec-meta{ flex-basis:100%; padding-left:58px; } .lec-row .lec-body{ padding-left:14px; } }
+  .uc-code{ font-family:var(--mono); font-weight:800; letter-spacing:.12em; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:2px 7px; }
+  .uc-code.big{ font-size:22px; padding:4px 12px; margin:0 6px; }
+  .uc-created{ margin-top:12px; padding:12px 14px; border-radius:10px; background:var(--good-soft); border:1px solid #bfe6d6; }
+  .stg-card{ padding-top:14px; }
+  .stg-head{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:10px; }
+  .stg-num{ font-weight:800; font-size:16px; }
+  .stg-diff{ font-size:12.5px; color:var(--muted); display:inline-flex; align-items:center; gap:6px; }
+  .stg-diff select{ width:auto; }
+  .stg-total{ margin-left:auto; font-weight:700; font-size:13px; color:var(--good); }
+  .stg-total.bad{ color:var(--danger); }
+  .stg-table tr.stg-off td{ color:var(--faint); }
+  .stg-split{ font-size:11px; margin-left:6px; }
+  .stg-warn{ color:var(--warn); font-size:11.5px; margin-top:2px; }
+  .stg-step{ display:inline-flex; align-items:center; gap:4px; }
+  .stg-step button{ width:30px; height:30px; padding:0; font-weight:700; }
+  .stg-step input{ width:56px; text-align:center; }
   .lock-gate .lg-or{ margin:14px 0 10px; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:10px; }
   .lock-gate .lg-or::before, .lock-gate .lg-or::after{ content:''; flex:1; height:1px; background:var(--line); }
   .mlc-mergebox{ border-top:1px solid var(--line); padding:14px 16px 16px; background:#fcfbff; }
@@ -699,6 +715,7 @@
     <button id="tabMaintainer" data-tab="maintainer">🛠 <span>Merge &amp; settings</span></button>
     <button id="tabContributors" data-tab="contributors" style="display:none;">🙋 <span>Contributors</span></button>
     <button id="tabDataAnalysis" data-tab="analysis" style="display:none;">📊 <span>Data analysis</span></button>
+    <button id="tabStages" data-tab="stages" style="display:none;">🏁 <span>Stages</span></button>
     <div class="nav-help">Everything you add goes to the shared Team queue first. Nothing reaches the game until the admin merges it.</div>
   </nav>
 
@@ -1325,28 +1342,40 @@
     <section data-section="maintainer">
       <div class="section-head">
         <h2>Admin</h2>
-        <p>Two keys. The <b>Admin PIN</b> is for whoever looks after <code>game-data.js</code>: merging the queue, the merge template, the GitHub check. The <b>Lecturer / UC PIN</b> opens just the answer analytics, so a lecturer can see how students are doing against their questions.</p>
+        <p>Two kinds of key. The <b>Admin PIN</b> is for whoever looks after <code>game-data.js</code>: merging the queue, stage requirements, registering lecturers, the GitHub check. Each <b>lecturer / UC</b> gets their own access code from the admin, which opens Data analysis for their own course only.</p>
       </div>
       <div id="maintainerLockGate" class="lock-gate card">
         <div>🔒 Admin PIN <button class="info-btn" data-info="pin" title="How this works">i</button></div>
         <p class="card-sub" style="margin:2px 0 8px;">Needs the PIN <i>and</i> your name (top of the page) on the admin list.</p>
-        <input type="password" id="maintainerPinInput" maxlength="4" inputmode="numeric" placeholder="••••">
+        <input type="password" id="maintainerPinInput" maxlength="6" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="••••••">
         <button class="primary" id="maintainerUnlockBtn">Unlock</button>
         <div class="lg-error" id="maintainerPinError">Wrong PIN.</div>
         <div class="lg-or">or</div>
-        <div>🎓 Lecturer / UC PIN</div>
-        <p class="card-sub" style="margin:2px 0 8px;">Opens <b>Data analysis</b> only — how students are doing against your questions. No merging, no settings, no contributor details.</p>
-        <input type="password" id="viewerPinInput" maxlength="4" inputmode="numeric" placeholder="••••">
+        <div>🎓 Lecturer / UC access code</div>
+        <p class="card-sub" style="margin:2px 0 8px;">Your own 6-character code from the admin. Opens <b>Data analysis</b> for your course only — no merging, no settings, no contributor details.</p>
+        <input type="text" id="viewerPinInput" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. K7M2QX" style="text-transform:uppercase;letter-spacing:.15em;">
         <button id="viewerUnlockBtn">Open Data analysis</button>
-        <div class="lg-error" id="viewerPinError">Wrong PIN.</div>
+        <div class="lg-error" id="viewerPinError">That code isn't registered.</div>
       </div>
       <div id="viewerModeCard" class="card" style="display:none;border-color:var(--info);background:var(--info-soft);">
-        <b>📊 Viewing mode is on.</b> <span class="card-sub" style="display:inline;">Data analysis is open in the sidebar under Admin. Merging and settings stay locked — they need the Admin PIN above.</span>
+        <b>📊 Signed in as <span id="viewerWho">—</span>.</b> <span class="card-sub" style="display:inline;">Data analysis for <b id="viewerCourses">—</b> is open in the sidebar under Admin. Merging and settings stay locked — they need the Admin PIN above.</span>
         <div class="btn-row" style="margin-top:8px;"><button type="button" data-goto="analysis">📊 Go to Data analysis</button><button type="button" class="subtle" id="viewerLockBtn">🔒 Close viewing mode</button></div>
       </div>
       <div id="maintainerLockedContent" style="display:none;">
         <div class="btn-row" style="justify-content:flex-end;margin-bottom:10px;">
           <button class="subtle" id="maintainerLockBtn" title="Re-lock admin mode on this device">🔒 Lock again</button>
+        </div>
+        <div class="card" id="ucAdminCard">
+          <h2>🎓 Lecturers &amp; UCs <span class="struct-qbadge" id="ucCount"></span></h2>
+          <p class="card-sub">Register someone and they get their own 6-character access code. With it they open <b>Data analysis</b> for the course(s) you tick — nothing else. Revoke a code and it stops working the next time they load the page.</p>
+          <div class="row2">
+            <label class="field"><span class="fl-label">Name <span class="req">*</span></span><input type="text" id="uc_name" placeholder="e.g. Dr Jane Smith"></label>
+            <label class="field"><span class="fl-label">Email</span><input type="text" id="uc_email" placeholder="e.g. jane.smith@sydney.edu.au"></label>
+          </div>
+          <div class="field"><span class="fl-label">Course(s) they can see <span class="req">*</span></span><div class="checks" id="uc_courses"></div></div>
+          <div class="btn-row"><button class="primary" id="uc_createBtn">Create access code</button><span id="uc_status" class="status"></span></div>
+          <div id="uc_created"></div>
+          <div id="uc_list" style="margin-top:12px;"></div>
         </div>
         <div class="card">
           <h2>🧬 Merge the queue into game-data.js <button class="info-btn" data-info="merge" title="How this works">i</button></h2>
@@ -1375,6 +1404,29 @@
             <p id="gitCheckText" class="card-sub">Not checked yet — compares <code>game-data.js</code> content and both tool files' versions against GitHub main. Only runs when you click.</p>
             <div class="btn-row"><button id="gitCheckBtn">Check now</button><a class="link-btn" href="https://github.com/fenghh08/MEDSCI-RUNNER" target="_blank" rel="noopener">View repo on GitHub ↗</a></div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= STAGES (admin only) ================= -->
+    <section data-section="stages">
+      <div class="section-head">
+        <h2>Stages</h2>
+        <p>How far a Runner game goes for each course: how many stages, and how many <b>correct answers per topic</b> a player needs to clear each one. Changes go through the Team queue and land with the next merge. Admin only.</p>
+      </div>
+      <div class="card" id="stg_gate" style="display:none;"><p class="card-sub" style="margin:0;">🔒 Unlock admin mode under <b>Merge &amp; settings</b> to edit stages.</p></div>
+      <div id="stg_body">
+        <div class="card">
+          <div class="row2" style="align-items:end;">
+            <label class="field" style="margin:0;"><span class="fl-label">Course</span><select id="stg_course"></select></label>
+            <div id="stg_summary" class="card-sub" style="margin:0 0 6px;"></div>
+          </div>
+        </div>
+        <div id="stg_list"></div>
+        <div class="btn-row" style="margin-top:4px;">
+          <button type="button" id="stg_addStage">+ Add a stage</button>
+          <button type="button" class="subtle" id="stg_reset">Undo my changes</button>
+          <button type="button" class="primary" id="stg_save" style="margin-left:auto;">+ Add to queue</button>
         </div>
       </div>
     </section>
@@ -1590,7 +1642,7 @@
   // ---------------- Maintainer PIN (a deterrent, not security) ----------------
   // Anyone can read this in the source; it only stops a casual click on
   // "delete" or "generate the real file". Change it before sharing the file.
-  const MAINTAINER_PIN = '1008';
+  const MAINTAINER_PIN = 'fc1008'; // 6 characters, letters + digits; compared case-insensitively
   // Unlocking now needs BOTH the PIN and a name on this list (matched
   // against the "Your name" field at the top, case/whitespace-insensitive)
   // -- knowing the PIN alone isn't enough. Still just a deterrent, same as
@@ -1600,14 +1652,18 @@
   function safeSessionGet(key){ try { return sessionStorage.getItem(key); } catch(e){ return null; } }
   function safeSessionSet(key, val){ try { sessionStorage.setItem(key, val); } catch(e){} }
   function safeSessionRemove(key){ try { sessionStorage.removeItem(key); } catch(e){} }
-  // A lecturer / unit coordinator can open Data analysis -- just the
-  // read-only numbers -- without the admin PIN. Same deterrent-grade PIN as
-  // the admin one, no name check (nothing here is destructive or personal).
-  // Change it before sharing the file.
-  const VIEWER_PIN = '2468';
+  // Lecturers / unit coordinators each get their own access code, registered
+  // by an admin under ucAccess/<CODE> in Firebase ({ name, email, courses }).
+  // A code opens Data analysis for its own course(s) only. Same caveat as
+  // the PIN: this gates the UI, not the data -- see the "pin" info note.
+  const UC_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I/L
   let maintainerUnlocked = safeSessionGet('maintainerUnlocked') === 'yes';
-  let analyticsUnlocked = safeSessionGet('analyticsUnlocked') === 'yes';
+  let ucSession = (()=>{ try{ return JSON.parse(safeSessionGet('ucSession') || 'null'); }catch(e){ return null; } })();
+  let analyticsUnlocked = !!ucSession;
   function canSeeAnalytics(){ return maintainerUnlocked || analyticsUnlocked; }
+  // null = every course (admin); otherwise the course ids this lecturer may see.
+  function analyticsScope(){ return maintainerUnlocked ? null : (ucSession ? Object.keys(ucSession.courses || {}) : []); }
+  function canSeeStatsFor(courseId){ if(!canSeeAnalytics()) return false; const sc = analyticsScope(); return sc===null || sc.includes(courseId); }
   const maintainerLockGate = document.getElementById('maintainerLockGate');
   const maintainerLockedContent = document.getElementById('maintainerLockedContent');
   function applyMaintainerLockUI(){
@@ -1619,6 +1675,9 @@
     const tc = document.getElementById('tabContributors'); if(tc) tc.style.display = maintainerUnlocked ? '' : 'none';
     const ta = document.getElementById('tabDataAnalysis'); if(ta) ta.style.display = canSeeAnalytics() ? '' : 'none';
     const vm = document.getElementById('viewerModeCard'); if(vm) vm.style.display = (analyticsUnlocked && !maintainerUnlocked) ? 'block' : 'none';
+    if(ucSession){ document.getElementById('viewerWho').textContent = ucSession.name || ucSession.code; document.getElementById('viewerCourses').textContent = Object.keys(ucSession.courses||{}).join(', ') || '—'; }
+    const ts = document.getElementById('tabStages'); if(ts) ts.style.display = maintainerUnlocked ? '' : 'none';
+    if(maintainerUnlocked) renderUcAdmin();
     // The Course chip used to be admin-only. It isn't any more -- a course is
     // a queue entry an admin reviews like any other -- so it's always shown.
     const courseChip = document.getElementById('courseChip'); if(courseChip) courseChip.style.display = '';
@@ -1631,7 +1690,7 @@
     // Re-locking while sitting on a now-hidden tab would leave an empty
     // maintainer-only section on screen -- bounce back to Browse content.
     const activeTab = document.querySelector('.sidenav [data-tab].active');
-    if(activeTab && ((!maintainerUnlocked && activeTab.dataset.tab==='contributors') || (!canSeeAnalytics() && activeTab.dataset.tab==='analysis'))) showTab('structure');
+    if(activeTab && ((!maintainerUnlocked && ['contributors','stages'].includes(activeTab.dataset.tab)) || (!canSeeAnalytics() && activeTab.dataset.tab==='analysis'))) showTab('structure');
     if(canSeeAnalytics()) loadAnalytics();
     renderFeedbackList(); // shows/hides the list itself depending on maintainerUnlocked
   }
@@ -1641,22 +1700,95 @@
     const name = contributorNameEl.value.trim();
     if(!name){ err.textContent = 'Type your name at the top of the page first.'; err.style.display = 'block'; return; }
     if(!isAdminName(name)){ err.textContent = `"${name}" isn't on the admin list.`; err.style.display = 'block'; return; }
-    if(input.value === MAINTAINER_PIN){ maintainerUnlocked = true; safeSessionSet('maintainerUnlocked','yes'); err.style.display='none'; applyMaintainerLockUI(); renderBatch(); renderStructureList(); renderQuestionBank(); }
+    if(input.value.trim().toLowerCase() === MAINTAINER_PIN.toLowerCase()){ maintainerUnlocked = true; safeSessionSet('maintainerUnlocked','yes'); err.style.display='none'; applyMaintainerLockUI(); renderBatch(); renderStructureList(); renderQuestionBank(); }
     else { err.textContent = 'Wrong PIN.'; err.style.display = 'block'; input.value = ''; }
   });
-  document.getElementById('viewerUnlockBtn').addEventListener('click', ()=>{
-    const input = document.getElementById('viewerPinInput'), err = document.getElementById('viewerPinError');
-    if(input.value === VIEWER_PIN){
-      analyticsUnlocked = true; safeSessionSet('analyticsUnlocked','yes'); err.style.display = 'none'; input.value = '';
-      applyMaintainerLockUI(); renderQuestionBank();
-      toast('Data analysis is open — see the sidebar under Admin');
-      showTab('analysis');
-    } else { err.textContent = 'Wrong PIN.'; err.style.display = 'block'; input.value = ''; }
-  });
-  document.getElementById('viewerLockBtn').addEventListener('click', ()=>{
-    analyticsUnlocked = false; safeSessionRemove('analyticsUnlocked');
+  async function ucLookup(code){
+    await firebaseInitPromise.catch(()=>{});
+    if(!firebaseReady) throw new Error('offline');
+    const snap = await fbGet(fbRef(fbdb, `ucAccess/${code}`));
+    const v = snap.val();
+    return (v && v.active !== false) ? v : null;
+  }
+  function ucSignOut(msg){
+    ucSession = null; analyticsUnlocked = false; safeSessionRemove('ucSession');
     applyMaintainerLockUI(); renderQuestionBank();
-    toast('Viewing mode closed');
+    if(msg) toast(msg);
+  }
+  document.getElementById('viewerUnlockBtn').addEventListener('click', async ()=>{
+    const input = document.getElementById('viewerPinInput'), err = document.getElementById('viewerPinError');
+    const code = input.value.trim().toUpperCase();
+    const fail = msg => { err.textContent = msg; err.style.display = 'block'; };
+    if(!/^[A-Z0-9]{6}$/.test(code)){ fail('Access codes are 6 letters and numbers.'); return; }
+    let rec;
+    try{ rec = await ucLookup(code); }catch(e){ fail('Not connected — check your internet connection and try again.'); return; }
+    if(!rec){ fail("That code isn't registered — ask the admin for yours."); input.value = ''; return; }
+    ucSession = { code, name: rec.name || '', courses: rec.courses || {} };
+    analyticsUnlocked = true; safeSessionSet('ucSession', JSON.stringify(ucSession));
+    err.style.display = 'none'; input.value = '';
+    applyMaintainerLockUI(); renderQuestionBank();
+    toast(`Welcome${rec.name ? ', ' + rec.name : ''} — Data analysis is open for ${Object.keys(rec.courses||{}).join(', ')}`);
+    showTab('analysis');
+  });
+  document.getElementById('viewerPinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('viewerUnlockBtn').click(); });
+  document.getElementById('viewerLockBtn').addEventListener('click', ()=> ucSignOut('Signed out of Data analysis'));
+  // A code revoked since this tab signed in stops working on the next load.
+  if(ucSession) ucLookup(ucSession.code).then(rec=>{
+    if(!rec) ucSignOut('Your access code is no longer active — ask the admin');
+    else { ucSession.name = rec.name || ''; ucSession.courses = rec.courses || {}; safeSessionSet('ucSession', JSON.stringify(ucSession)); applyMaintainerLockUI(); }
+  }).catch(()=>{});
+
+  // ---------------- admin: registering lecturers / UCs ----------------
+  function ucNewCode(){ let c = ''; const a = new Uint32Array(6); crypto.getRandomValues(a); a.forEach(n=> c += UC_CODE_ALPHABET[n % UC_CODE_ALPHABET.length]); return c; }
+  function ucFbError(e){ return /permission/i.test(String(e && (e.code||e.message))) ? 'Firebase refused the write — the database rules need to allow the ucAccess path (see Data analysis ⓘ).' : 'Could not reach Firebase — check your connection and try again.'; }
+  async function renderUcAdmin(){
+    const boxes = document.getElementById('uc_courses'); if(!boxes) return;
+    if(!boxes.children.length) boxes.innerHTML = KNOWN_THEMES.map(t=>`<label><input type="checkbox" value="${esc2(t.id)}"> ${esc2(t.id)}${t.label && t.label!==t.id ? ' — ' + esc2(t.label) : ''}</label>`).join('');
+    const list = document.getElementById('uc_list');
+    await firebaseInitPromise.catch(()=>{});
+    if(!firebaseReady){ list.innerHTML = `<p class="card-sub">Not connected — the list of registered lecturers needs Firebase.</p>`; return; }
+    let all = {};
+    try{ all = (await fbGet(fbRef(fbdb, 'ucAccess'))).val() || {}; }catch(e){ list.innerHTML = `<p class="status bad">${esc2(ucFbError(e))}</p>`; return; }
+    const rows = Object.entries(all).sort((a,b)=> (a[1].name||'').localeCompare(b[1].name||''));
+    document.getElementById('ucCount').textContent = rows.length ? String(rows.length) : '';
+    list.innerHTML = rows.length ? `<table class="analytics-table"><thead><tr><th>Who</th><th>Courses</th><th>Access code</th><th>Added</th><th></th></tr></thead><tbody>${rows.map(([code,r])=>`
+        <tr><td><b>${esc2(r.name||'—')}</b>${r.email?`<div class="card-sub" style="margin:0;">${esc2(r.email)}</div>`:''}</td>
+          <td>${esc2(Object.keys(r.courses||{}).join(', '))}</td>
+          <td><code class="uc-code">${esc2(code)}</code> <button type="button" class="subtle" data-uc-copy="${esc2(code)}">Copy</button></td>
+          <td class="card-sub">${r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ''}</td>
+          <td><button type="button" class="danger" data-uc-revoke="${esc2(code)}">Revoke</button></td></tr>`).join('')}</tbody></table>`
+      : `<p class="card-sub">Nobody registered yet.</p>`;
+    list.querySelectorAll('[data-uc-copy]').forEach(b=> b.addEventListener('click', ()=> copyText(b.dataset.ucCopy)));
+    list.querySelectorAll('[data-uc-revoke]').forEach(b=> b.addEventListener('click', async ()=>{
+      const r = all[b.dataset.ucRevoke] || {};
+      if(!confirm(`Revoke ${r.name || 'this person'}'s access code (${b.dataset.ucRevoke})? They lose Data analysis the next time they load the page.`)) return;
+      try{ await fbRemove(fbRef(fbdb, `ucAccess/${b.dataset.ucRevoke}`)); toast('Access code revoked'); renderUcAdmin(); }
+      catch(e){ toast(ucFbError(e)); }
+    }));
+  }
+  document.getElementById('uc_createBtn').addEventListener('click', async ()=>{
+    if(!maintainerUnlocked) return;
+    const name = document.getElementById('uc_name').value.trim();
+    const email = document.getElementById('uc_email').value.trim();
+    const courses = {}; document.querySelectorAll('#uc_courses input:checked').forEach(cb=> courses[cb.value] = true);
+    const status = document.getElementById('uc_status');
+    if(!name){ toast('Give their name first'); document.getElementById('uc_name').focus(); return; }
+    if(!Object.keys(courses).length){ toast('Tick at least one course they can see'); return; }
+    await firebaseInitPromise.catch(()=>{});
+    if(!firebaseReady){ toast('Not connected — registering needs Firebase'); return; }
+    try{
+      let code = ucNewCode();
+      for(let i=0; i<5 && (await fbGet(fbRef(fbdb, `ucAccess/${code}`))).exists(); i++) code = ucNewCode();
+      await fbSet(fbRef(fbdb, `ucAccess/${code}`), { name, email, courses, active:true, createdAt: Date.now(), createdBy: currentContributorName() || '' });
+      document.getElementById('uc_created').innerHTML = `<div class="uc-created">Access code for <b>${esc2(name)}</b> (${esc2(Object.keys(courses).join(', '))}):
+        <code class="uc-code big">${code}</code> <button type="button" id="uc_copyNew">Copy</button>
+        <div class="card-sub" style="margin:6px 0 0;">Send it to them. They enter it under <b>Merge &amp; settings → Lecturer / UC access code</b>.</div></div>`;
+      document.getElementById('uc_copyNew').addEventListener('click', ()=> copyText(code));
+      document.getElementById('uc_name').value = ''; document.getElementById('uc_email').value = '';
+      document.querySelectorAll('#uc_courses input').forEach(cb=> cb.checked = false);
+      status.textContent = '';
+      renderUcAdmin();
+    }catch(e){ status.className = 'status bad'; status.textContent = ucFbError(e); }
   });
   document.getElementById('maintainerLockBtn').addEventListener('click', ()=>{
     maintainerUnlocked = false;
@@ -2144,7 +2276,7 @@
         existingQuestions: (editingItemQuestions || []).filter(q=>!removedQuestionIds.has(q.id)) };
     }
     const usingNewTopic = i_newTopicBlock.classList.contains('show');
-    const topicId = usingNewTopic ? (slugify(i_newTopicLabel.value)||'newtopic') : i_topic.value;
+    const topicId = usingNewTopic ? (topicIdFor(i_theme.value, i_newTopicLabel.value).id || topicIdFor(i_theme.value, i_newTopicLabel.value).dup) : i_topic.value;
     const baseSlug = slugify(i_label.value);
     // underscore, not hyphen -- the id is used as a bare object key in the generated code
     return { ...common, theme: i_theme.value, topicId, usingNewTopic, editingItemId:null, newTopicLabel: i_newTopicLabel.value.trim(), newTopicIcon: i_newTopicIcon.value.trim() || '📋', itemId: editingItemFixedNewId || (baseSlug + '_' + randSuffix()), baseSlug };
@@ -2520,8 +2652,9 @@
     if(!canSeeAnalytics()) qualitySel.value = '';
     if(canSeeAnalytics() && !statsRaw && !statsPromise) fetchStats().then(()=> renderQuestionBank()).catch(()=>{});
     const withStats = rows.map(r=>{
-      const first = (canSeeAnalytics() && statsRaw) ? parseFirst(statsRaw[`${r.itemId}::${r.qId}`]) : null;
-      return { r, first, quality: (canSeeAnalytics() && statsRaw) ? questionQuality(first, r.correctIndex, (r.options||[]).length) : null };
+      const ok = canSeeStatsFor(r.themeId) && statsRaw;
+      const first = ok ? parseFirst(statsRaw[`${r.itemId}::${r.qId}`]) : null;
+      return { r, first, quality: ok ? questionQuality(first, r.correctIndex, (r.options||[]).length) : null };
     });
     const qFilter = canSeeAnalytics() ? qualitySel.value : '';
     const qGroups = { attention:['bad','poor','weak'], easy:['easy'], hard:['hard'], good:['good','excellent'], nodata:['na'] };
@@ -2767,9 +2900,25 @@
   // Shared by the Topic form and the wizard. Returns false (with a toast)
   // when the name is already taken, so a caller adding several can report
   // which ones went in.
+  // Topic ids are one flat namespace across every course (the game builds a
+  // single TOPICS index), so "Pharmacology" in a second course can't reuse
+  // MEDS3002's 'pharmacology' id -- it gets the course code appended.
+  // Only the same name twice in the SAME course is a real duplicate.
+  function topicIdFor(theme, label){
+    const want = (label||'').trim().toLowerCase();
+    const sameCourse = Object.entries(KNOWN_TOPICS).find(([,t])=> t.theme===theme && (t.label||'').trim().toLowerCase()===want);
+    if(sameCourse) return { dup: sameCourse[0] };
+    const base = slugify(label) || 'newtopic';
+    if(!KNOWN_TOPICS[base]) return { id: base };
+    const suffix = String(theme||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+    let id = `${base}_${suffix}`, n = 2;
+    while(KNOWN_TOPICS[id]) id = `${base}_${suffix}${n++}`;
+    return { id };
+  }
   function queueNewTopic(theme, label, icon){
-    const topicId = slugify(label) || 'newtopic';
-    if(KNOWN_TOPICS[topicId]){ toast(`"${KNOWN_TOPICS[topicId].label}" already exists as a topic — pick a different name`); return false; }
+    const t = topicIdFor(theme, label);
+    if(t.dup){ toast(`"${label}" is already a topic in ${theme} — no need to add it again`); return false; }
+    const topicId = t.id;
     const o = { theme, topicId, label, icon: icon || '📋' };
     pushToQueue({ type:'topic', title:label, code:topicCodeString(o), note:`${(KNOWN_THEMES.find(t=>t.id===theme)||{}).label||theme} · new topic`, data:o });
     KNOWN_TOPICS[topicId] = { label, theme };
@@ -4168,7 +4317,7 @@
   // are different again: there's no submission to resume, but the Edit
   // button here jumps straight to fixing the LIVE item/question the
   // report is actually about (see reportEditButtonHtml).
-  const QUEUE_ICONS = { item:'📄', question:'❓', 'edit-question':'✏️', course:'📚', topic:'🗂️', 'edit-item':'✏️', 'merge-item':'⤵', 'delete-item':'🗑', 'delete-question':'🗑', 'delete-course':'🗑', lectureOutcomes:'🧭', 'flag-item':'🚩', 'flag-question':'⚠️' };
+  const QUEUE_ICONS = { item:'📄', question:'❓', 'edit-question':'✏️', course:'📚', topic:'🗂️', 'edit-item':'✏️', 'merge-item':'⤵', 'stages':'🏁', 'delete-item':'🗑', 'delete-question':'🗑', 'delete-course':'🗑', lectureOutcomes:'🧭', 'flag-item':'🚩', 'flag-question':'⚠️' };
   const RESUMABLE_FORM = { item:'item', 'edit-item':'item', question:'question', 'edit-question':'question' };
   // Renders one of the two permanently-separate queue lists (content to
   // merge vs. reports from players) into its own container. Kept as one
@@ -4225,7 +4374,7 @@
   }
   function fullBatchText(){
     const entries = Object.values(batch).sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
-    const groups = [['course','New courses'],['topic','New topics'],['lectureOutcomes','Lecture learning outcomes'],['item','New study guide items'],['edit-item','Edits to existing items'],['question','New questions'],['edit-question','Edits to existing questions'],['merge-item','MERGES (concepts folded together)'],['delete-course','DELETIONS (whole courses)'],['delete-item','DELETIONS (items)'],['delete-question','DELETIONS (questions)'],['flag-item','Reports (items)'],['flag-question','Reports (questions)']];
+    const groups = [['course','New courses'],['topic','New topics'],['lectureOutcomes','Lecture learning outcomes'],['item','New study guide items'],['edit-item','Edits to existing items'],['question','New questions'],['edit-question','Edits to existing questions'],['merge-item','MERGES (concepts folded together)'],['stages','Stage requirements'],['delete-course','DELETIONS (whole courses)'],['delete-item','DELETIONS (items)'],['delete-question','DELETIONS (questions)'],['flag-item','Reports (items)'],['flag-question','Reports (questions)']];
     let out = `// Team queue snapshot — ${new Date().toLocaleString()}\n// ${entries.length} entr${entries.length===1?'y':'ies'} below.\n\n`;
     groups.forEach(([type, title])=>{ const list = entries.filter(e=>e.type===type); if(list.length) out += `// ---- ${title} ----\n` + list.map(e=>{ const attribution = contributorDisplayLabel(e); return `${attribution ? `// by ${attribution}\n` : ''}${e.code || ('// ' + (e.note||''))}`; }).join('\n\n') + '\n\n'; });
     return out.trim();
@@ -4439,9 +4588,20 @@
     const funFactQuestions = deepClone(RD.FUN_FACT_QUESTIONS || {});
     const entries = Object.entries(batch).map(([key, entry])=>({ key, ...entry })).sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
     let appliedCount = 0, skippedNoData = 0; const mergedKeys = [];
+    // STAGES / RUNNABLE_THEMES normally ride through untouched in the
+    // template. Only when a `stages` entry is merged are they rebuilt --
+    // from the loaded game-data.js (not a possibly-stale template) plus the
+    // queued change.
+    const stagesOut = deepClone(RD.STAGES || {}), runnableOut = [...(RD.RUNNABLE_THEMES || [])];
+    let stagesTouched = false;
     entries.forEach(entry=>{
       if(isReport(entry) || isFeedback(entry)) return; // reports and feedback are for a human to read; they only leave the queue by hand
       if(!entry.data){ skippedNoData++; return; }
+      if(entry.type === 'stages'){
+        const { course, stages } = entry.data;
+        if(course && Array.isArray(stages) && stages.length){ stagesOut[course] = stages; if(!runnableOut.includes(course)) runnableOut.push(course); stagesTouched = true; }
+        appliedCount++; mergedKeys.push(entry.key); return;
+      }
       applyEntry(entry, courses, themes, funFactQuestions); appliedCount++; mergedKeys.push(entry.key);
     });
     let full = template.before + serializeTopLevelConst('COURSES', courses) + template.betweenCoursesThemes + serializeTopLevelConst('THEMES', themes) + template.afterThemes;
@@ -4464,6 +4624,12 @@
     } else {
       full = full.replace(/(\n  window\.RUNNER_DATA = \{)/, `\n${serializeTopLevelConst('FUN_FACT_QUESTIONS', funFactQuestions)}\n$1`);
       full = full.replace(/(window\.RUNNER_DATA = \{[^}]*)\};/, '$1FUN_FACT_QUESTIONS,\n  };');
+    }
+    if(stagesTouched){
+      const stPattern = /const STAGES = \{[\s\S]*?\n  \};/, rtPattern = /const RUNNABLE_THEMES = \[[^\]]*\];/;
+      if(!stPattern.test(full) || !rtPattern.test(full)) return { ok:false, error:'the merge template has no STAGES / RUNNABLE_THEMES block to update — refresh the template from GitHub', appliedCount, skippedNoData };
+      full = full.replace(stPattern, serializeTopLevelConst('STAGES', stagesOut).trim());
+      full = full.replace(rtPattern, `const RUNNABLE_THEMES = ${serializeValue(runnableOut, 1)};`);
     }
     // Never hand back text that doesn't parse -- this is the one output that goes straight into the file everyone loads.
     try { new Function(full.replace(/^\s*\/\*[\s\S]*?\*\//, '')); } catch(err){ return { ok:false, error: err.message, appliedCount, skippedNoData }; }
@@ -4519,7 +4685,7 @@
   // everywhere else attribution shows up.
   const contributorList = document.getElementById('contributorList'), contributorSearchInput = document.getElementById('contributorSearchInput');
   const contributorDetailCard = document.getElementById('contributorDetailCard'), contributorDetail = document.getElementById('contributorDetail');
-  const QUEUE_TYPE_LABELS = { item:'🆕 New item', 'edit-item':'✏️ Item edit', question:'🆕 New question', 'edit-question':'✏️ Question edit', course:'🆕 New course', topic:'🆕 New topic', lectureOutcomes:'📄 Lecture outcomes', 'funfact-question':'🎲 Fun fact question', 'merge-item':'⤵ Concept merge', 'delete-item':'🗑 Item deletion request', 'delete-question':'🗑 Question deletion request', 'delete-course':'🗑 Course deletion request', 'flag-item':'🚩 Item report', 'flag-question':'🚩 Question report' };
+  const QUEUE_TYPE_LABELS = { item:'🆕 New item', 'edit-item':'✏️ Item edit', question:'🆕 New question', 'edit-question':'✏️ Question edit', course:'🆕 New course', topic:'🆕 New topic', lectureOutcomes:'📄 Lecture outcomes', 'funfact-question':'🎲 Fun fact question', 'merge-item':'⤵ Concept merge', 'stages':'🏁 Stage requirements', 'delete-item':'🗑 Item deletion request', 'delete-question':'🗑 Question deletion request', 'delete-course':'🗑 Course deletion request', 'flag-item':'🚩 Item report', 'flag-question':'🚩 Question report' };
   function buildContributorMap(){
     const map = {}; // email (lowercased) or a name-keyed fallback -> aggregate
     const get = (name, email) => {
@@ -4605,11 +4771,17 @@
   function analyticsCourseFilter(){ return safeSessionGet('analyticsCourse') || ''; }
   function fillAnalyticsCourseSelect(){
     const sel = document.getElementById('analyticsCourse'); if(!sel) return;
+    const scope = analyticsScope();
     const seen = {};
-    analyticsAllRows.forEach(r=>{ if(r.courseId && !seen[r.courseId]) seen[r.courseId] = r.courseLabel; });
+    // A lecturer sees exactly their own courses (even before any answers
+    // come in); an admin sees every course that has data.
+    if(scope) scope.forEach(id=> seen[id] = (RD.THEMES[id]||{}).label || id);
+    else analyticsAllRows.forEach(r=>{ if(r.courseId && !seen[r.courseId]) seen[r.courseId] = r.courseLabel; });
     const current = analyticsCourseFilter();
-    sel.innerHTML = `<option value="">All courses</option>` + Object.entries(seen).sort((a,b)=> a[0].localeCompare(b[0])).map(([id,label])=>`<option value="${esc2(id)}">${esc2(id)} — ${esc2(label)}</option>`).join('');
-    sel.value = seen[current] ? current : '';
+    const ids = Object.keys(seen).sort();
+    const allLabel = scope ? (ids.length > 1 ? 'All my courses' : null) : 'All courses';
+    sel.innerHTML = (allLabel ? `<option value="">${allLabel}</option>` : '') + ids.map(id=>`<option value="${esc2(id)}">${esc2(id)} — ${esc2(seen[id])}</option>`).join('');
+    sel.value = seen[current] ? current : (allLabel ? '' : (ids[0] || ''));
   }
   function setAnalyticsRows(rows){
     analyticsAllRows = rows;
@@ -4618,12 +4790,14 @@
   }
   function renderAnalyticsAll(){
     const course = document.getElementById('analyticsCourse')?.value || '';
-    const rows = course ? analyticsAllRows.filter(r=> r.courseId===course) : analyticsAllRows;
+    const scope = analyticsScope();
+    const base = scope ? analyticsAllRows.filter(r=> scope.includes(r.courseId)) : analyticsAllRows;
+    const rows = course ? base.filter(r=> r.courseId===course) : base;
     analyticsRowsCache = rows;
     const note = document.getElementById('analyticsScopeNote');
     if(note) note.innerHTML = course
-      ? `Showing <b>${esc2(course)}</b> only — ${rows.length} question${rows.length===1?'':'s'} with answer data. Switch to <b>All courses</b> for the whole game.`
-      : `Showing every course. Pick yours to see just its questions.`;
+      ? `Showing <b>${esc2(course)}</b>${scope ? '' : ' only'} — ${rows.length} question${rows.length===1?'':'s'} with answer data.${scope ? '' : ' Switch to <b>All courses</b> for the whole game.'}`
+      : scope ? `Showing your courses: <b>${esc2(scope.join(', '))}</b>.` : `Showing every course. Pick yours to see just its questions.`;
     renderAnalyticsSummary(rows, course);
     const byCourse = document.getElementById('analyticsByCourse');
     renderAnalyticsGroupTable('analyticsByCourse', groupAnalyticsRows(rows, r=>r.courseId, r=>r.courseLabel), 'Course');
@@ -5516,6 +5690,7 @@
     if(which==='mylecture'){ mlFillCourses(); if(ml_workspace.style.display!=='none') mlRender(); }
     if(which==='datamap') renderDataMap();
     if(which==='setup') renderSetup();
+    if(which==='stages') renderStages();
     if(which==='structure') renderStructureList();
     if(which==='guidesim') renderGuideSim();
     if(which==='lectures'){ renderLectures(); fillLecAddCourseSelect(); }
@@ -5830,6 +6005,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
 // each block ends at the first "\\n  };" after it</pre>
       <p>A built-in copy ships inside this file; "Refresh from GitHub" fetches the latest committed file and saves fresher parts in <code>localStorage</code> (per browser). If you hand-edit <code>GAME_CONFIG</code> locally, paste the whole file in the box instead so the merge doesn't overwrite your tuning with the old numbers.</p>` },
     pin: { title:'The admin PIN', tags:['sessionStorage','not security'], body:`
+      <p><b>Lecturer / UC access codes</b> live in Firebase under <code>ucAccess/&lt;CODE&gt;</code> — name, email, and the courses that code may see. Only an admin can create or revoke them (from Merge &amp; settings). The database rules must allow that path to be read and written, or creating a code fails with a clear message. Like the PIN, a code limits what this <i>page</i> shows; it is not security on the underlying answer data.</p>
       <p>The PIN is a plain string in this file's source, so anyone can read it. It isn't security — it stops a regular contributor from clicking "delete" or "generate the real file" while exploring. Real protection is the Firebase security rules in the console, which decide who can write to which path.</p>
       <p>Unlocking also checks the "Your name" field against a hardcoded <code>ADMIN_NAMES</code> list — same deterrent-not-security caveat: anyone who reads the source can see both the PIN and the list, and nothing stops someone typing a name from that list. It just means knowing the PIN alone (e.g. seeing it over someone's shoulder) isn't enough by itself.</p>
       <p>Once unlocked, the flag is kept in <code>sessionStorage</code> so it survives a reload but not closing the tab. That call is wrapped in <code>try/catch</code>: some browsers throw on storage access for <code>file://</code> pages, and an optional convenience must never break the page.</p>` },
@@ -6139,9 +6315,10 @@ const themesDecl  = text.indexOf('const THEMES = {');
       if(!requireContributorIdentity()) return;
       const names = host.querySelector('#setup_topics').value.split('\n').map(x=>x.trim()).filter(Boolean);
       if(!names.length){ toast('Type at least one topic name'); return; }
-      let added = 0; names.forEach(n=>{ if(queueNewTopic(setupCourseId, n, '📋')) added++; });
-      if(added) toast(`${added} topic${added===1?'':'s'} added to the queue`);
-      if(added===names.length) setupStep = 3;
+      const already = names.filter(n=> topicIdFor(setupCourseId, n).dup);
+      let added = 0; names.filter(n=> !already.includes(n)).forEach(n=>{ if(queueNewTopic(setupCourseId, n, '📋')) added++; });
+      toast([added ? `${added} topic${added===1?'':'s'} added to the queue` : '', already.length ? `${already.join(', ')} already in ${setupCourseId}` : ''].filter(Boolean).join(' · ') || 'Nothing to add');
+      if(added + already.length === names.length) setupStep = 3;
       renderSetup();
     });
     const lecTa = host.querySelector('#setup_lectures');
@@ -6273,6 +6450,110 @@ const themesDecl  = text.indexOf('const THEMES = {');
     const sec = document.querySelector('section[data-section="setup"]');
     if(sec && sec.classList.contains('active')) renderSetupMap();
   }
+
+  // ======================================================================
+  // 🏁 STAGES -- per-course Runner stage requirements (admin only)
+  // ======================================================================
+  // STAGES used to be hand-edited in game-data.js only, and the merge never
+  // touched it -- so nobody without the file open could change a course's
+  // stages. This edits a draft, queues it as a `stages` entry, and the
+  // merge (generateMergedFile) writes STAGES + RUNNABLE_THEMES from it.
+  const STAGE_ROMANS = ['I','II','III','IV','V','VI'];
+  let stgCourse = '', stgDraft = null;
+  function stgQueued(course){
+    const hits = Object.values(batch||{}).filter(e=> e && e.type==='stages' && e.data && e.data.course===course);
+    hits.sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
+    return hits[0] || null;
+  }
+  function stgTopics(course){
+    return Object.entries(RD.THEMES[course]?.topics || {}).map(([id,t])=>{
+      const by = { easy:0, medium:0, hard:0 };
+      Object.values(t.items||{}).forEach(it=> (it.questions||[]).forEach(q=>{ by[q.difficulty==='easy'||q.difficulty==='hard' ? q.difficulty : 'medium']++; }));
+      return { id, label:(RD.TOPICS[id]||{}).label || t.label || id, icon:(RD.TOPICS[id]||{}).icon || t.icon || '', by, total: by.easy+by.medium+by.hard };
+    });
+  }
+  function stgLoad(course){
+    stgCourse = course;
+    const q = stgQueued(course);
+    const src = q ? q.data.stages : RD.STAGES?.[course];
+    if(src && src.length) stgDraft = deepClone(src);
+    else {
+      // No stages yet: one easy stage asking 3 of every topic, to edit from.
+      const req = {}; stgTopics(course).forEach(t=>{ if(t.total) req[t.id] = 3; });
+      stgDraft = [{ n:1, roman:'I', difficulty:'easy', requirements:req, scenario:'' }];
+    }
+  }
+  function stgTotal(st){ return Object.values(st.requirements||{}).reduce((a,b)=> a + (+b||0), 0); }
+  function renderStages(){
+    const gate = document.getElementById('stg_gate'), body = document.getElementById('stg_body');
+    gate.style.display = maintainerUnlocked ? 'none' : 'block'; body.style.display = maintainerUnlocked ? '' : 'none';
+    if(!maintainerUnlocked) return;
+    const sel = document.getElementById('stg_course');
+    const ids = Object.keys(RD.THEMES);
+    if(sel.options.length !== ids.length) sel.innerHTML = ids.map(id=>`<option value="${esc2(id)}">${esc2(id)} — ${esc2((RD.COURSES[id]||{}).label || RD.THEMES[id].label || '')}</option>`).join('');
+    if(!stgCourse || !RD.THEMES[stgCourse]) stgCourse = ids[0];
+    sel.value = stgCourse;
+    if(!stgDraft) stgLoad(stgCourse);
+    const topics = stgTopics(stgCourse);
+    const live = RD.STAGES?.[stgCourse];
+    const liveTotal = live ? live.reduce((a,st)=> a + stgTotal(st), 0) : 0;
+    const draftTotal = stgDraft.reduce((a,st)=> a + stgTotal(st), 0);
+    const q = stgQueued(stgCourse);
+    document.getElementById('stg_summary').innerHTML =
+      `Your draft: <b>${stgDraft.length}</b> stage${stgDraft.length===1?'':'s'} · <b>${draftTotal}</b> correct answers to finish.`
+      + `<br>In the game now: ${live ? `${live.length} stage${live.length===1?'':'s'} · ${liveTotal} correct answers` : `<b>no stages</b> — the Runner game shows “Coming soon” for this course`}.`
+      + (q ? `<br><span class="mlc-pending">⏳ a stages change is already waiting in the queue — you're editing that one</span>` : '');
+    const diffLabel = { easy:'🟢 Easy', medium:'🟡 Medium', hard:'🔴 Hard' };
+    document.getElementById('stg_list').innerHTML = stgDraft.map((st, si)=>{
+      const tot = stgTotal(st);
+      return `<div class="card stg-card">
+        <div class="stg-head">
+          <span class="stg-num">Stage ${STAGE_ROMANS[si] || si+1}</span>
+          <label class="stg-diff">Difficulty <select data-stg-diff="${si}">${['easy','medium','hard'].map(d=>`<option value="${d}"${st.difficulty===d?' selected':''}>${diffLabel[d]}</option>`).join('')}</select></label>
+          <span class="stg-total${tot?'':' bad'}">${tot} correct to clear</span>
+          ${stgDraft.length>1 ? `<button type="button" class="subtle" data-stg-del="${si}" title="Remove this stage">✕</button>` : ''}
+        </div>
+        <table class="analytics-table stg-table"><thead><tr><th>Topic (module)</th><th>Questions in the game</th><th style="width:150px;">Correct needed</th></tr></thead><tbody>
+          ${topics.map(t=>{
+            const v = +(st.requirements||{})[t.id] || 0;
+            const avail = t.by[st.difficulty] , warn = v && v > t.total;
+            return `<tr class="${v?'':'stg-off'}"><td>${t.icon?esc2(t.icon)+' ':''}${esc2(t.label)}</td>
+              <td class="card-sub" style="margin:0;">${t.total} <span class="stg-split">🟢${t.by.easy} 🟡${t.by.medium} 🔴${t.by.hard}</span>${warn?`<div class="stg-warn">Only ${t.total} questions — players will see repeats</div>`:''}</td>
+              <td><div class="stg-step"><button type="button" data-stg-dec="${si}|${esc2(t.id)}">−</button><input type="number" min="0" max="99" value="${v}" data-stg-req="${si}|${esc2(t.id)}"><button type="button" data-stg-inc="${si}|${esc2(t.id)}">+</button></div></td></tr>`;
+          }).join('') || `<tr><td colspan="3" class="card-sub">This course has no topics yet — add them under Set up a course first.</td></tr>`}
+        </tbody></table>
+        <label class="field" style="margin:10px 0 0;"><span class="fl-label">Scenario</span><span class="fl-help">Shown on the transition screen before this stage starts.</span><textarea rows="2" data-stg-scen="${si}" placeholder="e.g. From metabolism to the molecular machinery that reads and copies the genome.">${esc2(st.scenario||'')}</textarea></label>
+      </div>`;
+    }).join('');
+    const L = document.getElementById('stg_list');
+    const setReq = (si, tid, v)=>{ v = Math.max(0, Math.min(99, Math.round(+v||0))); stgDraft[si].requirements = stgDraft[si].requirements || {}; if(v) stgDraft[si].requirements[tid] = v; else delete stgDraft[si].requirements[tid]; };
+    L.querySelectorAll('[data-stg-req]').forEach(inp=> inp.addEventListener('change', ()=>{ const [si,tid] = inp.dataset.stgReq.split('|'); setReq(+si, tid, inp.value); renderStages(); }));
+    L.querySelectorAll('[data-stg-inc],[data-stg-dec]').forEach(b=> b.addEventListener('click', ()=>{ const key = b.dataset.stgInc || b.dataset.stgDec; const [si,tid] = key.split('|'); const cur = +(stgDraft[+si].requirements||{})[tid] || 0; setReq(+si, tid, cur + (b.dataset.stgInc ? 1 : -1)); renderStages(); }));
+    L.querySelectorAll('[data-stg-diff]').forEach(sel=> sel.addEventListener('change', ()=>{ stgDraft[+sel.dataset.stgDiff].difficulty = sel.value; renderStages(); }));
+    L.querySelectorAll('[data-stg-scen]').forEach(ta=> ta.addEventListener('input', ()=>{ stgDraft[+ta.dataset.stgScen].scenario = ta.value; }));
+    L.querySelectorAll('[data-stg-del]').forEach(b=> b.addEventListener('click', ()=>{ if(!confirm(`Remove Stage ${STAGE_ROMANS[+b.dataset.stgDel]}?`)) return; stgDraft.splice(+b.dataset.stgDel, 1); renderStages(); }));
+  }
+  document.getElementById('stg_course').addEventListener('change', e=>{ stgLoad(e.target.value); renderStages(); });
+  document.getElementById('stg_reset').addEventListener('click', ()=>{ stgLoad(stgCourse); renderStages(); toast('Back to what is in the game (or the queue)'); });
+  document.getElementById('stg_addStage').addEventListener('click', ()=>{
+    if(stgDraft.length >= STAGE_ROMANS.length){ toast(`${STAGE_ROMANS.length} stages is the maximum`); return; }
+    const prev = stgDraft[stgDraft.length-1] || { requirements:{} };
+    const next = ['easy','medium','hard'][Math.min(2, stgDraft.length)];
+    stgDraft.push({ n:stgDraft.length+1, roman:STAGE_ROMANS[stgDraft.length], difficulty:next, requirements: deepClone(prev.requirements||{}), scenario:'' });
+    renderStages();
+  });
+  document.getElementById('stg_save').addEventListener('click', ()=>{
+    if(!maintainerUnlocked) return;
+    if(!requireContributorIdentity()) return;
+    const empty = stgDraft.findIndex(st=> !stgTotal(st));
+    if(empty >= 0){ toast(`Stage ${STAGE_ROMANS[empty]} needs at least one correct answer`); return; }
+    const stages = stgDraft.map((st,i)=>({ n:i+1, roman:STAGE_ROMANS[i], difficulty:st.difficulty||'medium', requirements:{ ...st.requirements }, scenario:(st.scenario||'').trim() }));
+    const total = stages.reduce((a,st)=> a + stgTotal(st), 0);
+    pushToQueue({ type:'stages', title:`${stgCourse} stages`, code:`// STAGES['${stgCourse}'] in game-data.js (replaces the whole list; also adds ${stgCourse} to RUNNABLE_THEMES)\n` + serializeValue(stages, 1),
+      note:`${stages.length} stage${stages.length===1?'':'s'} · ${total} correct answers to finish`, data:{ course:stgCourse, stages } });
+    toast(`${stgCourse} stages added to the queue — they land with the next merge`);
+    renderStages();
+  });
 
   // ======================================================================
   // INIT
