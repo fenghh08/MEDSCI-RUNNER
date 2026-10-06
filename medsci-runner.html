@@ -191,6 +191,11 @@
     background:var(--backdrop); z-index:24; padding:18px; padding-top:20px; }
   #tutorialMcqModal.active{ display:flex; }
   /* Live scoreboard on the "You're done" screen while others still race */
+  /* The shared end-of-race countdown, for a racer who has already finished
+     and is watching the rest -- same yellow as the in-run #catchUpBanner. */
+  #overCountdown{ display:inline-block; margin:0 auto 14px; padding:6px 14px; border:1px solid #ffd54d; border-radius:20px;
+    color:#ffd54d; background:rgba(0,0,0,.35); font-weight:700; font-variant-numeric:tabular-nums; }
+  :root[data-theme="light"] #overCountdown, :root[data-theme="white"] #overCountdown{ color:#8a5a00; border-color:#d9a92e; background:#fff7e0; }
   #overLiveBoard .lb-row{ color:var(--hud-ink); border-color:var(--panel-line); background:var(--panel); }
   #overLiveBoard .lb-row .lb-rank{ color:var(--hud-dim); }
   /* Group Race gifts: incoming-grenade overlay */
@@ -979,6 +984,7 @@
     <div class="screen" id="overScreen">
       <h2 id="overTitle">—</h2>
       <p class="desc" id="overText"></p>
+      <div id="overCountdown" style="display:none;"></div>
       <div id="overLiveBoard" style="display:none;width:100%;max-width:380px;margin:0 auto 16px;text-align:left;"></div>
       <div class="btn-row">
         <button class="primary" id="viewSummaryBtn">View summary</button>
@@ -2095,6 +2101,7 @@
   const tutorialMcqVerdict = document.getElementById('tutorialMcqVerdict');
   const tutorialMcqContinueBtn = document.getElementById('tutorialMcqContinueBtn');
   const overLiveBoard = document.getElementById('overLiveBoard');
+  const overCountdown = document.getElementById('overCountdown');
   const grenadeOverlay = document.getElementById('grenadeOverlay');
   const giftUnlockOverlay = document.getElementById('giftUnlockOverlay');
   const grenadeWarnWrap = document.getElementById('grenadeWarnWrap');
@@ -3081,6 +3088,7 @@
   }
   function mpSetOverButtons(mode){
     overLiveBoard.style.display = mode==='waiting' ? 'block' : 'none';
+    if(mode!=='waiting'){ clearTimeout(mp.waitTickTimer); overCountdown.style.display = 'none'; }
     // 'solo': normal single-player over-screen buttons.
     // 'waiting': your race is done but the match isn't resolved yet.
     //   "Play again" stays hidden (restarting mid-race for everyone else
@@ -5677,7 +5685,7 @@
     // to out-score them. catchUpReason distinguishes the two ('finished' /
     // 'leader-eliminated') for the banner text. catchUpTimer is the local
     // setTimeout driving the visible countdown.
-    catchUpEndsAt:null, catchUpReason:null, catchUpFinisherName:null, catchUpTimer:null,
+    catchUpEndsAt:null, catchUpReason:null, catchUpFinisherName:null, catchUpTimer:null, waitEndsAt:null, waitEndsReason:null, waitEndsByName:'', waitTickTimer:null,
     // pendingGrenade: the incoming grenade currently being resolved (has
     // fromId/fromName) -- kept around just long enough for resolveGrenade()
     // to tell the thrower what happened. seenGrenadeResults mirrors
@@ -6034,6 +6042,11 @@
       // While my own race has ended but the match isn't resolved yet, keep
       // the live comparison on screen up to date as others progress.
       if(mp.active && screenState==='over' && !mp.finished){
+        // The in-run banner stops once your own run ends, so the deadline is
+        // carried here for the "You're done" screen to count down from.
+        mp.waitEndsAt = room.raceEndsAt || null;
+        mp.waitEndsReason = room.raceEndsReason || 'finished';
+        mp.waitEndsByName = room.raceEndsByName || '';
         mpRenderWaitingResult(roster);
       }
 
@@ -6169,6 +6182,22 @@
     clearTimeout(mp._toastTimer);
     mp._toastTimer = setTimeout(()=>mpEliminationToast.classList.remove('show'), 2600);
   }
+  // Ticks the same shared deadline everyone still racing sees in the
+  // #catchUpBanner, so a racer who finished early knows how long is left
+  // instead of staring at a static "still waiting" line.
+  function mpTickWaitCountdown(){
+    clearTimeout(mp.waitTickTimer);
+    const live = mp.active && !mp.finished && screenState==='over' && overScreen.classList.contains('active');
+    if(!live || !mp.waitEndsAt){ overCountdown.style.display = 'none'; return; }
+    const secs = Math.ceil((mp.waitEndsAt - serverNow())/1000);
+    overCountdown.textContent = secs <= 0
+      ? t("⏱ Time's up — working out the result…")
+      : mp.waitEndsReason==='host' ? t('⏱ The host is ending the race — {s}s left', { s:secs })
+      : mp.waitEndsReason==='last-standing' ? t('⏱ Last racer standing — {s}s left', { s:secs })
+      : t('⏱ {name} finished — race ends in {s}s', { name: mp.waitEndsByName || t('A racer'), s:secs });
+    overCountdown.style.display = 'inline-block';
+    if(secs > 0) mp.waitTickTimer = setTimeout(mpTickWaitCountdown, 250);
+  }
   function mpRenderWaitingResult(roster){
     const others = Object.entries(roster).filter(([pid])=>pid!==mp.playerId);
     const allOthersDone = others.length>0 && others.every(([pid,p])=>p.done);
@@ -6190,6 +6219,7 @@
       return `<div class="lb-row${isMe?' me':''}"><span><span class="lb-rank">#${i+1}</span>${escapeHtml(p.name||'')}${isMe?t(' (you)'):''}</span><span>${status} · ${p.score}</span></div>`;
     }).join('');
     overLiveBoard.style.display = 'block';
+    mpTickWaitCountdown();
   }
   function mpRunCountdown(targetAt){
     mpWaitView.style.display = 'none';
@@ -6618,7 +6648,7 @@
       filterCourse:null, filterTopics:[], filterClasses:[],
       shields:0, giftsUnlocked:false, giftFirstRollDone:false, giftTimer:0, seenIncoming:new Set(), incomingQueue:[], speed:'normal',
       pendingGrenade:null, seenGrenadeResults:new Set(), seenEvents:new Set(), bombHellEndsAt:null, bombHellLeftMs:0, giftUnlockPending:false,
-      catchUpEndsAt:null, catchUpReason:null, catchUpFinisherName:null, catchUpTimer:null,
+      catchUpEndsAt:null, catchUpReason:null, catchUpFinisherName:null, catchUpTimer:null, waitEndsAt:null, waitEndsReason:null, waitEndsByName:'', waitTickTimer:null,
       isSpectator:false, lastRoom:null, specTimer:null, hostEndTimer:null, specGiftsOn:false, specGiftFlashUntil:0 };
     mpOpponentPanel.style.display = 'none';
     document.body.classList.remove('mp-race');
