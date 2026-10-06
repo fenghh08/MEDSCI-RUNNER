@@ -845,9 +845,9 @@
         <div class="filter-section">
           <div class="filter-section-head">
             <span class="p-sub">Lecture <span style="color:var(--hud-dim);font-weight:400;text-transform:none;letter-spacing:0;">(leave unchecked for every lecture)</span></span>
-            <button type="button" class="filter-select-toggle" data-clear-group="customCourseChecks">Clear</button>
+            <button type="button" class="filter-select-toggle" data-clear-group="customLectureChecks">Clear</button>
           </div>
-          <div class="checks" id="customCourseChecks"></div>
+          <div class="checks" id="customLectureChecks"></div>
         </div>
         <p class="desc" id="customMatchCount" style="color:var(--hud-dim);"></p>
         <div class="btn-row">
@@ -2132,7 +2132,7 @@
   const customSetupView = document.getElementById('customSetupView');
   const customThemeChecks = document.getElementById('customThemeChecks');
   const customTopicChecks = document.getElementById('customTopicChecks');
-  const customCourseChecks = document.getElementById('customCourseChecks');
+  const customLectureChecks = document.getElementById('customLectureChecks');
   const customMatchCount = document.getElementById('customMatchCount');
   const customBackBtn = document.getElementById('customBackBtn');
   const customStartBtn = document.getElementById('customStartBtn');
@@ -2478,26 +2478,55 @@
   function customCheckedValues(container){
     return [...container.querySelectorAll('input:checked')].map(cb=>cb.value);
   }
+  // A lecture is a (course, lecture number) pair -- L1 exists in several
+  // courses -- so the checkbox value carries both.
+  function customLectureKey(q){ return `${q.course||''}::${q.class||''}`; }
   function customFilteredQuestions(){
     const themes = customCheckedValues(customThemeChecks);
     const topics = customCheckedValues(customTopicChecks);
-    const courses = customCheckedValues(customCourseChecks);
+    const lectures = customCheckedValues(customLectureChecks);
     return ALL_QUESTIONS.filter(q =>
       (!themes.length || themes.includes(q.theme)) &&
       (!topics.length || topics.includes(q.topic)) &&
-      (!courses.length || courses.includes(q.course))
+      (!lectures.length || lectures.includes(customLectureKey(q)))
     );
+  }
+  // Only lectures that actually have questions, narrowed to whichever
+  // courses are ticked -- the full list across every course is far too long
+  // to pick from, and a lecture from a course you've excluded can only ever
+  // match nothing.
+  function customAvailableLectures(){
+    const themes = customCheckedValues(customThemeChecks);
+    const seen = new Map(); // key -> label
+    ALL_QUESTIONS.forEach(q=>{
+      if(!q.class || !q.course) return;
+      if(themes.length && !themes.includes(q.theme)) return;
+      const key = customLectureKey(q);
+      if(seen.has(key)) return;
+      const name = COURSES[q.course]?.classes?.[q.class]?.label;
+      seen.set(key, `${q.course} ${q.class}${name ? ' · ' + name : ''}`);
+    });
+    return [...seen.entries()].sort((a,b)=> a[1].localeCompare(b[1], undefined, {numeric:true}));
+  }
+  // Re-rendered whenever the course picks change, so the list always matches
+  // what's selectable; ticks on lectures that survive the narrowing are kept.
+  function renderCustomLectureChecks(){
+    const keep = new Set(customCheckedValues(customLectureChecks));
+    customLectureChecks.innerHTML = customAvailableLectures().map(([key,label])=>
+      `<label><input type="checkbox" class="cust-check" value="${escapeHtml(key)}"${keep.has(key)?' checked':''}> ${escapeHtml(label)}</label>`).join('')
+      || `<span style="color:var(--hud-dim);font-size:13px;">No lectures are tagged on the questions in that selection.</span>`;
+    customLectureChecks.querySelectorAll('.cust-check').forEach(cb=>cb.addEventListener('change', updateCustomMatchCount));
   }
   function renderCustomChecks(){
     customThemeChecks.innerHTML = Object.entries(THEMES).map(([id,t])=>
       `<label><input type="checkbox" class="cust-check" value="${id}"> ${iconHTML(t.icon,14)} ${t.label}</label>`).join('');
     customTopicChecks.innerHTML = Object.entries(TOPICS).map(([id,t])=>
       `<label><input type="checkbox" class="cust-check" value="${id}"> ${iconHTML(t.icon,14)} ${t.label}</label>`).join('');
-    customCourseChecks.innerHTML = Object.entries(COURSES).map(([code,c])=>
-      `<label><input type="checkbox" class="cust-check" value="${code}"> ${c.code}</label>`).join('');
-    [customThemeChecks, customTopicChecks, customCourseChecks].forEach(container=>{
+    [customThemeChecks, customTopicChecks].forEach(container=>{
       container.querySelectorAll('.cust-check').forEach(cb=>cb.addEventListener('change', updateCustomMatchCount));
     });
+    customThemeChecks.querySelectorAll('.cust-check').forEach(cb=>cb.addEventListener('change', renderCustomLectureChecks));
+    renderCustomLectureChecks();
     updateCustomMatchCount();
   }
   // "Clear" resets one group back to its unchecked/"everything" state,
@@ -2506,6 +2535,7 @@
   document.querySelectorAll('[data-clear-group]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       document.getElementById(btn.dataset.clearGroup).querySelectorAll('.cust-check').forEach(cb=>cb.checked=false);
+      if(btn.dataset.clearGroup === 'customThemeChecks') renderCustomLectureChecks();
       updateCustomMatchCount();
     });
   });
