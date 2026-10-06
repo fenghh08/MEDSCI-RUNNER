@@ -272,8 +272,17 @@
   .batch-empty{ color:var(--muted); font-size:13px; }
 
   /* maintainer */
-  .lock-gate{ background:#fbfbfd; border:1px dashed var(--line-strong); border-radius:10px; padding:16px; text-align:center; }
-  .lock-gate input{ font-family:var(--mono); font-size:18px; letter-spacing:.35em; text-align:center; width:120px; margin:8px 6px; }
+  .lock-gate{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+  @media (max-width:760px){ .lock-gate{ grid-template-columns:1fr; } }
+  .lg-key{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; display:flex; flex-direction:column; }
+  .lg-icon{ font-size:22px; line-height:1; }
+  .lg-title{ font-weight:700; font-size:15px; margin-top:8px; display:flex; align-items:center; gap:6px; }
+  .lg-sub{ color:var(--muted); font-size:12.5px; line-height:1.5; margin:4px 0 12px; flex:1; }
+  .lg-row{ display:flex; gap:8px; }
+  .lg-row input{ flex:1; min-width:0; font-family:var(--mono); font-size:15px; letter-spacing:.12em; }
+  .lg-row input::placeholder{ font-family:var(--sans); letter-spacing:0; text-transform:none; font-size:13.5px; color:var(--faint); }
+  .lg-row input.lg-code{ text-transform:uppercase; }
+  .lg-row button{ flex:none; }
   .lock-gate .lg-error{ color:var(--danger); font-size:12px; margin-top:6px; display:none; }
   .analytics-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
   .analytics-table th{ text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
@@ -520,8 +529,6 @@
   .stg-step{ display:inline-flex; align-items:center; gap:4px; }
   .stg-step button{ width:30px; height:30px; padding:0; font-weight:700; }
   .stg-step input{ width:56px; text-align:center; }
-  .lock-gate .lg-or{ margin:14px 0 10px; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:10px; }
-  .lock-gate .lg-or::before, .lock-gate .lg-or::after{ content:''; flex:1; height:1px; background:var(--line); }
   .mlc-mergebox{ border-top:1px solid var(--line); padding:14px 16px 16px; background:#fcfbff; }
   .mlc-mergehead{ font-weight:700; margin-bottom:4px; }
   .mlc-mergesub{ color:var(--muted); font-size:13px; margin:0 0 10px; }
@@ -1357,18 +1364,27 @@
         <h2>Admin</h2>
         <p>Two kinds of key. The <b>Admin PIN</b> is for whoever looks after <code>game-data.js</code>: merging the queue, stage requirements, registering lecturers, the GitHub check. Each <b>lecturer / UC</b> gets their own access code from the admin, which opens Data analysis for their own course only.</p>
       </div>
-      <div id="maintainerLockGate" class="lock-gate card">
-        <div>🔒 Admin PIN <button class="info-btn" data-info="pin" title="How this works">i</button></div>
-        <p class="card-sub" style="margin:2px 0 8px;">Needs the PIN <i>and</i> your name (top of the page) on the admin list.</p>
-        <input type="password" id="maintainerPinInput" maxlength="6" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="••••••">
-        <button class="primary" id="maintainerUnlockBtn">Unlock</button>
-        <div class="lg-error" id="maintainerPinError">Wrong PIN.</div>
-        <div class="lg-or">or</div>
-        <div>🎓 Lecturer / UC access code</div>
-        <p class="card-sub" style="margin:2px 0 8px;">Your own 6-character code from the admin. Opens <b>Data analysis</b> for your course only — no merging, no settings, no contributor details.</p>
-        <input type="text" id="viewerPinInput" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. K7M2QX" style="text-transform:uppercase;letter-spacing:.15em;">
-        <button id="viewerUnlockBtn">Open Data analysis</button>
-        <div class="lg-error" id="viewerPinError">That code isn't registered.</div>
+      <div id="maintainerLockGate" class="lock-gate">
+        <div class="lg-key">
+          <div class="lg-icon">🔒</div>
+          <div class="lg-title">Admin <button class="info-btn" data-info="pin" title="How this works">i</button></div>
+          <p class="lg-sub">Merging, stages, lecturers and settings. Needs the PIN <i>and</i> your name at the top of the page on the admin list.</p>
+          <div class="lg-row">
+            <input type="password" id="maintainerPinInput" maxlength="6" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Admin PIN" aria-label="Admin PIN">
+            <button class="primary" id="maintainerUnlockBtn">Unlock</button>
+          </div>
+          <div class="lg-error" id="maintainerPinError">Wrong PIN.</div>
+        </div>
+        <div class="lg-key">
+          <div class="lg-icon">🎓</div>
+          <div class="lg-title">Lecturer / UC</div>
+          <p class="lg-sub">Your own code from the admin. Opens <b>Data analysis</b> for your course only.</p>
+          <div class="lg-row">
+            <input type="text" id="viewerPinInput" class="lg-code" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Access code" aria-label="Access code">
+            <button class="primary" id="viewerUnlockBtn">Open</button>
+          </div>
+          <div class="lg-error" id="viewerPinError">That code isn't registered.</div>
+        </div>
       </div>
       <div id="viewerModeCard" class="card" style="display:none;border-color:var(--info);background:var(--info-soft);">
         <b>📊 Signed in as <span id="viewerWho">—</span>.</b> <span class="card-sub" style="display:inline;">Data analysis for <b id="viewerCourses">—</b> is open in the sidebar under Admin. Merging and settings stay locked — they need the Admin PIN above.</span>
@@ -1680,7 +1696,7 @@
   const maintainerLockGate = document.getElementById('maintainerLockGate');
   const maintainerLockedContent = document.getElementById('maintainerLockedContent');
   function applyMaintainerLockUI(){
-    maintainerLockGate.style.display = maintainerUnlocked ? 'none' : 'block';
+    maintainerLockGate.style.display = maintainerUnlocked ? 'none' : '';
     maintainerLockedContent.style.display = maintainerUnlocked ? 'block' : 'none';
     // Contributors/Data analysis now sit under the always-visible Admin
     // heading (the old admin-only heading is gone), so only the two buttons
