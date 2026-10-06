@@ -1340,7 +1340,11 @@
         <p>How players are actually doing against the content — correct/wrong counts from every player and every mode. No per-player data, just totals.</p>
       </div>
       <div class="card">
-        <div class="btn-row"><button id="analyticsRefreshBtn">🔄 Refresh</button><span id="analyticsStatus" class="status"></span></div>
+        <div class="btn-row" style="align-items:flex-end;">
+          <label class="field" style="max-width:380px;margin:0;"><span class="fl-label">Course</span><select id="analyticsCourse"><option value="">All courses</option></select></label>
+          <button id="analyticsRefreshBtn">🔄 Refresh</button><span id="analyticsStatus" class="status"></span>
+        </div>
+        <p class="card-sub" id="analyticsScopeNote" style="margin:8px 0 0;"></p>
         <div class="struct-stats" id="analyticsSummary" style="margin-top:12px;"></div>
       </div>
       <div class="sec-group"><h3>Worth acting on</h3><span>questions the data says are broken or mistagged</span></div>
@@ -4530,7 +4534,46 @@
     Object.entries(RD.THEMES).forEach(([themeId, theme])=> Object.entries(theme.topics).forEach(([topicId, topic])=> Object.entries(topic.items).forEach(([itemId, item])=>{ idx[itemId] = { themeId, topicId, item }; })));
     return idx;
   }
-  let analyticsRowsCache = [];
+  let analyticsRowsCache = [];   // the rows every card renders from -- already narrowed to the chosen course
+  let analyticsAllRows = [];     // everything fetched, before narrowing
+  // Lecturers want their own course, not the whole game. The picker lists
+  // only courses that actually have answer data, and every card below --
+  // summary, needs-review, quality, by-topic, hardest/easiest -- renders
+  // from the narrowed set. Remembered for the session.
+  function analyticsCourseFilter(){ return safeSessionGet('analyticsCourse') || ''; }
+  function fillAnalyticsCourseSelect(){
+    const sel = document.getElementById('analyticsCourse'); if(!sel) return;
+    const seen = {};
+    analyticsAllRows.forEach(r=>{ if(r.courseId && !seen[r.courseId]) seen[r.courseId] = r.courseLabel; });
+    const current = analyticsCourseFilter();
+    sel.innerHTML = `<option value="">All courses</option>` + Object.entries(seen).sort((a,b)=> a[0].localeCompare(b[0])).map(([id,label])=>`<option value="${esc2(id)}">${esc2(id)} — ${esc2(label)}</option>`).join('');
+    sel.value = seen[current] ? current : '';
+  }
+  function setAnalyticsRows(rows){
+    analyticsAllRows = rows;
+    fillAnalyticsCourseSelect();
+    renderAnalyticsAll();
+  }
+  function renderAnalyticsAll(){
+    const course = document.getElementById('analyticsCourse')?.value || '';
+    const rows = course ? analyticsAllRows.filter(r=> r.courseId===course) : analyticsAllRows;
+    analyticsRowsCache = rows;
+    const note = document.getElementById('analyticsScopeNote');
+    if(note) note.innerHTML = course
+      ? `Showing <b>${esc2(course)}</b> only — ${rows.length} question${rows.length===1?'':'s'} with answer data. Switch to <b>All courses</b> for the whole game.`
+      : `Showing every course. Pick yours to see just its questions.`;
+    renderAnalyticsSummary(rows, course);
+    const byCourse = document.getElementById('analyticsByCourse');
+    renderAnalyticsGroupTable('analyticsByCourse', groupAnalyticsRows(rows, r=>r.courseId, r=>r.courseLabel), 'Course');
+    renderAnalyticsGroupTable('analyticsByTopic', groupAnalyticsRows(rows, r=>r.courseId+'::'+r.topicId, r=> course ? r.topic : `${r.courseLabel} · ${r.topic}`), course ? 'Topic' : 'Course · Topic');
+    // With one course chosen the by-course table is a single row -- the by-topic
+    // breakdown is the useful one, so open it.
+    const byTopicDetails = document.getElementById('analyticsByTopic')?.closest('details'); if(byTopicDetails && course) byTopicDetails.open = true;
+    renderNeedsReview();
+    renderQualityTable();
+    renderAnalyticsTable();
+    renderAnalyticsEasiest();
+  }
   // Groups the same per-question rows up to whatever level a caller wants
   // (course, or course+topic) -- shared by the "By course" and "By topic"
   // cards below so they can't drift out of sync with each other or with the
@@ -4554,12 +4597,14 @@
     if(!rows.length){ el.innerHTML = '<p class="card-sub">No answer data recorded yet.</p>'; return; }
     el.innerHTML = `<table class="analytics-table"><thead><tr><th>${colLabel}</th><th>Answered</th><th>Accuracy</th></tr></thead><tbody>${rows.map(g=>`<tr><td>${esc2(g.label)}</td><td>${g.total}</td><td>${accuracyBarHtml(g.accuracy)}</td></tr>`).join('')}</tbody></table>`;
   }
-  function renderAnalyticsSummary(rows){
+  function renderAnalyticsSummary(rows, course){
     const el = document.getElementById('analyticsSummary');
-    if(!rows.length){ el.innerHTML = ''; return; }
+    if(!rows.length){ el.innerHTML = `<span style="color:var(--muted);">No answer data${course ? ' for this course' : ''} yet.</span>`; return; }
     const totalAnswers = rows.reduce((s,r)=> s+r.total, 0);
     const totalCorrect = rows.reduce((s,r)=> s+r.correct, 0);
-    const totalQuestionsInGame = countAll(RD).questions;
+    const totalQuestionsInGame = course
+      ? Object.values(RD.THEMES[course]?.topics||{}).reduce((n,t)=> n + Object.values(t.items||{}).reduce((m,it)=> m + (it.questions||[]).length, 0), 0)
+      : countAll(RD).questions;
     const mostAnswered = rows.reduce((max,r)=> r.total > (max?max.total:0) ? r : max, null);
     el.innerHTML = [
       `<span><b>${totalAnswers.toLocaleString()}</b> answers recorded</span>`,
@@ -4736,17 +4781,11 @@
           first, quality: q ? questionQuality(first, q.correctIndex, (q.options||[]).length) : null,
         };
       }).filter(r=>r.total>0);
-      analyticsRowsCache = rows;
-      renderAnalyticsSummary(rows);
-      renderAnalyticsGroupTable('analyticsByCourse', groupAnalyticsRows(rows, r=>r.courseId, r=>r.courseLabel), 'Course');
-      renderAnalyticsGroupTable('analyticsByTopic', groupAnalyticsRows(rows, r=>r.courseId+'::'+r.topicId, r=>`${r.courseLabel} · ${r.topic}`), 'Course · Topic');
-      renderNeedsReview();
-      renderQualityTable();
-      renderAnalyticsTable();
-      renderAnalyticsEasiest();
+      setAnalyticsRows(rows);
     }).catch(err=>{ analyticsStatus.className = 'status bad'; analyticsStatus.textContent = 'Failed to load — check your connection and try again.'; console.warn('[Analytics] load failed', err); });
   }
   document.getElementById('analyticsRefreshBtn').addEventListener('click', loadAnalytics);
+  document.getElementById('analyticsCourse').addEventListener('change', e=>{ safeSessionSet('analyticsCourse', e.target.value); renderAnalyticsAll(); });
 
   // ---------------- GitHub check ----------------
   const GITHUB_BASE = 'https://raw.githubusercontent.com/fenghh08/MEDSCI-RUNNER/main/';
@@ -6160,16 +6199,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
       // Feeds fake rows through the same render path loadAnalytics() uses,
       // without a real Firebase fetch -- lets the Data analysis cards be
       // tested with Firebase blocked (this project's standing test rule).
-      testRenderAnalytics(rows){
-        analyticsRowsCache = rows;
-        renderAnalyticsSummary(rows);
-        renderAnalyticsGroupTable('analyticsByCourse', groupAnalyticsRows(rows, r=>r.courseId, r=>r.courseLabel), 'Course');
-        renderAnalyticsGroupTable('analyticsByTopic', groupAnalyticsRows(rows, r=>r.courseId+'::'+r.topicId, r=>`${r.courseLabel} · ${r.topic}`), 'Course · Topic');
-        renderNeedsReview();
-        renderQualityTable();
-        renderAnalyticsTable();
-        renderAnalyticsEasiest();
-      },
+      testRenderAnalytics(rows){ setAnalyticsRows(rows); },
       // Fake the Firebase stats fetch (Firebase is blocked in tests), then
       // loadAnalytics()/renderQuestionBank() run their real code paths.
       stubStats(raw){ maintainerUnlocked = true; statsRaw = raw; statsPromise = Promise.resolve(raw); fetchStats = ()=> Promise.resolve(raw); },
