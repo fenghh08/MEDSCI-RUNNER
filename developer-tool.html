@@ -272,7 +272,8 @@
   .batch-empty{ color:var(--muted); font-size:13px; }
 
   /* maintainer */
-  .lock-gate{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+  .lock-gate{ display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-bottom:16px; }
+  @media (max-width:1100px){ .lock-gate{ grid-template-columns:1fr 1fr; } }
   @media (max-width:760px){ .lock-gate{ grid-template-columns:1fr; } }
   .lg-key{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; display:flex; flex-direction:column; }
   .lg-icon{ font-size:22px; line-height:1; }
@@ -1375,18 +1376,28 @@
     <section data-section="maintainer">
       <div class="section-head">
         <h2>Log in</h2>
-        <p>Three roles, each tied to your email at the top of the page. <b>Developer</b> (Eason) can do everything, including merging the queue into the game and removing queue entries. <b>Admins</b> (Sara, Valerie, Stephanie, Henry, Caitlin) can do everything else — stages, lecturers, contributors, data analysis. Each <b>lecturer / UC</b> gets their own code from an admin, which opens Data analysis for their own course only.</p>
+        <p>Three roles, each tied to your email at the top of the page. The <b>developer</b> can do everything: merging into the game, removing queue entries, and managing admins. <b>Admins</b> do everything else — stages, lecturers, contributors, data analysis. Each <b>lecturer / UC</b> gets their own code from an admin, which opens Data analysis for their own course only.</p>
       </div>
       <div id="maintainerLockGate" class="lock-gate">
         <div class="lg-key">
-          <div class="lg-icon">🔒</div>
-          <div class="lg-title">Developer / Admin <button class="info-btn" data-info="pin" title="How this works">i</button></div>
-          <p class="lg-sub">Developer and admins. Needs the staff code <i>and</i> your email at the top of the page on the staff list.</p>
+          <div class="lg-icon">🛠</div>
+          <div class="lg-title">Developer <button class="info-btn" data-info="pin" title="How this works">i</button></div>
+          <p class="lg-sub">Everything, including merging into the game, removing queue entries and managing admins. Your email at the top must be the developer's.</p>
           <div class="lg-row">
-            <input type="password" id="maintainerPinInput" maxlength="6" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Staff code" aria-label="Staff code">
-            <button class="primary" id="maintainerUnlockBtn">Unlock</button>
+            <input type="password" id="devPinInput" maxlength="6" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Developer code" aria-label="Developer code">
+            <button class="primary" id="devUnlockBtn">Log in</button>
           </div>
-          <div class="lg-error" id="maintainerPinError">Wrong PIN.</div>
+          <div class="lg-error" id="devPinError">Wrong code.</div>
+        </div>
+        <div class="lg-key">
+          <div class="lg-icon">🔒</div>
+          <div class="lg-title">Admin</div>
+          <p class="lg-sub">Stages, lecturers, contributors and data analysis. Your email at the top must be on the admin list.</p>
+          <div class="lg-row">
+            <input type="password" id="maintainerPinInput" maxlength="6" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Admin code" aria-label="Admin code">
+            <button class="primary" id="maintainerUnlockBtn">Log in</button>
+          </div>
+          <div class="lg-error" id="maintainerPinError">Wrong code.</div>
         </div>
         <div class="lg-key">
           <div class="lg-icon">🎓</div>
@@ -1408,6 +1419,16 @@
       <div id="maintainerLockedContent" style="display:none;">
         <div class="btn-row" style="justify-content:flex-end;margin-bottom:10px;">
           <button class="subtle" id="maintainerLockBtn" title="Re-lock admin mode on this device">🔒 Lock again</button>
+        </div>
+        <div class="card" id="adminAdminCard" style="display:none;">
+          <h2>🛡 Admins <span class="struct-qbadge" id="adminCount"></span></h2>
+          <p class="card-sub">Developer only. Admins log in with the admin code <b>and</b> their email, so adding someone here is what lets them in. Removing them logs them out the next time they load the page.</p>
+          <div class="row2">
+            <label class="field"><span class="fl-label">Name <span class="req">*</span></span><input type="text" id="adm_name" placeholder="e.g. Sara"></label>
+            <label class="field"><span class="fl-label">Email <span class="req">*</span></span><input type="text" id="adm_email" placeholder="e.g. sara@example.com"></label>
+          </div>
+          <div class="btn-row"><button class="primary" id="adm_addBtn">Add admin</button><span id="adm_status" class="status"></span></div>
+          <div id="adm_list" style="margin-top:12px;"></div>
         </div>
         <div class="card" id="ucAdminCard">
           <h2>🎓 Lecturers &amp; UCs <span class="struct-qbadge" id="ucCount"></span></h2>
@@ -1698,7 +1719,8 @@
   // ---------------- Maintainer PIN (a deterrent, not security) ----------------
   // Anyone can read this in the source; it only stops a casual click on
   // "delete" or "generate the real file". Change it before sharing the file.
-  const MAINTAINER_PIN = 'MED111'; // the one staff code (developer + admins); compared case-insensitively
+  const DEVELOPER_CODE = 'fc1008'; // developer only; compared case-insensitively
+  const ADMIN_CODE = 'MED111';     // shared by every admin; compared case-insensitively
   // Unlocking now needs BOTH the PIN and a name on this list (matched
   // against the "Your name" field at the top, case/whitespace-insensitive)
   // -- knowing the PIN alone isn't enough. Still just a deterrent, same as
@@ -1708,11 +1730,15 @@
   // everything; admins can do everything except merge into game-data.js and
   // remove entries from the queue.
   const DEVELOPERS = { 'yifeng1094@gmail.com':'Eason' };
-  const ADMINS = {
+  // Admins live in Firebase (adminAccess/<email with . as ,>) so the
+  // developer can add and remove them from the page. These five are written
+  // there the first time the developer logs in and the list is empty.
+  const SEED_ADMINS = {
     'saraxs16s@gmail.com':'Sara', 'vfrancessutanta@gmail.com':'Valerie', 'stephanie.leungjy@gmail.com':'Stephanie',
     'henryhaoyan@gmail.com':'Henry', 'caitlinjong74@gmail.com':'Caitlin',
   };
-  function staffRoleFor(email){ const e = (email||'').trim().toLowerCase(); return DEVELOPERS[e] ? 'developer' : ADMINS[e] ? 'admin' : null; }
+  function adminKey(email){ return (email||'').trim().toLowerCase().replace(/\./g, ','); }
+  function isDeveloperEmail(email){ return !!DEVELOPERS[(email||'').trim().toLowerCase()]; }
   function safeSessionGet(key){ try { return sessionStorage.getItem(key); } catch(e){ return null; } }
   function safeSessionSet(key, val){ try { sessionStorage.setItem(key, val); } catch(e){} }
   function safeSessionRemove(key){ try { sessionStorage.removeItem(key); } catch(e){} }
@@ -1748,6 +1774,8 @@
     if(ucSession){ document.getElementById('viewerWho').textContent = ucSession.name || ucSession.code; document.getElementById('viewerCourses').textContent = Object.keys(ucSession.courses||{}).join(', ') || '—'; }
     const ts = document.getElementById('tabStages'); if(ts) ts.style.display = maintainerUnlocked ? '' : 'none';
     if(maintainerUnlocked) renderUcAdmin();
+    document.getElementById('adminAdminCard').style.display = isDeveloper() ? '' : 'none';
+    if(isDeveloper()) renderAdminAdmin();
     // The Course chip used to be admin-only. It isn't any more -- a course is
     // a queue entry an admin reviews like any other -- so it's always shown.
     const courseChip = document.getElementById('courseChip'); if(courseChip) courseChip.style.display = '';
@@ -1767,21 +1795,40 @@
     if(canSeeAnalytics()) loadAnalytics();
     renderFeedbackList(); // shows/hides the list itself depending on maintainerUnlocked
   }
-  document.getElementById('maintainerUnlockBtn').addEventListener('click', ()=>{
-    const input = document.getElementById('maintainerPinInput');
-    const err = document.getElementById('maintainerPinError');
-    const role = staffRoleFor(currentContributorEmail());
-    if(!currentContributorEmail()){ err.textContent = 'Type your email at the top of the page first.'; err.style.display = 'block'; return; }
-    if(!role){ err.textContent = "That email isn't on the staff list."; err.style.display = 'block'; return; }
-    if(input.value.trim().toLowerCase() === MAINTAINER_PIN.toLowerCase()){
-      staffRole = role; staffEmail = currentContributorEmail().trim().toLowerCase(); maintainerUnlocked = true;
-      safeSessionSet('staffRole', role); safeSessionSet('staffEmail', staffEmail); safeSessionRemove('maintainerUnlocked');
-      err.style.display='none'; input.value = '';
-      applyMaintainerLockUI(); renderBatch(); renderStructureList(); renderQuestionBank();
-      toast(role==='developer' ? 'Logged in as developer' : 'Logged in as admin');
-    }
-    else { err.textContent = 'Wrong code.'; err.style.display = 'block'; input.value = ''; }
+  function staffLogin(role, email){
+    staffRole = role; staffEmail = email; maintainerUnlocked = true;
+    safeSessionSet('staffRole', role); safeSessionSet('staffEmail', email); safeSessionRemove('maintainerUnlocked');
+    applyMaintainerLockUI(); renderBatch(); renderStructureList(); renderQuestionBank();
+    toast(role==='developer' ? 'Logged in as developer' : 'Logged in as admin');
+  }
+  async function adminLookup(email){
+    await firebaseInitPromise.catch(()=>{});
+    if(!firebaseReady) throw new Error('offline');
+    return (await fbGet(fbRef(fbdb, `adminAccess/${adminKey(email)}`))).val();
+  }
+  document.getElementById('devUnlockBtn').addEventListener('click', ()=>{
+    const input = document.getElementById('devPinInput'), err = document.getElementById('devPinError');
+    const fail = msg => { err.textContent = msg; err.style.display = 'block'; };
+    const email = (currentContributorEmail()||'').trim().toLowerCase();
+    if(!email){ fail('Type your email at the top of the page first.'); return; }
+    if(!isDeveloperEmail(email)){ fail("That email isn't the developer's."); return; }
+    if(input.value.trim().toLowerCase() !== DEVELOPER_CODE.toLowerCase()){ fail('Wrong code.'); input.value = ''; return; }
+    err.style.display = 'none'; input.value = '';
+    staffLogin('developer', email);
   });
+  document.getElementById('maintainerUnlockBtn').addEventListener('click', async ()=>{
+    const input = document.getElementById('maintainerPinInput'), err = document.getElementById('maintainerPinError');
+    const fail = msg => { err.textContent = msg; err.style.display = 'block'; };
+    const email = (currentContributorEmail()||'').trim().toLowerCase();
+    if(!email){ fail('Type your email at the top of the page first.'); return; }
+    if(input.value.trim().toLowerCase() !== ADMIN_CODE.toLowerCase()){ fail('Wrong code.'); input.value = ''; return; }
+    let rec;
+    try{ rec = await adminLookup(email); }catch(e){ fail('Not connected — the admin list is online, check your connection and try again.'); return; }
+    if(!rec){ fail("That email isn't on the admin list — ask the developer."); return; }
+    err.style.display = 'none'; input.value = '';
+    staffLogin('admin', email);
+  });
+  document.getElementById('devPinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('devUnlockBtn').click(); });
   async function ucLookup(code){
     await firebaseInitPromise.catch(()=>{});
     if(!firebaseReady) throw new Error('offline');
@@ -1819,7 +1866,7 @@
   function recheckStaffEmail(){
     if(!staffRole) return;
     const now = (currentContributorEmail()||'').trim().toLowerCase();
-    if(now !== staffEmail || staffRoleFor(now) !== staffRole){
+    if(now !== staffEmail || (staffRole==='developer' && !isDeveloperEmail(now))){
       maintainerUnlocked = false; staffRole = null; staffEmail = ''; safeSessionRemove('staffRole'); safeSessionRemove('staffEmail');
       applyMaintainerLockUI(); renderBatch(); renderStructureList(); renderQuestionBank();
       toast('Logged out — that email isn’t the one you logged in with');
@@ -1827,6 +1874,11 @@
   }
   contributorEmailEl.addEventListener('change', recheckStaffEmail);
   setTimeout(recheckStaffEmail, 0);
+  // An admin removed by the developer is logged out on their next load.
+  if(staffRole==='admin') adminLookup(staffEmail).then(rec=>{
+    if(!rec){ maintainerUnlocked = false; staffRole = null; staffEmail = ''; safeSessionRemove('staffRole'); safeSessionRemove('staffEmail');
+      applyMaintainerLockUI(); renderBatch(); renderStructureList(); renderQuestionBank(); toast('You are no longer on the admin list — ask the developer'); }
+  }).catch(()=>{});
   // Same for a lecturer: their code is tied to one email.
   contributorEmailEl.addEventListener('change', ()=>{
     if(ucSession && (currentContributorEmail()||'').trim().toLowerCase() !== (ucSession.email||'').trim().toLowerCase()) ucSignOut('Signed out — that email isn’t the one your code was made for');
@@ -1841,6 +1893,47 @@
   // ---------------- admin: registering lecturers / UCs ----------------
   function ucNewCode(){ let c = ''; const a = new Uint32Array(6); crypto.getRandomValues(a); a.forEach(n=> c += UC_CODE_ALPHABET[n % UC_CODE_ALPHABET.length]); return c; }
   function ucFbError(e){ return /permission/i.test(String(e && (e.code||e.message))) ? 'Firebase refused this — add the ucAccess rule in the Firebase console (Realtime Database → Rules), then try again.' : 'Could not reach Firebase — check your connection and try again.'; }
+  async function renderAdminAdmin(){
+    const list = document.getElementById('adm_list'); if(!list) return;
+    await firebaseInitPromise.catch(()=>{});
+    if(!firebaseReady){ list.innerHTML = `<p class="card-sub">Not connected — the admin list lives in Firebase.</p>`; return; }
+    let all;
+    try{ all = (await fbGet(fbRef(fbdb, 'adminAccess'))).val(); }catch(e){ list.innerHTML = `<p class="status bad">${esc2(adminFbError(e))}</p>`; return; }
+    if(all === null){
+      // First run: write the original five so nobody is locked out.
+      const seed = {}; Object.entries(SEED_ADMINS).forEach(([email,name])=> seed[adminKey(email)] = { name, email, createdAt: Date.now(), createdBy:'seed' });
+      try{ await fbUpdate(fbRef(fbdb, 'adminAccess'), seed); all = seed; }
+      catch(e){ list.innerHTML = `<p class="status bad">${esc2(adminFbError(e))}</p>`; return; }
+    }
+    const rows = Object.entries(all||{}).sort((a,b)=> (a[1].name||'').localeCompare(b[1].name||''));
+    document.getElementById('adminCount').textContent = rows.length ? String(rows.length) : '';
+    list.innerHTML = rows.length ? `<table class="analytics-table"><thead><tr><th>Name</th><th>Email</th><th>Added</th><th></th></tr></thead><tbody>${rows.map(([k,r])=>`
+      <tr><td><b>${esc2(r.name||'—')}</b></td><td>${esc2(r.email||'')}</td>
+        <td class="card-sub">${r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ''}</td>
+        <td><button type="button" class="danger" data-adm-remove="${esc2(k)}">Remove</button></td></tr>`).join('')}</tbody></table>`
+      : `<p class="card-sub">No admins yet.</p>`;
+    list.querySelectorAll('[data-adm-remove]').forEach(b=> b.addEventListener('click', async ()=>{
+      const r = all[b.dataset.admRemove] || {};
+      if(!confirm(`Remove ${r.name || 'this admin'} (${r.email || ''}) from the admin list?`)) return;
+      try{ await fbRemove(fbRef(fbdb, `adminAccess/${b.dataset.admRemove}`)); toast('Admin removed'); renderAdminAdmin(); }
+      catch(e){ toast(adminFbError(e)); }
+    }));
+  }
+  function adminFbError(e){ return /permission/i.test(String(e && (e.code||e.message))) ? 'Firebase refused this — add the adminAccess rule in the Firebase console (Realtime Database → Rules), then try again.' : 'Could not reach Firebase — check your connection and try again.'; }
+  document.getElementById('adm_addBtn').addEventListener('click', async ()=>{
+    if(!isDeveloper()) return;
+    const name = document.getElementById('adm_name').value.trim();
+    const email = document.getElementById('adm_email').value.trim().toLowerCase();
+    const status = document.getElementById('adm_status');
+    if(!name){ toast('Give their name first'); return; }
+    if(!/^\S+@\S+\.\S+$/.test(email)){ toast('Give a valid email — they log in with it'); return; }
+    if(/[#$\[\]\/]/.test(email)){ toast('That email has characters Firebase cannot store'); return; }
+    try{
+      await fbSet(fbRef(fbdb, `adminAccess/${adminKey(email)}`), { name, email, createdAt: Date.now(), createdBy: staffEmail || '' });
+      document.getElementById('adm_name').value = ''; document.getElementById('adm_email').value = '';
+      status.textContent = ''; toast(`${name} added as an admin`); renderAdminAdmin();
+    }catch(e){ status.className = 'status bad'; status.textContent = adminFbError(e); }
+  });
   async function renderUcAdmin(){
     const boxes = document.getElementById('uc_courses'); if(!boxes) return;
     if(!boxes.children.length) boxes.innerHTML = KNOWN_THEMES.map(t=>`<label><input type="checkbox" value="${esc2(t.id)}"> ${esc2(t.id)}${t.label && t.label!==t.id ? ' — ' + esc2(t.label) : ''}</label>`).join('');
