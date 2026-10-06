@@ -1375,15 +1375,15 @@
     <section data-section="maintainer">
       <div class="section-head">
         <h2>Log in</h2>
-        <p>Two kinds of key. The <b>Admin PIN</b> is for whoever looks after <code>game-data.js</code>: merging the queue, stage requirements, registering lecturers, the GitHub check. Each <b>lecturer / UC</b> gets their own access code from the admin, which opens Data analysis for their own course only.</p>
+        <p>Three roles, each tied to your email at the top of the page. <b>Developer</b> (Eason) can do everything, including merging the queue into the game and removing queue entries. <b>Admins</b> (Sara, Valerie, Stephanie, Henry, Caitlin) can do everything else — stages, lecturers, contributors, data analysis. Each <b>lecturer / UC</b> gets their own code from an admin, which opens Data analysis for their own course only.</p>
       </div>
       <div id="maintainerLockGate" class="lock-gate">
         <div class="lg-key">
           <div class="lg-icon">🔒</div>
-          <div class="lg-title">Admin <button class="info-btn" data-info="pin" title="How this works">i</button></div>
-          <p class="lg-sub">Merging, stages, lecturers and settings. Needs the PIN <i>and</i> your name at the top of the page on the admin list.</p>
+          <div class="lg-title">Developer / Admin <button class="info-btn" data-info="pin" title="How this works">i</button></div>
+          <p class="lg-sub">Developer and admins. Needs the staff code <i>and</i> your email at the top of the page on the staff list.</p>
           <div class="lg-row">
-            <input type="password" id="maintainerPinInput" maxlength="6" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Admin PIN" aria-label="Admin PIN">
+            <input type="password" id="maintainerPinInput" maxlength="6" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Staff code" aria-label="Staff code">
             <button class="primary" id="maintainerUnlockBtn">Unlock</button>
           </div>
           <div class="lg-error" id="maintainerPinError">Wrong PIN.</div>
@@ -1421,7 +1421,8 @@
           <div id="uc_created"></div>
           <div id="uc_list" style="margin-top:12px;"></div>
         </div>
-        <div class="card">
+        <div class="card" id="mergeDevOnly" style="display:none;"><p class="card-sub" style="margin:0;">🧬 Merging the queue into the game and removing entries from the queue are <b>developer only</b> (Eason). Everything else here is yours.</p></div>
+        <div class="card" id="mergeCard">
           <h2>🧬 Merge the queue into game-data.js <button class="info-btn" data-info="merge" title="How this works">i</button></h2>
           <p class="card-sub">Takes everything in the queue and folds it into a complete copy of the data file. You then replace <code>game-data.js</code> with it. Player reports are skipped (they're for reading, not merging).</p>
           <div class="btn-row"><button class="primary" id="mergeGenerateBtn">Generate merged game-data.js</button><span id="mergeStatus" class="status"></span></div>
@@ -1697,13 +1698,21 @@
   // ---------------- Maintainer PIN (a deterrent, not security) ----------------
   // Anyone can read this in the source; it only stops a casual click on
   // "delete" or "generate the real file". Change it before sharing the file.
-  const MAINTAINER_PIN = 'fc1008'; // 6 characters, letters + digits; compared case-insensitively
+  const MAINTAINER_PIN = 'MED111'; // the one staff code (developer + admins); compared case-insensitively
   // Unlocking now needs BOTH the PIN and a name on this list (matched
   // against the "Your name" field at the top, case/whitespace-insensitive)
   // -- knowing the PIN alone isn't enough. Still just a deterrent, same as
   // the PIN itself: both are plain text in this file's source.
-  const ADMIN_NAMES = ['Eason', 'Sara', 'Caitlin', 'Stephanie', 'Henry'];
-  function isAdminName(name){ return ADMIN_NAMES.some(a=> a.toLowerCase()===(name||'').trim().toLowerCase()); }
+  // Who is staff, by EMAIL (the "Your email" field at the top) -- a name
+  // can be typed by anyone, so it no longer counts. The developer can do
+  // everything; admins can do everything except merge into game-data.js and
+  // remove entries from the queue.
+  const DEVELOPERS = { 'yifeng1094@gmail.com':'Eason' };
+  const ADMINS = {
+    'saraxs16s@gmail.com':'Sara', 'vfrancessutanta@gmail.com':'Valerie', 'stephanie.leungjy@gmail.com':'Stephanie',
+    'henryhaoyan@gmail.com':'Henry', 'caitlinjong74@gmail.com':'Caitlin',
+  };
+  function staffRoleFor(email){ const e = (email||'').trim().toLowerCase(); return DEVELOPERS[e] ? 'developer' : ADMINS[e] ? 'admin' : null; }
   function safeSessionGet(key){ try { return sessionStorage.getItem(key); } catch(e){ return null; } }
   function safeSessionSet(key, val){ try { sessionStorage.setItem(key, val); } catch(e){} }
   function safeSessionRemove(key){ try { sessionStorage.removeItem(key); } catch(e){} }
@@ -1712,7 +1721,12 @@
   // A code opens Data analysis for its own course(s) only. Same caveat as
   // the PIN: this gates the UI, not the data -- see the "pin" info note.
   const UC_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I/L
-  let maintainerUnlocked = safeSessionGet('maintainerUnlocked') === 'yes';
+  // A remembered unlock only counts while the email at the top still
+  // belongs to that role (checked again on load, below).
+  let staffRole = (s=> s==='developer'||s==='admin' ? s : null)(safeSessionGet('staffRole'));
+  let staffEmail = safeSessionGet('staffEmail') || '';
+  let maintainerUnlocked = !!staffRole;
+  function isDeveloper(){ return staffRole === 'developer'; }
   let ucSession = (()=>{ try{ return JSON.parse(safeSessionGet('ucSession') || 'null'); }catch(e){ return null; } })();
   let analyticsUnlocked = !!ucSession;
   function canSeeAnalytics(){ return maintainerUnlocked || analyticsUnlocked; }
@@ -1743,6 +1757,9 @@
     // easy to lose track of otherwise since the two modes share every tab.
     document.body.classList.toggle('maintainer-on', maintainerUnlocked);
     document.getElementById('maintainerModeBadge').style.display = maintainerUnlocked ? 'inline-block' : 'none';
+    document.getElementById('maintainerModeBadge').textContent = isDeveloper() ? '🛠 Developer mode' : '🛠 Admin mode';
+    document.getElementById('mergeCard').style.display = isDeveloper() ? '' : 'none';
+    document.getElementById('mergeDevOnly').style.display = (maintainerUnlocked && !isDeveloper()) ? '' : 'none';
     // Re-locking while sitting on a now-hidden tab would leave an empty
     // maintainer-only section on screen -- bounce back to Browse content.
     const activeTab = document.querySelector('.sidenav [data-tab].active');
@@ -1753,11 +1770,17 @@
   document.getElementById('maintainerUnlockBtn').addEventListener('click', ()=>{
     const input = document.getElementById('maintainerPinInput');
     const err = document.getElementById('maintainerPinError');
-    const name = contributorNameEl.value.trim();
-    if(!name){ err.textContent = 'Type your name at the top of the page first.'; err.style.display = 'block'; return; }
-    if(!isAdminName(name)){ err.textContent = `"${name}" isn't on the admin list.`; err.style.display = 'block'; return; }
-    if(input.value.trim().toLowerCase() === MAINTAINER_PIN.toLowerCase()){ maintainerUnlocked = true; safeSessionSet('maintainerUnlocked','yes'); err.style.display='none'; applyMaintainerLockUI(); renderBatch(); renderStructureList(); renderQuestionBank(); }
-    else { err.textContent = 'Wrong PIN.'; err.style.display = 'block'; input.value = ''; }
+    const role = staffRoleFor(currentContributorEmail());
+    if(!currentContributorEmail()){ err.textContent = 'Type your email at the top of the page first.'; err.style.display = 'block'; return; }
+    if(!role){ err.textContent = "That email isn't on the staff list."; err.style.display = 'block'; return; }
+    if(input.value.trim().toLowerCase() === MAINTAINER_PIN.toLowerCase()){
+      staffRole = role; staffEmail = currentContributorEmail().trim().toLowerCase(); maintainerUnlocked = true;
+      safeSessionSet('staffRole', role); safeSessionSet('staffEmail', staffEmail); safeSessionRemove('maintainerUnlocked');
+      err.style.display='none'; input.value = '';
+      applyMaintainerLockUI(); renderBatch(); renderStructureList(); renderQuestionBank();
+      toast(role==='developer' ? 'Logged in as developer' : 'Logged in as admin');
+    }
+    else { err.textContent = 'Wrong code.'; err.style.display = 'block'; input.value = ''; }
   });
   async function ucLookup(code){
     await firebaseInitPromise.catch(()=>{});
@@ -1791,6 +1814,23 @@
   });
   document.getElementById('viewerPinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('viewerUnlockBtn').click(); });
   document.getElementById('viewerLockBtn').addEventListener('click', ()=> ucSignOut('Signed out of Data analysis'));
+  // Staff unlock is tied to the email at the top: change it to one that
+  // isn't on the list (or isn't the same role) and you're logged out.
+  function recheckStaffEmail(){
+    if(!staffRole) return;
+    const now = (currentContributorEmail()||'').trim().toLowerCase();
+    if(now !== staffEmail || staffRoleFor(now) !== staffRole){
+      maintainerUnlocked = false; staffRole = null; staffEmail = ''; safeSessionRemove('staffRole'); safeSessionRemove('staffEmail');
+      applyMaintainerLockUI(); renderBatch(); renderStructureList(); renderQuestionBank();
+      toast('Logged out — that email isn’t the one you logged in with');
+    }
+  }
+  contributorEmailEl.addEventListener('change', recheckStaffEmail);
+  setTimeout(recheckStaffEmail, 0);
+  // Same for a lecturer: their code is tied to one email.
+  contributorEmailEl.addEventListener('change', ()=>{
+    if(ucSession && (currentContributorEmail()||'').trim().toLowerCase() !== (ucSession.email||'').trim().toLowerCase()) ucSignOut('Signed out — that email isn’t the one your code was made for');
+  });
   // A code revoked since this tab signed in stops working on the next load.
   if(ucSession) ucLookup(ucSession.code).then(rec=>{
     if(!rec) ucSignOut('Your access code is no longer active — ask the admin');
@@ -1852,7 +1892,7 @@
     }catch(e){ status.className = 'status bad'; status.textContent = ucFbError(e); }
   });
   document.getElementById('maintainerLockBtn').addEventListener('click', ()=>{
-    maintainerUnlocked = false;
+    maintainerUnlocked = false; staffRole = null; staffEmail = ''; safeSessionRemove('staffRole'); safeSessionRemove('staffEmail');
     safeSessionRemove('maintainerUnlocked');
     document.getElementById('maintainerPinInput').value = '';
     applyMaintainerLockUI();
@@ -1875,8 +1915,14 @@
   document.getElementById('maintainerPinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('maintainerUnlockBtn').click(); });
   function requireMaintainerUnlock(){
     if(maintainerUnlocked) return true;
-    toast('Unlock admin mode first (Admin section, left menu)');
+    toast('Log in as admin first (🔐 Log in, left menu)');
     showTab('maintainer');
+    return false;
+  }
+  function requireDeveloper(){
+    if(isDeveloper()) return true;
+    toast(maintainerUnlocked ? 'Only the developer can remove queue entries or merge into the game' : 'Log in first (🔐 Log in, left menu)');
+    if(!maintainerUnlocked) showTab('maintainer');
     return false;
   }
   // Deleting isn't a maintainer-only action anymore -- anyone can REQUEST
@@ -4409,7 +4455,7 @@
         else loadQuestionFromQueueEntry(key, live.data);
       });
       row.querySelector('.list-remove').addEventListener('click', ()=>{
-        if(!requireMaintainerUnlock()) return;
+        if(!requireDeveloper()) return;
         const entry = batch[key];
         // Un-queuing something never merged: clean up the picker entries it added, so no phantom stays behind.
         if(entry && entry.type==='item' && entry.data && !RD.THEMES[entry.data.theme]?.topics?.[entry.data.topicId]?.items?.[entry.data.itemId]){ const i = KNOWN_ITEMS.findIndex(it=>it.id===entry.data.itemId); if(i>=0) KNOWN_ITEMS.splice(i,1); }
@@ -4480,7 +4526,7 @@
       </div>`;
     }).join('');
     list.querySelectorAll('.list-remove-feedback').forEach(btn=> btn.addEventListener('click', ()=>{
-      if(!requireMaintainerUnlock()) return;
+      if(!requireDeveloper()) return;
       removeFromQueue(btn.dataset.key);
     }));
   }
@@ -4697,6 +4743,7 @@
     return { ok:true, text: full, appliedCount, skippedNoData, mergedKeys };
   }
   document.getElementById('mergeGenerateBtn').addEventListener('click', ()=>{
+    if(!requireDeveloper()) return;
     const mergeStatus = document.getElementById('mergeStatus'), mergeOutputWrap = document.getElementById('mergeOutputWrap'), mergeOutput = document.getElementById('mergeOutput');
     if(!Object.keys(batch).length){ mergeStatus.className = 'status'; mergeStatus.textContent = 'Queue is empty — nothing to merge.'; mergeOutputWrap.style.display='none'; return; }
     const result = generateMergedFile();
@@ -4709,6 +4756,7 @@
     clearBtn._mergedKeys = result.mergedKeys;
   });
   document.getElementById('mergeClearQueueBtn').addEventListener('click', function(){
+    if(!requireDeveloper()) return;
     const keys = this._mergedKeys || []; if(!keys.length) return;
     if(!confirm(`Remove these ${keys.length} entries from the team queue? Only do this once the generated file is saved over game-data.js.`)) return;
     keys.forEach(k=> removeFromQueue(k)); this.style.display = 'none'; toast(`Removed ${keys.length} merged entries`);
@@ -4720,12 +4768,14 @@
     catch(e){ statusEl.className = 'status bad'; statusEl.textContent = '⚠️ Could not save (local storage blocked) — applies for this session only.'; window.__sessionTemplateOverride = parts; }
   }
   document.getElementById('templateUpdateBtn').addEventListener('click', ()=>{
+    if(!requireDeveloper()) return;
     const templateInput = document.getElementById('templateInput'), templateStatus = document.getElementById('templateStatus');
     const parts = extractTemplateParts(templateInput.value);
     if(!parts){ templateStatus.className = 'status bad'; templateStatus.textContent = '⚠️ Could not find COURSES/THEMES in that text — paste the whole game-data.js, unedited.'; return; }
     saveTemplate(parts, templateStatus); templateInput.value = '';
   });
   document.getElementById('templateRefreshGithubBtn').addEventListener('click', async ()=>{
+    if(!requireDeveloper()) return;
     const btn = document.getElementById('templateRefreshGithubBtn'), statusEl = document.getElementById('templateGithubStatus');
     btn.disabled = true; statusEl.className = 'status'; statusEl.textContent = 'Fetching game-data.js from GitHub…';
     try {
@@ -6096,7 +6146,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
     pin: { title:'The admin PIN', tags:['sessionStorage','not security'], body:`
       <p><b>Lecturer / UC access codes</b> live in Firebase under <code>ucAccess/&lt;CODE&gt;</code> — name, email, and the courses that code may see. Only an admin can create or revoke them (from Log in). The database rules must allow that path to be read and written, or creating a code fails with a clear message. Like the PIN, a code limits what this <i>page</i> shows; it is not security on the underlying answer data.</p>
       <p>The PIN is a plain string in this file's source, so anyone can read it. It isn't security — it stops a regular contributor from clicking "delete" or "generate the real file" while exploring. Real protection is the Firebase security rules in the console, which decide who can write to which path.</p>
-      <p>Unlocking also checks the "Your name" field against a hardcoded <code>ADMIN_NAMES</code> list — same deterrent-not-security caveat: anyone who reads the source can see both the PIN and the list, and nothing stops someone typing a name from that list. It just means knowing the PIN alone (e.g. seeing it over someone's shoulder) isn't enough by itself.</p>
+      <p>Unlocking also checks the "Your email" field against the hardcoded <code>DEVELOPERS</code> / <code>ADMINS</code> lists (developer: merge + queue removal; admin: everything else) — same deterrent-not-security caveat: anyone who reads the source can see both the PIN and the list, and nothing stops someone typing a name from that list. It just means knowing the PIN alone (e.g. seeing it over someone's shoulder) isn't enough by itself.</p>
       <p>Once unlocked, the flag is kept in <code>sessionStorage</code> so it survives a reload but not closing the tab. That call is wrapped in <code>try/catch</code>: some browsers throw on storage access for <code>file://</code> pages, and an optional convenience must never break the page.</p>` },
     analytics: { title:'Where the analytics come from', tags:['transaction','aggregate only'], body:`
       <p>Every time a player answers a question, the game runs a Firebase <em>transaction</em> on <code>stats/&lt;itemId&gt;::&lt;questionId&gt;</code> that increments <code>correct</code> or <code>wrong</code>. A transaction reads the current value and writes the new one atomically, so two players answering at the same instant can't lose an increment.</p>
@@ -6599,8 +6649,8 @@ const themesDecl  = text.indexOf('const THEMES = {');
         <p>Unlock admin mode, then in <b>🎓 Lecturers &amp; UCs</b> enter their name and email, tick their course(s) and press {{Create access code}}. Send them the 6-character code. Revoke it there any time.</p>` },
       { q:'Admin: how do I change how many questions each stage needs?', go:['stages','🏁 Stages'], a:`
         <p>In admin mode open [[Stages]], pick the course, and set <b>Correct needed</b> per topic for each stage (add or remove stages too). {{+ Add to queue}} — it takes effect with the next merge.</p>` },
-      { q:'Admin: how do I put everything in the queue into the game?', go:['maintainer','🔐 Log in'], a:`
-        <ol><li>Log in as admin under [[Log in]], then press {{Generate merged game-data.js}} and download it.</li>
+      { q:'Developer: how do I put everything in the queue into the game?', go:['maintainer','🔐 Log in'], a:`
+        <ol><li>Log in as the developer under [[Log in]], then press {{Generate merged game-data.js}} and download it.</li>
         <li>Replace <code>game-data.js</code> in the repo with it and push.</li>
         <li>Then press {{🧹 Remove the merged entries from the queue}}.</li></ol>` },
     ]},
