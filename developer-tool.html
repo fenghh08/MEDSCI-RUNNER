@@ -433,6 +433,29 @@
   .mlc-pending{ font-size:12px; color:#7a5a12; background:#fff7e6; border:1px solid #f0d9a8; border-radius:10px; padding:2px 9px; white-space:nowrap; }
   .mlc-danger{ font-size:12px; color:var(--danger); background:var(--danger-soft); border:1px solid #f0b9c5; border-radius:10px; padding:2px 9px; white-space:nowrap; }
   .ml-concept.doomed{ opacity:.66; border-style:dashed; }
+  /* ---- Lectures tab ---- */
+  .lec-hint{ font-size:12.5px; border-radius:8px; padding:7px 11px; margin:-4px 0 10px; }
+  .lec-hint.new{ background:var(--good-soft); color:var(--good); }
+  .lec-hint.update{ background:var(--info-soft); color:var(--info); }
+  .lec-hint.warn{ background:var(--warn-soft); color:var(--warn); }
+  .lec-list{ display:flex; flex-direction:column; gap:8px; }
+  .lec-row{ border:1px solid var(--line); border-radius:11px; background:#fff; }
+  .lec-row.pending{ border-style:dashed; background:#fffdf6; }
+  .lec-row.thin .lec-meta{ color:var(--warn); }
+  .lec-row summary{ list-style:none; display:flex; align-items:center; gap:10px; padding:10px 14px; cursor:pointer; }
+  .lec-row summary::-webkit-details-marker{ display:none; }
+  .lec-row .lec-chev{ font-size:10px; color:var(--faint); transition:transform .15s; }
+  .lec-row[open] .lec-chev{ transform:rotate(90deg); }
+  .lec-row .lec-key{ font-family:var(--mono); font-weight:800; min-width:38px; }
+  .lec-row .lec-name{ font-weight:600; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lec-row .lec-meta{ font-size:12px; color:var(--muted); white-space:nowrap; }
+  .lec-row .lec-actions{ display:flex; gap:6px; }
+  .lec-row .lec-actions button{ font-size:12px; padding:4px 10px; }
+  .lec-row .lec-body{ padding:0 14px 12px 62px; font-size:13px; color:var(--ink); }
+  .lec-row .lec-body ul{ margin:4px 0 8px; padding-left:18px; }
+  .lec-row .lec-body li{ margin:2px 0; }
+  .lec-empty{ border:1px dashed var(--line-strong); border-radius:11px; padding:18px; text-align:center; color:var(--muted); background:#fbfbfd; }
+  @media (max-width:720px){ .lec-row summary{ flex-wrap:wrap; } .lec-row .lec-meta{ flex-basis:100%; padding-left:58px; } .lec-row .lec-body{ padding-left:14px; } }
   .lock-gate .lg-or{ margin:14px 0 10px; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:10px; }
   .lock-gate .lg-or::before, .lock-gate .lg-or::after{ content:''; flex:1; height:1px; background:var(--line); }
   .mlc-mergebox{ border-top:1px solid var(--line); padding:14px 16px 16px; background:#fcfbff; }
@@ -847,19 +870,31 @@
     <section data-section="lectures">
       <div class="section-head">
         <h2>Lectures <button class="info-btn" data-info="lectures" title="How this works">i</button></h2>
-        <p>Every lecture in a course, with its learning outcomes — for checking what a lecture actually covers, not what's been tagged to it yet. Pick a course below to narrow the list to just that one, or leave it on "— pick a course —" to see every course at once.</p>
+        <p>Pick your course. Every lecture it has is listed below with its learning outcomes and how much content is tagged to it. Add a lecture with the form, or hit ✏️ on any row to change it.</p>
       </div>
-      <div class="card">
-        <h2 style="margin-top:0;">➕ Add or update lectures <button class="info-btn" data-info="lecture-grid" title="How this works">i</button></h2>
-        <p class="card-sub">Paste directly from a spreadsheet — same template as the questions sheet — with columns <b>Lecture #</b> (e.g. <code>L16</code>), <b>Name</b>, and <b>LO</b> (learning outcomes, separated by semicolons). A lecture number that doesn't exist yet under the chosen course is created; one that already exists gets its name and outcomes updated.</p>
-        <label class="field" style="max-width:340px;"><span class="fl-label">Course <span class="req">*</span></span><select id="lecAdd_course"></select></label>
-        <table class="cols grid-import" id="lecAddTable" style="margin-top:10px;">
-          <thead><tr><th>Lecture #</th><th>Name</th><th class="grid-wide">LO (separate with ;)</th><th></th></tr></thead>
-          <tbody id="lecAddBody"></tbody>
-        </table>
-        <div class="btn-row" style="margin-top:8px;"><button type="button" id="lecAdd_addRowBtn">+ Add row</button><button type="button" id="lecAdd_clearBtn">Clear table</button></div>
-        <div id="lecAdd_preview" class="status" style="margin:10px 0;"></div>
-        <div class="btn-row"><button class="primary" id="lecAdd_parseBtn">Check &amp; add all to queue</button></div>
+      <div class="card lec-pick">
+        <label class="field" style="max-width:440px;margin-bottom:4px;"><span class="fl-label">Course <span class="req">*</span></span><select id="lecAdd_course"></select></label>
+        <div id="lecCourseSummary" class="card-sub" style="margin:0;"></div>
+      </div>
+      <div class="card" id="lecOneCard">
+        <h3 class="card-title" id="lecOneTitle" style="margin-top:0;">➕ Add a lecture</h3>
+        <div class="row2">
+          <label class="field"><span class="fl-label">Lecture number <span class="req">*</span></span><span class="fl-help">e.g. <code>L14</code>. A number that already exists updates that lecture.</span><input type="text" id="lecOne_key" placeholder="L14" autocomplete="off"></label>
+          <label class="field"><span class="fl-label">Name <span class="req">*</span></span><span class="fl-help">As it appears on the timetable.</span><input type="text" id="lecOne_label" placeholder="e.g. Cancer hallmarks"></label>
+        </div>
+        <label class="field"><span class="fl-label">Learning outcomes</span><span class="fl-help">One per line. Students see these under the lecture in the game; you can add them later.</span><textarea id="lecOne_lo" rows="4" placeholder="Describe the hallmarks of cancer&#10;Explain how a proto-oncogene becomes an oncogene"></textarea></label>
+        <div id="lecOne_hint" class="lec-hint" style="display:none;"></div>
+        <div class="btn-row"><button type="button" class="primary" id="lecOne_addBtn">+ Add to queue</button><button type="button" id="lecOne_cancelBtn" style="display:none;">Cancel</button></div>
+        <details class="more" id="lecGridDetails" style="margin-top:14px;"><summary>📄 Have the whole list? Paste it from a spreadsheet <span class="info-btn" data-info="lecture-grid" title="How this works">i</span></summary><div>
+          <p class="card-sub">Three columns — <b>Lecture #</b>, <b>Name</b>, <b>LO</b> (outcomes separated by semicolons). Select them in Sheets or Excel, copy, click the first cell here and paste; the table grows to fit. Uses the course picked above.</p>
+          <table class="cols grid-import" id="lecAddTable" style="margin-top:10px;">
+            <thead><tr><th>Lecture #</th><th>Name</th><th class="grid-wide">LO (separate with ;)</th><th></th></tr></thead>
+            <tbody id="lecAddBody"></tbody>
+          </table>
+          <div class="btn-row" style="margin-top:8px;"><button type="button" id="lecAdd_addRowBtn">+ Add row</button><button type="button" id="lecAdd_clearBtn">Clear table</button></div>
+          <div id="lecAdd_preview" class="status" style="margin:10px 0;"></div>
+          <div class="btn-row"><button class="primary" id="lecAdd_parseBtn">Check &amp; add all to queue</button></div>
+        </div></details>
       </div>
       <div id="lecturesList"></div>
     </section>
@@ -3671,24 +3706,119 @@
   // grid above it -- browsing every course's full lecture table at once
   // isn't useful once you're focused on adding to one of them. Leaving the
   // picker on "— pick a course —" shows all of them, same as before.
+  // One row per lecture, with what's hanging off it. ⏳ marks a lecture (or
+  // an update to one) that's still in the queue. Course picked above; with
+  // none picked, every course is listed.
+  function lecPendingEntry(course, key){
+    return Object.values(batch || {}).find(e=> e && e.type==='lectureOutcomes' && e.data && e.data.course===course && e.data.classKey===key) || null;
+  }
+  function lecTaggedCounts(course, key){
+    const tag = courseDisplayString(course, key);
+    let concepts = 0, questions = 0;
+    KNOWN_ITEMS.forEach(it=>{
+      const hit = (it.course===course && it.class===key) || String(it.relatedCourse||'').split('\n').map(x=>x.trim()).includes(tag);
+      if(!hit) return;
+      concepts++;
+      const live = RD.THEMES[it.theme]?.topics?.[it.topic]?.items?.[it.id];
+      questions += live ? (live.questions||[]).length : 0;
+    });
+    return { concepts, questions };
+  }
   function renderLectures(){
     const lecturesList = document.getElementById('lecturesList');
     const selectedCode = lecAdd_course.value;
     const courses = selectedCode ? [KNOWN_COURSES[selectedCode]].filter(Boolean) : Object.values(KNOWN_COURSES);
-    if(!courses.length){ lecturesList.innerHTML = `<div class="card"><div class="struct-empty">— no courses yet —</div></div>`; return; }
+    const summary = document.getElementById('lecCourseSummary');
+    if(summary){
+      if(!selectedCode) summary.textContent = `Showing every course. Pick one to work on it.`;
+      else { const c = KNOWN_COURSES[selectedCode]; const n = Object.keys(c?.classes||{}).length; summary.innerHTML = `<b>${esc2(c?.label||selectedCode)}</b> · ${n} lecture${n===1?'':'s'} so far`; }
+    }
+    if(!courses.length){ lecturesList.innerHTML = `<div class="card"><div class="struct-empty">— no courses yet — add one under <b>Set up a course</b></div></div>`; return; }
     lecturesList.innerHTML = courses.map(c=>{
-      const classes = Object.entries(c.classes||{}).sort((a,b)=> lectureKeySort(a[0], b[0]));
-      const rows = classes.length ? classes.map(([key, k])=>{
-        const outcomes = k.outcomes || [];
-        const lo = outcomes.length ? `<ul class="p-facts" style="margin:0;">${outcomes.map(o=>`<li>${esc2(o)}</li>`).join('')}</ul>` : `<span style="color:var(--muted);">— none yet —</span>`;
-        return `<tr><td>${esc2(key)}</td><td>${esc2(k.label)}</td><td>${lo}</td></tr>`;
-      }).join('') : `<tr><td colspan="3"><div class="struct-empty" style="margin:0;">— no lectures yet —</div></td></tr>`;
+      // Live lectures plus any brand-new ones still in the queue.
+      const keys = new Set(Object.keys(c.classes||{}));
+      Object.values(batch||{}).forEach(e=>{ if(e && e.type==='lectureOutcomes' && e.data && e.data.course===c.code && e.data.classKey) keys.add(e.data.classKey); });
+      const sorted = [...keys].sort(lectureKeySort);
+      const rows = sorted.map(key=>{
+        const live = (c.classes||{})[key];
+        const pend = lecPendingEntry(c.code, key);
+        const label = (pend && pend.data.label) || (live && live.label) || key;
+        const outcomes = (pend && pend.data.outcomes && pend.data.outcomes.length) ? pend.data.outcomes : ((live && live.outcomes) || []);
+        const { concepts, questions } = lecTaggedCounts(c.code, key);
+        const meta = `${outcomes.length} outcome${outcomes.length===1?'':'s'} · ${concepts} concept${concepts===1?'':'s'} · ${questions} question${questions===1?'':'s'}`;
+        return `<details class="lec-row${pend?' pending':''}${(!concepts)?' thin':''}">
+          <summary><span class="lec-chev">▶</span><span class="lec-key">${esc2(key)}</span><span class="lec-name">${esc2(label)}</span>
+            <span class="lec-meta">${meta}${pend?` · <span class="mlc-pending">⏳ ${live?'update':'new'} waiting</span>`:''}</span>
+            <span class="lec-actions"><button type="button" data-lec-edit="${esc2(c.code)}|${esc2(key)}" title="Change the name or outcomes">✏️ Edit</button><button type="button" data-lec-ml="${esc2(c.code)}|${esc2(key)}" title="Add concepts and questions to this lecture">🎓 Questions</button></span></summary>
+          <div class="lec-body">${outcomes.length ? `<ul>${outcomes.map(o=>`<li>${esc2(o)}</li>`).join('')}</ul>` : `<div class="card-sub" style="margin:0 0 8px;">No learning outcomes yet — ✏️ Edit to add them.</div>`}
+            ${concepts ? '' : `<div class="card-sub" style="margin:0;">Nothing is tagged to this lecture yet. <b>🎓 Questions</b> opens My lecture on it.</div>`}</div>
+        </details>`;
+      }).join('');
       return `<div class="card">
-        <h2 style="margin-top:0;">${esc2(c.code)} <span class="struct-course">· ${esc2(c.label)}</span></h2>
-        <table class="analytics-table"><thead><tr><th style="width:60px;">L#</th><th style="width:220px;">Name</th><th>Learning outcomes</th></tr></thead><tbody>${rows}</tbody></table>
+        ${selectedCode ? '' : `<h2 style="margin-top:0;">${esc2(c.code)} <span class="struct-course">· ${esc2(c.label)}</span></h2>`}
+        ${rows ? `<div class="lec-list">${rows}</div>` : `<div class="lec-empty">No lectures in ${esc2(c.code)} yet. Add the first one with the form above ↑</div>`}
       </div>`;
     }).join('');
+    lecturesList.querySelectorAll('[data-lec-edit]').forEach(b=> b.addEventListener('click', ()=>{ const [course,key] = b.dataset.lecEdit.split('|'); lecOneEdit(course, key); }));
+    lecturesList.querySelectorAll('[data-lec-ml]').forEach(b=> b.addEventListener('click', ()=>{ const [course,key] = b.dataset.lecMl.split('|'); showTab('mylecture'); mlOpen(course, key); }));
   }
+
+  // ---- the one-lecture form (the usual way in; the paste grid is for lists)
+  const lecOne_key = document.getElementById('lecOne_key'), lecOne_label = document.getElementById('lecOne_label'), lecOne_lo = document.getElementById('lecOne_lo');
+  const lecOne_hint = document.getElementById('lecOne_hint'), lecOne_title = document.getElementById('lecOneTitle'), lecOne_cancel = document.getElementById('lecOne_cancelBtn');
+  function lecOneReset(){
+    lecOne_key.value = ''; lecOne_label.value = ''; lecOne_lo.value = '';
+    lecOne_title.textContent = '➕ Add a lecture'; lecOne_cancel.style.display = 'none';
+    lecOne_hint.style.display = 'none';
+  }
+  function lecOneEdit(course, key){
+    if([...lecAdd_course.options].some(o=>o.value===course) && lecAdd_course.value!==course){ lecAdd_course.value = course; renderLectures(); }
+    const live = KNOWN_COURSES[course]?.classes?.[key] || {};
+    const pend = lecPendingEntry(course, key);
+    lecOne_key.value = key;
+    lecOne_label.value = (pend && pend.data.label) || live.label || '';
+    lecOne_lo.value = ((pend && pend.data.outcomes && pend.data.outcomes.length) ? pend.data.outcomes : (live.outcomes || [])).join('\n');
+    lecOne_title.textContent = `✏️ Edit ${key}`; lecOne_cancel.style.display = 'inline-block';
+    lecOneHint();
+    document.getElementById('lecOneCard').scrollIntoView({ block:'start', behavior:'smooth' });
+    lecOne_label.focus();
+  }
+  // Says, as you type, whether this number is new or an existing lecture
+  // about to be updated -- the one thing people kept getting wrong.
+  function lecOneHint(){
+    const course = lecAdd_course.value, raw = lecOne_key.value.trim();
+    if(!raw){ lecOne_hint.style.display = 'none'; return; }
+    if(!course){ lecOne_hint.className = 'lec-hint warn'; lecOne_hint.textContent = 'Pick the course at the top first.'; lecOne_hint.style.display = 'block'; return; }
+    const existing = resolveLectureKey(course, raw);
+    if(existing){
+      const cur = KNOWN_COURSES[course].classes[existing];
+      lecOne_hint.className = 'lec-hint update';
+      lecOne_hint.innerHTML = `<b>${esc2(existing)}</b> already exists${cur?.label ? ` (“${esc2(cur.label)}”)` : ''} — this will update it, not add a second one.`;
+    } else {
+      lecOne_hint.className = 'lec-hint new';
+      lecOne_hint.innerHTML = `New lecture <b>${esc2(raw.toUpperCase().replace(/^([A-Z]+)0*(\d)/, '$1$2'))}</b> in ${esc2(course)}.`;
+    }
+    lecOne_hint.style.display = 'block';
+  }
+  lecOne_key.addEventListener('input', lecOneHint);
+  lecOne_cancel.addEventListener('click', lecOneReset);
+  document.getElementById('lecOne_addBtn').addEventListener('click', ()=>{
+    if(!requireContributorIdentity()) return;
+    const course = lecAdd_course.value;
+    if(!course){ toast('Pick the course at the top first'); lecAdd_course.focus(); return; }
+    const raw = lecOne_key.value.trim();
+    if(!raw){ toast('Give the lecture a number, e.g. L14'); lecOne_key.focus(); return; }
+    const existing = resolveLectureKey(course, raw);
+    const classKey = existing || raw.toUpperCase().replace(/^([A-Z]+)0*(\d)/, '$1$2');
+    const label = lecOne_label.value.trim() || (existing ? (KNOWN_COURSES[course].classes[existing].label || '') : '');
+    if(!label){ toast('Give the lecture a name'); lecOne_label.focus(); return; }
+    const outcomes = lecOne_lo.value.split('\n').map(x=>x.trim()).filter(Boolean);
+    const o = { course, classKey, label, outcomes, intro:'' };
+    pushToQueue({ type:'lectureOutcomes', title:`${course} ${classKey}`, code:lectureOutcomesCodeString(o), note:`${label} · ${existing?'lecture update':'new lecture'}`, data:o });
+    if(KNOWN_COURSES[course]) KNOWN_COURSES[course].classes[classKey] = KNOWN_COURSES[course].classes[classKey] || { label };
+    toast(existing ? `${classKey} update added to the queue` : `${classKey} added to the queue`);
+    lecOneReset(); renderLectures(); fillLoCourseSelect(); fillLecCourseSelect();
+  });
 
   // ---------------- Add/update lectures via a pasteable grid (Lectures tab) ----------------
   // Only ever touches COURSES.<course>.classes, never THEMES, so it can't
@@ -3761,7 +3891,7 @@
     if(errors.length) html += `<div class="status bad" style="margin-top:6px;">⚠️ ${esc2(errors.join(' '))}</div>`;
     lecAdd_preview.innerHTML = html;
   }
-  lecAdd_course.addEventListener('change', ()=>{ renderLecAddPreview(); renderLectures(); });
+  lecAdd_course.addEventListener('change', ()=>{ renderLecAddPreview(); lecOneHint(); renderLectures(); });
   document.getElementById('lecAdd_parseBtn').addEventListener('click', ()=>{
     if(!requireContributorIdentity()) return;
     const { valid, errors } = parseLecAddGrid();
@@ -5625,7 +5755,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
         { tab:'start', sel:'#contributorName', title:'First, your name and email', caption:'Type these once — nothing can be queued without them. It\'s how your work is credited and how an admin can reach you about it. Only an admin can see whose submission is whose.' },
         { tab:'datamap', sel:'section[data-section="datamap"] .dm-chain', title:'What goes where', caption:'A question sits on a concept. A concept sits in a topic (module), inside a course. Every concept also records which lecture taught it, and that is how this tool finds yours.' },
         { tab:'lectures', sel:'#lecturesList', title:'Is your lecture listed?', caption:'Your lecture has to exist before you can add anything to it. Pick your course in the {{Course}} box at the top of this page, and this list shows every lecture it has with the learning outcomes each one covers. Find yours before going any further.', fallbackSel:'#lecAdd_course' },
-        { tab:'lectures', sel:'#lecAddTable', title:'Adding a lecture', caption:'Not listed? Add it here. Choose the course, then fill one row: the number (L14), the name, and the learning outcomes separated by semicolons. Type it or paste a block straight from a spreadsheet. Putting an existing lecture number will update that lecture instead of making a second one. Then hit {{Check & add all to queue}}.' },
+        { tab:'lectures', sel:'#lecOneCard', title:'Adding a lecture', caption:'Not listed? Add it here: the number (L14), the name, and the learning outcomes one per line, then {{+ Add to queue}}. The note under the number tells you whether it is new or will update an existing lecture. A whole list from a spreadsheet goes in the paste box underneath.' },
         { tab:'mylecture', sel:'#ml_pickerCard', title:'Pick your lecture', caption:'Choose your course and lecture, then {{Open this lecture →}}. Everything after that shows only your lecture\'s concepts.', fallbackSel:'#ml_changeBtn' },
         { tab:'mylecture', sel:'.ml-newbox', title:'Only if nothing fits', caption:'A genuinely new concept goes in here with {{+ Add this concept}}, and the name is checked against what already exists so you don\'t end up with two of the same thing. Write its description straight away — students see a blank page otherwise.', fallbackSel:'#ml_pickerCard' },
         { tab:'mylecture', sel:'#ml_concepts', title:'Add your question to a concept', caption:'Each toggle is one concept from your lecture, showing how many questions it already has. Hit {{+ Question}} on the concept you want to add to, type the prompt and the options, mark the right one, then {{+ Add to queue}}. Reusing a concept is what gives students something to revise from. If your lecture has no concepts or questions yet, a worked example of a toggle is shown so you can see what to expect.', fallbackSel:'#ml_pickerCard' },
