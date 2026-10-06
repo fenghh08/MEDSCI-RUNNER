@@ -410,6 +410,41 @@
   .ml-bar .ml-lec small{ display:block; font-weight:400; color:var(--muted); font-size:12.5px; margin-top:2px; }
   .ml-bar .ml-stats{ font-size:12.5px; color:var(--muted); margin-left:auto; text-align:right; }
   .ml-lead{ font-size:13px; color:var(--muted); line-height:1.55; margin:0 0 14px; max-width:720px; }
+  /* ---- My lecture: one form, then the list ---- */
+  .ml-compose{ border-color:var(--accent-line); box-shadow:0 4px 20px rgba(214,16,106,.06); }
+  .ml-compose-title{ margin:0 0 6px; font-size:16px; }
+  .ml-step{ display:flex; align-items:center; gap:9px; font-weight:700; font-size:13.5px; margin:16px 0 8px; }
+  .ml-step-help{ font-weight:400; color:var(--muted); font-size:12.5px; }
+  .ml-n{ width:22px; height:22px; border-radius:50%; background:var(--accent); color:#fff; font-size:12px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; flex:none; }
+  .ml-chips{ display:flex; flex-wrap:wrap; gap:7px; }
+  .ml-chip{ display:inline-flex; align-items:center; gap:7px; border:1px solid var(--line-strong); background:#fff; border-radius:18px; padding:6px 13px; font:inherit; font-size:13px; cursor:pointer; color:var(--ink); }
+  .ml-chip small{ font-size:11px; color:var(--muted); background:var(--bg); border-radius:9px; padding:0 6px; }
+  .ml-chip:hover{ border-color:var(--accent); }
+  .ml-chip.on{ background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .ml-chip.on small{ background:rgba(255,255,255,.25); color:#fff; }
+  .ml-chip.new{ border-style:dashed; color:var(--accent); }
+  .ml-chip.new.on{ border-style:solid; color:#fff; }
+  .ml-newconcept{ margin-top:10px; padding:12px 14px; border:1px dashed var(--accent-line); border-radius:10px; background:var(--accent-soft); }
+  .ml-compose textarea{ width:100%; }
+  .ml-compose-foot{ margin-top:14px; align-items:center; }
+  .ml-diff{ font-size:12.5px; color:var(--muted); display:inline-flex; align-items:center; gap:6px; margin-left:auto; }
+  .ml-diff select{ width:auto; }
+  .ml-added{ margin-top:14px; border-top:1px solid var(--line); padding-top:10px; font-size:12.5px; }
+  .ml-added-h{ color:var(--muted); font-size:11px; letter-spacing:.06em; text-transform:uppercase; font-weight:700; margin-bottom:5px; }
+  .ml-added div{ padding:3px 0; }
+  .ml-added span{ color:var(--muted); }
+  .ml-listhead{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:22px 0 8px; }
+  .ml-listhead b{ font-size:14px; }
+  .ml-listhead span{ font-size:12.5px; color:var(--muted); }
+  /* side panel for one concept */
+  .ml-drawer{ position:fixed; inset:0; z-index:60; background:rgba(20,24,40,.28); display:none; }
+  .ml-drawer.open{ display:block; }
+  .ml-drawer-panel{ position:absolute; top:0; right:0; bottom:0; width:min(600px, 100%); background:var(--bg); box-shadow:-10px 0 30px rgba(20,30,60,.18); display:flex; flex-direction:column; }
+  .ml-drawer-head{ display:flex; align-items:center; gap:10px; padding:14px 18px; background:#fff; border-bottom:1px solid var(--line); font-size:15px; }
+  .ml-drawer-head b{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ml-drawer-x{ border:0; background:var(--bg); width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:14px; }
+  .ml-drawer-body{ flex:1; overflow:auto; padding:16px 18px 24px; }
+  .ml-drawer-body .mlc-form{ border:1px solid var(--line); border-radius:10px; margin-bottom:14px; }
   .ml-concept{ border:1px solid var(--line); border-radius:12px; margin-bottom:8px; background:#fff; overflow:hidden; }
   .ml-concept.open, .ml-concept.busy{ border-color:var(--accent); box-shadow:0 1px 10px rgba(0,0,0,.05); }
   /* The whole row is the open/close control, so the row carries one button
@@ -522,7 +557,6 @@
   .mlq-opt{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
   .mlq-opt input[type=text]{ flex:1; }
   .mlq-opt .mlq-del{ background:none; border:none; color:var(--muted); cursor:pointer; font-size:15px; padding:4px 8px; }
-  .ml-newbox{ border:1px dashed var(--line); border-radius:12px; padding:16px; margin-top:18px; background:#fff; }
   .ml-dupe{ margin-top:10px; padding:10px 13px; border-radius:9px; background:#fff7e6; border:1px solid #f0d9a8; color:#7a5a12; font-size:12.5px; line-height:1.5; }
   .ml-dupe button{ margin:6px 6px 0 0; }
   /* Splits a long stack of cards into scannable groups (Data analysis). */
@@ -697,7 +731,7 @@
 
       <div class="card">
         <h3 class="card-title">🎓 A few, for your own lecture</h3>
-        <p class="card-sub" style="margin-bottom:10px;">Pick your lecture once and it shows only the concepts from it. Click the concept your question is about, hit <b>+ Question</b>, type the prompt and the options, mark the right one, <b>Add to queue</b>. That's the whole thing — no course or topic to choose, because your lecture already answers both.</p>
+        <p class="card-sub" style="margin-bottom:10px;">Pick your lecture once and the page is a single form: pick what the question is about, type it, fill the options, tick the right one, <b>Add to queue</b>. It stays open for the next one — no course or topic to choose, because your lecture already answers both.</p>
         <div class="btn-row"><button type="button" class="primary" data-goto="mylecture">🎓 Add questions for my lecture</button></div>
       </div>
 
@@ -772,17 +806,45 @@
           <div class="ml-stats" id="ml_barStats"></div>
           <button id="ml_changeBtn">Change lecture</button>
         </div>
-        <p class="ml-lead">Each concept is a toggle — click one to see what's already inside it. <b>Add your question to one that fits</b> rather than making a new one.</p>
-        <div id="ml_concepts"></div>
-        <div class="ml-newbox">
-          <h3 style="margin:0 0 4px;font-size:14.5px;">Nothing above fits?</h3>
-          <p class="card-sub" style="margin:0 0 10px;">Only add a new concept if this question is genuinely about something the list doesn't cover.</p>
-          <div class="row2">
-            <label class="field" style="margin-bottom:0;"><span class="fl-label">New concept name</span><input type="text" id="ml_newName" placeholder="e.g. Krebs cycle"></label>
-            <label class="field" style="margin-bottom:0;"><span class="fl-label">Group it under (topic / module)</span><select id="ml_newTopic"></select></label>
+
+        <!-- The page is one form. Pick what the question is about, write it,
+             add it -- and the form stays put for the next one. Everything
+             else about a concept (the student's view, its description,
+             merge/delete) is one click away in a side panel, not stacked
+             under the form. -->
+        <div class="card ml-compose" id="ml_compose">
+          <h3 class="ml-compose-title" id="ml_composeTitle">✍️ Add a question</h3>
+          <div class="ml-step"><span class="ml-n">1</span>What is it about?</div>
+          <div class="ml-chips" id="ml_pickChips"></div>
+          <div class="ml-newconcept" id="ml_newConceptBox" style="display:none;">
+            <div class="row2">
+              <label class="field" style="margin-bottom:0;"><span class="fl-label">New concept name</span><input type="text" id="ml_newName" placeholder="e.g. Krebs cycle" autocomplete="off"></label>
+              <label class="field" style="margin-bottom:0;"><span class="fl-label">Group it under (topic / module)</span><select id="ml_newTopic"></select></label>
+            </div>
+            <div id="ml_dupeWarn"></div>
+            <p class="card-sub" style="margin:8px 0 0;">Only if none of the concepts above fits. It's created together with your question.</p>
           </div>
-          <div id="ml_dupeWarn"></div>
-          <div class="btn-row"><button id="ml_newBtn">+ Add this concept</button></div>
+          <div class="ml-step"><span class="ml-n">2</span>The question</div>
+          <textarea id="ml_qPrompt" data-mlf="prompt" rows="2" placeholder="e.g. Which enzyme commits acetyl-CoA to the Krebs cycle?"></textarea>
+          <div class="ml-step"><span class="ml-n">3</span>Answer options <span class="ml-step-help">— tick the correct one</span></div>
+          <div id="ml_qOpts" data-mlf="opts" data-grp="compose"></div>
+          <button type="button" class="subtle" id="ml_qAddOpt">+ Add option</button>
+          <div class="ml-step"><span class="ml-n">4</span>Why it's correct <span class="ml-step-help">— optional, students see it after answering</span></div>
+          <textarea id="ml_qExplain" data-mlf="explain" rows="2"></textarea>
+          <div class="btn-row ml-compose-foot">
+            <button class="primary" id="ml_qSaveBtn">+ Add to queue</button>
+            <label class="ml-diff">Difficulty <select data-mlf="difficulty" id="ml_qDiff"><option value="easy">🟢 Easy</option><option value="medium" selected>🟡 Medium</option><option value="hard">🔴 Hard</option></select></label>
+          </div>
+          <div id="ml_justAdded"></div>
+        </div>
+
+        <div class="ml-listhead"><b>Concepts in this lecture</b><span>Click one to see the study-guide page students read, write its description, or tidy it up.</span></div>
+        <div id="ml_concepts"></div>
+      </div>
+      <div class="ml-drawer" id="ml_drawer" aria-hidden="true">
+        <div class="ml-drawer-panel" role="dialog" aria-label="Concept">
+          <div class="ml-drawer-head"><b id="ml_drawerTitle">—</b><button type="button" class="ml-drawer-x" id="ml_drawerClose" title="Close (Esc)">✕</button></div>
+          <div class="ml-drawer-body" id="ml_drawerBody"></div>
         </div>
       </div>
     </section>
@@ -4842,6 +4904,11 @@
   const ml_pickerCard = document.getElementById('ml_pickerCard'), ml_workspace = document.getElementById('ml_workspace');
   const ml_concepts = document.getElementById('ml_concepts'), ml_newTopic = document.getElementById('ml_newTopic');
   const ml_newName = document.getElementById('ml_newName'), ml_dupeWarn = document.getElementById('ml_dupeWarn');
+  const ml_compose = document.getElementById('ml_compose'), ml_pickChips = document.getElementById('ml_pickChips'), ml_qOpts = document.getElementById('ml_qOpts');
+  const ml_drawer = document.getElementById('ml_drawer'), ml_drawerBody = document.getElementById('ml_drawerBody');
+  let mlPicked = null;        // concept id the next question goes on, or '__new__'
+  let mlDrawerItem = null;    // concept shown in the side panel
+  let mlJustAdded = [];       // this session's questions, newest first
 
   function mlFillCourses(){
     const codes = Object.keys(KNOWN_COURSES);
@@ -4914,7 +4981,10 @@
     try{ localStorage.setItem(ML_KEY, JSON.stringify({ course, cls })); }catch(e){}
     ml_pickerCard.style.display = 'none';
     ml_workspace.style.display = 'block';
+    mlPicked = null; mlCloseDrawer();
+    if(!ml_qOpts.children.length) mlBuildOptionRows(ml_qOpts, 4);
     mlRender();
+    mlRenderJustAdded();
   }
   function mlRender(){
     const c = KNOWN_COURSES[mlCourse] || { code:mlCourse, classes:{} };
@@ -4955,30 +5025,11 @@
       ml_newTopic.innerHTML = topics.map(topicOption).join('');
     }
 
+    mlRenderChips(items, counts, pends);
+    document.getElementById('ml_composeTitle').textContent = `✍️ Add a question to ${c.code||mlCourse} ${mlClass}`;
     if(!items.length){
-      // An empty list used to be a dead end: the tour and the instructions
-      // both talk about "rows" that aren't on screen yet. Show a dummy one so
-      // the shape of the thing is obvious before the first real one exists.
-      ml_concepts.innerHTML = `
-        <div class="ml-empty" style="text-align:left;">
-          <b style="color:var(--ink);">Nothing is tagged to this lecture yet.</b>
-          <div style="margin-top:6px;">A <b>concept</b> is one study-guide page, and questions hang off it. Every concept in this lecture shows up here as a toggle you can open. One looks like this:</div>
-        </div>
-        <div class="ml-concept sample">
-          <div class="mlc-head">
-            <span class="mlc-chev">▶</span>
-            <span class="mlc-name">Biomarkers</span>
-            <span class="mlc-count">3 questions</span>
-            <span class="mlc-warn">+ description</span>
-            <span class="mlc-actions"><button class="mlc-add" type="button" disabled>+ Question</button></span>
-          </div>
-        </div>
-        <div class="ml-sample-key">
-          <div><b>Click the toggle</b> to open the study-guide page as a student sees it, plus the questions already on it.</div>
-          <div><b>+ Question</b> adds a question to that concept — the usual way in.</div>
-          <div><b>+ description</b> appears when students would see a blank page, and writing one takes a moment.</div>
-          <div style="color:var(--accent);font-weight:600;">Add your first real concept below to get started.</div>
-        </div>`;
+      ml_concepts.innerHTML = `<div class="ml-empty">No concepts in this lecture yet. Your first question creates one — pick <b>+ New concept</b> above.</div>`;
+      if(mlDrawerItem) mlCloseDrawer();
       return;
     }
     // Most-developed concepts first: the ones worth adding to are at the top.
@@ -4993,9 +5044,9 @@
       // that needs doing, and clicking that chip does it. A concept already
       // queued for deletion drops its actions -- adding to it is pointless.
       const count = `${n} question${n===1?'':'s'}` + (pend?` · +${pend} waiting`:'');
-      return `<div class="ml-concept${(n+pend)<=1?' thin':''}${(delPending||mergePending)?' doomed':''}" data-item="${esc2(it.id)}">
-        <div class="mlc-head" data-ml-open="${esc2(it.id)}" title="Click to see what's inside">
-          <span class="mlc-chev">▶</span>
+      return `<div class="ml-concept${(n+pend)<=1?' thin':''}${(delPending||mergePending)?' doomed':''}${mlDrawerItem===it.id?' open':''}" data-item="${esc2(it.id)}">
+        <div class="mlc-head" data-ml-open="${esc2(it.id)}" title="See the study-guide page">
+          <span class="mlc-chev">👀</span>
           <span class="mlc-name">${esc2(it.label)}</span>
           <span class="mlc-count">${count}</span>
           ${delPending ? `<span class="mlc-danger">🗑 deletion requested</span>` : ''}
@@ -5003,26 +5054,85 @@
           ${!delPending && needsDesc && !descPending ? `<span class="mlc-warn" data-ml-desc="${esc2(it.id)}" title="Write the description students read">+ description</span>` : ''}
           ${!delPending && descPending ? `<span class="mlc-pending">📝 description waiting</span>` : ''}
           <span class="mlc-actions">
-            ${(delPending||mergePending) ? '' : `<button class="mlc-add" data-ml-add="${esc2(it.id)}">+ Question</button>`}
+            ${(delPending||mergePending) ? '' : `<button class="mlc-add" data-ml-add="${esc2(it.id)}" title="Write a question on this concept">✍️ Question</button>`}
           </span>
         </div>
-        <div class="mlc-form" data-ml-descform="${esc2(it.id)}" style="display:none;"></div>
-        <div class="mlc-detail" data-ml-detail="${esc2(it.id)}" style="display:none;"></div>
-        <div class="mlc-form" data-ml-form="${esc2(it.id)}" style="display:none;"></div>
       </div>`;
     }).join('');
+    // Keep the side panel in step with the queue (a description just
+    // written, a merge just requested...).
+    if(mlDrawerItem) mlOpenDetail(mlDrawerItem);
   }
+  // ---- step 1 of the form: which concept ------------------------------
+  function mlRenderChips(items, counts, pends){
+    const usable = items.map((it,i)=>({ it, n:counts[i]+pends[i] })).filter(({it})=> !mlPendingDeletion(it.id) && !mlPendingMerge(it.id));
+    if(mlPicked && mlPicked!=='__new__' && !usable.some(u=>u.it.id===mlPicked)) mlPicked = null;
+    if(!mlPicked && usable.length===1) mlPicked = usable[0].it.id;
+    if(!mlPicked && !usable.length) mlPicked = '__new__';
+    usable.sort((a,b)=> b.n - a.n || a.it.label.localeCompare(b.it.label));
+    ml_pickChips.innerHTML = usable.map(({it,n})=>
+      `<button type="button" class="ml-chip${mlPicked===it.id?' on':''}" data-ml-pick="${esc2(it.id)}">${esc2(it.label)}<small>${n}</small></button>`).join('')
+      + `<button type="button" class="ml-chip new${mlPicked==='__new__'?' on':''}" data-ml-pick="__new__">+ New concept</button>`;
+    document.getElementById('ml_newConceptBox').style.display = mlPicked==='__new__' ? 'block' : 'none';
+  }
+  function mlPick(id){
+    mlPicked = id;
+    ml_pickChips.querySelectorAll('[data-ml-pick]').forEach(b=> b.classList.toggle('on', b.dataset.mlPick===id));
+    document.getElementById('ml_newConceptBox').style.display = id==='__new__' ? 'block' : 'none';
+    if(id==='__new__') ml_newName.focus();
+  }
+  ml_pickChips.addEventListener('click', e=>{ const b = e.target.closest('[data-ml-pick]'); if(b) mlPick(b.dataset.mlPick); });
+  function mlResetCompose(){
+    document.getElementById('ml_qPrompt').value = '';
+    document.getElementById('ml_qExplain').value = '';
+    mlBuildOptionRows(ml_qOpts, 4);
+  }
+  function mlRenderJustAdded(){
+    const el = document.getElementById('ml_justAdded');
+    const mine = mlJustAdded.filter(j=> j.course===mlCourse && j.cls===mlClass).slice(0, 6);
+    el.innerHTML = mine.length ? `<div class="ml-added"><div class="ml-added-h">Added this session — waiting in the Team queue for review</div>${mine.map(j=>`<div>✓ <b>${esc2(j.prompt.slice(0,80))}${j.prompt.length>80?'…':''}</b> <span>→ ${esc2(j.concept)}</span></div>`).join('')}</div>` : '';
+  }
+  document.getElementById('ml_qAddOpt').addEventListener('click', ()=>{
+    if(ml_qOpts.children.length>=6){ toast('6 options is the maximum'); return; }
+    mlAddOptionRow(ml_qOpts, false);
+  });
+  document.getElementById('ml_qSaveBtn').addEventListener('click', ()=>{
+    if(!requireContributorIdentity()) return;
+    if(!mlPicked){ toast('Step 1: pick what the question is about'); ml_pickChips.scrollIntoView({ block:'center', behavior:'smooth' }); return; }
+    // Check the question itself before creating anything, so a half-filled
+    // form never leaves an orphan concept behind in the queue.
+    const check = mlReadQuestion(ml_compose);
+    if(check.error){ toast(check.error); return; }
+    let itemId = mlPicked;
+    if(itemId==='__new__'){
+      itemId = mlCreateConcept(ml_newName.value.trim(), ml_newTopic.value);
+      if(!itemId) return;
+    }
+    if(!mlSaveQuestion(itemId, ml_compose)) return;
+    const known = KNOWN_ITEMS.find(it=>it.id===itemId) || {};
+    mlJustAdded.unshift({ prompt: check.prompt, concept: known.label || itemId, course: mlCourse, cls: mlClass });
+    mlPicked = itemId;
+    mlResetCompose();
+    mlRender();
+    mlRenderJustAdded();
+    document.getElementById('ml_qPrompt').focus();
+  });
   // --- "See what's inside": the concept's study-guide content plus every
   //     question on it, including ones still waiting for review ---
-  function mlOpenDetail(itemId){
-    const el = ml_concepts.querySelector(`[data-ml-detail="${CSS.escape(itemId)}"]`);
-    if(!el) return;
-    const card = el.closest('.ml-concept');
-    if(el.style.display==='block'){ el.style.display='none'; el.innerHTML=''; if(card) card.classList.remove('open'); return; }
-    ml_concepts.querySelectorAll('.mlc-detail').forEach(d=>{ d.style.display='none'; d.innerHTML=''; });
+  function mlCloseDrawer(){
+    mlDrawerItem = null;
+    ml_drawer.classList.remove('open'); ml_drawer.setAttribute('aria-hidden','true');
+    ml_drawerBody.innerHTML = '';
     ml_concepts.querySelectorAll('.ml-concept.open').forEach(c=>c.classList.remove('open'));
-    if(card) card.classList.add('open');
+  }
+  function mlOpenDetail(itemId){
+    const el = ml_drawerBody;
+    // Re-rendering the same concept keeps whatever form is open in it.
+    const keepDesc = mlDrawerItem===itemId && el.querySelector('[data-ml-descform]')?.style.display==='block';
+    mlDrawerItem = itemId;
+    ml_concepts.querySelectorAll('.ml-concept').forEach(c=> c.classList.toggle('open', c.dataset.item===itemId));
     const known = KNOWN_ITEMS.find(it=>it.id===itemId) || {};
+    document.getElementById('ml_drawerTitle').textContent = known.label || itemId;
     // A concept added this session isn't in game-data.js yet -- fall back to
     // whatever is sitting in the queue for it.
     const live = mlLiveItem(itemId) || mlPendingConcepts().find(d=>d.itemId===itemId) || {};
@@ -5087,8 +5197,10 @@
         : `<button type="button" class="link-btn danger-link" data-ml-del="${esc2(itemId)}">🗑 Delete this concept</button>`}
     </div>
     <div class="mlc-mergebox" data-ml-mergebox="${esc2(itemId)}" style="display:none;"></div>`;
-    el.innerHTML = html;
-    el.style.display = 'block';
+    if(keepDesc) return; // don't wipe a description someone is typing
+    el.innerHTML = `<div class="mlc-form" data-ml-descform="${esc2(itemId)}" style="display:none;"></div>` + html
+      + `<div class="btn-row" style="margin-top:14px;">${(mlPendingDeletion(itemId)||mlPendingMerge(itemId)) ? '' : `<button type="button" class="primary" data-ml-add="${esc2(itemId)}">✍️ Write a question on this concept</button>`}</div>`;
+    ml_drawer.classList.add('open'); ml_drawer.setAttribute('aria-hidden','false');
   }
   // --- deleting a concept ------------------------------------------------
   // Same trust model as everywhere else: this only ever queues a request, and
@@ -5148,7 +5260,7 @@
     return out;
   }
   function mlOpenMergeForm(itemId){
-    const box = ml_concepts.querySelector(`[data-ml-mergebox="${CSS.escape(itemId)}"]`);
+    const box = ml_drawerBody.querySelector(`[data-ml-mergebox="${CSS.escape(itemId)}"]`);
     if(!box) return;
     if(box.style.display === 'block'){ box.style.display = 'none'; box.innerHTML = ''; return; }
     openMergeFormInto(box, itemId, ()=> mlRender());
@@ -5207,13 +5319,11 @@
   // just the description swapped in, so nothing else about it is disturbed
   // and its existing questions are carried through untouched.
   function mlOpenDescForm(itemId){
-    const box = ml_concepts.querySelector(`[data-ml-descform="${CSS.escape(itemId)}"]`);
+    if(mlDrawerItem!==itemId) mlOpenDetail(itemId);
+    const box = ml_drawerBody.querySelector(`[data-ml-descform="${CSS.escape(itemId)}"]`);
     if(!box) return;
-    const dcard = box.closest('.ml-concept');
-    if(box.style.display==='block'){ box.style.display='none'; box.innerHTML=''; if(dcard) dcard.classList.remove('busy'); return; }
-    ml_concepts.querySelectorAll('[data-ml-descform]').forEach(b=>{ b.style.display='none'; b.innerHTML=''; });
-    ml_concepts.querySelectorAll('.ml-concept.busy').forEach(c=>c.classList.remove('busy'));
-    if(dcard) dcard.classList.add('busy');
+    const dcard = null;
+    if(box.style.display==='block'){ box.style.display='none'; box.innerHTML=''; return; }
     const known = KNOWN_ITEMS.find(it=>it.id===itemId) || {};
     const live = mlLiveItem(itemId);
     box.innerHTML = `
@@ -5252,16 +5362,6 @@
     box.style.display='none'; box.innerHTML='';
     mlRender();
   }
-  // --- the small question form that opens inside a concept card ---
-  function mlQuestionFormHtml(itemId){
-    return `
-      <label class="field"><span class="fl-label">Question</span><textarea data-mlf="prompt" rows="2" placeholder="e.g. Which enzyme commits acetyl-CoA to the Krebs cycle?"></textarea></label>
-      <label class="field"><span class="fl-label">Answer options</span><span class="fl-help">Tick the correct one.</span><div data-mlf="opts"></div></label>
-      <button data-mlf="addopt">+ Add option</button>
-      <label class="field" style="margin-top:10px;"><span class="fl-label">Why it's correct</span><span class="fl-help">Optional — shown to students after they answer.</span><textarea data-mlf="explain" rows="2"></textarea></label>
-      <label class="field" style="max-width:200px;"><span class="fl-label">Difficulty</span><select data-mlf="difficulty"><option value="easy">🟢 Easy</option><option value="medium" selected>🟡 Medium</option><option value="hard">🔴 Hard</option></select></label>
-      <div class="btn-row"><button class="primary" data-mlf="save">+ Add to queue</button><button data-mlf="cancel">Cancel</button></div>`;
-  }
   function mlBuildOptionRows(box, n){
     box.innerHTML = '';
     for(let i=0;i<n;i++) mlAddOptionRow(box, i===0);
@@ -5278,42 +5378,27 @@
     });
     box.appendChild(row);
   }
-  function mlOpenForm(itemId){
-    const form = ml_concepts.querySelector(`[data-ml-form="${CSS.escape(itemId)}"]`);
-    if(!form) return;
-    const card = form.closest('.ml-concept');
-    if(form.style.display==='block'){ form.style.display='none'; if(card) card.classList.remove('busy'); return; }
-    ml_concepts.querySelectorAll('.mlc-form').forEach(f=>{ f.style.display='none'; f.innerHTML=''; });
-    ml_concepts.querySelectorAll('.ml-concept.busy').forEach(c=>c.classList.remove('busy'));
-    if(card) card.classList.add('busy');
-    form.innerHTML = mlQuestionFormHtml(itemId);
-    form.style.display = 'block';
-    const box = form.querySelector('[data-mlf="opts"]');
-    box.dataset.grp = itemId;
-    mlBuildOptionRows(box, 4);
-    form.querySelector('[data-mlf="addopt"]').addEventListener('click', ()=>{
-      if(box.children.length>=6){ toast('6 options is the maximum'); return; }
-      mlAddOptionRow(box, false);
-    });
-    form.querySelector('[data-mlf="cancel"]').addEventListener('click', ()=>{ form.style.display='none'; form.innerHTML=''; if(card) card.classList.remove('busy'); });
-    form.querySelector('[data-mlf="save"]').addEventListener('click', ()=> mlSaveQuestion(itemId, form));
-    form.querySelector('[data-mlf="prompt"]').focus();
-  }
-  function mlSaveQuestion(itemId, form){
-    if(!requireContributorIdentity()) return;
+  function mlReadQuestion(form){
     const prompt = form.querySelector('[data-mlf="prompt"]').value.trim();
-    if(!prompt){ toast('Write the question first'); return; }
+    if(!prompt) return { error:'Step 2: write the question first' };
     const rows = [...form.querySelectorAll('.mlq-opt')];
     const options = rows.map(r=>r.querySelector('input[type=text]').value.trim());
     const correctIndex = Math.max(0, rows.findIndex(r=>r.querySelector('input[type=radio]').checked));
-    if(options.filter(Boolean).length < 2){ toast('Fill in at least two answer options'); return; }
-    if(!options[correctIndex]){ toast('The option you ticked as correct is empty'); return; }
+    if(options.filter(Boolean).length < 2) return { error:'Step 3: fill in at least two answer options' };
+    if(!options[correctIndex]) return { error:'Step 3: the option you ticked as correct is empty' };
     // Drop blanks, keeping the ticked one pointing at the same answer.
     const correctText = options[correctIndex];
     const kept = options.filter(Boolean);
+    return { prompt, options:kept, correctIndex: kept.indexOf(correctText) };
+  }
+  function mlSaveQuestion(itemId, form){
+    if(!requireContributorIdentity()) return false;
+    const r = mlReadQuestion(form);
+    if(r.error){ toast(r.error); return false; }
+    const { prompt } = r;
     const known = KNOWN_ITEMS.find(it=>it.id===itemId) || {};
     const o = {
-      prompt, options:kept, correctIndex: kept.indexOf(correctText),
+      prompt, options:r.options, correctIndex: r.correctIndex,
       explanation: form.querySelector('[data-mlf="explain"]').value.trim(),
       difficulty: form.querySelector('[data-mlf="difficulty"]').value,
       hashtags: [], theme: known.theme, topic: known.topic, itemId,
@@ -5324,8 +5409,8 @@
     };
     pushToQueue({ type:'question', title:prompt.slice(0,50), code:questionCodeString(o),
       note:`🎓 ${courseDisplayString(mlCourse, mlClass)} · ${esc2(known.label||itemId)}`, data:o });
-    toast('Added to the queue');
-    form.style.display='none'; form.innerHTML='';
+    toast('Question added to the queue');
+    return true;
   }
   // --- new concept, with a near-duplicate check against the whole course ---
   function mlCheckDupe(){
@@ -5344,12 +5429,11 @@
       hits.map(h=>`${esc2(h.it.label)}${inLecture.has(h.it.id) ? ' <span style="color:#1c7a45;">(already in this lecture)</span>' : ` <span style="color:var(--muted);">(${esc2(courseDisplayString(h.it.course, h.it.class)||'no lecture')})</span>`}`).join('<br>') +
       `</div>`;
   }
-  function mlAddConcept(){
-    if(!requireContributorIdentity()) return;
-    const label = ml_newName.value.trim();
-    if(!label){ toast('Give the concept a name'); ml_newName.focus(); return; }
-    const topicId = ml_newTopic.value;
-    if(!topicId){ toast('Pick what to group it under'); return; }
+  // Returns the new concept's id, or null (with a toast) if something's missing.
+  function mlCreateConcept(label, topicId){
+    if(!requireContributorIdentity()) return null;
+    if(!label){ toast('Step 1: give the new concept a name'); ml_newName.focus(); return null; }
+    if(!topicId){ toast('Step 1: pick what to group the new concept under'); return null; }
     const theme = (KNOWN_TOPICS[topicId]||{}).theme || (KNOWN_THEMES[0]||{}).id;
     const itemId = slugify(label) + '_' + randSuffix();
     const o = {
@@ -5361,9 +5445,8 @@
     KNOWN_ITEMS.push({ id:itemId, theme, topic:topicId, label, course:mlCourse, class:mlClass, relatedCourse:'' });
     pushToQueue({ type:'item', title:label, code:itemCodeString(o),
       note:`🎓 ${courseDisplayString(mlCourse, mlClass)} · new concept`, data:o });
-    toast('Concept added to the queue — you can add questions to it now');
     ml_newName.value = ''; ml_dupeWarn.innerHTML = '';
-    mlRender();
+    return itemId;
   }
   ml_course.addEventListener('change', mlFillLectures);
   document.getElementById('ml_openBtn').addEventListener('click', ()=>{
@@ -5372,11 +5455,19 @@
   });
   document.getElementById('ml_changeBtn').addEventListener('click', ()=>{
     ml_workspace.style.display = 'none'; ml_pickerCard.style.display = 'block';
+    mlCloseDrawer();
     mlFillCourses();
   });
-  ml_concepts.addEventListener('click', e=>{
+  function mlHandleClick(e){
     const add = e.target.closest('[data-ml-add]');
-    if(add){ mlOpenForm(add.dataset.mlAdd); return; }
+    if(add){
+      // "Write a question on this" = pick it in step 1 and jump to the form.
+      mlPick(add.dataset.mlAdd);
+      if(e.currentTarget===ml_drawer) mlCloseDrawer();
+      ml_compose.scrollIntoView({ block:'start', behavior:'smooth' });
+      setTimeout(()=> document.getElementById('ml_qPrompt').focus(), 250);
+      return;
+    }
     const desc = e.target.closest('[data-ml-desc]');
     if(desc){ mlOpenDescForm(desc.dataset.mlDesc); return; }
     const del = e.target.closest('[data-ml-del]');
@@ -5396,10 +5487,14 @@
       return;
     }
     const open = e.target.closest('[data-ml-open]');
-    if(open){ mlOpenDetail(open.dataset.mlOpen); return; }
-  });
+    if(open){ if(mlDrawerItem===open.dataset.mlOpen) mlCloseDrawer(); else mlOpenDetail(open.dataset.mlOpen); return; }
+  }
+  ml_concepts.addEventListener('click', mlHandleClick);
+  ml_drawer.addEventListener('click', e=>{ if(e.target===ml_drawer){ mlCloseDrawer(); return; } mlHandleClick(e); });
+  document.getElementById('ml_drawerClose').addEventListener('click', mlCloseDrawer);
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape' && mlDrawerItem) mlCloseDrawer(); });
   ml_newName.addEventListener('input', mlCheckDupe);
-  document.getElementById('ml_newBtn').addEventListener('click', mlAddConcept);
+
   function mlRefreshIfOpen(){
     const sec = document.querySelector('section[data-section="mylecture"]');
     if(sec && sec.classList.contains('active') && ml_workspace.style.display !== 'none') mlRender();
@@ -5796,9 +5891,9 @@ const themesDecl  = text.indexOf('const THEMES = {');
         { tab:'lectures', sel:'#lecturesList', title:'Is your lecture listed?', caption:'Your lecture has to exist before you can add anything to it. Pick your course in the {{Course}} box at the top of this page, and this list shows every lecture it has with the learning outcomes each one covers. Find yours before going any further.', fallbackSel:'#lecAdd_course' },
         { tab:'lectures', sel:'#lecOneCard', title:'Adding a lecture', caption:'Not listed? Add it here: the number (L14), the name, and the learning outcomes one per line, then {{+ Add to queue}}. The note under the number tells you whether it is new or will update an existing lecture. A whole list from a spreadsheet goes in the paste box underneath.' },
         { tab:'mylecture', sel:'#ml_pickerCard', title:'Pick your lecture', caption:'Choose your course and lecture, then {{Open this lecture →}}. Everything after that shows only your lecture\'s concepts.', fallbackSel:'#ml_changeBtn' },
-        { tab:'mylecture', sel:'.ml-newbox', title:'Only if nothing fits', caption:'A genuinely new concept goes in here with {{+ Add this concept}}, and the name is checked against what already exists so you don\'t end up with two of the same thing. Write its description straight away — students see a blank page otherwise.', fallbackSel:'#ml_pickerCard' },
-        { tab:'mylecture', sel:'#ml_concepts', title:'Add your question to a concept', caption:'Each toggle is one concept from your lecture, showing how many questions it already has. Hit {{+ Question}} on the concept you want to add to, type the prompt and the options, mark the right one, then {{+ Add to queue}}. Reusing a concept is what gives students something to revise from. If your lecture has no concepts or questions yet, a worked example of a toggle is shown so you can see what to expect.', fallbackSel:'#ml_pickerCard' },
-        { tab:'mylecture', sel:'#ml_concepts', title:'Check what a student sees', caption:'Open a toggle to see the study-guide page as students meet it in the game. A missing description shows as a gap with a {{Write it now}} link, and the questions already on that concept are listed underneath.', fallbackSel:'#ml_pickerCard' },
+        { tab:'mylecture', sel:'#ml_pickChips', title:'1 · What is it about?', caption:'Each chip is a concept from your lecture — one study-guide page — with how many questions it already has. Click the one your question is about. Only if none fits, pick {{+ New concept}} and name it; the name is checked against what already exists.', fallbackSel:'#ml_pickerCard' },
+        { tab:'mylecture', sel:'#ml_compose', title:'2 · Write it and add it', caption:'Type the question, fill the options, tick the right one, and hit {{+ Add to queue}}. The form stays open with the same concept picked, so the next question is straight away. What you have added this session is listed underneath.', fallbackSel:'#ml_pickerCard' },
+        { tab:'mylecture', sel:'#ml_concepts', title:'Check what a student sees', caption:'Below the form is every concept in your lecture. Click one and a side panel opens with the study-guide page as students see it — a missing description shows as a gap with {{Write it now}} — plus merge and delete.' },
         { tab:'add', sel:'#addChips', title:'Anything outside your own lecture', caption:'[[Add anything]] has the full forms — {{❓ Question}}, {{📄 Study guide item}}, {{🗂️ Topic (Module)}}, {{📚 Course}}, {{🧭 Learning outcomes}}, {{🎲 Fun fact question}} — each with a live preview of how it looks in the game.' },
         { tab:'queue', sel:'#batchListContent', title:'Where it lands', caption:'Everything you add waits in [[Team queue]], live, for an admin to merge it. Open a row for the full detail and fix your own before it goes in. Players\' in-game reports are grouped under [[Reports]] instead.' },
         { tab:'start', sel:'[data-info="overview"]', title:'That\'s the whole loop', caption:'Every {{ⓘ}} opens a short note about that part of the tool. Reopen either tour any time from {{🎬 Take the tour}} at the top of the sidebar.', final:true },
