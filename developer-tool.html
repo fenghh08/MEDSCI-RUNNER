@@ -226,6 +226,22 @@
   .sim-badge.core{ background:var(--danger-soft); color:var(--danger); border-color:#f0b9c5; }
   /* Still in the Team queue: shown so it doesn't look lost, dashed so it
      never reads as already live in the game. */
+  .sim-tools{ display:flex; gap:8px; align-items:center; }
+  .sim-tools .sim-search{ flex:1; margin:0; }
+  #simMergeToggle.on{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  .sim-mergebar{ position:sticky; top:8px; z-index:5; margin:10px 0; padding:12px 14px; border-radius:11px; background:#f3f0ff; border:1px solid #cfc3f7; font-size:13px; line-height:1.5; box-shadow:0 4px 14px rgba(60,40,140,.08); }
+  .sim-mb-row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .sim-mb-row + .sim-mb-row, .sim-mb-what + .sim-mb-row{ margin-top:8px; }
+  .sim-mb-row select{ width:auto; max-width:380px; }
+  .sim-mb-row input{ flex:1; min-width:200px; }
+  .sim-mb-what{ margin-top:6px; color:var(--ink); }
+  .sim-mb-sel{ display:block; margin-top:4px; color:var(--muted); }
+  .sim-card{ position:relative; }
+  .sim-card.pickable{ cursor:copy; }
+  .sim-card.unpickable{ opacity:.45; cursor:not-allowed; }
+  .sim-card.picked{ outline:2px solid #6d4fd6; outline-offset:1px; background:#f7f4ff; }
+  .sim-pick{ position:absolute; top:8px; right:8px; width:20px; height:20px; border-radius:6px; border:2px solid #b9acee; background:#fff; color:#fff; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .sim-card.picked .sim-pick{ background:#6d4fd6; border-color:#6d4fd6; }
   .sim-card.pending{ background:#fffdf6; border-style:dashed; border-color:#e8d49a; border-left-style:solid; border-left-color:#d9a92e; }
   .sim-badge.pending{ background:#fff7e6; color:#7a5a12; border-color:#f0d9a8; }
   .sim-back{ margin-bottom:10px; }
@@ -1033,7 +1049,11 @@
           <div class="sim-label">Lecture</div><div class="sim-tabs" id="simLectureTabs"></div>
           <div id="simTopicRow"><div class="sim-label" id="simTopicLabel">Topic (Module)</div><div class="sim-tabs" id="simTopicTabs"></div></div>
         </div>
-        <input type="text" id="simSearch" class="sim-search" placeholder="🔍 Search this list by name, description, or #tag…">
+        <div class="sim-tools">
+          <input type="text" id="simSearch" class="sim-search" placeholder="🔍 Search this list by name, description, or #tag…">
+          <button type="button" id="simMergeToggle" title="Tick items that are really the same thing and fold them into one">⤵ Merge items</button>
+        </div>
+        <div class="sim-mergebar" id="simMergeBar" style="display:none;"></div>
         <div class="sim-summary" id="simSummary"></div>
         <div class="sim-grid" id="simGrid"></div>
         <div id="simDetail" style="display:none;"></div>
@@ -3920,10 +3940,15 @@
     const gaps = pending ? [] : simItemGaps(itemId, item, active);
     const pq = pending ? 0 : simPendingQCount(itemId);
     const meta = RD.TOPICS[topicId] || {};
+    const mergeQ = pending ? null : mlPendingMerge(itemId), delQ = pending ? false : mlPendingDeletion(itemId);
     const badges = (pending ? [`<span class="sim-badge pending">⏳ Waiting for review</span>`] : [])
+      .concat(mergeQ ? [`<span class="sim-badge pending">⤵ merging into ${esc2(mergeQ.data.toLabel||'')}</span>`] : [])
+      .concat(delQ ? [`<span class="sim-badge pending">🗑 deletion requested</span>`] : [])
       .concat(pq ? [`<span class="sim-badge pending">⏳ ${pq} question${pq===1?'':'s'} waiting</span>`] : [])
       .concat(gaps.map(g=>`<span class="sim-badge${g.core?' core':''}">⚠ ${g.badge}</span>`));
-    return `<button type="button" class="sim-card${pending?' pending':''}${gaps.length?' has-gaps':''}" style="--tc:${esc2(meta.color||'#cfd4e0')}" data-sim-open="${esc2(themeId)}::${esc2(topicId)}::${esc2(itemId)}"${pending?' data-sim-pending="1"':''}>
+    const pickable = simMerge.on && !pending && !mergeQ && !delQ, picked = simMerge.on && simMerge.sel.some(x=> x.itemId===itemId);
+    return `<button type="button" class="sim-card${pending?' pending':''}${gaps.length?' has-gaps':''}${simMerge.on ? (pickable ? ' pickable' : ' unpickable') : ''}${picked?' picked':''}" style="--tc:${esc2(meta.color||'#cfd4e0')}" data-sim-open="${esc2(themeId)}::${esc2(topicId)}::${esc2(itemId)}"${pending?' data-sim-pending="1"':''}${simMerge.on && !pickable ? ' data-sim-nopick="1"' : ''}>
+      ${simMerge.on ? `<span class="sim-pick">${picked ? '✓' : ''}</span>` : ''}
       <span class="sim-card-name">${esc2(item.label)}</span>
       <span class="sim-card-hint">${esc2(subtitle || (item.images && item.images.length ? '🖼 image link' : 'tap for details'))}</span>
       ${badges.length ? `<span class="sim-badges">${badges.join('')}</span>` : ''}
@@ -4053,10 +4078,69 @@
     simEls.grid.innerHTML = cards || `<div class="struct-empty" style="margin:0;grid-column:1/-1;">${query ? '— nothing matches —' : (simEls.onlyWarn.checked && total ? '— no warnings here —' : '— no items yet —')}</div>`;
     simEls.grid.querySelectorAll('[data-sim-open]').forEach(btn=> btn.addEventListener('click', ()=>{
       const [themeId, topicId, itemId] = btn.dataset.simOpen.split('::');
+      if(simMerge.on){
+        if(btn.dataset.simNopick){ toast(btn.dataset.simPending ? 'Still waiting for review — it can be merged once an admin adds it' : 'Already on its way out (merge or deletion requested)'); return; }
+        const i = simMerge.sel.findIndex(x=> x.itemId===itemId);
+        if(i >= 0) simMerge.sel.splice(i, 1);
+        else {
+          if(simMerge.sel.length && simMerge.sel[0].themeId !== themeId){ toast('Only items in the same course can be merged'); return; }
+          simMerge.sel.push({ themeId, topicId, itemId });
+        }
+        renderGuideSim();
+        return;
+      }
       Object.assign(simState, { theme:themeId, topic:topicId, itemId });
       renderGuideSim();
     }));
+    renderSimMergeBar();
   }
+  // ---- merging from the study guide ------------------------------------------
+  // Tick the cards that are really one idea, pick which one survives, and each
+  // of the others is queued as a merge-item into it (same request as My
+  // lecture and the item editor). Questions move; descriptions don't.
+  const simMerge = { on:false, sel:[] };
+  function simLiveItem(id){ return mlLiveItem(id); }
+  function renderSimMergeBar(){
+    const bar = document.getElementById('simMergeBar');
+    document.getElementById('simMergeToggle').classList.toggle('on', simMerge.on);
+    document.getElementById('simMergeToggle').textContent = simMerge.on ? '✕ Stop merging' : '⤵ Merge items';
+    if(!simMerge.on){ bar.style.display = 'none'; return; }
+    bar.style.display = 'block';
+    simMerge.sel = simMerge.sel.filter(x=> simLiveItem(x.itemId));
+    const sel = simMerge.sel.map(x=> ({ ...x, item: simLiveItem(x.itemId) }));
+    if(sel.length < 2){
+      bar.innerHTML = `<b>⤵ Merge items.</b> Tick the cards that are really the same thing — at least two. ${sel.length ? `<span class="sim-mb-sel">Selected: ${sel.map(x=>esc2(x.item.label)).join(', ')}</span>` : ''}`;
+      return;
+    }
+    // The most-developed one is usually the keeper.
+    const byQ = sel.slice().sort((a,b)=> (b.item.questions||[]).length - (a.item.questions||[]).length);
+    const keepId = sel.some(x=> x.itemId===simMerge.keep) ? simMerge.keep : byQ[0].itemId;
+    simMerge.keep = keepId;
+    const others = sel.filter(x=> x.itemId!==keepId), moving = others.reduce((n,x)=> n + (x.item.questions||[]).length, 0);
+    bar.innerHTML = `
+      <div class="sim-mb-row"><b>${sel.length} selected.</b>
+        <label>Keep <select id="simMergeKeep">${sel.map(x=>`<option value="${esc2(x.itemId)}"${x.itemId===keepId?' selected':''}>${esc2(x.item.label)} — ${(x.item.questions||[]).length} question${(x.item.questions||[]).length===1?'':'s'}</option>`).join('')}</select></label>
+      </div>
+      <div class="sim-mb-what">${moving} question${moving===1?'':'s'} from <b>${others.map(x=>esc2(x.item.label)).join('</b>, <b>')}</b> move onto <b>${esc2(sel.find(x=>x.itemId===keepId).item.label)}</b>, and ${others.length===1?'that item is':'those items are'} removed. Their descriptions aren't carried over.</div>
+      <div class="sim-mb-row"><input type="text" id="simMergeReason" placeholder="Why (optional) — e.g. same idea split across several items"><button type="button" class="primary" id="simMergeGo">⤵ Merge into it</button><button type="button" class="subtle" id="simMergeClear">Clear selection</button></div>`;
+    document.getElementById('simMergeKeep').addEventListener('change', e=>{ simMerge.keep = e.target.value; renderSimMergeBar(); });
+    document.getElementById('simMergeClear').addEventListener('click', ()=>{ simMerge.sel = []; renderGuideSim(); });
+    document.getElementById('simMergeGo').addEventListener('click', ()=>{
+      if(!requireContributorIdentity()) return;
+      const keepItem = sel.find(x=>x.itemId===keepId).item;
+      if(!confirm(`Fold ${others.length} item${others.length===1?'':'s'} into "${keepItem.label}"? ${moving} question${moving===1?'':'s'} move across and the others are removed.\n\nThis is a request — an admin reviews it before anything changes.`)) return;
+      const reason = document.getElementById('simMergeReason').value.trim();
+      let done = 0; others.forEach(x=>{ if(mlQueueMerge(x.itemId, keepId, reason, true)) done++; });
+      toast(`${done} merge${done===1?'':'s'} added to the queue`);
+      simMerge.sel = []; simMerge.keep = null;
+      renderGuideSim();
+    });
+  }
+  document.getElementById('simMergeToggle').addEventListener('click', ()=>{
+    simMerge.on = !simMerge.on; simMerge.sel = []; simMerge.keep = null;
+    if(simMerge.on) simState.itemId = null;
+    renderGuideSim();
+  });
   function renderSimDetail(themeId, topicId, itemId, item, active, pending){
     const meta = RD.TOPICS[topicId] || { label:topicId, color:'#6b7385' };
     // A queued concept isn't in the game yet, so flagging what it's "missing"
@@ -4091,9 +4175,15 @@
         ${qCount ? `<div class="sim-quiz">🧠 Quiz (${qCount} question${qCount===1?'':'s'})</div>` : missing('questions', 'No questions yet — the Quiz button won\'t appear in the game for this item')}
         ${pending
           ? `<p class="card-sub" style="margin:10px 0 0;">It can be edited, and questions added to it, once an admin merges it.</p>`
-          : `<div class="btn-row" style="margin-top:10px;"><button type="button" class="struct-edit-link" data-edit-item="${esc2(itemId)}">✏️ Edit item</button><button type="button" class="struct-edit-link" data-add-question="${esc2(itemId)}">➕ Add a question</button></div>`}
+          : `<div class="btn-row" style="margin-top:10px;"><button type="button" class="struct-edit-link" data-edit-item="${esc2(itemId)}">✏️ Edit item</button><button type="button" class="struct-edit-link" data-add-question="${esc2(itemId)}">➕ Add a question</button>${mlPendingMerge(itemId) || mlPendingDeletion(itemId) ? '' : `<button type="button" class="struct-edit-link" id="simDetailMerge">⤵ Merge into another item</button>`}</div><div class="mlc-mergebox" id="simDetailMergeBox" style="display:none;"></div>`}
       </div>`;
     simEls.detail.querySelector('[data-sim-back]').addEventListener('click', ()=>{ simState.itemId = null; renderGuideSim(); });
+    const dm = document.getElementById('simDetailMerge');
+    if(dm) dm.addEventListener('click', ()=>{
+      const box = document.getElementById('simDetailMergeBox');
+      if(box.style.display === 'block'){ box.style.display = 'none'; box.innerHTML = ''; return; }
+      openMergeFormInto(box, itemId, ()=> renderGuideSim());
+    });
     wireEditButtons(simEls.detail);
   }
   simEls.courseTabs.addEventListener('click', e=>{
@@ -5758,7 +5848,7 @@
       if(mlQueueMerge(itemId, toId, reason)){ box.style.display='none'; box.innerHTML=''; if(after) after(); }
     });
   }
-  function mlQueueMerge(fromItemId, toItemId, reason){
+  function mlQueueMerge(fromItemId, toItemId, reason, skipConfirm){
     if(!requireContributorIdentity()) return false;
     const from = KNOWN_ITEMS.find(it=>it.id===fromItemId) || {};
     const to = KNOWN_ITEMS.find(it=>it.id===toItemId) || {};
@@ -5766,7 +5856,7 @@
     if(!liveFrom || !liveTo){ toast('One of those concepts is no longer in the game data — reload and try again'); return false; }
     const moved = (liveFrom.questions || []).length;
     const fromLabel = liveFrom.label || fromItemId, toLabel = liveTo.label || toItemId;
-    if(!confirm(`Move ${moved} question${moved===1?'':'s'} from "${fromLabel}" onto "${toLabel}", then remove "${fromLabel}"?\n\nThis is a request — an admin reviews it before anything changes.`)) return false;
+    if(!skipConfirm && !confirm(`Move ${moved} question${moved===1?'':'s'} from "${fromLabel}" onto "${toLabel}", then remove "${fromLabel}"?\n\nThis is a request — an admin reviews it before anything changes.`)) return false;
     pushToQueue({
       type:'merge-item', title:`${fromLabel} → ${toLabel}`,
       code:`// MERGE THEMES.${from.theme}.topics.${from.topic}.items.${fromItemId} INTO THEMES.${to.theme}.topics.${to.topic}.items.${toItemId}\n// (moves ${moved} question${moved===1?'':'s'} across, then removes ${fromItemId})`,
@@ -6795,6 +6885,12 @@ const themesDecl  = text.indexOf('const THEMES = {');
         <li>In the side panel, press {{⤵ Merge into another concept}}.</li>
         <li>Under <b>Keep this concept</b>, pick the one that should survive, then {{+ Add to queue}}.</li></ol>
         <p>Its questions move across and the empty one is removed when an admin merges. Only the questions move — the kept concept keeps its own description. Also available from [[Add anything]] → {{📄 Study guide item}} → edit mode.</p>` },
+      { q:'How do I merge several items at once?', go:['guidesim','👁 Study guide preview'], a:`
+        <ol><li>Open [[Study guide preview]] and go to the course, lecture or topic where the duplicates are.</li>
+        <li>Press {{⤵ Merge items}} — every card gets a tick box.</li>
+        <li>Tick the items that are really the same thing (two or more).</li>
+        <li>In the purple bar, choose which one to <b>Keep</b> (the one with the most questions is picked for you), then {{⤵ Merge into it}}.</li></ol>
+        <p>The others' questions move onto the one you keep and they're removed once an admin merges. You can also open any single item and press {{⤵ Merge into another item}}.</p>` },
       { q:'How do I delete a concept?', go:['mylecture','🎓 My lecture'], a:`
         <p>Open the concept in [[My lecture]] and press {{🗑 Delete this concept}} at the bottom of the side panel. Give a reason — an admin reviews it. Deleting a concept removes its questions too; if you want to keep them, <b>merge</b> instead.</p>` },
       { q:'How do I edit or delete a question that’s already in the game?', go:['questionbank','🗃️ Question bank'], a:`
