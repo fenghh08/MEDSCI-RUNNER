@@ -196,6 +196,11 @@
   #overCountdown{ display:inline-block; margin:0 auto 14px; padding:6px 14px; border:1px solid #ffd54d; border-radius:20px;
     color:#ffd54d; background:rgba(0,0,0,.35); font-weight:700; font-variant-numeric:tabular-nums; }
   :root[data-theme="light"] #overCountdown, :root[data-theme="white"] #overCountdown{ color:#8a5a00; border-color:#d9a92e; background:#fff7e0; }
+  .spec-join{ display:inline-flex; align-items:center; gap:12px; margin:0 auto 10px; padding:8px 16px; border:1px solid var(--panel-line); border-radius:14px; background:var(--panel); }
+  .spec-join-label{ font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--hud-dim); }
+  .spec-join b{ font-size:28px; letter-spacing:.15em; color:var(--membrane); font-variant-numeric:tabular-nums; }
+  .spec-join-note{ font-size:12px; color:var(--hud-dim); }
+  @media (max-width:560px){ .spec-join{ flex-wrap:wrap; justify-content:center; } .spec-join-note{ flex-basis:100%; text-align:center; } }
   #overLiveBoard .lb-row{ color:var(--hud-ink); border-color:var(--panel-line); background:var(--panel); }
   #overLiveBoard .lb-row .lb-rank{ color:var(--hud-dim); }
   /* Group Race gifts: incoming-grenade overlay */
@@ -996,6 +1001,7 @@
     <!-- GROUP RACE: host-only (non-racing host) view -->
     <div class="screen" id="spectatorScreen">
       <h2 id="specTitle">Live leaderboard</h2>
+      <div id="specJoin" class="spec-join" style="display:none;"><span class="spec-join-label">Room code</span><b id="specRoomCode">—</b><span class="spec-join-note">Latecomers can still join with this code</span></div>
       <p class="desc" id="specSub"></p>
       <div id="specGiftStatus" class="spec-gift" style="display:none;"></div>
       <div class="host-ctl" id="specHostControls" style="display:none;">
@@ -5906,7 +5912,12 @@
       const snap = await get(ref(fbdb, `rooms/${code}`));
       const room = snap.val();
       if(!room){ mpJoinError.textContent = "That room code doesn't exist."; mpJoinError.style.display='block'; return; }
-      if(room.status!=='waiting'){ mpJoinError.textContent = 'That race has already started or finished.'; mpJoinError.style.display='block'; return; }
+      // A race that's under way can still be joined -- you start from
+      // Stage I while the others are ahead, same as a real latecomer. Once
+      // the end-of-race window is running there's no race left to join.
+      if(room.status==='finished'){ mpJoinError.textContent = 'That race has already finished.'; mpJoinError.style.display='block'; return; }
+      if(room.raceEndsAt){ mpJoinError.textContent = 'That race is in its final seconds — too late to join this one.'; mpJoinError.style.display='block'; return; }
+      const lateJoin = room.status==='countdown';
       mp.myName = name; mp.playerId = randId(); mp.isHost = false; mp.roomCode = code; mp.finished = false;
       mp.theme = room.theme || RUNNABLE_THEMES[0];
       // Firebase RTDB stores an empty array as if it were never set, so a
@@ -5921,10 +5932,12 @@
       });
       mpJoinEntryView.style.display = 'none';
       mpWaitView.style.display = 'block';
-      mpWaitTitle.textContent = 'Joined!';
+      mpWaitTitle.textContent = lateJoin ? 'Joining a race in progress…' : 'Joined!';
       mpRoomCodeDisplay.textContent = code;
       mpWaitPlaying.textContent = describeMpSelection();
       mpStartRaceBtn.style.display = 'none';
+      // The listener sees status 'countdown' with a countdownAt already in
+      // the past and drops straight through mpRunCountdown's GO! branch.
       mpAttachRoomListener();
     } finally {
       mpJoinConfirmBtn.disabled = false;
@@ -6436,6 +6449,11 @@
     const racing = ranked.filter(p=>!p.done).length;
     specTitle.textContent = finished ? '🏁 Race over' : 'Live leaderboard';
     specHostControls.style.display = (!finished && mp.isHost) ? 'flex' : 'none';
+    // Projected on the host's screen, so a student who arrives late can join
+    // -- until the final window starts, after which there's nothing to join.
+    const joinable = !finished && !room.raceEndsAt;
+    document.getElementById('specJoin').style.display = joinable ? 'inline-flex' : 'none';
+    document.getElementById('specRoomCode').textContent = mp.roomCode || '—';
     // Gift mode: same rule the racers' clients use (the room together has
     // answered giftUnlockQuestionsPerPlayer x racers questions), latched so
     // it stays on even if someone later leaves the room.
