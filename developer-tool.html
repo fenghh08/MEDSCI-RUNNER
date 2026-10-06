@@ -1753,7 +1753,7 @@
 
   // ---------------- admin: registering lecturers / UCs ----------------
   function ucNewCode(){ let c = ''; const a = new Uint32Array(6); crypto.getRandomValues(a); a.forEach(n=> c += UC_CODE_ALPHABET[n % UC_CODE_ALPHABET.length]); return c; }
-  function ucFbError(e){ return /permission/i.test(String(e && (e.code||e.message))) ? 'Firebase refused the write — the database rules need to allow the ucAccess path (see Data analysis ⓘ).' : 'Could not reach Firebase — check your connection and try again.'; }
+  function ucFbError(e){ return /permission/i.test(String(e && (e.code||e.message))) ? 'Firebase refused this — add the ucAccess rule in the Firebase console (Realtime Database → Rules), then try again.' : 'Could not reach Firebase — check your connection and try again.'; }
   async function renderUcAdmin(){
     const boxes = document.getElementById('uc_courses'); if(!boxes) return;
     if(!boxes.children.length) boxes.innerHTML = KNOWN_THEMES.map(t=>`<label><input type="checkbox" value="${esc2(t.id)}"> ${esc2(t.id)}${t.label && t.label!==t.id ? ' — ' + esc2(t.label) : ''}</label>`).join('');
