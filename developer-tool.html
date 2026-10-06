@@ -745,7 +745,7 @@
     <button id="tabReports" data-tab="reports">⚠️ <span>Reports</span><span class="badge" id="reportsTabBadge"></span></button>
     <button id="tabFeedback" data-tab="feedback">💬 <span>Feedback</span></button>
     <div class="nav-title">Admin</div>
-    <button id="tabMaintainer" data-tab="maintainer">🛠 <span>Merge &amp; settings</span></button>
+    <button id="tabMaintainer" data-tab="maintainer">🔐 <span>Log in</span></button>
     <button id="tabContributors" data-tab="contributors" style="display:none;">🙋 <span>Contributors</span></button>
     <button id="tabDataAnalysis" data-tab="analysis" style="display:none;">📊 <span>Data analysis</span></button>
     <button id="tabStages" data-tab="stages" style="display:none;">🏁 <span>Stages</span></button>
@@ -1374,7 +1374,7 @@
     <!-- ================= MAINTAINER ================= -->
     <section data-section="maintainer">
       <div class="section-head">
-        <h2>Admin</h2>
+        <h2>Log in</h2>
         <p>Two kinds of key. The <b>Admin PIN</b> is for whoever looks after <code>game-data.js</code>: merging the queue, stage requirements, registering lecturers, the GitHub check. Each <b>lecturer / UC</b> gets their own access code from the admin, which opens Data analysis for their own course only.</p>
       </div>
       <div id="maintainerLockGate" class="lock-gate">
@@ -1469,7 +1469,7 @@
         <h2>Stages</h2>
         <p>How far a Runner game goes for each course: how many stages, and how many <b>correct answers per topic</b> a player needs to clear each one. Changes go through the Team queue and land with the next merge. Admin only.</p>
       </div>
-      <div class="card" id="stg_gate" style="display:none;"><p class="card-sub" style="margin:0;">🔒 Unlock admin mode under <b>Merge &amp; settings</b> to edit stages.</p></div>
+      <div class="card" id="stg_gate" style="display:none;"><p class="card-sub" style="margin:0;">🔒 Unlock admin mode under <b>Log in</b> to edit stages.</p></div>
       <div id="stg_body">
         <div class="card">
           <div class="row2" style="align-items:end;">
@@ -1843,7 +1843,7 @@
       await fbSet(fbRef(fbdb, `ucAccess/${code}`), { name, email: email.toLowerCase(), courses, active:true, createdAt: Date.now(), createdBy: currentContributorName() || '' });
       document.getElementById('uc_created').innerHTML = `<div class="uc-created">Access code for <b>${esc2(name)}</b> (${esc2(Object.keys(courses).join(', '))}):
         <code class="uc-code big">${code}</code> <button type="button" id="uc_copyNew">Copy</button>
-        <div class="card-sub" style="margin:6px 0 0;">Send it to them. They enter it under <b>Merge &amp; settings → Lecturer / UC access code</b>.</div></div>`;
+        <div class="card-sub" style="margin:6px 0 0;">Send it to them. They enter it under <b>Log in → Lecturer / UC</b>.</div></div>`;
       document.getElementById('uc_copyNew').addEventListener('click', ()=> copyText(code));
       document.getElementById('uc_name').value = ''; document.getElementById('uc_email').value = '';
       document.querySelectorAll('#uc_courses input').forEach(cb=> cb.checked = false);
@@ -6094,7 +6094,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
 // each block ends at the first "\\n  };" after it</pre>
       <p>A built-in copy ships inside this file; "Refresh from GitHub" fetches the latest committed file and saves fresher parts in <code>localStorage</code> (per browser). If you hand-edit <code>GAME_CONFIG</code> locally, paste the whole file in the box instead so the merge doesn't overwrite your tuning with the old numbers.</p>` },
     pin: { title:'The admin PIN', tags:['sessionStorage','not security'], body:`
-      <p><b>Lecturer / UC access codes</b> live in Firebase under <code>ucAccess/&lt;CODE&gt;</code> — name, email, and the courses that code may see. Only an admin can create or revoke them (from Merge &amp; settings). The database rules must allow that path to be read and written, or creating a code fails with a clear message. Like the PIN, a code limits what this <i>page</i> shows; it is not security on the underlying answer data.</p>
+      <p><b>Lecturer / UC access codes</b> live in Firebase under <code>ucAccess/&lt;CODE&gt;</code> — name, email, and the courses that code may see. Only an admin can create or revoke them (from Log in). The database rules must allow that path to be read and written, or creating a code fails with a clear message. Like the PIN, a code limits what this <i>page</i> shows; it is not security on the underlying answer data.</p>
       <p>The PIN is a plain string in this file's source, so anyone can read it. It isn't security — it stops a regular contributor from clicking "delete" or "generate the real file" while exploring. Real protection is the Firebase security rules in the console, which decide who can write to which path.</p>
       <p>Unlocking also checks the "Your name" field against a hardcoded <code>ADMIN_NAMES</code> list — same deterrent-not-security caveat: anyone who reads the source can see both the PIN and the list, and nothing stops someone typing a name from that list. It just means knowing the PIN alone (e.g. seeing it over someone's shoulder) isn't enough by itself.</p>
       <p>Once unlocked, the flag is kept in <code>sessionStorage</code> so it survives a reload but not closing the tab. That call is wrapped in <code>try/catch</code>: some browsers throw on storage access for <code>file://</code> pages, and an optional convenience must never break the page.</p>` },
@@ -6593,14 +6593,14 @@ const themesDecl  = text.indexOf('const THEMES = {');
         <p>Open any concept in [[My lecture]] — the side panel shows its study-guide page as it looks in the game. [[Study guide preview]] shows a whole course or lecture at once, with a ⚠️ on anything missing a description or questions.</p>` },
     ]},
     { group:'Lecturers & admins', items:[
-      { q:'Lecturer: how do I see how students are doing on my questions?', go:['maintainer','🛠 Merge & settings'], a:`
-        <p>Ask the admin for your access code. Enter it under [[Merge &amp; settings]] → <b>Lecturer / UC</b> and press {{Open}} — [[Data analysis]] then shows your course: accuracy by topic, questions that need review, and question quality.</p>` },
-      { q:'Admin: how do I give a lecturer access to Data analysis?', go:['maintainer','🛠 Merge & settings'], a:`
+      { q:'Lecturer: how do I see how students are doing on my questions?', go:['maintainer','🔐 Log in'], a:`
+        <p>Ask the admin for your access code. Enter it under [[Log in]] → <b>Lecturer / UC</b> and press {{Open}} — [[Data analysis]] then shows your course: accuracy by topic, questions that need review, and question quality.</p>` },
+      { q:'Admin: how do I give a lecturer access to Data analysis?', go:['maintainer','🔐 Log in'], a:`
         <p>Unlock admin mode, then in <b>🎓 Lecturers &amp; UCs</b> enter their name and email, tick their course(s) and press {{Create access code}}. Send them the 6-character code. Revoke it there any time.</p>` },
       { q:'Admin: how do I change how many questions each stage needs?', go:['stages','🏁 Stages'], a:`
         <p>In admin mode open [[Stages]], pick the course, and set <b>Correct needed</b> per topic for each stage (add or remove stages too). {{+ Add to queue}} — it takes effect with the next merge.</p>` },
-      { q:'Admin: how do I put everything in the queue into the game?', go:['maintainer','🛠 Merge & settings'], a:`
-        <ol><li>In [[Merge &amp; settings]] press {{Generate merged game-data.js}} and download it.</li>
+      { q:'Admin: how do I put everything in the queue into the game?', go:['maintainer','🔐 Log in'], a:`
+        <ol><li>Log in as admin under [[Log in]], then press {{Generate merged game-data.js}} and download it.</li>
         <li>Replace <code>game-data.js</code> in the repo with it and push.</li>
         <li>Then press {{🧹 Remove the merged entries from the queue}}.</li></ol>` },
     ]},
