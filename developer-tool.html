@@ -433,6 +433,8 @@
   .mlc-pending{ font-size:12px; color:#7a5a12; background:#fff7e6; border:1px solid #f0d9a8; border-radius:10px; padding:2px 9px; white-space:nowrap; }
   .mlc-danger{ font-size:12px; color:var(--danger); background:var(--danger-soft); border:1px solid #f0b9c5; border-radius:10px; padding:2px 9px; white-space:nowrap; }
   .ml-concept.doomed{ opacity:.66; border-style:dashed; }
+  .lock-gate .lg-or{ margin:14px 0 10px; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:10px; }
+  .lock-gate .lg-or::before, .lock-gate .lg-or::after{ content:''; flex:1; height:1px; background:var(--line); }
   .mlc-mergebox{ border-top:1px solid var(--line); padding:14px 16px 16px; background:#fcfbff; }
   .mlc-mergehead{ font-weight:700; margin-bottom:4px; }
   .mlc-mergesub{ color:var(--muted); font-size:13px; margin:0 0 10px; }
@@ -1226,7 +1228,7 @@
     <section data-section="maintainer">
       <div class="section-head">
         <h2>Admin</h2>
-        <p>For whoever looks after <code>game-data.js</code>. Merge the queue into a new copy of the data file, keep the merge template fresh, read the answer analytics, and check this folder against GitHub.</p>
+        <p>Two keys. The <b>Admin PIN</b> is for whoever looks after <code>game-data.js</code>: merging the queue, the merge template, the GitHub check. The <b>Lecturer / UC PIN</b> opens just the answer analytics, so a lecturer can see how students are doing against their questions.</p>
       </div>
       <div id="maintainerLockGate" class="lock-gate card">
         <div>🔒 Admin PIN <button class="info-btn" data-info="pin" title="How this works">i</button></div>
@@ -1234,6 +1236,16 @@
         <input type="password" id="maintainerPinInput" maxlength="4" inputmode="numeric" placeholder="••••">
         <button class="primary" id="maintainerUnlockBtn">Unlock</button>
         <div class="lg-error" id="maintainerPinError">Wrong PIN.</div>
+        <div class="lg-or">or</div>
+        <div>🎓 Lecturer / UC PIN</div>
+        <p class="card-sub" style="margin:2px 0 8px;">Opens <b>Data analysis</b> only — how students are doing against your questions. No merging, no settings, no contributor details.</p>
+        <input type="password" id="viewerPinInput" maxlength="4" inputmode="numeric" placeholder="••••">
+        <button id="viewerUnlockBtn">Open Data analysis</button>
+        <div class="lg-error" id="viewerPinError">Wrong PIN.</div>
+      </div>
+      <div id="viewerModeCard" class="card" style="display:none;border-color:var(--info);background:var(--info-soft);">
+        <b>📊 Viewing mode is on.</b> <span class="card-sub" style="display:inline;">Data analysis is open in the sidebar under Admin. Merging and settings stay locked — they need the Admin PIN above.</span>
+        <div class="btn-row" style="margin-top:8px;"><button type="button" data-goto="analysis">📊 Go to Data analysis</button><button type="button" class="subtle" id="viewerLockBtn">🔒 Close viewing mode</button></div>
       </div>
       <div id="maintainerLockedContent" style="display:none;">
         <div class="btn-row" style="justify-content:flex-end;margin-bottom:10px;">
@@ -1487,7 +1499,14 @@
   function safeSessionGet(key){ try { return sessionStorage.getItem(key); } catch(e){ return null; } }
   function safeSessionSet(key, val){ try { sessionStorage.setItem(key, val); } catch(e){} }
   function safeSessionRemove(key){ try { sessionStorage.removeItem(key); } catch(e){} }
+  // A lecturer / unit coordinator can open Data analysis -- just the
+  // read-only numbers -- without the admin PIN. Same deterrent-grade PIN as
+  // the admin one, no name check (nothing here is destructive or personal).
+  // Change it before sharing the file.
+  const VIEWER_PIN = '2468';
   let maintainerUnlocked = safeSessionGet('maintainerUnlocked') === 'yes';
+  let analyticsUnlocked = safeSessionGet('analyticsUnlocked') === 'yes';
+  function canSeeAnalytics(){ return maintainerUnlocked || analyticsUnlocked; }
   const maintainerLockGate = document.getElementById('maintainerLockGate');
   const maintainerLockedContent = document.getElementById('maintainerLockedContent');
   function applyMaintainerLockUI(){
@@ -1496,7 +1515,9 @@
     // Contributors/Data analysis now sit under the always-visible Admin
     // heading (the old admin-only heading is gone), so only the two buttons
     // toggle -- guarded so a missing id can never break the whole unlock.
-    ['tabContributors','tabDataAnalysis'].forEach(id=>{ const el = document.getElementById(id); if(el) el.style.display = maintainerUnlocked ? '' : 'none'; });
+    const tc = document.getElementById('tabContributors'); if(tc) tc.style.display = maintainerUnlocked ? '' : 'none';
+    const ta = document.getElementById('tabDataAnalysis'); if(ta) ta.style.display = canSeeAnalytics() ? '' : 'none';
+    const vm = document.getElementById('viewerModeCard'); if(vm) vm.style.display = (analyticsUnlocked && !maintainerUnlocked) ? 'block' : 'none';
     // The Course chip used to be admin-only. It isn't any more -- a course is
     // a queue entry an admin reviews like any other -- so it's always shown.
     const courseChip = document.getElementById('courseChip'); if(courseChip) courseChip.style.display = '';
@@ -1509,8 +1530,8 @@
     // Re-locking while sitting on a now-hidden tab would leave an empty
     // maintainer-only section on screen -- bounce back to Browse content.
     const activeTab = document.querySelector('.sidenav [data-tab].active');
-    if(!maintainerUnlocked && activeTab && ['contributors','analysis'].includes(activeTab.dataset.tab)) showTab('structure');
-    if(maintainerUnlocked) loadAnalytics();
+    if(activeTab && ((!maintainerUnlocked && activeTab.dataset.tab==='contributors') || (!canSeeAnalytics() && activeTab.dataset.tab==='analysis'))) showTab('structure');
+    if(canSeeAnalytics()) loadAnalytics();
     renderFeedbackList(); // shows/hides the list itself depending on maintainerUnlocked
   }
   document.getElementById('maintainerUnlockBtn').addEventListener('click', ()=>{
@@ -1521,6 +1542,20 @@
     if(!isAdminName(name)){ err.textContent = `"${name}" isn't on the admin list.`; err.style.display = 'block'; return; }
     if(input.value === MAINTAINER_PIN){ maintainerUnlocked = true; safeSessionSet('maintainerUnlocked','yes'); err.style.display='none'; applyMaintainerLockUI(); renderBatch(); renderStructureList(); renderQuestionBank(); }
     else { err.textContent = 'Wrong PIN.'; err.style.display = 'block'; input.value = ''; }
+  });
+  document.getElementById('viewerUnlockBtn').addEventListener('click', ()=>{
+    const input = document.getElementById('viewerPinInput'), err = document.getElementById('viewerPinError');
+    if(input.value === VIEWER_PIN){
+      analyticsUnlocked = true; safeSessionSet('analyticsUnlocked','yes'); err.style.display = 'none'; input.value = '';
+      applyMaintainerLockUI(); renderQuestionBank();
+      toast('Data analysis is open — see the sidebar under Admin');
+      showTab('analysis');
+    } else { err.textContent = 'Wrong PIN.'; err.style.display = 'block'; input.value = ''; }
+  });
+  document.getElementById('viewerLockBtn').addEventListener('click', ()=>{
+    analyticsUnlocked = false; safeSessionRemove('analyticsUnlocked');
+    applyMaintainerLockUI(); renderQuestionBank();
+    toast('Viewing mode closed');
   });
   document.getElementById('maintainerLockBtn').addEventListener('click', ()=>{
     maintainerUnlocked = false;
@@ -2190,7 +2225,7 @@
   const STATS_MIN_FIRST = 10, D_MIN_BANDED = 20, D_LOW_CONFIDENCE = 40, D_GROUP = 0.27, EASY_P = 0.90, HARD_P = 0.25, OPTION_LETTERS = 'ABCDEFGH';
   let statsRaw = null, statsPromise = null, statsFailed = false;
   function fetchStats(force){
-    if(!maintainerUnlocked) return Promise.resolve(null);
+    if(!canSeeAnalytics()) return Promise.resolve(null);
     if(statsPromise && !force) return statsPromise;
     statsPromise = firebaseInitPromise.then(()=>{
       if(!firebaseReady){ statsFailed = true; return null; }
@@ -2380,17 +2415,17 @@
     // Answer stats are admin-only (same rule as the Data analysis tab), loaded
     // once and re-rendered when they arrive.
     const qualityWrap = document.getElementById('bank_qualityWrap'), qualitySel = document.getElementById('bank_quality');
-    qualityWrap.style.display = maintainerUnlocked ? '' : 'none';
-    if(!maintainerUnlocked) qualitySel.value = '';
-    if(maintainerUnlocked && !statsRaw && !statsPromise) fetchStats().then(()=> renderQuestionBank()).catch(()=>{});
+    qualityWrap.style.display = canSeeAnalytics() ? '' : 'none';
+    if(!canSeeAnalytics()) qualitySel.value = '';
+    if(canSeeAnalytics() && !statsRaw && !statsPromise) fetchStats().then(()=> renderQuestionBank()).catch(()=>{});
     const withStats = rows.map(r=>{
-      const first = (maintainerUnlocked && statsRaw) ? parseFirst(statsRaw[`${r.itemId}::${r.qId}`]) : null;
-      return { r, first, quality: (maintainerUnlocked && statsRaw) ? questionQuality(first, r.correctIndex, (r.options||[]).length) : null };
+      const first = (canSeeAnalytics() && statsRaw) ? parseFirst(statsRaw[`${r.itemId}::${r.qId}`]) : null;
+      return { r, first, quality: (canSeeAnalytics() && statsRaw) ? questionQuality(first, r.correctIndex, (r.options||[]).length) : null };
     });
-    const qFilter = maintainerUnlocked ? qualitySel.value : '';
+    const qFilter = canSeeAnalytics() ? qualitySel.value : '';
     const qGroups = { attention:['bad','poor','weak'], easy:['easy'], hard:['hard'], good:['good','excellent'], nodata:['na'] };
     const shown = qFilter ? withStats.filter(x=> x.quality && qGroups[qFilter].includes(x.quality.tag)) : withStats;
-    const statsNote = !maintainerUnlocked ? '' : (statsRaw ? ` · 📊 answer stats loaded` : (statsFailed ? ` · 📊 answer stats unavailable (offline)` : ` · 📊 loading answer stats…`));
+    const statsNote = !canSeeAnalytics() ? '' : (statsRaw ? ` · 📊 answer stats loaded` : (statsFailed ? ` · 📊 answer stats unavailable (offline)` : ` · 📊 loading answer stats…`));
     document.getElementById('bank_count').textContent = `${shown.length} question${shown.length===1?'':'s'}${statsNote}`;
     const diffColor = { easy:'var(--good)', medium:'#caa33b', hard:'var(--danger)' };
     const bankList = document.getElementById('bank_list');
@@ -2401,7 +2436,7 @@
       const badge = qualityBadgeHtml(quality);
       const previewSummary = first ? `Options &amp; answer stats <span style="color:var(--faint);">· ${first.n} first attempts</span>` : 'Options';
       const reasons = quality && quality.reasons.length && quality.tag !== 'na' ? `<ul class="p-facts" style="margin-top:8px;">${quality.reasons.map(x=>`<li>${esc2(x)}</li>`).join('')}</ul>` : '';
-      const noStatsNote = (maintainerUnlocked && statsRaw && !first) ? `<div class="card-sub" style="margin:6px 0 0;">No first-attempt answers recorded for this question yet.</div>` : '';
+      const noStatsNote = (canSeeAnalytics() && statsRaw && !first) ? `<div class="card-sub" style="margin:6px 0 0;">No first-attempt answers recorded for this question yet.</div>` : '';
       return `<div class="queue-item"><div class="qi-row">
         <div><div class="qi-label">${esc2(r.prompt.slice(0,90))}${r.prompt.length>90?'…':''} ${badge}</div>
         <div class="qi-meta">${esc2(themeLabel)} · ${esc2(topicLabel)} · <b>${esc2(r.itemLabel)}</b>${r.class?` · ${esc2(r.class)}`:''} · <span style="color:${diffColor[r.difficulty]||'inherit'}">${esc2(r.difficulty)}</span>${attribution}</div></div>
@@ -4544,7 +4579,7 @@
     el.innerHTML = `<table class="analytics-table"><thead><tr><th>Course</th><th>Item</th><th>Question</th><th>Attempts</th><th>Miss rate</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc2(r.courseLabel)}</td><td>${esc2(r.itemLabel)}</td><td>${esc2((r.prompt||'').slice(0,90))}${(r.prompt||'').length>90?'…':''}</td><td>${r.total}</td><td>${Math.round(r.missRate*100)}%</td></tr>`).join('')}</tbody></table>`;
   }
   function loadAnalytics(){
-    if(!maintainerUnlocked) return;
+    if(!canSeeAnalytics()) return;
     analyticsStatus.className = 'status'; analyticsStatus.textContent = 'Loading…';
     fetchStats(true).then(stats=>{
       if(stats === null){ analyticsStatus.className = 'status bad'; analyticsStatus.textContent = 'Not connected — check your internet connection and hit Refresh.'; return; }
