@@ -729,32 +729,12 @@
             <option value="ko">🌐 한국어</option>
           </select>
         </div>
-        <!-- Section headings: the course grid IS Runner mode, but with six
-             more cards stacked under it, nothing said so -- "pick a course"
-             and "Study & Practice" read as peers. Two labelled groups: the
-             game, and the other ways to study. Study guide / Lectures live
-             inside each course's page (briefView), not on this screen. -->
+        <!-- The home screen is one decision: which course. Everything you
+             can do -- the runner, study guide, lectures, practice, custom
+             run, group race, review -- lives on the course's own page
+             (briefView), so nothing here competes with picking a course. -->
         <div class="p-sub landing-section-title" style="width:100%;max-width:460px;margin:14px auto 6px;">Pick a course</div>
         <div class="cancer-grid" id="cancerGrid"></div>
-        <div class="p-sub landing-section-title" style="width:100%;max-width:460px;margin:14px auto 6px;">More ways to study</div>
-        <div class="cancer-grid">
-          <button class="pick-card" id="customModeCard">
-            <span class="cc-icon">🎯</span><span class="cc-name">Custom run</span>
-            <span class="cc-blurb">Pick your own question mix.</span>
-          </button>
-          <button class="pick-card" id="mpModeCard">
-            <span class="cc-icon">🆚</span><span class="cc-name">Group Race</span>
-            <span class="cc-blurb">Race friends, same stages.</span>
-          </button>
-          <button class="pick-card" id="practiceModeCard">
-            <span class="cc-icon">📝</span><span class="cc-name">Study &amp; Practice</span>
-            <span class="cc-blurb">Untimed practice, any topic.</span>
-          </button>
-          <button class="pick-card" id="reviewModeCard">
-            <span class="cc-icon">📅</span><span class="cc-name">Review</span>
-            <span class="cc-blurb" id="reviewModeBlurb">Spaced repetition, questions you've already studied.</span>
-          </button>
-        </div>
       </div>
       <div id="customizeView" style="display:none;">
         <h2>Customise Your Cell</h2>
@@ -806,8 +786,29 @@
             <span class="cc-icon">📝</span><span class="cc-name">Study &amp; Practice</span><span class="cc-blurb"></span>
           </button>
         </div>
+        <!-- Formerly on the home screen. Same ids, same handlers; they now
+             open with this course already selected. -->
+        <div class="p-sub landing-section-title" style="width:100%;max-width:460px;margin:14px auto 6px;">More ways to play</div>
+        <div class="cancer-grid" id="courseMoreGrid">
+          <button class="pick-card" id="mpModeCard">
+            <span class="cc-icon">🆚</span><span class="cc-name">Group Race</span>
+            <span class="cc-blurb">Race friends on this course.</span>
+          </button>
+          <button class="pick-card" id="customModeCard">
+            <span class="cc-icon">🎯</span><span class="cc-name">Custom run</span>
+            <span class="cc-blurb">Pick your own question mix.</span>
+          </button>
+          <button class="pick-card" id="practiceModeCard" style="display:none;">
+            <span class="cc-icon">📝</span><span class="cc-name">Study &amp; Practice</span>
+            <span class="cc-blurb">Untimed practice, any topic.</span>
+          </button>
+          <button class="pick-card" id="reviewModeCard">
+            <span class="cc-icon">📅</span><span class="cc-name">Review</span>
+            <span class="cc-blurb" id="reviewModeBlurb">Spaced repetition, questions you've already studied.</span>
+          </button>
+        </div>
         <div class="btn-row">
-          <button class="secondary" id="backToPickBtn">← Back</button>
+          <button class="secondary" id="backToPickBtn">← All courses</button>
         </div>
       </div>
       <div id="practiceSetupView" style="display:none;">
@@ -2486,6 +2487,14 @@
     briefView.style.display = 'none';
     cancerPickView.style.display = 'block';
   });
+  // Custom run / Group Race / Practice / Review all open from a course's
+  // page now, so Back goes to that page -- or to the course list when
+  // there's no real course behind it (a Custom run leaves currentCancerId
+  // as 'custom').
+  function returnToHub(){
+    if(THEMES[currentCancerId]){ openBrief(currentCancerId); }
+    else { briefView.style.display = 'none'; cancerPickView.style.display = 'block'; }
+  }
   startBtn.addEventListener('click', startRun);
   courseGuideBtn.addEventListener('click', ()=> openStudyGuide(currentCancerId, null, null));
   courseLecturesBtn.addEventListener('click', ()=> openCourseUnitLectures(COURSES[currentCancerId]?.code || currentCancerId));
@@ -2590,12 +2599,16 @@
   }
   customModeCard.addEventListener('click', ()=>{
     cancerPickView.style.display = 'none';
+    briefView.style.display = 'none';
     customSetupView.style.display = 'block';
     renderCustomChecks();
+    // Start from the course whose page this was opened from; untick it to widen.
+    const mine = THEMES[currentCancerId] ? customThemeChecks.querySelector(`input[value="${CSS.escape(currentCancerId)}"]`) : null;
+    if(mine){ mine.checked = true; renderCustomLectureChecks(); updateCustomMatchCount(); }
   });
   customBackBtn.addEventListener('click', ()=>{
     customSetupView.style.display = 'none';
-    cancerPickView.style.display = 'block';
+    returnToHub();
   });
   customStartBtn.addEventListener('click', ()=>{
     const matches = customFilteredQuestions();
@@ -2686,12 +2699,13 @@
   }
   reviewModeCard.addEventListener('click', ()=>{
     cancerPickView.style.display = 'none';
+    briefView.style.display = 'none';
     reviewView.style.display = 'block';
     refreshReviewScreen();
   });
   reviewBackBtn.addEventListener('click', ()=>{
     reviewView.style.display = 'none';
-    cancerPickView.style.display = 'block';
+    returnToHub();
   });
   reviewStartBtn.addEventListener('click', ()=>{
     if(reviewStartBtn.disabled) return;
@@ -2793,10 +2807,10 @@
     });
     return out;
   }
-  practiceModeCard.addEventListener('click', openPracticeSetup);
+  practiceModeCard.addEventListener('click', ()=> openPracticeSetup(currentCancerId));
   practiceBackBtn.addEventListener('click', ()=>{
     practiceSetupView.style.display = 'none';
-    cancerPickView.style.display = 'block';
+    returnToHub();
   });
   practiceBrowseBtn.addEventListener('click', ()=>{
     const topics = selectedPracticeTopics();
@@ -5807,7 +5821,10 @@
 
   mpModeCard.addEventListener('click', async ()=>{
     cancerPickView.style.display = 'none';
+    briefView.style.display = 'none';
     mpSetupView.style.display = 'block';
+    // Host setup starts on the course whose page this was opened from.
+    if(THEMES[currentCancerId]){ mp.selectedTheme = currentCancerId; mp.filterTopics = []; mp.filterClasses = []; }
     // Firebase loads in the background from page load — by the time
     // someone has clicked into Group Race it's almost always already
     // settled one way or the other, but await it just in case this fires
@@ -5816,12 +5833,12 @@
     if(!firebaseReady){
       toastCustom('Group Race needs an internet connection to reach the race server, and it couldn\u2019t connect (or this network is blocking it). Solo Runner, Study & Practice, and Custom run all work fully offline.');
       mpSetupView.style.display = 'none';
-      cancerPickView.style.display = 'block';
+      returnToHub();
     }
   });
   mpBackBtn.addEventListener('click', ()=>{
     mpSetupView.style.display = 'none';
-    cancerPickView.style.display = 'block';
+    returnToHub();
   });
   // Name + course only matter once you've actually chosen to host --
   // joining just needs a name and the room code, not a course pick (the
