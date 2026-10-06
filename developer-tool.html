@@ -526,6 +526,67 @@
   .faq-btn{ display:inline-block; background:var(--accent); color:#fff; border-radius:7px; padding:1px 8px; font-size:12px; font-weight:700; white-space:nowrap; }
   .faq-tab{ display:inline-block; background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent-line); border-radius:7px; padding:0 8px; font-size:12px; font-weight:700; white-space:nowrap; }
   #faqSearch{ margin-bottom:6px; }
+  /* ---- Data analysis ---- */
+  .an-bar{ display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .an-bar .field{ margin:0; min-width:260px; max-width:380px; flex:1; }
+  .an-tiles{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; margin-bottom:16px; }
+  @media (max-width:900px){ .an-tiles{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  .an-tile{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .an-tile b{ display:block; font-size:28px; line-height:1.15; font-variant-numeric:tabular-nums; color:var(--ink); }
+  .an-tile b small{ font-size:15px; color:var(--muted); font-weight:600; }
+  .an-tile > span{ font-size:12.5px; color:var(--muted); }
+  .an-tile.warn{ border-color:#f0d9a8; background:#fffaf0; }
+  .an-tiles .an-empty{ grid-column:1 / -1; }
+  .an-empty{ padding:18px; text-align:center; color:var(--muted); border:1px dashed var(--line-strong); border-radius:10px; background:#fbfbfd; font-size:13px; }
+  .an-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+  .an-seg{ display:inline-flex; border:1px solid var(--line-strong); border-radius:9px; overflow:hidden; }
+  .an-seg button{ border:0; border-radius:0; background:#fff; padding:6px 12px; font-size:12.5px; color:var(--muted); }
+  .an-seg button.on{ background:var(--ink); color:#fff; }
+  .an-rows{ display:flex; flex-direction:column; gap:2px; }
+  .an-row{ display:grid; grid-template-columns:minmax(140px, 1.3fr) minmax(120px, 2fr) 44px 118px 92px; align-items:center; gap:12px; width:100%;
+    text-align:left; background:transparent; border:0; border-radius:8px; padding:7px 8px; font:inherit; color:var(--ink); cursor:pointer; }
+  .an-row:hover{ background:var(--bg); }
+  .an-row.on{ background:var(--info-soft); }
+  .an-row.few{ opacity:.5; }
+  .an-lab{ font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .an-lab small{ color:var(--muted); font-weight:400; }
+  .an-track{ display:block; height:10px; background:#eef0f5; border-radius:0 4px 4px 0; overflow:hidden; }
+  .an-fill{ display:block; height:100%; background:#3b74d8; border-radius:0 4px 4px 0; }
+  .an-val{ font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; text-align:right; }
+  .an-n{ font-size:12px; color:var(--muted); text-align:right; white-space:nowrap; }
+  .an-st{ font-size:12px; font-weight:600; white-space:nowrap; color:var(--muted); }
+  .an-st.bad{ color:var(--danger); } .an-st.mid{ color:var(--warn); } .an-st.ok{ color:var(--good); }
+  @media (max-width:720px){ .an-row{ grid-template-columns:1fr 44px; } .an-row .an-track{ grid-column:1 / -1; order:3; } .an-row .an-st, .an-row .an-n{ display:none; } }
+  .an-tip{ position:fixed; z-index:80; display:none; max-width:320px; background:var(--ink); color:#fff; font-size:12px; line-height:1.45; padding:6px 9px; border-radius:7px; pointer-events:none; box-shadow:0 4px 14px rgba(0,0,0,.2); }
+  .an-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; align-items:center; }
+  .an-chip{ border:1px solid var(--line-strong); background:#fff; border-radius:16px; padding:4px 11px; font-size:12.5px; cursor:pointer; color:var(--ink); }
+  .an-chip small{ color:var(--muted); margin-left:3px; }
+  .an-chip.on{ background:var(--ink); border-color:var(--ink); color:#fff; } .an-chip.on small{ color:rgba(255,255,255,.75); }
+  .an-filter{ display:inline-flex; align-items:center; gap:6px; font-size:12.5px; background:var(--info-soft); color:var(--info); border-radius:16px; padding:3px 4px 3px 11px; }
+  .an-filter button{ border:0; background:transparent; color:var(--info); cursor:pointer; padding:0 6px; font-size:12px; }
+  .an-q{ border:1px solid var(--line); border-radius:11px; padding:12px 14px; margin-bottom:8px; background:#fff; }
+  .an-q-top{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+  .an-kind{ font-size:12px; font-weight:700; border-radius:10px; padding:2px 9px; }
+  .an-kind.bad{ background:var(--danger-soft); color:var(--danger); }
+  .an-kind.mid{ background:var(--warn-soft); color:var(--warn); }
+  .an-kind.calm{ background:var(--bg); color:var(--muted); }
+  .an-q-meta{ font-size:12px; color:var(--muted); }
+  .an-q-prompt{ font-size:14px; font-weight:600; line-height:1.45; }
+  .an-q-why{ font-size:13px; color:var(--ink); margin-top:4px; }
+  .an-q-actions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; }
+  .an-q-actions button{ font-size:12.5px; }
+  .an-q-more{ margin-top:10px; border-top:1px solid var(--line); padding-top:10px; }
+  .an-more-btn{ width:100%; margin-top:4px; }
+  .an-all summary, .an-help summary{ cursor:pointer; list-style:none; }
+  .an-all summary::-webkit-details-marker, .an-help summary::-webkit-details-marker{ display:none; }
+  .an-all summary::before, .an-help summary::before{ content:'▶'; font-size:10px; color:var(--faint); margin-right:8px; display:inline-block; transition:transform .15s; }
+  .an-all[open] summary::before, .an-help[open] summary::before{ transform:rotate(90deg); }
+  .an-all-tools{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:12px 0; }
+  .an-all-tools select{ width:auto; }
+  .an-table tr.an-tr{ cursor:pointer; } .an-table tr.an-tr:hover td{ background:var(--bg); }
+  .an-table tr.few td{ color:var(--faint); }
+  .an-mini{ display:grid; grid-template-columns:1fr 40px; gap:8px; align-items:center; }
+  .an-tr-detail td{ background:#fbfbfd; }
   .uc-code{ font-family:var(--mono); font-weight:800; letter-spacing:.12em; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:2px 7px; }
   .uc-code.big{ font-size:22px; padding:4px 12px; margin:0 6px; }
   .uc-created{ margin-top:12px; padding:12px 14px; border-radius:10px; background:var(--good-soft); border:1px solid #bfe6d6; }
@@ -1521,67 +1582,55 @@
     <section data-section="analysis">
       <div class="section-head">
         <h2>Data analysis <button class="info-btn" data-info="analytics" title="How this works">i</button></h2>
-        <p>How players are actually doing against the content — correct/wrong counts from every player and every mode. No per-player data, just totals.</p>
+        <p>How students are doing on the questions — totals from every answer in the game. No individual student is ever identified.</p>
       </div>
+      <div class="an-bar">
+        <label class="field"><span class="fl-label">Course</span><select id="analyticsCourse"><option value="">All courses</option></select></label>
+        <button id="analyticsRefreshBtn" class="subtle">🔄 Refresh</button>
+        <span id="analyticsStatus" class="status"></span>
+      </div>
+      <p class="card-sub" id="analyticsScopeNote" style="margin:-4px 0 12px;"></p>
+
+      <div class="an-tiles" id="analyticsSummary"></div>
+
       <div class="card">
-        <div class="btn-row" style="align-items:flex-end;">
-          <label class="field" style="max-width:380px;margin:0;"><span class="fl-label">Course</span><select id="analyticsCourse"><option value="">All courses</option></select></label>
-          <button id="analyticsRefreshBtn">🔄 Refresh</button><span id="analyticsStatus" class="status"></span>
+        <div class="an-head">
+          <div><h3 class="card-title" style="margin:0;">Where students struggle</h3>
+            <p class="card-sub" style="margin:2px 0 0;">% of answers that were correct. Hardest at the top. Click a row to see its questions.</p></div>
+          <div class="an-seg" id="anGroupSeg"><button type="button" data-an-group="lecture" class="on">By lecture</button><button type="button" data-an-group="topic">By topic</button></div>
         </div>
-        <p class="card-sub" id="analyticsScopeNote" style="margin:8px 0 0;"></p>
-        <div class="struct-stats" id="analyticsSummary" style="margin-top:12px;"></div>
+        <div id="anStruggle"></div>
       </div>
-      <div class="sec-group"><h3>Worth acting on</h3><span>questions the data says are broken or mistagged</span></div>
+
       <div class="card">
-        <h3 class="card-title">⚠️ Needs review <span class="struct-qbadge" id="needsReviewCount"></span></h3>
-        <p class="card-sub">Auto-surfaced: a high miss rate with enough attempts to trust it, or a difficulty tag that doesn't match how the question actually performs (e.g. tagged "easy" but missed most of the time). Flag one straight to the team's Reports queue, or jump in and fix it yourself.</p>
+        <div class="an-head">
+          <div><h3 class="card-title" style="margin:0;">Questions to look at <span class="struct-qbadge" id="needsReviewCount"></span></h3>
+            <p class="card-sub" style="margin:2px 0 0;">Questions the answers suggest are wrong, unclear, too hard or too easy — each with the reason, in plain words.</p></div>
+        </div>
+        <div class="an-chips" id="anLookChips"></div>
         <div id="needsReviewList"></div>
       </div>
-      <div class="card">
-        <h3 class="card-title">📐 Question quality <span class="struct-qbadge" id="qualityCount"></span></h3>
-        <p class="card-sub">Uses each player's <b>first</b> attempt only. <b>% correct</b> is how hard a question is; <b>D</b> is how well it separates strong students from weak ones. A low D means it isn't telling them apart.</p>
-        <details class="more" style="margin:-2px 0 10px;"><summary>What the numbers mean</summary><div>
-          <p class="card-sub" style="margin-top:8px;"><b>D (discrimination index)</b> — the share of the top 27% of players (by their accuracy on everything else) who got this right, minus the share of the bottom 27%.</p>
-          <p class="card-sub">D ≥ 0.40 excellent · 0.30–0.39 good · 0.20–0.29 fair · 0.10–0.19 marginal · under 0.10 poor · <b>negative means check the marked answer</b>.</p>
-          <p class="card-sub">A low D has two very different causes, and the verdict column separates them: <b>too easy</b> (nearly everyone is right, so D is naturally low — fine, just not discriminating) versus <b>poorly written</b> (mid-difficulty, yet strong players do no better than weak ones — that one needs a look).</p>
-        </div></details>
-        <div class="btn-row" style="align-items:center;">
-          <label style="font-weight:normal;font-size:13px;">Show
-            <select id="qualityFilter" style="margin-left:6px;">
-              <option value="attention">Needs attention</option>
-              <option value="all">Everything with data</option>
-              <option value="easy">Too easy</option>
-              <option value="hard">Very hard</option>
-              <option value="good">Good</option>
-            </select></label>
+
+      <details class="card an-all" id="anAllCard">
+        <summary><b>📋 Every question</b> <span class="card-sub" id="anAllCount"></span></summary>
+        <div class="an-all-tools">
+          <input type="text" id="anAllSearch" class="struct-search" placeholder="🔍 Search question or concept…" style="margin:0;flex:1;">
+          <select id="anAllSort"><option value="hard">Hardest first</option><option value="easy">Easiest first</option><option value="most">Most answered</option></select>
+          <span id="anAllFilter"></span>
         </div>
-        <div id="qualityTableWrap" style="margin-top:12px;overflow-x:auto;"></div>
-      </div>
-      <div class="sec-group"><h3>Where students struggle</h3><span>by course and topic, not question by question</span></div>
-      <div class="card">
-        <h3 class="card-title">By course</h3>
-        <p class="card-sub">Sorted hardest first (lowest accuracy).</p>
-        <div id="analyticsByCourse" style="overflow-x:auto;"></div>
-      </div>
-      <div class="card">
-        <details class="more"><summary>By topic</summary><div>
-          <p class="card-sub" style="margin-top:10px;">Every topic with at least one recorded answer, hardest first.</p>
-          <div id="analyticsByTopic" style="overflow-x:auto;"></div>
-        </div></details>
-      </div>
-      <div class="sec-group"><h3>Question by question</h3><span>the full ranked list</span></div>
-      <div class="card">
-        <h3 class="card-title">Hardest questions</h3>
-        <p class="card-sub">Sorted by miss rate. Low-attempt questions are noisy (one wrong answer out of one attempt is a 100% miss rate) — raise the minimum to filter those out.</p>
-        <div class="btn-row"><label style="font-weight:normal;font-size:13px;">Minimum attempts <input type="number" id="analyticsMinAttempts" value="3" min="0" style="width:60px;margin-left:6px;"></label></div>
-        <div id="analyticsTableWrap" style="margin-top:12px;overflow-x:auto;"></div>
-      </div>
-      <div class="card">
-        <details class="more"><summary>Easiest questions</summary><div>
-          <p class="card-sub" style="margin-top:10px;">Lowest miss rate with at least 3 attempts — the flip side of "hardest", mostly useful for spotting a question that's a giveaway rather than actually testing anything.</p>
-          <div id="analyticsEasiestWrap" style="overflow-x:auto;"></div>
-        </div></details>
-      </div>
+        <div id="analyticsTableWrap" style="overflow-x:auto;"></div>
+      </details>
+
+      <details class="card an-help">
+        <summary><b>How to read these numbers</b></summary>
+        <div class="card-sub" style="margin-top:8px;line-height:1.6;">
+          <p><b>% correct</b> counts every answer, including students' second and third tries. 🟢 75%+ is comfortable, 🟡 50–74% is mixed, 🔴 under 50% means most students are getting it wrong.</p>
+          <p><b>Check the answer key</b> appears when more students pick one of the wrong options than the marked answer, or when the stronger students do <i>worse</i> than the weaker ones — both usually mean the marked answer or the wording is off.</p>
+          <p><b>Unclear</b> means strong and weak students do about equally well on it, so it isn't really testing understanding. This uses each student's <i>first</i> try only, and needs 10+ first tries before it says anything.</p>
+          <p><b>Too easy</b> means almost everyone gets it right first time. That isn't wrong — it just doesn't tell students apart.</p>
+          <p>Small numbers are noisy: one wrong answer out of two attempts is "50% correct". Rows with few answers are greyed out.</p>
+        </div>
+      </details>
     </section>
   </main>
 </div>
@@ -4957,7 +5006,7 @@
   document.getElementById('contributorBackBtn').addEventListener('click', ()=>{ contributorDetailCard.style.display = 'none'; });
 
   // ---------------- Analytics ----------------
-  const analyticsStatus = document.getElementById('analyticsStatus'), analyticsTableWrap = document.getElementById('analyticsTableWrap');
+  const analyticsStatus = document.getElementById('analyticsStatus');
   function buildItemIndex(){
     const idx = {};
     Object.entries(RD.THEMES).forEach(([themeId, theme])=> Object.entries(theme.topics).forEach(([topicId, topic])=> Object.entries(topic.items).forEach(([itemId, item])=>{ idx[itemId] = { themeId, topicId, item }; })));
@@ -4999,17 +5048,11 @@
     if(note) note.innerHTML = course
       ? `Showing <b>${esc2(course)}</b>${scope ? '' : ' only'} — ${rows.length} question${rows.length===1?'':'s'} with answer data.${scope ? '' : ' Switch to <b>All courses</b> for the whole game.'}`
       : scope ? `Showing your courses: <b>${esc2(scope.join(', '))}</b>.` : `Showing every course. Pick yours to see just its questions.`;
+    anFilter = null;
     renderAnalyticsSummary(rows, course);
-    const byCourse = document.getElementById('analyticsByCourse');
-    renderAnalyticsGroupTable('analyticsByCourse', groupAnalyticsRows(rows, r=>r.courseId, r=>r.courseLabel), 'Course');
-    renderAnalyticsGroupTable('analyticsByTopic', groupAnalyticsRows(rows, r=>r.courseId+'::'+r.topicId, r=> course ? r.topic : `${r.courseLabel} · ${r.topic}`), course ? 'Topic' : 'Course · Topic');
-    // With one course chosen the by-course table is a single row -- the by-topic
-    // breakdown is the useful one, so open it.
-    const byTopicDetails = document.getElementById('analyticsByTopic')?.closest('details'); if(byTopicDetails && course) byTopicDetails.open = true;
-    renderNeedsReview();
-    renderQualityTable();
-    renderAnalyticsTable();
-    renderAnalyticsEasiest();
+    renderStruggle();
+    renderLookFirst();
+    renderAllQuestions();
   }
   // Groups the same per-question rows up to whatever level a caller wants
   // (course, or course+topic) -- shared by the "By course" and "By topic"
@@ -5029,74 +5072,207 @@
     const color = accuracy < 0.5 ? 'var(--danger)' : accuracy < 0.75 ? 'var(--warn)' : 'var(--good)';
     return `<div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;max-width:140px;height:8px;border-radius:4px;background:var(--line);overflow:hidden;"><div style="width:${pct}%;height:100%;background:${color};"></div></div><span>${pct}%</span></div>`;
   }
-  function renderAnalyticsGroupTable(containerId, rows, colLabel){
-    const el = document.getElementById(containerId);
-    if(!rows.length){ el.innerHTML = '<p class="card-sub">No answer data recorded yet.</p>'; return; }
-    el.innerHTML = `<table class="analytics-table"><thead><tr><th>${colLabel}</th><th>Answered</th><th>Accuracy</th></tr></thead><tbody>${rows.map(g=>`<tr><td>${esc2(g.label)}</td><td>${g.total}</td><td>${accuracyBarHtml(g.accuracy)}</td></tr>`).join('')}</tbody></table>`;
-  }
+  // ---- snapshot ----------------------------------------------------------
+  function anStatus(acc){ return acc < 0.5 ? { cls:'bad', icon:'🔴', word:'Struggling' } : acc < 0.75 ? { cls:'mid', icon:'🟡', word:'Mixed' } : { cls:'ok', icon:'🟢', word:'Comfortable' }; }
   function renderAnalyticsSummary(rows, course){
     const el = document.getElementById('analyticsSummary');
-    if(!rows.length){ el.innerHTML = `<span style="color:var(--muted);">No answer data${course ? ' for this course' : ''} yet.</span>`; return; }
+    if(!rows.length){ el.innerHTML = `<div class="an-empty">No answers recorded${course ? ' for this course' : ''} yet. This fills in as students play.</div>`; return; }
     const totalAnswers = rows.reduce((s,r)=> s+r.total, 0);
     const totalCorrect = rows.reduce((s,r)=> s+r.correct, 0);
-    const totalQuestionsInGame = course
+    const acc = totalCorrect / totalAnswers, st = anStatus(acc);
+    const inGame = course
       ? Object.values(RD.THEMES[course]?.topics||{}).reduce((n,t)=> n + Object.values(t.items||{}).reduce((m,it)=> m + (it.questions||[]).length, 0), 0)
       : countAll(RD).questions;
-    const mostAnswered = rows.reduce((max,r)=> r.total > (max?max.total:0) ? r : max, null);
-    el.innerHTML = [
-      `<span><b>${totalAnswers.toLocaleString()}</b> answers recorded</span>`,
-      `<span><b>${Math.round(100*totalCorrect/totalAnswers)}%</b> overall accuracy</span>`,
-      `<span><b>${rows.length}</b> / ${totalQuestionsInGame} questions have any data <span style="color:var(--muted);">(${Math.round(100*rows.length/(totalQuestionsInGame||1))}% coverage)</span></span>`,
-      mostAnswered ? `<span>Most answered: <b>${esc2((mostAnswered.prompt||'').slice(0,40))}${(mostAnswered.prompt||'').length>40?'…':''}</b> (${mostAnswered.total})</span>` : '',
-    ].filter(Boolean).join('');
+    const toCheck = anLookList(rows).filter(x=> x.kind!=='easy').length;
+    el.innerHTML = `
+      <div class="an-tile"><b>${totalAnswers.toLocaleString()}</b><span>answers so far</span></div>
+      <div class="an-tile"><b>${Math.round(acc*100)}%</b><span>answered correctly · <span class="an-st ${st.cls}">${st.icon} ${st.word}</span></span></div>
+      <div class="an-tile"><b>${rows.length}<small> / ${inGame}</small></b><span>questions answered at least once</span></div>
+      <div class="an-tile${toCheck?' warn':''}"><b>${toCheck}</b><span>question${toCheck===1?'':'s'} worth a look ↓</span></div>`;
   }
+
+  // ---- where students struggle (one hue, % correct on a fixed 0-100 scale) ----
+  let anGroupBy = 'lecture', anFilter = null; // anFilter: { by, key, label } from a clicked row
+  const AN_FEW = 10; // fewer answers than this = shown, but greyed as noisy
+  function anGroups(rows, by){
+    const g = {};
+    rows.forEach(r=>{
+      const key = by==='lecture' ? (r.lecKey || '') : (r.courseId + '::' + r.topicId);
+      const label = by==='lecture' ? (r.lecKey ? r.lecLabel : 'No lecture tagged') : r.topic || '(no topic)';
+      if(!g[key]) g[key] = { key, label, sub: by==='topic' && !document.getElementById('analyticsCourse').value ? r.courseId : '', correct:0, total:0, qs:0 };
+      g[key].correct += r.correct; g[key].total += r.total; g[key].qs++;
+    });
+    return Object.values(g).map(x=>({ ...x, acc: x.correct / x.total }))
+      .sort((a,b)=> (a.key==='' ) - (b.key==='') || a.acc - b.acc || b.total - a.total);
+  }
+  function renderStruggle(){
+    const el = document.getElementById('anStruggle');
+    const rows = analyticsRowsCache;
+    // A course with no lecture tags at all reads better by topic.
+    if(anGroupBy==='lecture' && rows.length && !rows.some(r=>r.lecKey)) anGroupBy = 'topic';
+    document.querySelectorAll('#anGroupSeg [data-an-group]').forEach(b=> b.classList.toggle('on', b.dataset.anGroup===anGroupBy));
+    if(!rows.length){ el.innerHTML = `<div class="an-empty">Nothing to show yet.</div>`; return; }
+    const groups = anGroups(rows, anGroupBy);
+    el.innerHTML = `<div class="an-rows">${groups.map(g=>{
+      const pct = Math.round(g.acc*100), st = anStatus(g.acc), few = g.total < AN_FEW, on = anFilter && anFilter.by===anGroupBy && anFilter.key===g.key;
+      const tip = `${g.label}: ${pct}% correct from ${g.total} answer${g.total===1?'':'s'} on ${g.qs} question${g.qs===1?'':'s'}${few?' — too few answers to trust yet':''}`;
+      return `<button type="button" class="an-row${few?' few':''}${on?' on':''}" data-an-key="${esc2(g.key)}" data-an-label="${esc2(g.label)}" data-tip="${esc2(tip)}">
+        <span class="an-lab">${esc2(g.label)}${g.sub?` <small>${esc2(g.sub)}</small>`:''}</span>
+        <span class="an-track"><span class="an-fill" style="width:${Math.max(pct,1)}%"></span></span>
+        <span class="an-val">${pct}%</span>
+        <span class="an-st ${st.cls}">${st.icon} ${st.word}</span>
+        <span class="an-n">${g.total} answer${g.total===1?'':'s'}</span>
+      </button>`;
+    }).join('')}</div>`;
+    el.querySelectorAll('.an-row').forEach(b=> b.addEventListener('click', ()=>{
+      const same = anFilter && anFilter.by===anGroupBy && anFilter.key===b.dataset.anKey;
+      anFilter = same ? null : { by:anGroupBy, key:b.dataset.anKey, label:b.dataset.anLabel };
+      renderStruggle(); renderLookFirst(); renderAllQuestions();
+      if(!same){ const all = document.getElementById('anAllCard'); all.open = true; document.getElementById('needsReviewList').closest('.card').scrollIntoView({ block:'start', behavior:'smooth' }); }
+    }));
+    anWireTips(el);
+  }
+  document.querySelectorAll('#anGroupSeg [data-an-group]').forEach(b=> b.addEventListener('click', ()=>{ anGroupBy = b.dataset.anGroup; anFilter = null; renderStruggle(); renderLookFirst(); renderAllQuestions(); }));
+  // One shared hover tooltip for the bars.
+  let anTipEl = null;
+  function anWireTips(root){
+    if(!anTipEl){ anTipEl = document.createElement('div'); anTipEl.className = 'an-tip'; document.body.appendChild(anTipEl); }
+    root.querySelectorAll('[data-tip]').forEach(t=>{
+      t.addEventListener('mousemove', e=>{ anTipEl.textContent = t.dataset.tip; anTipEl.style.display = 'block'; anTipEl.style.left = Math.min(e.clientX + 14, window.innerWidth - anTipEl.offsetWidth - 8) + 'px'; anTipEl.style.top = (e.clientY + 16) + 'px'; });
+      t.addEventListener('mouseleave', ()=>{ anTipEl.style.display = 'none'; });
+    });
+  }
+  function anInFilter(r){
+    if(!anFilter) return true;
+    return anFilter.by==='lecture' ? (r.lecKey||'')===anFilter.key : (r.courseId + '::' + r.topicId)===anFilter.key;
+  }
+  function anFilterChip(){
+    return anFilter ? `<span class="an-filter">Showing <b>${esc2(anFilter.label)}</b> only <button type="button" data-an-clear title="Show everything">✕</button></span>` : '';
+  }
+  function anWireFilterChip(root){
+    root.querySelectorAll('[data-an-clear]').forEach(b=> b.addEventListener('click', ()=>{ anFilter = null; renderStruggle(); renderLookFirst(); renderAllQuestions(); }));
+  }
+
+  // ---- questions to look at -------------------------------------------------
+  const AN_KINDS = {
+    key:     { icon:'❓', label:'Check the answer key', cls:'bad' },
+    unclear: { icon:'🌀', label:'Unclear — doesn’t test understanding', cls:'mid' },
+    hard:    { icon:'📉', label:'Most students get it wrong', cls:'bad' },
+    tag:     { icon:'🏷', label:'Difficulty tag doesn’t fit', cls:'mid' },
+    easy:    { icon:'💤', label:'Almost everyone gets it right', cls:'calm' },
+  };
+  let anLookKind = 'all', anLookShowAll = false;
+  function anLookList(rows){
+    const out = [];
+    rows.forEach(r=>{
+      if(!r.qId || r.isSaq || !r.options) return;
+      const q = r.quality, pct = Math.round(r.missRate*100), reasons = [];
+      let kind = null;
+      const beats = q && q.beatsKey;
+      if((q && q.tag==='bad') || beats){
+        kind = 'key';
+        if(beats) reasons.push(`More students pick ${OPTION_LETTERS[beats.i]} (${Math.round(beats.share*100)}%) than the marked answer.`);
+        if(q && q.tag==='bad') reasons.push('Stronger students do worse on it than weaker ones.');
+      }
+      if(!kind && q && q.tag==='poor'){ kind = 'unclear'; reasons.push('Strong and weak students do about equally well, so it isn’t telling them apart.'); }
+      if(!kind && r.total >= REVIEW_MIN_ATTEMPTS && r.missRate >= REVIEW_MISS_RATE){ kind = 'hard'; reasons.push(`Answered wrong ${pct}% of the time.`); }
+      if(!kind && r.total >= REVIEW_MIN_ATTEMPTS && ((r.difficulty==='easy' && r.missRate > 0.5) || (r.difficulty==='hard' && r.missRate < 0.15))){
+        kind = 'tag'; reasons.push(`Tagged “${r.difficulty}”, but answered wrong ${pct}% of the time.`);
+      }
+      if(!kind && ((q && q.tag==='easy') || (r.total >= 20 && r.missRate < 0.05))){ kind = 'easy'; reasons.push(`${100-pct}% get it right.`); }
+      if(kind) out.push({ ...r, kind, reasons });
+    });
+    const order = { key:0, unclear:1, hard:2, tag:3, easy:4 };
+    return out.sort((a,b)=> order[a.kind]-order[b.kind] || b.total - a.total);
+  }
+  function anQuestionDetailHtml(r){
+    return `<div class="an-detail">
+      ${r.options ? optionStatsHtml(r.options, r.correctIndex, r.first) : ''}
+      ${r.explanation ? `<div class="struct-q-explain">${esc2(r.explanation)}</div>` : ''}
+    </div>`;
+  }
+  function anMeta(r){
+    const pctOk = Math.round((1-r.missRate)*100);
+    return [r.itemLabel, r.lecKey ? r.lecLabel : r.topic, `${r.total} answer${r.total===1?'':'s'}`, `${pctOk}% correct`].filter(Boolean).map(esc2).join(' · ');
+  }
+  function renderLookFirst(){
+    const all = anLookList(analyticsRowsCache).filter(anInFilter);
+    const counts = {}; all.forEach(x=> counts[x.kind] = (counts[x.kind]||0) + 1);
+    const toCheck = all.filter(x=> x.kind!=='easy');
+    document.getElementById('needsReviewCount').textContent = toCheck.length ? String(toCheck.length) : '';
+    const chips = [['all','Worth a look', toCheck.length], ...Object.entries(AN_KINDS).map(([k,v])=>[k, `${v.icon} ${v.label}`, counts[k]||0])].filter(([k,,n])=> k==='all' || n);
+    if(anLookKind!=='all' && !counts[anLookKind]) anLookKind = 'all';
+    document.getElementById('anLookChips').innerHTML = chips.map(([k,label,n])=>`<button type="button" class="an-chip${anLookKind===k?' on':''}" data-an-kind="${k}">${label} <small>${n}</small></button>`).join('') + anFilterChip();
+    document.querySelectorAll('#anLookChips [data-an-kind]').forEach(b=> b.addEventListener('click', ()=>{ anLookKind = b.dataset.anKind; anLookShowAll = false; renderLookFirst(); }));
+    anWireFilterChip(document.getElementById('anLookChips'));
+    const list = anLookKind==='all' ? toCheck : all.filter(x=> x.kind===anLookKind);
+    const el = document.getElementById('needsReviewList');
+    if(!list.length){ el.innerHTML = `<div class="an-empty">${analyticsRowsCache.length ? '✓ Nothing stands out here right now.' : 'Nothing to show yet.'}</div>`; return; }
+    const shown = anLookShowAll ? list : list.slice(0, 8);
+    el.innerHTML = shown.map((r,i)=>{
+      const k = AN_KINDS[r.kind], flagged = isAlreadyFlagged(r.qId);
+      return `<div class="an-q">
+        <div class="an-q-top"><span class="an-kind ${k.cls}">${k.icon} ${k.label}</span><span class="an-q-meta">${anMeta(r)}</span></div>
+        <div class="an-q-prompt">${esc2(r.prompt)}</div>
+        <div class="an-q-why">${r.reasons.map(esc2).join(' ')}</div>
+        <div class="an-q-actions">
+          <button type="button" class="subtle" data-an-open="${i}">Show answers ▾</button>
+          <button type="button" class="struct-edit-link" data-edit-question="${esc2(r.qId)}">✏️ Edit</button>
+          ${flagged ? `<span class="card-sub" style="margin:0;">🚩 Already flagged</span>` : `<button type="button" class="struct-edit-link" data-flag-for-review="${esc2(r.qId)}">🚩 Flag for the team</button>`}
+        </div>
+        <div class="an-q-more" data-an-more="${i}" style="display:none;"></div>
+      </div>`;
+    }).join('') + (list.length > shown.length ? `<button type="button" class="subtle an-more-btn" id="anLookMore">Show all ${list.length}</button>` : '');
+    el.querySelectorAll('[data-an-open]').forEach(b=> b.addEventListener('click', ()=>{
+      const box = el.querySelector(`[data-an-more="${b.dataset.anOpen}"]`), open = box.style.display!=='none';
+      box.style.display = open ? 'none' : 'block'; b.textContent = open ? 'Show answers ▾' : 'Hide answers ▴';
+      if(!open) box.innerHTML = anQuestionDetailHtml(shown[+b.dataset.anOpen]);
+    }));
+    const more = document.getElementById('anLookMore'); if(more) more.addEventListener('click', ()=>{ anLookShowAll = true; renderLookFirst(); });
+    wireEditButtons(el);
+    el.querySelectorAll('[data-flag-for-review]').forEach(btn=> btn.addEventListener('click', ()=>{
+      if(!requireContributorIdentity()) return;
+      const r = list.find(x=>x.qId===btn.dataset.flagForReview); if(!r) return;
+      const reason = `Flagged from Data analysis: ${AN_KINDS[r.kind].label} — ${r.reasons.join(' ')}`;
+      pushToQueue({ type:'flag-question', title: (r.prompt||'').length > 70 ? r.prompt.slice(0,67)+'…' : (r.prompt||'(question)'), note:`⚠️ ${reason}`,
+        data:{ theme:r.courseId, topicId:r.topicId, itemId:r.itemId, qId:r.qId, reason, prompt:r.prompt, difficulty:r.difficulty||'medium' } });
+      toast('Flagged for the team to review');
+      renderLookFirst();
+    }));
+  }
+
+  // ---- every question ------------------------------------------------------
+  function renderAllQuestions(){
+    const wrap = document.getElementById('analyticsTableWrap');
+    const q = (document.getElementById('anAllSearch').value||'').trim().toLowerCase();
+    const sort = document.getElementById('anAllSort').value;
+    let rows = analyticsRowsCache.filter(anInFilter).filter(r=> !q || (r.prompt||'').toLowerCase().includes(q) || (r.itemLabel||'').toLowerCase().includes(q));
+    rows = rows.slice().sort(sort==='easy' ? (a,b)=> a.missRate-b.missRate || b.total-a.total : sort==='most' ? (a,b)=> b.total-a.total : (a,b)=> b.missRate-a.missRate || b.total-a.total);
+    document.getElementById('anAllCount').textContent = `· ${rows.length} with answers`;
+    document.getElementById('anAllFilter').innerHTML = anFilterChip(); anWireFilterChip(document.getElementById('anAllFilter'));
+    analyticsStatus.className = 'status'; analyticsStatus.textContent = analyticsAllRows.length ? `Updated ${new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })}` : '';
+    if(!rows.length){ wrap.innerHTML = `<div class="an-empty">No questions match.</div>`; return; }
+    wrap.innerHTML = `<table class="analytics-table an-table"><thead><tr><th>Question</th><th>Concept</th><th>${anGroupBy==='lecture'?'Lecture':'Topic'}</th><th style="width:80px;">Answers</th><th style="width:170px;">% correct</th></tr></thead><tbody>${rows.map((r,i)=>{
+      const acc = 1 - r.missRate, pct = Math.round(acc*100), few = r.total < AN_FEW;
+      return `<tr class="an-tr${few?' few':''}" data-an-tr="${i}"><td>${esc2((r.prompt||'').slice(0,110))}${(r.prompt||'').length>110?'…':''}</td><td>${esc2(r.itemLabel)}</td><td>${esc2(anGroupBy==='lecture' ? (r.lecKey ? r.lecKey : '—') : r.topic)}</td><td>${r.total}</td>
+        <td><span class="an-mini"><span class="an-track"><span class="an-fill" style="width:${Math.max(pct,1)}%"></span></span><span class="an-val">${pct}%</span></span></td></tr>
+        <tr class="an-tr-detail" data-an-trd="${i}" style="display:none;"><td colspan="5"></td></tr>`;
+    }).join('')}</tbody></table>`;
+    wrap.querySelectorAll('[data-an-tr]').forEach(tr=> tr.addEventListener('click', ()=>{
+      const i = tr.dataset.anTr, d = wrap.querySelector(`[data-an-trd="${i}"]`), r = rows[+i];
+      const open = d.style.display !== 'none';
+      d.style.display = open ? 'none' : '';
+      if(!open){ d.querySelector('td').innerHTML = `<div class="struct-q-prompt">${esc2(r.prompt)}</div>` + anQuestionDetailHtml(r) + (r.qId && r.options ? `<button type="button" class="struct-edit-link" data-edit-question="${esc2(r.qId)}">✏️ Edit this question</button>` : ''); wireEditButtons(d); }
+    }));
+  }
+  document.getElementById('anAllSearch').addEventListener('input', renderAllQuestions);
+  document.getElementById('anAllSort').addEventListener('change', renderAllQuestions);
   // The prompt column is truncated at 90 chars, and that was previously the
   // only way to read a question from this table at all -- no way to see the
   // options, the correct answer, or jump to fixing it. Each row now expands
   // into a detail row (full prompt/options/correct answer/explanation) with
   // an edit link straight into the Add-content form, reusing the same
   // wireEditButtons() mechanism Browse content's item toggles use.
-  function renderAnalyticsTable(){
-    const minAttempts = Math.max(0, parseInt(document.getElementById('analyticsMinAttempts').value, 10) || 0);
-    const rows = analyticsRowsCache.filter(r=>r.total >= minAttempts).sort((a,b)=> b.missRate - a.missRate || b.total - a.total);
-    if(!rows.length){
-      analyticsTableWrap.innerHTML = '<p class="card-sub">No questions meet that minimum attempts.</p>';
-      analyticsStatus.textContent = `0 of ${analyticsRowsCache.length} question${analyticsRowsCache.length===1?'':'s'} with answer data shown.`;
-      return;
-    }
-    analyticsTableWrap.innerHTML = `<table class="analytics-table"><thead><tr><th>Course</th><th>Topic</th><th>Item</th><th>Question</th><th>Correct</th><th>Wrong</th><th>Miss rate</th><th></th></tr></thead><tbody>${rows.map((r,i)=>`
-      <tr>
-        <td>${esc2(r.courseLabel)}</td><td>${esc2(r.topic)}</td><td>${esc2(r.itemLabel)}</td>
-        <td>${esc2((r.prompt||'').slice(0,90))}${(r.prompt||'').length>90?'…':''}</td>
-        <td>${r.correct}</td><td>${r.wrong}</td><td>${Math.round(r.missRate*100)}%</td>
-        <td><button type="button" class="subtle" data-analytics-detail="${i}">Detail ▾</button></td>
-      </tr>
-      <tr data-analytics-detail-row="${i}" style="display:none;"><td colspan="8" style="background:var(--bg-1);"></td></tr>
-    `).join('')}</tbody></table>`;
-    analyticsTableWrap.querySelectorAll('[data-analytics-detail]').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
-        const i = btn.dataset.analyticsDetail, row = rows[i];
-        const detailRow = analyticsTableWrap.querySelector(`[data-analytics-detail-row="${i}"]`);
-        const wasOpen = detailRow.style.display !== 'none';
-        analyticsTableWrap.querySelectorAll('[data-analytics-detail-row]').forEach(tr=> tr.style.display = 'none');
-        analyticsTableWrap.querySelectorAll('[data-analytics-detail]').forEach(b=> b.textContent = 'Detail ▾');
-        if(wasOpen) return; // clicking an already-open row's button just closes it
-        detailRow.style.display = '';
-        btn.textContent = 'Detail ▴';
-        const cell = detailRow.querySelector('td');
-        if(row.isSaq){
-          cell.innerHTML = `<div class="struct-q-prompt">${esc2(row.prompt)}</div><div class="struct-q-explain">Model answer: ${esc2(row.explanation||'(none)')}</div><button type="button" class="struct-edit-link" data-edit-item="${esc2(row.itemId)}">✏️ Open item</button>`;
-        } else if(row.options){
-          cell.innerHTML = `<div class="struct-q-prompt">${esc2(row.prompt)}</div>${qualityBadgeHtml(row.quality)}${optionStatsHtml(row.options, row.correctIndex, row.first)}${row.explanation?`<div class="struct-q-explain">${esc2(row.explanation)}</div>`:''}<button type="button" class="struct-edit-link" data-edit-question="${esc2(row.qId)}">✏️ Edit this question</button>`;
-        } else {
-          cell.innerHTML = `<div class="struct-q-prompt">${esc2(row.prompt)}</div><p class="card-sub" style="margin:6px 0 0;">Couldn't find this question in the current content — it may have been deleted or edited since this stat was recorded.</p>`;
-        }
-        wireEditButtons(cell);
-      });
-    });
-    analyticsStatus.textContent = `${rows.length} of ${analyticsRowsCache.length} question${analyticsRowsCache.length===1?'':'s'} with answer data shown.`;
-  }
-  document.getElementById('analyticsMinAttempts').addEventListener('input', renderAnalyticsTable);
   // The actionable half of the analytics: instead of leaving someone to
   // scan the table and decide what's worth acting on, surface the rows that
   // most likely mean a badly written question (or a mis-tagged difficulty),
@@ -5119,77 +5295,6 @@
     return out.sort((a,b)=> b.missRate - a.missRate || b.total - a.total);
   }
   function isAlreadyFlagged(qId){ return Object.values(batch).some(e=> e.type==='flag-question' && e.data && e.data.qId===qId); }
-  function renderNeedsReview(){
-    const rows = computeNeedsReview(analyticsRowsCache);
-    document.getElementById('needsReviewCount').textContent = rows.length ? String(rows.length) : '';
-    const el = document.getElementById('needsReviewList');
-    if(!rows.length){ el.innerHTML = `<div class="struct-empty">— nothing stands out right now (needs ${REVIEW_MIN_ATTEMPTS}+ attempts and a ${Math.round(REVIEW_MISS_RATE*100)}%+ miss rate, or a difficulty tag that doesn't fit) —</div>`; return; }
-    el.innerHTML = rows.map(r=>{
-      const flagged = isAlreadyFlagged(r.qId);
-      return `<div class="q-existing-row" style="align-items:flex-start;">
-        <span><b>${esc2(r.itemLabel)}</b> <span style="color:var(--muted);">· ${esc2(r.courseLabel)} · ${esc2(r.topic)}</span><br>
-          <span style="color:var(--muted);">${esc2((r.prompt||'').slice(0,90))}${(r.prompt||'').length>90?'…':''}</span><br>
-          <span style="color:var(--warn);">${r.reasons.map(esc2).join('; ')}</span></span>
-        <span class="btn-row" style="margin:0;flex-shrink:0;">
-          <button type="button" class="struct-edit-link" data-edit-question="${esc2(r.qId)}">✏️ Edit</button>
-          ${flagged ? `<span class="struct-edit-link" style="opacity:.6;">🚩 Already flagged</span>` : `<button type="button" class="danger struct-edit-link" data-flag-for-review="${esc2(r.qId)}">🚩 Flag for review</button>`}
-        </span>
-      </div>`;
-    }).join('');
-    wireEditButtons(el);
-    el.querySelectorAll('[data-flag-for-review]').forEach(btn=> btn.addEventListener('click', ()=>{
-      if(!requireContributorIdentity()) return;
-      const r = rows.find(x=>x.qId===btn.dataset.flagForReview); if(!r) return;
-      const reason = `Flagged from Data analysis: ${r.reasons.join('; ')}`;
-      // Same shape the in-game "Report question" button writes, so it shows
-      // up in Reports with the same Edit link and detail view as any other.
-      pushToQueue({ type:'flag-question', title: (r.prompt||'').length > 70 ? r.prompt.slice(0,67)+'…' : (r.prompt||'(question)'), note:`⚠️ ${reason}`,
-        data:{ theme:r.courseId, topicId:r.topicId, itemId:r.itemId, qId:r.qId, reason, prompt:r.prompt, difficulty:r.difficulty||'medium' } });
-      toast('Flagged — it\'s now in Reports for the team');
-      renderNeedsReview();
-    }));
-  }
-  const QUALITY_GROUPS = { attention:['bad','poor','weak'], easy:['easy'], hard:['hard'], good:['good','excellent'] };
-  const QUALITY_ORDER = { bad:0, poor:1, weak:2, hard:3, easy:4, ok:5, fair:6, good:7, excellent:8, na:9 };
-  function renderQualityTable(){
-    const wrap = document.getElementById('qualityTableWrap');
-    const filter = document.getElementById('qualityFilter').value;
-    const withData = analyticsRowsCache.filter(r=> r.quality && r.quality.tag !== 'na');
-    const attention = withData.filter(r=> QUALITY_GROUPS.attention.includes(r.quality.tag)).length;
-    document.getElementById('qualityCount').textContent = attention ? String(attention) : '';
-    const rows = withData.filter(r=> filter==='all' || QUALITY_GROUPS[filter].includes(r.quality.tag))
-      .sort((a,b)=> QUALITY_ORDER[a.quality.tag] - QUALITY_ORDER[b.quality.tag] || (a.quality.D ?? 9) - (b.quality.D ?? 9) || b.first.n - a.first.n);
-    if(!rows.length){
-      wrap.innerHTML = `<div class="struct-empty" style="margin-left:0;">${withData.length ? '— nothing in this group —' : `— no question has ${STATS_MIN_FIRST}+ first-attempt answers yet. This fills in as players use the version of the game that logs option picks —`}</div>`;
-      return;
-    }
-    wrap.innerHTML = `<table class="analytics-table"><thead><tr><th>Question</th><th>Item</th><th>First tries</th><th>% correct</th><th>D</th><th>Verdict</th><th></th></tr></thead><tbody>${rows.map((r,i)=>`
-      <tr><td>${esc2((r.prompt||'').slice(0,80))}${(r.prompt||'').length>80?'…':''}</td><td>${esc2(r.itemLabel)}</td><td>${r.first.n}</td><td>${accuracyBarHtml(r.quality.p)}</td>
-        <td>${r.quality.D === null ? '—' : r.quality.D.toFixed(2) + (r.quality.disc.lowConfidence ? '*' : '')}</td><td>${qualityBadgeHtml(r.quality)}</td>
-        <td><button type="button" class="subtle" data-quality-detail="${i}">Detail ▾</button></td></tr>
-      <tr data-quality-detail-row="${i}" style="display:none;"><td colspan="7" style="background:var(--bg-1);"></td></tr>`).join('')}</tbody></table>
-      <p class="card-sub" style="margin-top:8px;">* D based on fewer than ${D_LOW_CONFIDENCE} established players — treat as a hint. "—" means fewer than ${D_MIN_BANDED} answers from players with enough history to place them.</p>`;
-    wrap.querySelectorAll('[data-quality-detail]').forEach(btn=> btn.addEventListener('click', ()=>{
-      const i = btn.dataset.qualityDetail, r = rows[i], detailRow = wrap.querySelector(`[data-quality-detail-row="${i}"]`);
-      const wasOpen = detailRow.style.display !== 'none';
-      wrap.querySelectorAll('[data-quality-detail-row]').forEach(tr=> tr.style.display = 'none');
-      wrap.querySelectorAll('[data-quality-detail]').forEach(b=> b.textContent = 'Detail ▾');
-      if(wasOpen) return;
-      detailRow.style.display = ''; btn.textContent = 'Detail ▴';
-      const d = r.quality.disc;
-      const groups = d && d.D !== null ? `<div class="card-sub" style="margin:6px 0;">Top 27%: <b>${Math.round(d.pU*100)}%</b> correct · Bottom 27%: <b>${Math.round(d.pL*100)}%</b> correct (from ${d.N} established players)</div>` : '';
-      const cell = detailRow.querySelector('td');
-      cell.innerHTML = `<div class="struct-q-prompt">${esc2(r.prompt)}</div>${optionStatsHtml(r.options, r.correctIndex, r.first)}${groups}<ul class="p-facts" style="margin-top:6px;">${r.quality.reasons.map(x=>`<li>${esc2(x)}</li>`).join('')}</ul><button type="button" class="struct-edit-link" data-edit-question="${esc2(r.qId)}">✏️ Edit question</button>`;
-      wireEditButtons(cell);
-    }));
-  }
-  document.getElementById('qualityFilter').addEventListener('change', renderQualityTable);
-  function renderAnalyticsEasiest(){
-    const el = document.getElementById('analyticsEasiestWrap');
-    const rows = analyticsRowsCache.filter(r=>r.total >= REVIEW_MIN_ATTEMPTS).sort((a,b)=> a.missRate - b.missRate || b.total - a.total).slice(0, 15);
-    if(!rows.length){ el.innerHTML = `<p class="card-sub">No questions with ${REVIEW_MIN_ATTEMPTS}+ attempts yet.</p>`; return; }
-    el.innerHTML = `<table class="analytics-table"><thead><tr><th>Course</th><th>Item</th><th>Question</th><th>Attempts</th><th>Miss rate</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc2(r.courseLabel)}</td><td>${esc2(r.itemLabel)}</td><td>${esc2((r.prompt||'').slice(0,90))}${(r.prompt||'').length>90?'…':''}</td><td>${r.total}</td><td>${Math.round(r.missRate*100)}%</td></tr>`).join('')}</tbody></table>`;
-  }
   function loadAnalytics(){
     if(!canSeeAnalytics()) return;
     analyticsStatus.className = 'status'; analyticsStatus.textContent = 'Loading…';
@@ -5205,8 +5310,13 @@
         const correct = s.correct||0, wrong = s.wrong||0, total = correct+wrong;
         const courseId = entry ? entry.themeId : '';
         const first = parseFirst(s);
+        // The lecture this question belongs to: its own tag, else its concept's.
+        const lc = (q && q.course) || (entry && entry.item.course) || '', lk = (q && q.class) || (entry && entry.item.class) || '';
+        const lecKey = lc && lk ? `${lc} ${lk}` : '';
+        const lecName = lecKey ? ((RD.COURSES[lc]?.classes?.[lk]||{}).label || '') : '';
         return {
           itemLabel: entry ? entry.item.label : itemId, prompt, correct, wrong, total, courseId,
+          lecKey, lecLabel: lecKey ? `${lk} · ${lecName || lecKey}` : '',
           courseLabel: courseId ? ((RD.THEMES[courseId]||{}).label || courseId) : '(unknown)',
           topicId: entry ? entry.topicId : '', topic: entry ? ((RD.THEMES[entry.themeId]?.topics?.[entry.topicId]||{}).label || entry.topicId) : '',
           missRate: total ? wrong/total : 0,
@@ -6704,7 +6814,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
     ]},
     { group:'Lecturers & admins', items:[
       { q:'Lecturer: how do I see how students are doing on my questions?', go:['maintainer','🔐 Log in'], a:`
-        <p>Ask the admin for your access code. Enter it under [[Log in]] → <b>Lecturer / UC</b> and press {{Open}} — [[Data analysis]] then shows your course: accuracy by topic, questions that need review, and question quality.</p>` },
+        <p>Ask the admin for your access code. Enter it under [[Log in]] → <b>Lecturer / UC</b> and press {{Open}} — [[Data analysis]] then shows your course: which lectures and topics students struggle with, and which questions are worth a look — wrong answer key, unclear, too hard or too easy.</p>` },
       { q:'Admin: how do I give a lecturer access to Data analysis?', go:['maintainer','🔐 Log in'], a:`
         <p>Unlock admin mode, then in <b>🎓 Lecturers &amp; UCs</b> enter their name and email, tick their course(s) and press {{Create access code}}. Send them the 6-character code. Revoke it there any time.</p>` },
       { q:'Admin: how do I change how many questions each stage needs?', go:['stages','🏁 Stages'], a:`
