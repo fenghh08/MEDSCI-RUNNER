@@ -5773,7 +5773,7 @@
   // lecture drawn as a bracket over the items it taught.
   function dmLectureDiagram(){
     const topics = [
-      { name:'Topic A', groups:[ { lec:'Lecture 1', items:['A','B','C'] }, { lec:'Lecture 2', items:['D','E','F'] } ] },
+      { name:'Topic A', alias:'Module', groups:[ { lec:'Lecture 1', items:['A','B','C'] }, { lec:'Lecture 2', items:['D','E','F'] } ] },
       { name:'Topic B', alias:'Module', groups:[ { lec:'Lecture 3', items:['G','H'] } ] },
     ];
     return `<div class="dm-lec" style="--c-course:${DM_COLORS.course};--c-topic:${DM_COLORS.topic};--c-item:${DM_COLORS.concept};--c-lec:${DM_COLORS.lecture}">
