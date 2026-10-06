@@ -551,8 +551,9 @@
   #podiumStage{ flex:1; min-height:0; width:min(560px,94%); display:flex; align-items:flex-end; justify-content:center; position:relative; margin-top:6px; }
   .pod-col{ flex:1; max-width:33.4%; height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; min-width:0; }
   .pod-who{ display:flex; flex-direction:column; align-items:center; gap:4px; margin-bottom:8px; opacity:0; max-width:100%; }
-  .pod-avatar{ width:clamp(44px,11vw,64px); height:clamp(44px,11vw,64px); border-radius:50%; display:flex; align-items:center; justify-content:center;
-    font-weight:700; font-size:clamp(20px,5vw,30px); color:#fff; border:3px solid rgba(255,255,255,.9); box-shadow:0 4px 14px rgba(0,0,0,.35); position:relative; }
+  .pod-avatar{ width:clamp(52px,13vw,76px); height:clamp(52px,13vw,76px); border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 50% 40%, #3b1a73, #1f0a48); border:3px solid rgba(255,255,255,.9); box-shadow:0 4px 14px rgba(0,0,0,.35); position:relative; overflow:visible; }
+  .pod-avatar .pod-cell{ width:100%; height:100%; display:block; border-radius:50%; }
   .pod-crown{ position:absolute; top:-26px; left:50%; transform:translateX(-50%); font-size:24px; }
   .pod-name{ font-weight:700; font-size:clamp(13px,3.4vw,17px); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-shadow:0 1px 0 rgba(0,0,0,.3); }
   .pod-you{ font-size:10.5px; font-weight:700; color:#3a1d63; background:#ffd54d; border-radius:10px; padding:1px 8px; }
@@ -1264,6 +1265,7 @@
     playerCustomization = c;
     try { localStorage.setItem('playerCustomization', JSON.stringify(c)); } catch(e){ /* fine — just won't persist across a reload in browsers that block file:// storage */ }
     syncPush('playerCustomization', c);
+    if(mp.active && mp.roomCode && mp.playerId) fbUpdate(ref(fbdb, `rooms/${mp.roomCode}/players/${mp.playerId}`), { look: mpMyLook() }).catch(()=>{});
   }
 
   // ---------- reading font ----------
@@ -5884,7 +5886,7 @@
       // (who's done, gift unlock, who can win) only ever sees the students.
       if(!spectate){
         await set(ref(fbdb, `rooms/${code}/players/${mp.playerId}`), {
-          name, glucose: GAME_CONFIG.startingGlucose, stageIndex:0, stageRoman:'I', correctCount:0, incorrectCount:0, bonusScore:0, done:false, finishedWin:false,
+          name, look: mpMyLook(), glucose: GAME_CONFIG.startingGlucose, stageIndex:0, stageRoman:'I', correctCount:0, incorrectCount:0, bonusScore:0, done:false, finishedWin:false,
         });
       }
       mpHostSetupView.style.display = 'none';
@@ -5928,7 +5930,7 @@
       mp.filterClasses = room.filterClasses || [];
       mp.speed = room.speed || 'normal';
       await set(ref(fbdb, `rooms/${code}/players/${mp.playerId}`), {
-        name, glucose: GAME_CONFIG.startingGlucose, stageIndex:0, stageRoman:'I', correctCount:0, incorrectCount:0, bonusScore:0, done:false, finishedWin:false,
+        name, look: mpMyLook(), glucose: GAME_CONFIG.startingGlucose, stageIndex:0, stageRoman:'I', correctCount:0, incorrectCount:0, bonusScore:0, done:false, finishedWin:false,
       });
       mpJoinEntryView.style.display = 'none';
       mpWaitView.style.display = 'block';
@@ -6081,6 +6083,19 @@
   }
   function mpScore(p){
     return (p.correctCount||0)*GAME_CONFIG.scoreCorrectWeight - (p.incorrectCount||0)*GAME_CONFIG.scoreIncorrectWeight + (p.glucose||0)*GAME_CONFIG.scoreLifeWeight + (p.stageIndex||0)*GAME_CONFIG.stageWeight + (p.bonusScore||0);
+  }
+  // The cell a racer customised, trimmed to the three fields the sprite
+  // needs so nothing else from localStorage ends up in the room. Anything a
+  // client sends that isn't one of the known options falls back to the
+  // default, so a stale or hand-edited node can't break the drawing.
+  function mpMyLook(){ return mpLookOf({ look: playerCustomization }); }
+  function mpLookOf(p){
+    const l = (p && p.look) || {};
+    return {
+      color: CUSTOMIZE_COLORS.includes(l.color) ? l.color : CUSTOMIZE_DEFAULT.color,
+      face: CUSTOMIZE_FACES.includes(l.face) ? l.face : CUSTOMIZE_DEFAULT.face,
+      accessory: CUSTOMIZE_ACCESSORIES.includes(l.accessory) ? l.accessory : CUSTOMIZE_DEFAULT.accessory,
+    };
   }
   function mpRankedRoster(roster){
     return Object.entries(roster).map(([pid,p])=>({ pid, ...p, score:mpScore(p) })).sort((a,b)=>b.score-a.score);
@@ -6391,7 +6406,6 @@
     podiumClose();
     // Tied scores share a rank number (1, 1, 3...), like any results table.
     const rankOf = ranked.map((p,i)=> 1 + ranked.findIndex(q=>q.score===p.score));
-    const hueOf = name => { let h = 0; for(const ch of String(name||'?')) h = (h*31 + ch.charCodeAt(0)) % 360; return h; };
     const top = ranked.slice(0,3);
     const heights = { 0:'100%', 1:'72%', 2:'52%' }; // of the block area, by 1st/2nd/3rd
     const order = top.length===1 ? [0] : top.length===2 ? [1,0] : [1,0,2]; // 2nd | 1st | 3rd left to right
@@ -6399,10 +6413,17 @@
       const p = top[i], isMe = p.pid===mp.playerId, nm = escapeHtml(p.name||'?');
       const blockMax = `calc((100% - 124px) * ${parseFloat(heights[i])/100})`;
       return `<div class="pod-col p${i+1}" data-i="${i}" style="--h:${blockMax}">
-        <div class="pod-who"><div class="pod-avatar" style="background:hsl(${hueOf(p.name)} 55% 45%)">${i===0?'<span class="pod-crown">👑</span>':''}${escapeHtml(String(p.name||'?').trim().charAt(0).toUpperCase())}</div>
+        <div class="pod-who"><div class="pod-avatar">${i===0?'<span class="pod-crown">👑</span>':''}<canvas class="pod-cell" width="128" height="128" data-pid="${escapeHtml(p.pid)}"></canvas></div>
           <div class="pod-name">${nm}</div>${isMe?`<div class="pod-you">${t('You')}</div>`:''}</div>
         <div class="pod-block"><div class="pod-badge">${rankOf[i]}</div><div class="pod-score" data-target="${p.score}">0</div></div></div>`;
     }).join('');
+    // Each podium spot shows that racer's own cell -- the one they chose in
+    // Customise and raced with -- rather than a coloured initial.
+    podiumStage.querySelectorAll('canvas.pod-cell').forEach(cv=>{
+      const p = top.find(x=> x.pid===cv.dataset.pid); if(!p) return;
+      const c2 = cv.getContext('2d'); c2.clearRect(0,0,cv.width,cv.height);
+      drawCellSprite(c2, cv.width/2, cv.height/2 + 2, cv.width*0.33, mpLookOf(p), 0);
+    });
     const meIdx = ranked.findIndex(p=>p.pid===mp.playerId);
     if(meIdx > 2){
       podiumMeRow.innerHTML = `<span class="pod-me-rank">${rankOf[meIdx]}</span><span class="pod-me-name">${escapeHtml(ranked[meIdx].name||'')}</span><span class="pod-me-score">${ranked[meIdx].score}</span>`;
