@@ -433,6 +433,10 @@
   .mlc-pending{ font-size:12px; color:#7a5a12; background:#fff7e6; border:1px solid #f0d9a8; border-radius:10px; padding:2px 9px; white-space:nowrap; }
   .mlc-danger{ font-size:12px; color:var(--danger); background:var(--danger-soft); border:1px solid #f0b9c5; border-radius:10px; padding:2px 9px; white-space:nowrap; }
   .ml-concept.doomed{ opacity:.66; border-style:dashed; }
+  .mlc-mergebox{ border-top:1px solid var(--line); padding:14px 16px 16px; background:#fcfbff; }
+  .mlc-mergehead{ font-weight:700; margin-bottom:4px; }
+  .mlc-mergesub{ color:var(--muted); font-size:13px; margin:0 0 10px; }
+  .mlc-mergewarn{ color:#7a5a12; background:#fff7e6; border:1px solid #f0d9a8; border-radius:8px; padding:8px 10px; font-size:13px; margin:0 0 10px; }
   .ml-concept.doomed .mlc-name{ text-decoration:line-through; }
   .mld-foot{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
   .link-btn.danger-link{ color:var(--danger); }
@@ -847,6 +851,8 @@
                 <span class="fl-help">Remove any that shouldn't be here — deleted only once this edit is merged. You'll be asked for a reason.</span>
                 <div id="i_existingQuestionsList"></div>
               </div>
+              <button type="button" id="i_mergeItemBtn" style="display:none;margin-top:8px;">⤵ Merge into another concept</button>
+              <div class="mlc-mergebox" id="i_mergeBox" style="display:none;"></div>
               <button type="button" class="danger" id="i_deleteItemBtn" style="display:none;margin-top:8px;">🗑 Request deletion (needs a reason)</button>
             </div>
             <div class="row2">
@@ -1800,6 +1806,14 @@
       renderExistingQuestionsList(); renderItem();
     }));
   }
+  // Same request as the one in My lecture, offered where an admin already
+  // goes to tidy a concept up.
+  document.getElementById('i_mergeItemBtn').addEventListener('click', ()=>{
+    if(!editingItemId) return;
+    const box = document.getElementById('i_mergeBox');
+    if(box.style.display === 'block'){ box.style.display = 'none'; box.innerHTML = ''; return; }
+    openMergeFormInto(box, editingItemId, ()=>{ resetItemFormToNew(); renderStructureList(); });
+  });
   document.getElementById('i_deleteItemBtn').addEventListener('click', ()=>{
     if(!editingItemId) return;
     if(!requireContributorIdentity()) return;
@@ -1824,6 +1838,7 @@
     removedQuestionReasons = {};
     renderExistingQuestionsList();
     document.getElementById('i_deleteItemBtn').style.display = 'inline-block';
+    document.getElementById('i_mergeItemBtn').style.display = 'inline-block';
     i_theme.value = known.theme; fillTopicSelect(i_topic, known.theme); i_topic.value = known.topic;
     i_theme.disabled = true; i_topic.disabled = true;
     i_label.value = item.label || ''; i_description.value = item.description || ''; i_mechanism.value = item.mechanism || '';
@@ -1881,6 +1896,8 @@
     removedQuestionReasons = {};
     document.getElementById('i_existingQuestionsWrap').style.display = 'none';
     document.getElementById('i_deleteItemBtn').style.display = 'none';
+    document.getElementById('i_mergeItemBtn').style.display = 'none';
+    const mergeBox = document.getElementById('i_mergeBox'); mergeBox.style.display = 'none'; mergeBox.innerHTML = '';
     i_editModeToggle.checked = false; i_editPickerBlock.classList.remove('show'); i_addQuestionQuickLink.style.display = 'none';
     i_theme.disabled = false; i_topic.disabled = false;
     i_label.value=''; i_description.value=''; i_mechanism.value='';
@@ -3786,6 +3803,13 @@
         + `<div class="qi-detail-label">Where</div><div class="qi-detail-text">${esc2([d.theme, d.topicId, d.itemId, d.qId].filter(Boolean).join(' → ') || '(unknown)')}</div>`
         + reportEditButtonHtml(entry);
     }
+    if(entry.type === 'merge-item'){
+      const d = entry.data || {};
+      return `<div class="qi-detail-label">What happens</div><div class="qi-detail-text">${esc2(d.moved||0)} question${d.moved===1?'':'s'} move from "${esc2(d.fromLabel||d.fromItemId)}" onto "${esc2(d.toLabel||d.toItemId)}", then "${esc2(d.fromLabel||d.fromItemId)}" is removed.</div>`
+        + `<div class="qi-detail-label">Why</div><div class="qi-detail-text">${esc2(d.reason || '(no reason given)')}</div>`
+        + `<div class="qi-detail-label">Where</div><div class="qi-detail-text">${esc2([d.theme, d.fromTopicId, d.fromItemId].join(' → '))} → ${esc2([d.toTopicId, d.toItemId].join(' → '))}</div>`
+        + `<div class="qi-detail-label">Generated code</div><pre class="code-out" style="margin:0;max-height:220px;">${esc2(entry.code || '(no code recorded for this entry)')}</pre>`;
+    }
     if(entry.type === 'delete-item' || entry.type === 'delete-question'){
       const d = entry.data || {};
       return `<div class="qi-detail-label">Reason for deletion</div><div class="qi-detail-text">${esc2(d.reason || '(no reason given)')}</div>`
@@ -3807,16 +3831,17 @@
   // (new items with edits, new questions with edits) since the "is it new
   // or an edit" distinction only matters once you open a row.
   function renderQueueStats(all){
-    const counts = { item:0, question:0, deletion:0, report:0, feedback:0, other:0 };
+    const counts = { item:0, question:0, merge:0, deletion:0, report:0, feedback:0, other:0 };
     all.forEach(([,e])=>{
       if(e.type==='item' || e.type==='edit-item') counts.item++;
       else if(e.type==='question' || e.type==='edit-question') counts.question++;
+      else if(e.type==='merge-item') counts.merge++;
       else if(e.type==='delete-item' || e.type==='delete-question' || e.type==='delete-course') counts.deletion++;
       else if(e.type==='flag-item' || e.type==='flag-question') counts.report++;
       else if(e.type==='feedback') counts.feedback++;
       else counts.other++; // course, topic, lectureOutcomes
     });
-    queueStats.innerHTML = `<span><b>${all.length}</b> total</span><span><b>${counts.item}</b> item${counts.item===1?'':'s'}</span><span><b>${counts.question}</b> question${counts.question===1?'':'s'}</span><span><b>${counts.deletion}</b> deletion${counts.deletion===1?'':'s'} requested</span><span><b>${counts.report}</b> report${counts.report===1?'':'s'}</span>${counts.other?`<span><b>${counts.other}</b> other</span>`:''}`;
+    queueStats.innerHTML = `<span><b>${all.length}</b> total</span><span><b>${counts.item}</b> item${counts.item===1?'':'s'}</span><span><b>${counts.question}</b> question${counts.question===1?'':'s'}</span>${counts.merge?`<span><b>${counts.merge}</b> merge${counts.merge===1?'':'s'}</span>`:''}<span><b>${counts.deletion}</b> deletion${counts.deletion===1?'':'s'} requested</span><span><b>${counts.report}</b> report${counts.report===1?'':'s'}</span>${counts.other?`<span><b>${counts.other}</b> other</span>`:''}`;
   }
   // course/topic/outcomes/delete-* stay Remove-only -- nothing to jump
   // into editing for those. item/question/edit-item/edit-question resume
@@ -3824,7 +3849,7 @@
   // are different again: there's no submission to resume, but the Edit
   // button here jumps straight to fixing the LIVE item/question the
   // report is actually about (see reportEditButtonHtml).
-  const QUEUE_ICONS = { item:'📄', question:'❓', 'edit-question':'✏️', course:'📚', topic:'🗂️', 'edit-item':'✏️', 'delete-item':'🗑', 'delete-question':'🗑', 'delete-course':'🗑', lectureOutcomes:'🧭', 'flag-item':'🚩', 'flag-question':'⚠️' };
+  const QUEUE_ICONS = { item:'📄', question:'❓', 'edit-question':'✏️', course:'📚', topic:'🗂️', 'edit-item':'✏️', 'merge-item':'⤵', 'delete-item':'🗑', 'delete-question':'🗑', 'delete-course':'🗑', lectureOutcomes:'🧭', 'flag-item':'🚩', 'flag-question':'⚠️' };
   const RESUMABLE_FORM = { item:'item', 'edit-item':'item', question:'question', 'edit-question':'question' };
   // Renders one of the two permanently-separate queue lists (content to
   // merge vs. reports from players) into its own container. Kept as one
@@ -3881,7 +3906,7 @@
   }
   function fullBatchText(){
     const entries = Object.values(batch).sort((a,b)=> (a.createdAt||0) - (b.createdAt||0));
-    const groups = [['course','New courses'],['topic','New topics'],['lectureOutcomes','Lecture learning outcomes'],['item','New study guide items'],['edit-item','Edits to existing items'],['question','New questions'],['edit-question','Edits to existing questions'],['delete-course','DELETIONS (whole courses)'],['delete-item','DELETIONS (items)'],['delete-question','DELETIONS (questions)'],['flag-item','Reports (items)'],['flag-question','Reports (questions)']];
+    const groups = [['course','New courses'],['topic','New topics'],['lectureOutcomes','Lecture learning outcomes'],['item','New study guide items'],['edit-item','Edits to existing items'],['question','New questions'],['edit-question','Edits to existing questions'],['merge-item','MERGES (concepts folded together)'],['delete-course','DELETIONS (whole courses)'],['delete-item','DELETIONS (items)'],['delete-question','DELETIONS (questions)'],['flag-item','Reports (items)'],['flag-question','Reports (questions)']];
     let out = `// Team queue snapshot — ${new Date().toLocaleString()}\n// ${entries.length} entr${entries.length===1?'y':'ies'} below.\n\n`;
     groups.forEach(([type, title])=>{ const list = entries.filter(e=>e.type===type); if(list.length) out += `// ---- ${title} ----\n` + list.map(e=>{ const attribution = contributorDisplayLabel(e); return `${attribution ? `// by ${attribution}\n` : ''}${e.code || ('// ' + (e.note||''))}`; }).join('\n\n') + '\n\n'; });
     return out.trim();
@@ -3992,6 +4017,23 @@
       if(!courseInfo) return;
       if(courseInfo.newCourseData){ const nc = courseInfo.newCourseData; if(!courses[nc.code]) courses[nc.code] = { code:nc.code, label:nc.label, classes:{} }; if(nc.classKey) courses[nc.code].classes[nc.classKey] = { label:nc.classLabel }; }
       if(courseInfo.newClassData){ const ncl = courseInfo.newClassData; if(courses[ncl.course]) courses[ncl.course].classes[ncl.key] = { label:ncl.label }; }
+    }
+    // Folds one concept into another: the source's questions move across
+    // (by id, so re-applying a merge can't duplicate them) and the now-empty
+    // source is removed. Only the questions move -- the target keeps its own
+    // description/mechanism/fun facts, which is why the requester is shown
+    // what the source is about to lose.
+    if(entry.type === 'merge-item'){
+      const fromTopic = themes[o.theme]?.topics[o.fromTopicId];
+      const to = themes[o.theme]?.topics[o.toTopicId]?.items[o.toItemId];
+      const from = fromTopic?.items[o.fromItemId];
+      if(from && to){
+        to.questions = to.questions || [];
+        const have = new Set(to.questions.map(q=>q.id));
+        (from.questions || []).forEach(q=>{ if(!have.has(q.id)){ to.questions.push(q); have.add(q.id); } });
+        delete fromTopic.items[o.fromItemId];
+      }
+      return;
     }
     if(entry.type === 'delete-item'){ const th = themes[o.theme]; if(th && th.topics[o.topicId]) delete th.topics[o.topicId].items[o.itemId]; return; }
     if(entry.type === 'delete-question'){ const item = themes[o.theme]?.topics[o.topicId]?.items[o.itemId]; if(item && item.questions) item.questions = item.questions.filter(q=>q.id!==o.questionId); return; }
@@ -4158,7 +4200,7 @@
   // everywhere else attribution shows up.
   const contributorList = document.getElementById('contributorList'), contributorSearchInput = document.getElementById('contributorSearchInput');
   const contributorDetailCard = document.getElementById('contributorDetailCard'), contributorDetail = document.getElementById('contributorDetail');
-  const QUEUE_TYPE_LABELS = { item:'🆕 New item', 'edit-item':'✏️ Item edit', question:'🆕 New question', 'edit-question':'✏️ Question edit', course:'🆕 New course', topic:'🆕 New topic', lectureOutcomes:'📄 Lecture outcomes', 'funfact-question':'🎲 Fun fact question', 'delete-item':'🗑 Item deletion request', 'delete-question':'🗑 Question deletion request', 'delete-course':'🗑 Course deletion request', 'flag-item':'🚩 Item report', 'flag-question':'🚩 Question report' };
+  const QUEUE_TYPE_LABELS = { item:'🆕 New item', 'edit-item':'✏️ Item edit', question:'🆕 New question', 'edit-question':'✏️ Question edit', course:'🆕 New course', topic:'🆕 New topic', lectureOutcomes:'📄 Lecture outcomes', 'funfact-question':'🎲 Fun fact question', 'merge-item':'⤵ Concept merge', 'delete-item':'🗑 Item deletion request', 'delete-question':'🗑 Question deletion request', 'delete-course':'🗑 Course deletion request', 'flag-item':'🚩 Item report', 'flag-question':'🚩 Question report' };
   function buildContributorMap(){
     const map = {}; // email (lowercased) or a name-keyed fallback -> aggregate
     const get = (name, email) => {
@@ -4566,6 +4608,12 @@
   function mlPendingDeletion(itemId){
     return Object.values(batch || {}).some(e=> e && e.type==='delete-item' && e.data && e.data.itemId===itemId);
   }
+  // A concept already queued to be folded into another one is on its way out,
+  // so it's treated like a pending deletion: no new questions onto it, and no
+  // second merge request for the same thing.
+  function mlPendingMerge(itemId){
+    return Object.values(batch || {}).find(e=> e && e.type==='merge-item' && e.data && e.data.fromItemId===itemId) || null;
+  }
   function mlPendingConcepts(){
     return Object.values(batch || {}).filter(e=> e && e.type==='item' && e.data).map(e=> e.data);
   }
@@ -4648,20 +4696,22 @@
       const needsDesc = !liveIt || !((liveIt.description||'').trim()) || (liveIt.description||'').trim()==='(add a description)';
       const descPending = mlPendingDescription(it.id);
       const delPending = mlPendingDeletion(it.id);
+      const mergePending = mlPendingMerge(it.id);
       // One line per concept: click it to open. The only chip shown is one
       // that needs doing, and clicking that chip does it. A concept already
       // queued for deletion drops its actions -- adding to it is pointless.
       const count = `${n} question${n===1?'':'s'}` + (pend?` · +${pend} waiting`:'');
-      return `<div class="ml-concept${(n+pend)<=1?' thin':''}${delPending?' doomed':''}" data-item="${esc2(it.id)}">
+      return `<div class="ml-concept${(n+pend)<=1?' thin':''}${(delPending||mergePending)?' doomed':''}" data-item="${esc2(it.id)}">
         <div class="mlc-head" data-ml-open="${esc2(it.id)}" title="Click to see what's inside">
           <span class="mlc-chev">▶</span>
           <span class="mlc-name">${esc2(it.label)}</span>
           <span class="mlc-count">${count}</span>
           ${delPending ? `<span class="mlc-danger">🗑 deletion requested</span>` : ''}
+          ${!delPending && mergePending ? `<span class="mlc-pending">⤵ merging into ${esc2(mergePending.data.toLabel||'')}</span>` : ''}
           ${!delPending && needsDesc && !descPending ? `<span class="mlc-warn" data-ml-desc="${esc2(it.id)}" title="Write the description students read">+ description</span>` : ''}
           ${!delPending && descPending ? `<span class="mlc-pending">📝 description waiting</span>` : ''}
           <span class="mlc-actions">
-            ${delPending ? '' : `<button class="mlc-add" data-ml-add="${esc2(it.id)}">+ Question</button>`}
+            ${(delPending||mergePending) ? '' : `<button class="mlc-add" data-ml-add="${esc2(it.id)}">+ Question</button>`}
           </span>
         </div>
         <div class="mlc-form" data-ml-descform="${esc2(it.id)}" style="display:none;"></div>
@@ -4734,12 +4784,17 @@
       + pending.map(q=>`<div class="mld-q pending">⏳ ${esc2(q.prompt)}<div class="mld-opt">✓ ${esc2((q.options||[])[q.correctIndex] || '—')} · waiting for an admin to merge it</div></div>`).join('');
     html += `<div class="mlc-quizlist"><h4>Behind the 🧠 Quiz button (${qs.length}${pending.length?` + ${pending.length} waiting`:''})</h4>`
       + (qHtml || `<div class="mld-missing">Nothing yet — so the Quiz button doesn't appear for students.</div>`) + `</div>`;
+    const mergeQueued = mlPendingMerge(itemId);
     html += `<div class="mld-foot">
       <button type="button" class="link-btn" data-ml-full="${esc2(itemId)}">Open the full editor for this concept →</button>
+      ${mergeQueued
+        ? `<span class="mlc-pending">⤵ already queued to merge into "${esc2(mergeQueued.data.toLabel||'')}"</span>`
+        : `<button type="button" class="link-btn" data-ml-merge="${esc2(itemId)}">⤵ Merge into another concept</button>`}
       ${mlPendingDeletion(itemId)
         ? `<span class="mlc-danger">🗑 already queued for deletion</span>`
         : `<button type="button" class="link-btn danger-link" data-ml-del="${esc2(itemId)}">🗑 Delete this concept</button>`}
-    </div>`;
+    </div>
+    <div class="mlc-mergebox" data-ml-mergebox="${esc2(itemId)}" style="display:none;"></div>`;
     el.innerHTML = html;
     el.style.display = 'block';
   }
@@ -4775,6 +4830,85 @@
     });
     toast(`"${label}" queued for deletion review`);
     mlRender();
+  }
+  // --- folding one concept into another ---------------------------------
+  // The common mess this fixes: a bulk import that split one idea across a
+  // dozen near-identical concepts, leaving a lecture with a long list of
+  // one-question pages. Merging moves the questions onto the concept that
+  // should have had them and drops the empty one. Only questions move -- the
+  // target keeps its own description -- so the form says what is being lost.
+  function mlMergeCandidates(itemId){
+    const me = KNOWN_ITEMS.find(it=>it.id===itemId) || {};
+    const out = [];
+    Object.entries(RD.THEMES[me.theme] ? { [me.theme]: RD.THEMES[me.theme] } : {}).forEach(([themeId, th])=>{
+      Object.entries(th.topics || {}).forEach(([topicId, tp])=>{
+        Object.entries(tp.items || {}).forEach(([id, item])=>{
+          if(id === itemId || mlPendingDeletion(id) || mlPendingMerge(id)) return;
+          out.push({ id, topicId, label: item.label || id, n: (item.questions||[]).length,
+                     sameTopic: topicId === me.topic });
+        });
+      });
+    });
+    // Same topic first (that's where a duplicate almost always is), then by
+    // how established the concept is -- the one with the most questions is
+    // usually the one that should survive.
+    out.sort((a,b)=> (b.sameTopic - a.sameTopic) || (b.n - a.n) || a.label.localeCompare(b.label));
+    return out;
+  }
+  function mlOpenMergeForm(itemId){
+    const box = ml_concepts.querySelector(`[data-ml-mergebox="${CSS.escape(itemId)}"]`);
+    if(!box) return;
+    if(box.style.display === 'block'){ box.style.display = 'none'; box.innerHTML = ''; return; }
+    openMergeFormInto(box, itemId, ()=> mlRender());
+  }
+  // Shared by My lecture and the full item editor -- same request, same
+  // wording, so a lecturer and an admin are looking at the same thing.
+  function openMergeFormInto(box, itemId, after){
+    const live = mlLiveItem(itemId);
+    if(!live){ toast('This concept is still waiting for review — withdraw it from the Team queue instead'); showTab('queue'); return; }
+    const cands = mlMergeCandidates(itemId);
+    if(!cands.length){ toast('There is no other concept in this course to merge into yet'); return; }
+    const label = live.label || itemId;
+    const moving = (live.questions || []).length;
+    const waiting = mlPendingQuestions(itemId).length;
+    box.innerHTML = `
+      <div class="mlc-mergehead">⤵ Merge <b>${esc2(label)}</b> into another concept</div>
+      <p class="mlc-mergesub">Its ${moving} question${moving===1?'':'s'} move across and <b>${esc2(label)}</b> is removed. Its own description and fun facts are not carried over — keep whichever concept has the better write-up.</p>
+      ${waiting ? `<p class="mlc-mergewarn">⚠️ ${waiting} question${waiting===1?'':'s'} on this concept ${waiting===1?'is':'are'} still waiting for review. Merge${waiting===1?'s':''} ${waiting===1?'it':'them'} by hand afterwards, or ${waiting===1?'it':'they'} will land on a concept that no longer exists.</p>` : ''}
+      <label class="field"><span class="fl-label">Keep this concept <span class="req">*</span></span>
+        <span class="fl-help">Everything ends up here. Concepts in the same topic are listed first, most-used first.</span>
+        <select data-mlm="target">${cands.map(c=>
+          `<option value="${esc2(c.id)}">${esc2(c.label)} — ${c.n} question${c.n===1?'':'s'}${c.sameTopic?'':' · '+esc2((KNOWN_TOPICS[c.topicId]||{}).label || c.topicId)}</option>`).join('')}</select></label>
+      <label class="field"><span class="fl-label">Why <span style="font-weight:normal;color:var(--muted);">(optional)</span></span>
+        <input type="text" data-mlm="reason" placeholder="e.g. same idea split across two concepts by mistake"></label>
+      <div class="btn-row"><button class="primary" data-mlm="save">+ Add to queue</button><button data-mlm="cancel">Cancel</button></div>`;
+    box.style.display = 'block';
+    box.querySelector('[data-mlm="cancel"]').addEventListener('click', ()=>{ box.style.display='none'; box.innerHTML=''; });
+    box.querySelector('[data-mlm="save"]').addEventListener('click', ()=>{
+      const toId = box.querySelector('[data-mlm="target"]').value;
+      const reason = box.querySelector('[data-mlm="reason"]').value.trim();
+      if(mlQueueMerge(itemId, toId, reason)){ box.style.display='none'; box.innerHTML=''; if(after) after(); }
+    });
+  }
+  function mlQueueMerge(fromItemId, toItemId, reason){
+    if(!requireContributorIdentity()) return false;
+    const from = KNOWN_ITEMS.find(it=>it.id===fromItemId) || {};
+    const to = KNOWN_ITEMS.find(it=>it.id===toItemId) || {};
+    const liveFrom = mlLiveItem(fromItemId), liveTo = mlLiveItem(toItemId);
+    if(!liveFrom || !liveTo){ toast('One of those concepts is no longer in the game data — reload and try again'); return false; }
+    const moved = (liveFrom.questions || []).length;
+    const fromLabel = liveFrom.label || fromItemId, toLabel = liveTo.label || toItemId;
+    if(!confirm(`Move ${moved} question${moved===1?'':'s'} from "${fromLabel}" onto "${toLabel}", then remove "${fromLabel}"?\n\nThis is a request — an admin reviews it before anything changes.`)) return false;
+    pushToQueue({
+      type:'merge-item', title:`${fromLabel} → ${toLabel}`,
+      code:`// MERGE THEMES.${from.theme}.topics.${from.topic}.items.${fromItemId} INTO THEMES.${to.theme}.topics.${to.topic}.items.${toItemId}\n// (moves ${moved} question${moved===1?'':'s'} across, then removes ${fromItemId})`,
+      note:`MERGE requested · ${mlCourse ? '🎓 ' + courseDisplayString(mlCourse, mlClass) : (KNOWN_THEMES.find(t=>t.id===from.theme)||{}).label || from.theme}`,
+      data:{ theme:from.theme, fromTopicId:from.topic, fromItemId, fromLabel,
+             toTopicId:to.topic, toItemId, toLabel, moved, reason },
+    });
+    toast(`Queued: "${fromLabel}" folds into "${toLabel}"`);
+    mlRender();
+    return true;
   }
   // --- writing a concept's description without leaving this page ---
   // Queues an edit-item entry built from the concept as it stands, with
@@ -4955,6 +5089,8 @@
     if(desc){ mlOpenDescForm(desc.dataset.mlDesc); return; }
     const del = e.target.closest('[data-ml-del]');
     if(del){ mlDeleteConcept(del.dataset.mlDel); return; }
+    const mrg = e.target.closest('[data-ml-merge]');
+    if(mrg){ mlOpenMergeForm(mrg.dataset.mlMerge); return; }
     const full = e.target.closest('[data-ml-full]');
     if(full){
       // Only a concept that's actually in game-data.js can be edited -- one
