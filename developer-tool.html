@@ -283,6 +283,7 @@
   .lg-row input::placeholder{ font-family:var(--sans); letter-spacing:0; text-transform:none; font-size:13.5px; color:var(--faint); }
   .lg-row input.lg-code{ text-transform:uppercase; }
   .lg-row button{ flex:none; }
+  .lg-ok{ color:var(--good); font-weight:700; }
   .lock-gate .lg-error{ color:var(--danger); font-size:12px; margin-top:6px; display:none; }
   .analytics-table{ width:100%; border-collapse:collapse; font-size:12.5px; }
   .analytics-table th{ text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
@@ -513,6 +514,17 @@
   .lec-row .lec-body li{ margin:2px 0; }
   .lec-empty{ border:1px dashed var(--line-strong); border-radius:11px; padding:18px; text-align:center; color:var(--muted); background:#fbfbfd; }
   @media (max-width:720px){ .lec-row summary{ flex-wrap:wrap; } .lec-row .lec-meta{ flex-basis:100%; padding-left:58px; } .lec-row .lec-body{ padding-left:14px; } }
+  .faq-item{ background:var(--card); border:1px solid var(--line); border-radius:11px; margin-bottom:8px; }
+  .faq-item[open]{ border-color:var(--accent-line); box-shadow:0 2px 12px rgba(20,30,60,.05); }
+  .faq-item summary{ cursor:pointer; padding:13px 16px; font-weight:600; font-size:14.5px; list-style:none; display:flex; align-items:center; gap:10px; }
+  .faq-item summary::-webkit-details-marker{ display:none; }
+  .faq-item summary::before{ content:'▶'; font-size:10px; color:var(--faint); transition:transform .15s; }
+  .faq-item[open] summary::before{ transform:rotate(90deg); color:var(--accent); }
+  .faq-a{ padding:0 18px 14px 36px; font-size:13.5px; line-height:1.65; color:var(--ink); }
+  .faq-a ol{ margin:2px 0 6px; padding-left:20px; } .faq-a li{ margin:3px 0; } .faq-a p{ margin:4px 0 6px; }
+  .faq-btn{ display:inline-block; background:var(--accent); color:#fff; border-radius:7px; padding:1px 8px; font-size:12px; font-weight:700; white-space:nowrap; }
+  .faq-tab{ display:inline-block; background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent-line); border-radius:7px; padding:0 8px; font-size:12px; font-weight:700; white-space:nowrap; }
+  #faqSearch{ margin-bottom:6px; }
   .uc-code{ font-family:var(--mono); font-weight:800; letter-spacing:.12em; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:2px 7px; }
   .uc-code.big{ font-size:22px; padding:4px 12px; margin:0 6px; }
   .uc-created{ margin-top:12px; padding:12px 14px; border-radius:10px; background:var(--good-soft); border:1px solid #bfe6d6; }
@@ -717,6 +729,7 @@
     <button id="devTutorialBtn" class="nav-tour">🎬 <span>Take the tour</span></button>
     <button id="tabStart" data-tab="start" class="active nav-home">🚀 <span>Start here</span></button>
     <button id="tabDataMap" data-tab="datamap">🗺️ <span>How it's organised</span></button>
+    <button id="tabFaq" data-tab="faq">❓ <span>FAQ — how do I…</span></button>
     <div class="nav-title">Add content</div>
     <button id="tabSetup" data-tab="setup">🧱 <span>Set up a course</span><span class="nav-tag">guided</span></button>
     <button id="tabAdd" data-tab="add">✚ <span>Add anything</span></button>
@@ -1378,17 +1391,19 @@
         <div class="lg-key">
           <div class="lg-icon">🎓</div>
           <div class="lg-title">Lecturer / UC</div>
-          <p class="lg-sub">Your own code from the admin. Opens <b>Data analysis</b> for your course only.</p>
-          <div class="lg-row">
-            <input type="text" id="viewerPinInput" class="lg-code" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Access code" aria-label="Access code">
-            <button class="primary" id="viewerUnlockBtn">Open</button>
+          <div id="lgLecForm">
+            <p class="lg-sub">Your own code from the admin. Opens <b>Data analysis</b> for your course only. Your email at the top of the page must be the one the code was made for.</p>
+            <div class="lg-row">
+              <input type="text" id="viewerPinInput" class="lg-code" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Access code" aria-label="Access code">
+              <button class="primary" id="viewerUnlockBtn">Open</button>
+            </div>
+            <div class="lg-error" id="viewerPinError">That code isn't registered.</div>
           </div>
-          <div class="lg-error" id="viewerPinError">That code isn't registered.</div>
+          <div id="lgLecOn" style="display:none;">
+            <p class="lg-sub"><span class="lg-ok">✓ Signed in</span> as <b id="viewerWho">—</b> — Data analysis for <b id="viewerCourses">—</b>.</p>
+            <div class="lg-row"><button type="button" class="primary" data-goto="analysis">📊 Open Data analysis</button><button type="button" class="subtle" id="viewerLockBtn">Sign out</button></div>
+          </div>
         </div>
-      </div>
-      <div id="viewerModeCard" class="card" style="display:none;border-color:var(--info);background:var(--info-soft);">
-        <b>📊 Signed in as <span id="viewerWho">—</span>.</b> <span class="card-sub" style="display:inline;">Data analysis for <b id="viewerCourses">—</b> is open in the sidebar under Admin. Merging and settings stay locked — they need the Admin PIN above.</span>
-        <div class="btn-row" style="margin-top:8px;"><button type="button" data-goto="analysis">📊 Go to Data analysis</button><button type="button" class="subtle" id="viewerLockBtn">🔒 Close viewing mode</button></div>
       </div>
       <div id="maintainerLockedContent" style="display:none;">
         <div class="btn-row" style="justify-content:flex-end;margin-bottom:10px;">
@@ -1399,7 +1414,7 @@
           <p class="card-sub">Register someone and they get their own 6-character access code. With it they open <b>Data analysis</b> for the course(s) you tick — nothing else. Revoke a code and it stops working the next time they load the page.</p>
           <div class="row2">
             <label class="field"><span class="fl-label">Name <span class="req">*</span></span><input type="text" id="uc_name" placeholder="e.g. Dr Jane Smith"></label>
-            <label class="field"><span class="fl-label">Email</span><input type="text" id="uc_email" placeholder="e.g. jane.smith@sydney.edu.au"></label>
+            <label class="field"><span class="fl-label">Email <span class="req">*</span></span><span class="fl-help">Their code only works with this email.</span><input type="text" id="uc_email" placeholder="e.g. jane.smith@sydney.edu.au"></label>
           </div>
           <div class="field"><span class="fl-label">Course(s) they can see <span class="req">*</span></span><div class="checks" id="uc_courses"></div></div>
           <div class="btn-row"><button class="primary" id="uc_createBtn">Create access code</button><span id="uc_status" class="status"></span></div>
@@ -1435,6 +1450,17 @@
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- ================= FAQ ================= -->
+    <section data-section="faq">
+      <div class="section-head">
+        <h2>FAQ — how do I…</h2>
+        <p>The everyday jobs, step by step. Each answer has a button that takes you straight to the right place.</p>
+      </div>
+      <input type="text" class="struct-search" id="faqSearch" placeholder="🔍 Search — e.g. merge, delete, lecture, description…" autocomplete="off">
+      <div id="faqList"></div>
+      <p class="card-sub" id="faqEmpty" style="display:none;">Nothing matches that. Try a shorter word, or ask in <b>💬 Feedback</b>.</p>
     </section>
 
     <!-- ================= STAGES (admin only) ================= -->
@@ -1703,7 +1729,8 @@
     // toggle -- guarded so a missing id can never break the whole unlock.
     const tc = document.getElementById('tabContributors'); if(tc) tc.style.display = maintainerUnlocked ? '' : 'none';
     const ta = document.getElementById('tabDataAnalysis'); if(ta) ta.style.display = canSeeAnalytics() ? '' : 'none';
-    const vm = document.getElementById('viewerModeCard'); if(vm) vm.style.display = (analyticsUnlocked && !maintainerUnlocked) ? 'block' : 'none';
+    document.getElementById('lgLecForm').style.display = analyticsUnlocked ? 'none' : '';
+    document.getElementById('lgLecOn').style.display = analyticsUnlocked ? '' : 'none';
     if(ucSession){ document.getElementById('viewerWho').textContent = ucSession.name || ucSession.code; document.getElementById('viewerCourses').textContent = Object.keys(ucSession.courses||{}).join(', ') || '—'; }
     const ts = document.getElementById('tabStages'); if(ts) ts.style.display = maintainerUnlocked ? '' : 'none';
     if(maintainerUnlocked) renderUcAdmin();
@@ -1752,7 +1779,10 @@
     let rec;
     try{ rec = await ucLookup(code); }catch(e){ fail('Not connected — check your internet connection and try again.'); return; }
     if(!rec){ fail("That code isn't registered — ask the admin for yours."); input.value = ''; return; }
-    ucSession = { code, name: rec.name || '', courses: rec.courses || {} };
+    const myEmail = (currentContributorEmail() || '').trim().toLowerCase();
+    if(!myEmail){ fail('Type your email at the top of the page first — the code only works with the email it was made for.'); return; }
+    if((rec.email || '').trim().toLowerCase() !== myEmail){ fail("This code was made for a different email. Check the email at the top of the page, or ask the admin."); return; }
+    ucSession = { code, name: rec.name || '', email: myEmail, courses: rec.courses || {} };
     analyticsUnlocked = true; safeSessionSet('ucSession', JSON.stringify(ucSession));
     err.style.display = 'none'; input.value = '';
     applyMaintainerLockUI(); renderQuestionBank();
@@ -1764,6 +1794,7 @@
   // A code revoked since this tab signed in stops working on the next load.
   if(ucSession) ucLookup(ucSession.code).then(rec=>{
     if(!rec) ucSignOut('Your access code is no longer active — ask the admin');
+    else if((rec.email||'').trim().toLowerCase() !== (ucSession.email||'').trim().toLowerCase()) ucSignOut('Your access code now belongs to a different email — sign in again');
     else { ucSession.name = rec.name || ''; ucSession.courses = rec.courses || {}; safeSessionSet('ucSession', JSON.stringify(ucSession)); applyMaintainerLockUI(); }
   }).catch(()=>{});
 
@@ -1802,13 +1833,14 @@
     const courses = {}; document.querySelectorAll('#uc_courses input:checked').forEach(cb=> courses[cb.value] = true);
     const status = document.getElementById('uc_status');
     if(!name){ toast('Give their name first'); document.getElementById('uc_name').focus(); return; }
+    if(!/^\S+@\S+\.\S+$/.test(email)){ toast('Give their email — the code only works with it'); document.getElementById('uc_email').focus(); return; }
     if(!Object.keys(courses).length){ toast('Tick at least one course they can see'); return; }
     await firebaseInitPromise.catch(()=>{});
     if(!firebaseReady){ toast('Not connected — registering needs Firebase'); return; }
     try{
       let code = ucNewCode();
       for(let i=0; i<5 && (await fbGet(fbRef(fbdb, `ucAccess/${code}`))).exists(); i++) code = ucNewCode();
-      await fbSet(fbRef(fbdb, `ucAccess/${code}`), { name, email, courses, active:true, createdAt: Date.now(), createdBy: currentContributorName() || '' });
+      await fbSet(fbRef(fbdb, `ucAccess/${code}`), { name, email: email.toLowerCase(), courses, active:true, createdAt: Date.now(), createdBy: currentContributorName() || '' });
       document.getElementById('uc_created').innerHTML = `<div class="uc-created">Access code for <b>${esc2(name)}</b> (${esc2(Object.keys(courses).join(', '))}):
         <code class="uc-code big">${code}</code> <button type="button" id="uc_copyNew">Copy</button>
         <div class="card-sub" style="margin:6px 0 0;">Send it to them. They enter it under <b>Merge &amp; settings → Lecturer / UC access code</b>.</div></div>`;
@@ -5720,6 +5752,7 @@
     if(which==='datamap') renderDataMap();
     if(which==='setup') renderSetup();
     if(which==='stages') renderStages();
+    if(which==='faq') renderFaq();
     if(which==='structure') renderStructureList();
     if(which==='guidesim') renderGuideSim();
     if(which==='lectures'){ renderLectures(); fillLecAddCourseSelect(); }
@@ -6128,7 +6161,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
         { tab:'mylecture', sel:'#ml_concepts', title:'Check what a student sees', caption:'Below the form is every concept in your lecture. Click one and a side panel opens with the study-guide page as students see it — a missing description shows as a gap with {{Write it now}} — plus merge and delete.' },
         { tab:'add', sel:'#addChips', title:'Anything outside your own lecture', caption:'[[Add anything]] has the full forms — {{❓ Question}}, {{📄 Study guide item}}, {{🗂️ Topic (Module)}}, {{📚 Course}}, {{🧭 Learning outcomes}}, {{🎲 Fun fact question}} — each with a live preview of how it looks in the game.' },
         { tab:'queue', sel:'#batchListContent', title:'Where it lands', caption:'Everything you add waits in [[Team queue]], live, for an admin to merge it. Open a row for the full detail and fix your own before it goes in. Players\' in-game reports are grouped under [[Reports]] instead.' },
-        { tab:'start', sel:'[data-info="overview"]', title:'That\'s the whole loop', caption:'Every {{ⓘ}} opens a short note about that part of the tool. Reopen either tour any time from {{🎬 Take the tour}} at the top of the sidebar.', final:true },
+        { tab:'start', sel:'[data-info="overview"]', title:'That\'s the whole loop', caption:'Every {{ⓘ}} opens a short note about that part of the tool. Stuck on something specific? [[FAQ — how do I…]] has the everyday jobs step by step. Reopen either tour any time from {{🎬 Take the tour}} at the top of the sidebar.', final:true },
       ],
     },
     bulk: {
@@ -6145,7 +6178,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
         { tab:'csv', sel:'#gridImportTable', title:'Step 4 · The questions', caption:'Now the questions. Copy a block of cells in Excel or Google Sheets, click a cell in this table, and paste. It fills in every cell you copied and adds more rows if it needs them. Each row is checked as you type, and if a row names a course, topic or lecture that does not exist, you get a button that takes you straight to adding it. Then {{Check & add all to queue}}.' },
         { tab:'guidesim', sel:'#simWarnChecks', title:'Step 5 · Check what\'s missing', caption:'[[Study guide preview]] shows every concept the way a student sees it, and marks anything with no description, no questions or no image. Tick the boxes for the gaps you care about, and use the {{Lecture}} row to show only your own.' },
         { tab:'queue', sel:'#batchListContent', title:'Step 6 · Where it all lands', caption:'A big paste arrives in [[Team queue]] as many rows at once, where the whole team can see it. Check it over and fix your own rows. An admin merges everything in one go — there is nothing else you need to do.' },
-        { tab:'start', sel:'[data-info="overview"]', title:'That\'s the whole loop', caption:'Every {{ⓘ}} opens a short note about that part of the tool. Reopen either tour any time from {{🎬 Take the tour}} at the top of the sidebar.', final:true },
+        { tab:'start', sel:'[data-info="overview"]', title:'That\'s the whole loop', caption:'Every {{ⓘ}} opens a short note about that part of the tool. Stuck on something specific? [[FAQ — how do I…]] has the everyday jobs step by step. Reopen either tour any time from {{🎬 Take the tour}} at the top of the sidebar.', final:true },
       ],
     },
   };
@@ -6506,6 +6539,102 @@ const themesDecl  = text.indexOf('const THEMES = {');
     const sec = document.querySelector('section[data-section="setup"]');
     if(sec && sec.classList.contains('active')) renderSetupMap();
   }
+
+  // ======================================================================
+  // ❓ FAQ -- the everyday jobs, each with a jump to the right place
+  // ======================================================================
+  // In answers, {{x}} is a button and [[x]] a sidebar tab, drawn the same
+  // way as in the tour. `go` is [tab, label] or [tab, label, addPane].
+  const FAQ = [
+    { group:'Adding', items:[
+      { q:'How do I add a question to my lecture?', go:['mylecture','🎓 My lecture'], a:`
+        <ol><li>Open [[My lecture]] and pick your course and lecture.</li>
+        <li><b>1 · What is it about?</b> — click the concept it belongs to.</li>
+        <li>Type the question, fill the options and tick the right one.</li>
+        <li>Hit {{+ Add to queue}}. The form stays open with the same concept picked for the next one.</li></ol>` },
+      { q:'My lecture isn’t in the list — how do I add it?', go:['lectures','📚 Lectures'], a:`
+        <ol><li>Open [[Lectures]] and pick the course at the top.</li>
+        <li>In <b>Add a lecture</b>, type the number (e.g. L14), the name and the learning outcomes (one per line).</li>
+        <li>Hit {{+ Add to queue}}. A note under the number tells you if it already exists — then it updates that lecture instead.</li></ol>` },
+      { q:'None of the concepts fits my question — how do I make a new one?', go:['mylecture','🎓 My lecture'], a:`
+        <p>In [[My lecture]], click {{+ New concept}} in step 1, give it a name and pick its topic (module). It’s created together with your question when you hit {{+ Add to queue}}.</p>
+        <p>The name is checked against what already exists — if something similar is listed, add to that one instead.</p>` },
+      { q:'How do I set up a whole new course?', go:['setup','🧱 Set up a course'], a:`
+        <p>[[Set up a course]] walks you through it in order: the course → its topics (modules) → its lectures → then questions. The map on the right shows where everything lands as you add it.</p>` },
+      { q:'How do I paste lots of questions from a spreadsheet?', go:['csv','📄 Bulk import'], a:`
+        <ol><li>Open [[Bulk import]].</li>
+        <li>Copy a block of cells from Excel or Google Sheets, click a cell in the table and paste — it fills in and adds rows as needed.</li>
+        <li>Fix anything flagged, then {{Check &amp; add all to queue}}.</li></ol>
+        <p>Each row names its course, topic and lecture, so those have to exist first.</p>` },
+      { q:'How do I write a concept’s description?', go:['mylecture','🎓 My lecture'], a:`
+        <p>In [[My lecture]], click {{+ description}} on the concept (or open it and press {{Write it now}}). Two or three sentences — it’s what students read on the study-guide page.</p>` },
+    ]},
+    { group:'Fixing & tidying', items:[
+      { q:'How do I merge two concepts (too many items)?', go:['mylecture','🎓 My lecture'], a:`
+        <ol><li>In [[My lecture]], click the concept you want to <b>get rid of</b> in the list under the form.</li>
+        <li>In the side panel, press {{⤵ Merge into another concept}}.</li>
+        <li>Under <b>Keep this concept</b>, pick the one that should survive, then {{+ Add to queue}}.</li></ol>
+        <p>Its questions move across and the empty one is removed when an admin merges. Only the questions move — the kept concept keeps its own description. Also available from [[Add anything]] → {{📄 Study guide item}} → edit mode.</p>` },
+      { q:'How do I delete a concept?', go:['mylecture','🎓 My lecture'], a:`
+        <p>Open the concept in [[My lecture]] and press {{🗑 Delete this concept}} at the bottom of the side panel. Give a reason — an admin reviews it. Deleting a concept removes its questions too; if you want to keep them, <b>merge</b> instead.</p>` },
+      { q:'How do I edit or delete a question that’s already in the game?', go:['questionbank','🗃️ Question bank'], a:`
+        <p>Find it in [[Question bank]] (filter by course, topic or lecture, or search), then use its ✏️ edit link. To remove it, open the concept in [[Add anything]] → {{📄 Study guide item}} → edit mode, and mark the question for removal with a reason.</p>` },
+      { q:'I made a mistake in something I just added — how do I fix it?', go:['queue','👥 Team queue'], a:`
+        <p>Until an admin merges it, it’s in [[Team queue]]. Open your row and press {{Edit}} to change it, or {{✕}} to withdraw it.</p>` },
+      { q:'How do I find duplicate questions?', go:['questionbank','🗃️ Question bank'], a:`
+        <p>In [[Question bank]], open <b>🔁 Duplicate questions</b>. It groups questions with the same or very similar wording, including ones still in the queue. Keep the best one of each group and delete the rest.</p>` },
+    ]},
+    { group:'Understanding it', items:[
+      { q:'What’s the difference between a topic, a concept and a lecture?', go:['datamap','🗺️ How it’s organised'], a:`
+        <p>A <b>topic</b> (module) groups concepts inside a course. A <b>concept</b> (item) is one study-guide page, and questions hang off it. A <b>lecture</b> isn’t a level — each concept records which lecture taught it, like a bracket across the list. [[How it’s organised]] has the picture.</p>` },
+      { q:'I added something — why isn’t it in the game yet?', go:['queue','👥 Team queue'], a:`
+        <p>Everything waits in [[Team queue]] until an admin merges it into the game. Until then it’s marked <b>⏳ waiting for review</b> wherever it appears in this tool.</p>` },
+      { q:'How do I see what students actually see?', go:['guidesim','👁 Study guide preview'], a:`
+        <p>Open any concept in [[My lecture]] — the side panel shows its study-guide page as it looks in the game. [[Study guide preview]] shows a whole course or lecture at once, with a ⚠️ on anything missing a description or questions.</p>` },
+    ]},
+    { group:'Lecturers & admins', items:[
+      { q:'Lecturer: how do I see how students are doing on my questions?', go:['maintainer','🛠 Merge & settings'], a:`
+        <p>Ask the admin for your access code. Enter it under [[Merge &amp; settings]] → <b>Lecturer / UC</b> and press {{Open}} — [[Data analysis]] then shows your course: accuracy by topic, questions that need review, and question quality.</p>` },
+      { q:'Admin: how do I give a lecturer access to Data analysis?', go:['maintainer','🛠 Merge & settings'], a:`
+        <p>Unlock admin mode, then in <b>🎓 Lecturers &amp; UCs</b> enter their name and email, tick their course(s) and press {{Create access code}}. Send them the 6-character code. Revoke it there any time.</p>` },
+      { q:'Admin: how do I change how many questions each stage needs?', go:['stages','🏁 Stages'], a:`
+        <p>In admin mode open [[Stages]], pick the course, and set <b>Correct needed</b> per topic for each stage (add or remove stages too). {{+ Add to queue}} — it takes effect with the next merge.</p>` },
+      { q:'Admin: how do I put everything in the queue into the game?', go:['maintainer','🛠 Merge & settings'], a:`
+        <ol><li>In [[Merge &amp; settings]] press {{Generate merged game-data.js}} and download it.</li>
+        <li>Replace <code>game-data.js</code> in the repo with it and push.</li>
+        <li>Then press {{🧹 Remove the merged entries from the queue}}.</li></ol>` },
+    ]},
+  ];
+  function faqMarkup(html){
+    return html.replace(/\{\{([^}]+)\}\}/g, '<span class="faq-btn">$1</span>').replace(/\[\[([^\]]+)\]\]/g, '<span class="faq-tab">$1</span>');
+  }
+  function renderFaq(){
+    const list = document.getElementById('faqList');
+    if(list.dataset.built) return;
+    list.dataset.built = '1';
+    list.innerHTML = FAQ.map(g=>`<div class="faq-group" data-faq-group>
+      <div class="sec-group"><h3>${g.group}</h3></div>
+      ${g.items.map(it=>`<details class="faq-item" data-faq-text="${esc2((it.q + ' ' + it.a.replace(/<[^>]+>/g,' ')).toLowerCase())}">
+        <summary>${it.q}</summary>
+        <div class="faq-a">${faqMarkup(it.a)}
+          ${it.go ? `<div class="btn-row" style="margin-top:10px;"><button type="button" class="primary" data-faq-go="${it.go[0]}">Take me there → ${it.go[1]}</button></div>` : ''}
+        </div>
+      </details>`).join('')}
+    </div>`).join('');
+    list.querySelectorAll('[data-faq-go]').forEach(b=> b.addEventListener('click', ()=> showTab(b.dataset.faqGo)));
+  }
+  document.getElementById('faqSearch').addEventListener('input', e=>{
+    renderFaq();
+    const q = e.target.value.trim().toLowerCase();
+    let shown = 0;
+    document.querySelectorAll('#faqList .faq-item').forEach(d=>{
+      const hit = !q || q.split(/\s+/).every(w=> d.dataset.faqText.includes(w));
+      d.style.display = hit ? '' : 'none'; if(hit) shown++;
+      d.open = !!q && hit && q.length > 2;
+    });
+    document.querySelectorAll('#faqList [data-faq-group]').forEach(g=> g.style.display = [...g.querySelectorAll('.faq-item')].some(d=>d.style.display!=='none') ? '' : 'none');
+    document.getElementById('faqEmpty').style.display = shown ? 'none' : 'block';
+  });
 
   // ======================================================================
   // 🏁 STAGES -- per-course Runner stage requirements (admin only)
