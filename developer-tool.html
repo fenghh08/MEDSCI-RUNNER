@@ -1464,13 +1464,6 @@
             <div class="btn-row" style="margin-top:6px;"><button id="templateUpdateBtn">Extract &amp; save template</button><span id="templateStatus" class="status"></span></div>
           </div></details>
         </div>
-        <div class="card">
-          <h2>🔗 Is this folder up to date with GitHub? <button class="info-btn" data-info="github-check" title="How this works">i</button></h2>
-          <div id="gitCheckBanner">
-            <p id="gitCheckText" class="card-sub">Not checked yet — compares <code>game-data.js</code> content and both tool files' versions against GitHub main. Only runs when you click.</p>
-            <div class="btn-row"><button id="gitCheckBtn">Check now</button><a class="link-btn" href="https://github.com/fenghh08/MEDSCI-RUNNER" target="_blank" rel="noopener">View repo on GitHub ↗</a></div>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -5241,27 +5234,6 @@
   }
   async function fetchRaw(filename){ const res = await fetch(GITHUB_BASE + filename + '?_=' + Date.now(), { cache:'no-store' }); if(!res.ok) throw new Error(`GitHub returned ${res.status} for ${filename}`); return res.text(); }
   function extractVersion(text, constName){ const m = new RegExp(`const ${constName}\\s*=\\s*'([^']*)'`).exec(text); return m ? m[1] : null; }
-  document.getElementById('gitCheckBtn').addEventListener('click', async ()=>{
-    const textEl = document.getElementById('gitCheckText'), btn = document.getElementById('gitCheckBtn');
-    btn.disabled = true; textEl.textContent = 'Checking…';
-    const lines = []; let anyStale = false;
-    try {
-      const remote = countAll(parseGameDataText(await fetchRaw('game-data.js'))), local = countAll(RD);
-      const same = JSON.stringify(remote) === JSON.stringify(local);
-      lines.push(same ? `✓ game-data.js matches GitHub (${local.items} items, ${local.questions} questions)` : `⚠️ game-data.js differs — yours: ${local.items} items / ${local.questions} questions, GitHub: ${remote.items} / ${remote.questions}. (A rough count check, not byte-for-byte.)`);
-      if(!same) anyStale = true;
-    } catch(err){ lines.push(`⚠️ Couldn't check game-data.js (${err.message})`); anyStale = true; }
-    for(const [filename, constName, localVersion] of [['medsci-runner.html','GAME_VERSION',GAME_VERSION_FOR_CHECK],['developer-tool.html','TOOL_VERSION',TOOL_VERSION]]){
-      try {
-        const remoteVersion = extractVersion(await fetchRaw(filename), constName);
-        if(!remoteVersion) lines.push(`⚠️ Couldn't find a version marker in GitHub's ${filename}`);
-        else if(remoteVersion === localVersion) lines.push(`✓ ${filename} up to date (${localVersion})`);
-        else { lines.push(`⚠️ ${filename}: GitHub has ${remoteVersion}, this folder has ${localVersion} — download the newer copy.`); anyStale = true; }
-      } catch(err){ lines.push(`⚠️ Couldn't check ${filename} (${err.message})`); anyStale = true; }
-    }
-    if(anyStale) lines.push('ℹ️ Just pushed? GitHub\'s raw file host caches for a few minutes — wait a bit and check again.');
-    textEl.innerHTML = lines.map(esc2).join('<br>'); btn.disabled = false;
-  });
 
   // ======================================================================
   // NAVIGATION
@@ -6250,15 +6222,6 @@ const themesDecl  = text.indexOf('const THEMES = {');
       <pre>runTransaction(ref(db, 'stats/bcrabl_x::q-genetics-a1'),
   cur => ({ ...(cur||{}), wrong: ((cur&&cur.wrong)||0) + 1 }));</pre>
       <p>No per-player data is stored — only totals — which is why this page can be shown to the whole team. It reads the branch once with <code>get()</code>, joins each key back to its question/item/topic/course through the loaded data, and builds everything else client-side from that one fetch: the summary cards, the by-course and by-topic accuracy breakdowns (grouped and re-sorted from the same rows, so they can't drift out of sync with each other), and the per-question table. The "minimum attempts" filter on that table doesn't refetch anything — it just re-filters and re-sorts the cached rows, which is also why coverage (<code>rows.length</code> vs every question in <code>game-data.js</code>) only needs one extra count, not another request.</p>` },
-    'github-check': { title:'Checking against GitHub', tags:['raw.githubusercontent','cache-busting','eval with a shadowed window'], body:`
-      <p>GitHub serves every committed file as plain text at <code>raw.githubusercontent.com/&lt;user&gt;/&lt;repo&gt;/main/&lt;file&gt;</code>. The tool fetches <code>game-data.js</code> from there with <code>?_=&lt;timestamp&gt;</code> appended so the CDN can't hand back a cached copy.</p>
-      <p>To count what's in the remote file without touching this page's own data, it's evaluated inside a function that declares a <em>local</em> variable named <code>window</code>: the file's <code>window.RUNNER_DATA = …</code> lands in that local object instead of the real one.</p>
-      <pre>function parseGameDataText(text){
-  const window = {};   // shadows the global
-  eval(text);
-  return window.RUNNER_DATA;
-}</pre>
-      <p>The two HTML files carry a hand-bumped version string; those are compared with a regex rather than executed.</p>` },
     contributors: { title:'Where contributor data comes from', tags:['admin-only', 'no separate store'], body:`
       <p>There's no separate "contributors" list — this page just groups everything that already carries a <code>contributorName</code>/<code>contributorEmail</code> by email: merged items and questions (stamped once when <code>applyEntry</code> merges them, and preserved through later edits by someone else), plus anything still sitting in the shared queue, including reports.</p>
       <p>Someone with no email on file (content merged before attribution existed, or a report filed without filling in the identity box) is grouped by name instead, under "(no email)".</p>` },
