@@ -15,16 +15,19 @@
 <link rel="icon" type="image/png" href="icons/app-icon-32.png">
 <link rel="apple-touch-icon" href="icons/app-icon-180.png">
 <style>
-  :root{ --bg:#0d0308; --ink:#ffe9ef; --sub:#c9909f; --accent:#ff5d8f; --card:#1a0a12; --line:#3a1c28; }
+  /* Same palette as the game's default (light) theme, so the landing page
+     and the game look like one site. */
+  :root{ color-scheme:light; --bg:#ffe3ea; --ink:#3a0d1c; --sub:#8a5568; --accent:#d6106a; --card:#ffffff; --line:rgba(214,16,106,.22); }
   *{ box-sizing:border-box; }
-  body{ font-family:system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; margin:0;
+  body{ font-family:system-ui,sans-serif; background:radial-gradient(ellipse at top, #fffbfc 0%, var(--bg) 70%) fixed; color:var(--ink); min-height:100vh; margin:0;
     display:flex; align-items:center; justify-content:center; padding:32px 16px; }
   .wrap{ max-width:420px; width:100%; text-align:center; }
   h1{ font-size:28px; margin:0 0 6px; }
   p.tag{ color:var(--sub); margin:0 0 28px; font-size:14px; }
   a.card{ display:block; text-decoration:none; color:inherit; background:var(--card); border:1px solid var(--line);
     border-radius:14px; padding:20px 18px; margin-bottom:14px; text-align:left; transition:border-color .15s, transform .15s; }
-  a.card:hover{ border-color:var(--accent); transform:translateY(-1px); }
+  a.card{ box-shadow:0 4px 16px rgba(214,16,106,.08); }
+  a.card:hover{ border-color:var(--accent); transform:translateY(-1px); box-shadow:0 8px 22px rgba(214,16,106,.14); }
   a.card .icon{ font-size:26px; }
   a.card h2{ font-size:17px; margin:8px 0 4px; color:var(--ink); }
   a.card p{ font-size:13px; color:var(--sub); margin:0; }
