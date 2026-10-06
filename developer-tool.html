@@ -514,6 +514,72 @@
   .ml-concept.sample .mlc-head{ cursor:default; }
   .ml-sample-key{ font-size:12.5px; color:var(--muted); line-height:1.6; margin:8px 2px 0; }
   .ml-sample-key b{ color:var(--ink); }
+
+  /* ---- Start here: the two big doors ---- */
+  .start-ways{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:760px){ .start-ways{ grid-template-columns:1fr; } }
+  .start-way{ display:flex; flex-direction:column; align-items:flex-start; gap:4px; text-align:left; background:#fff; border:1px solid var(--line-strong);
+    border-radius:12px; padding:14px 16px; cursor:pointer; font:inherit; color:var(--ink); transition:border-color .15s, transform .15s, box-shadow .15s; }
+  .start-way:hover:not(:disabled){ border-color:var(--accent); transform:translateY(-1px); box-shadow:0 6px 18px rgba(214,16,106,.10); }
+  .start-way:disabled{ opacity:.55; cursor:not-allowed; }
+  .start-way .sw-icon{ font-size:24px; line-height:1; }
+  .start-way .sw-name{ font-weight:700; font-size:15px; }
+  .start-way .sw-blurb{ font-size:12.5px; color:var(--muted); line-height:1.5; }
+  /* ---- Set up a course ---- */
+  .setup-grid{ display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:16px; align-items:start; }
+  @media (max-width:980px){ .setup-grid{ grid-template-columns:1fr; } .setup-side{ position:static; } }
+  .setup-side{ position:sticky; top:14px; }
+  .setup-step{ background:var(--card); border:1px solid var(--line); border-radius:12px; margin-bottom:10px; overflow:hidden; }
+  .setup-step.open{ border-color:var(--accent-line); box-shadow:0 4px 18px rgba(20,30,60,.06); }
+  .setup-step.locked{ opacity:.6; }
+  .ss-head{ display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:transparent; border:0; padding:13px 16px; cursor:pointer; font:inherit; color:var(--ink); }
+  .ss-head:disabled{ cursor:not-allowed; }
+  .setup-step.open .ss-head{ background:var(--accent-soft); }
+  .ss-num{ width:26px; height:26px; border-radius:50%; background:var(--line); color:var(--ink); font-weight:800; font-size:13px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; }
+  .setup-step.open .ss-num{ background:var(--accent); color:#fff; }
+  .setup-step.done .ss-num{ background:var(--good); color:#fff; }
+  .ss-title{ font-weight:700; font-size:15px; flex:1; }
+  .ss-state{ font-size:12px; color:var(--muted); }
+  .ss-body{ padding:14px 16px 16px; border-top:1px solid var(--line); }
+  .ss-body textarea.mono{ font-family:var(--mono); font-size:12.5px; }
+  .ss-choice{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  @media (max-width:640px){ .ss-choice{ grid-template-columns:1fr; } }
+  .ss-radio{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; border:1px solid var(--line-strong); border-radius:10px; padding:10px 12px; cursor:pointer; background:#fff; }
+  .ss-radio.on{ border-color:var(--accent); background:var(--accent-soft); }
+  .ss-radio span{ flex-basis:100%; font-size:12px; color:var(--muted); padding-left:22px; }
+  .ss-icons{ display:flex; flex-wrap:wrap; gap:6px; }
+  .ss-icon{ font-size:18px; width:36px; height:36px; border-radius:9px; border:1px solid var(--line-strong); background:#fff; cursor:pointer; padding:0; }
+  .ss-icon.on{ border-color:var(--accent); background:var(--accent-soft); box-shadow:0 0 0 2px var(--accent-line); }
+  .ss-handoff{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  @media (max-width:640px){ .ss-handoff{ grid-template-columns:1fr; } }
+  /* the map */
+  .setup-map .sm-sub{ font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:700; margin:6px 0 6px; }
+  .sm-card{ border:1px solid #f0c3d6; background:#fff; border-radius:14px; padding:14px 14px 12px; text-align:center; font-family:var(--mono); color:#5a1230; box-shadow:0 4px 14px rgba(214,16,106,.08); }
+  .sm-card.draft{ border-style:dashed; }
+  .sm-card.empty{ border-style:dashed; color:var(--muted); background:#fbfbfd; }
+  .sm-card-icon{ font-size:30px; line-height:1.1; }
+  .sm-card-code{ font-weight:800; font-size:15px; margin-top:6px; }
+  .sm-card-name{ font-size:12.5px; margin-top:2px; }
+  .sm-card-blurb{ font-size:11.5px; color:var(--muted); margin-top:3px; line-height:1.45; }
+  .sm-card-tag{ display:inline-block; margin-top:8px; font-size:11px; border-radius:10px; padding:2px 8px; background:#fff7e6; color:#7a5a12; border:1px solid #f0d9a8; font-family:var(--sans); }
+  .sm-tree{ margin-top:14px; }
+  .sm-node{ border-left:3px solid var(--tc,#ccc); padding:8px 0 4px 12px; margin:6px 0 0 4px; border-radius:2px; transition:background .2s; }
+  .sm-node.hot{ background:color-mix(in srgb, var(--tc) 9%, transparent); outline:1px dashed var(--tc); outline-offset:3px; }
+  .sm-kind{ font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--tc,var(--muted)); font-weight:700; }
+  .sm-val{ font-family:var(--mono); font-size:13.5px; font-weight:700; margin-top:2px; }
+  .sm-note{ font-size:12px; color:var(--muted); line-height:1.45; margin-top:2px; }
+  .sm-empty{ font-size:12px; color:var(--faint); font-style:italic; font-weight:400; font-family:var(--sans); }
+  .sm-chips{ display:flex; flex-wrap:wrap; gap:5px; margin:5px 0 2px; }
+  .sm-chip{ font-size:12px; border:1px solid var(--line-strong); border-radius:12px; padding:2px 9px; background:#fff; display:inline-flex; align-items:center; gap:5px; }
+  .sm-chip small{ font-family:var(--mono); color:var(--muted); font-size:10.5px; }
+  .sm-chip.pending, .sm-lec.pending{ border-style:dashed; background:#fffdf6; }
+  .sm-lec.draft, .sm-chip.draft{ border:1px dashed var(--line-strong); background:#fbfbfd; color:var(--muted); }
+  .sm-lecs{ display:flex; flex-direction:column; gap:3px; margin-top:4px; max-height:260px; overflow:auto; }
+  .sm-lec{ font-size:12px; border:1px solid var(--line); border-radius:8px; padding:3px 8px; background:#fff; }
+  .sm-lec b{ font-family:var(--mono); margin-right:4px; }
+  .sm-lec small{ color:var(--faint); font-style:italic; margin-left:4px; }
+  .sm-pend{ font-size:11px; }
+  .sm-draftn{ font-size:10.5px; color:var(--muted); text-transform:none; letter-spacing:0; font-weight:600; }
 </style>
 </head>
 <body>
@@ -557,6 +623,7 @@
     <button id="tabStart" data-tab="start" class="active nav-home">🚀 <span>Start here</span></button>
     <button id="tabDataMap" data-tab="datamap">🗺️ <span>How it's organised</span></button>
     <div class="nav-title">Add content</div>
+    <button id="tabSetup" data-tab="setup">🧱 <span>Set up a course</span><span class="nav-tag">guided</span></button>
     <button id="tabAdd" data-tab="add">✚ <span>Add anything</span></button>
     <button id="tabMyLecture" data-tab="mylecture">🎓 <span>My lecture</span><span class="nav-tag">easy</span></button>
     <button id="tabCsv" data-tab="csv">📄 <span>Bulk import</span></button>
@@ -585,18 +652,19 @@
       </div>
 
       <div class="card" style="border-color:var(--accent-line);background:var(--accent-soft);">
-        <h3 class="card-title">The order to do things in</h3>
-        <p class="card-sub" style="margin-bottom:12px;">A question needs a concept, a concept needs a topic (module), and a topic needs a course. Your lecture has to exist before anything can point at it. So you build downwards, and each of the first three is a one-off. Skip past whatever already exists.</p>
-        <ol class="start-order">
-          <li><b>Add the course</b> — the unit itself, e.g. AMED3003. Its code, name and a one-line description. Done once per unit, and anyone can do it.
-            <div class="btn-row"><button type="button" data-goto="add">✚ Add anything → Course</button></div></li>
-          <li><b>Add its lectures</b> — one row each: the number (<code>L14</code>), the name, and the learning outcomes separated by semicolons. Anyone can do this, and you can paste the whole list from a spreadsheet at once. Putting an existing lecture number will update that lecture instead of making a second one.
-            <div class="btn-row"><button type="button" data-goto="lectures">📚 Lectures</button></div></li>
-          <li><b>Add the topic (module)</b> — the grouping inside that course, e.g. Diagnostics. Anyone can do it.
-            <div class="btn-row"><button type="button" data-goto="add">✚ Add anything → Topic (Module)</button></div></li>
-          <li><b>Then add your content</b> — concepts and questions, as often as you like. This is the part you'll actually spend time in.
-            <div class="btn-row"><button type="button" class="primary" data-goto="mylecture">🎓 My lecture</button></div></li>
-        </ol>
+        <h3 class="card-title">Two ways in</h3>
+        <div class="start-ways">
+          <button type="button" class="start-way" data-goto="setup">
+            <span class="sw-icon">🧱</span>
+            <span class="sw-name">Set up a course</span>
+            <span class="sw-blurb">New unit, or one that's missing its topics or lectures. Four guided steps, and a live picture of where each thing lands so nothing gets lost.</span>
+          </button>
+          <button type="button" class="start-way" data-goto="mylecture">
+            <span class="sw-icon">🎓</span>
+            <span class="sw-name">Add questions to my lecture</span>
+            <span class="sw-blurb">The course already exists. Pick your lecture and add questions straight onto its concepts — the part you'll spend most time in.</span>
+          </button>
+        </div>
         <p class="card-sub" style="margin:12px 0 0;">Not sure what a concept or a topic is? <button type="button" class="link-btn" data-goto="datamap">🗺️ See how it's all organised →</button></p>
       </div>
 
@@ -695,6 +763,18 @@
     </section>
 
     <!-- ================= HOW IT'S ORGANISED ================= -->
+    <!-- ================= SET UP A COURSE (guided, with a live map of where things land) ================= -->
+    <section data-section="setup">
+      <div class="section-head">
+        <h2>Set up a course <button class="info-btn" data-info="overview" title="How this works">i</button></h2>
+        <p>Four steps, in the order the game needs them. The map on the right is the course as it stands right now — live content and anything still waiting in the queue — and it updates the moment you add something, so you can always see where it went.</p>
+      </div>
+      <div class="setup-grid">
+        <div id="setupSteps"></div>
+        <aside class="setup-side"><div class="card setup-map" id="setupMap"></div></aside>
+      </div>
+    </section>
+
     <section data-section="datamap">
       <div class="section-head">
         <h2>How it's organised <button class="info-btn" data-info="datamap" title="How this works">i</button></h2>
@@ -2544,17 +2624,23 @@
     if(!requireContributorIdentity()) return;
     const label = newTopicLabelInput.value.trim();
     if(!label){ toast('Give the topic a name first'); newTopicLabelInput.focus(); return; }
-    const theme = newTopicTheme.value, icon = newTopicIconInput.value.trim() || '📋';
-    const topicId = slugify(label) || 'newtopic';
-    if(KNOWN_TOPICS[topicId]){ toast(`"${KNOWN_TOPICS[topicId].label}" already exists as a topic — pick a different name`); return; }
-    const o = { theme, topicId, label, icon };
-    pushToQueue({ type:'topic', title:label, code:topicCodeString(o), note:`${(KNOWN_THEMES.find(t=>t.id===theme)||{}).label||theme} · new topic`, data:o });
-    KNOWN_TOPICS[topicId] = { label, theme };
+    if(!queueNewTopic(newTopicTheme.value, label, newTopicIconInput.value.trim() || '📋')) return;
     newTopicLabelInput.value = ''; newTopicIconInput.value = '📋';
     toast('Topic queued — add items to it whenever you like');
+  });
+  // Shared by the Topic form and the wizard. Returns false (with a toast)
+  // when the name is already taken, so a caller adding several can report
+  // which ones went in.
+  function queueNewTopic(theme, label, icon){
+    const topicId = slugify(label) || 'newtopic';
+    if(KNOWN_TOPICS[topicId]){ toast(`"${KNOWN_TOPICS[topicId].label}" already exists as a topic — pick a different name`); return false; }
+    const o = { theme, topicId, label, icon: icon || '📋' };
+    pushToQueue({ type:'topic', title:label, code:topicCodeString(o), note:`${(KNOWN_THEMES.find(t=>t.id===theme)||{}).label||theme} · new topic`, data:o });
+    KNOWN_TOPICS[topicId] = { label, theme };
     renderStructureList();
     [[i_theme,i_topic],[q_theme,q_topic]].forEach(([themeSel,topicSel])=>{ if(themeSel.value===theme) fillTopicSelect(topicSel, theme); });
-  });
+    return true;
+  }
 
   // ======================================================================
   // COURSE FORM
@@ -2583,22 +2669,24 @@
     if(!requireContributorIdentity()) return;
     if(!c_code.value.trim()){ toast('Give the course a code first, e.g. MEDS3002'); c_code.focus(); return; }
     if(!c_label.value.trim()){ toast('Give the course a name first'); c_label.focus(); return; }
-    const o = buildCourseObject();
-    if(KNOWN_THEMES.some(t=>t.id===o.id) || KNOWN_COURSES[o.id]){ toast(`"${o.id}" already exists — pick a different code`); return; }
+    if(!queueNewCourse(buildCourseObject())) return;
+    c_code.value=''; c_label.value=''; c_blurb.value=''; c_icon.value='📘'; renderCourse();
+  });
+  // Shared by the Course form and the Set up a course wizard. Registers the
+  // course on both sides (THEMES for content, COURSES for the lecture list)
+  // so every picker sees it at once -- a brand-new course otherwise had
+  // nowhere to hang lectures until someone separately added one.
+  function queueNewCourse(o){
+    if(KNOWN_THEMES.some(t=>t.id===o.id) || KNOWN_COURSES[o.id]){ toast(`"${o.id}" already exists — pick a different code`); return false; }
     KNOWN_THEMES.push({ id:o.id, label:o.label });
-    // Also register it as a COURSES entry (the lecture-list side) with a
-    // matching code, so it shows up in the Lectures tab's course picker
-    // immediately -- otherwise a brand-new course has nowhere to hang
-    // lectures until someone separately adds one via the item form's
-    // "+ Add a new course" toggle.
     KNOWN_COURSES[o.id] = { code:o.id, label:o.label, classes:{} };
     pushToQueue({ type:'course', title:o.label, code:courseCodeString(o), note:'new course', data:o });
     [i_theme, q_theme, newTopicTheme].forEach(sel=>fillThemeSelect(sel));
     refreshCourseSelects(); fillLoCourseSelect(); fillLecCourseSelect(); fillLecAddCourseSelect();
     renderStructureList();
-    toast('Added to the queue');
-    c_code.value=''; c_label.value=''; c_blurb.value=''; c_icon.value='📘'; renderCourse();
-  });
+    toast('Course added to the queue');
+    return true;
+  }
 
   // ======================================================================
   // LEARNING OUTCOMES FORM
@@ -3712,7 +3800,7 @@
       }
     });
   }
-  function attachQueueListener(){ fbOnValue(fbRef(fbdb, 'contributions'), snap=>{ batch = snap.val() || {}; renderBatch(); mlRefreshIfOpen(); simRefreshIfOpen(); }); }
+  function attachQueueListener(){ fbOnValue(fbRef(fbdb, 'contributions'), snap=>{ batch = snap.val() || {}; renderBatch(); mlRefreshIfOpen(); simRefreshIfOpen(); setupRefreshIfOpen(); }); }
   // The guide now shows queued cards, so it has to re-render when the queue moves.
   function simRefreshIfOpen(){
     const sec = document.querySelector('section[data-section="guidesim"]');
@@ -5128,6 +5216,7 @@
     document.querySelectorAll('section[data-section]').forEach(s=> s.classList.toggle('active', s.dataset.section===which));
     if(which==='mylecture'){ mlFillCourses(); if(ml_workspace.style.display!=='none') mlRender(); }
     if(which==='datamap') renderDataMap();
+    if(which==='setup') renderSetup();
     if(which==='structure') renderStructureList();
     if(which==='guidesim') renderGuideSim();
     if(which==='lectures'){ renderLectures(); fillLecAddCourseSelect(); }
@@ -5517,10 +5606,11 @@ const themesDecl  = text.indexOf('const THEMES = {');
       icon: '📄',
       steps: [
         { tab:'start', sel:'#contributorName', title:'First, your name and email', caption:'Type these once. Nothing can be queued without them. They are how your work is credited, and how an admin can reach you about it. Only an admin can see who submitted what.' },
-        { tab:'start', sel:'section[data-section="start"] .card', title:'Six steps, in this order', caption:'Each question you paste has to name its course, its topic and its lecture. Those three have to be in the game already, or the question has nothing to attach to. So you make them first: course, then topics, then lectures, then the questions. The next six steps do exactly that, one at a time. If your course or its topics are already there, skip that step.' },
-        { tab:'add', pane:['add','course'], sel:'.subpane[data-pane="course"] .card', title:'Step 1 · The course', caption:'Only if your unit is not in the game yet — check [[All content]] first. Fill in the course code, the course name and a one-line description, then {{+ Add to queue}}.' },
-        { tab:'add', pane:['add','topic'], sel:'.subpane[data-pane="topic"] .card', title:'Step 2 · The topics (modules)', caption:'A topic is what your unit calls a module — Genetics, Immunology, and so on. Add one for each: pick the course, type the topic name, then {{+ Add to queue}}. You cannot paste a question into a topic that is not there yet.' },
-        { tab:'lectures', sel:'#lecAddTable', title:'Step 3 · The lecture list', caption:'Pick the course. Then paste one row per lecture from your spreadsheet: the number (L14), the name, and the learning outcomes separated by semicolons. Then {{Check & add all to queue}}.' },
+        { tab:'start', sel:'section[data-section="start"] .card', title:'Six steps, in this order', caption:'Each question you paste has to name its course, its topic and its lecture. Those three have to be in the game already, or the question has nothing to attach to. So you make them first: course, then topics, then lectures, then the questions. The steps that follow do exactly that, one at a time, with a live map of the course beside them. If your course or its topics are already there, skip that step.' },
+        { tab:'setup', sel:'#setupStep1', title:'Step 1 · The course', caption:'[[Set up a course]] walks the first three steps in order. Start with the course: a new one (code, name, one-line description, icon) or an existing one that needs topics or lectures. The card on the right is the home-screen card students will see — it fills in as you type.' },
+        { tab:'setup', sel:'#setupMap', title:'The map', caption:'This is the course as it stands — live content plus anything of yours still ⏳ waiting in the queue. The part you are working on is highlighted, and every topic, lecture, concept and question you add appears here the moment you add it, so you always know where it went.' },
+        { tab:'setup', sel:'#setupStep2', title:'Step 2 · Topics (modules)', caption:'A topic is what your unit calls a module — Genetics, Immunology, and so on. Type them one per line and hit {{+ Add these topics →}}. You cannot paste a question into a topic that is not there yet.' },
+        { tab:'setup', sel:'#setupStep3', title:'Step 3 · The lecture list', caption:'Copy the three columns from your spreadsheet — number, name, learning outcomes separated by semicolons — and paste them in. The map shows them as drafts first, then for real once you hit {{+ Add these lectures →}}.' },
         { tab:'csv', sel:'#gridImportTable', title:'Step 4 · The questions', caption:'Now the questions. Copy a block of cells in Excel or Google Sheets, click a cell in this table, and paste. It fills in every cell you copied and adds more rows if it needs them. Each row is checked as you type, and if a row names a course, topic or lecture that does not exist, you get a button that takes you straight to adding it. Then {{Check & add all to queue}}.' },
         { tab:'guidesim', sel:'#simWarnChecks', title:'Step 5 · Check what\'s missing', caption:'[[Study guide preview]] shows every concept the way a student sees it, and marks anything with no description, no questions or no image. Tick the boxes for the gaps you care about, and use the {{Lecture}} row to show only your own.' },
         { tab:'queue', sel:'#batchListContent', title:'Step 6 · Where it all lands', caption:'A big paste arrives in [[Team queue]] as many rows at once, where the whole team can see it. Check it over and fix your own rows. An admin merges everything in one go — there is nothing else you need to do.' },
@@ -5595,6 +5685,295 @@ const themesDecl  = text.indexOf('const THEMES = {');
   P.cancel.addEventListener('click', closeDevTourPicker);
   T.close.addEventListener('click', closeDevTour); T.skip.addEventListener('click', closeDevTour);
   T.back.addEventListener('click', ()=> devTourAdvance(-1)); T.next.addEventListener('click', ()=> devTourAdvance(1));
+
+  // ======================================================================
+  // 🧱 SET UP A COURSE -- the guided route, with a live map
+  // ======================================================================
+  // The old route was "read the order on Start here, then find the right
+  // form under Add anything". People lost track of what they'd made and
+  // where it went. Here the four steps sit in one place, in order, and the
+  // map alongside is rebuilt from live data + the queue after every action,
+  // so each thing added appears in the picture straight away.
+  let setupCourseId = null;   // the course being built (live or still queued)
+  let setupStep = 1;
+  let setupNewMode = true;    // step 1: new course vs continue an existing one
+  const SETUP_ICONS = ['📘','🧬','🧪','🫀','🩸','🧠','🔬','💊','🦠','🩻','🧫','📙'];
+
+  // Everything the map needs about one course, merged from the game data
+  // and whatever is sitting in the queue for it.
+  function setupSnapshot(courseId){
+    const live = RD.THEMES[courseId] || null;
+    const q = Object.values(batch || {}).filter(e=> e && e.data);
+    const courseEntry = q.find(e=> e.type==='course' && e.data.id===courseId);
+    const course = live ? { label:live.label, icon:live.icon, blurb:live.blurb, pending:false }
+      : courseEntry ? { label:courseEntry.data.label, icon:courseEntry.data.icon, blurb:courseEntry.data.blurb, pending:true }
+      : null;
+    const topics = {};
+    if(live) Object.entries(live.topics||{}).forEach(([id,t])=>{
+      topics[id] = { id, label:(RD.TOPICS[id]||{}).label || id, icon:(RD.TOPICS[id]||{}).icon || '', pending:false,
+        concepts:Object.keys(t.items||{}).length, questions:Object.values(t.items||{}).reduce((n,it)=> n + (it.questions||[]).length, 0) };
+    });
+    q.filter(e=> e.type==='topic' && e.data.theme===courseId && !topics[e.data.topicId]).forEach(e=>{
+      topics[e.data.topicId] = { id:e.data.topicId, label:e.data.label, icon:e.data.icon||'', pending:true, concepts:0, questions:0 };
+    });
+    q.filter(e=> e.type==='item' && e.data.theme===courseId).forEach(e=>{
+      const o = e.data;
+      if(!topics[o.topicId]) topics[o.topicId] = { id:o.topicId, label:o.newTopicLabel||o.topicId, icon:'', pending:true, concepts:0, questions:0 };
+      topics[o.topicId].concepts++; topics[o.topicId].pendingConcepts = (topics[o.topicId].pendingConcepts||0) + 1;
+    });
+    q.filter(e=> e.type==='question' && e.data.theme===courseId && topics[e.data.topicId]).forEach(e=>{
+      topics[e.data.topicId].questions++; topics[e.data.topicId].pendingQuestions = (topics[e.data.topicId].pendingQuestions||0) + 1;
+    });
+    const lectures = {};
+    Object.entries((RD.COURSES[courseId]||{}).classes||{}).forEach(([k,v])=> lectures[k] = { key:k, label:v.label||'', pending:false });
+    q.filter(e=> e.type==='lectureOutcomes' && e.data.course===courseId).forEach(e=>{
+      const k = e.data.classKey; if(!k) return;
+      if(!lectures[k]) lectures[k] = { key:k, label:e.data.label||'', pending:true };
+      else lectures[k].updated = true;
+    });
+    const lecSort = (a,b)=> a.key.localeCompare(b.key, undefined, { numeric:true });
+    return { id:courseId, course, topics:Object.values(topics), lectures:Object.values(lectures).sort(lecSort) };
+  }
+  function setupKnownCourses(){
+    return Object.values(KNOWN_COURSES).map(c=>({ id:c.code, label:c.label })).sort((a,b)=> a.id.localeCompare(b.id));
+  }
+  function renderSetup(){ renderSetupSteps(); renderSetupMap(); }
+
+  // ---- left: the four steps, one open at a time -------------------------
+  function renderSetupSteps(){
+    const host = document.getElementById('setupSteps'); if(!host) return;
+    const snap = setupCourseId ? setupSnapshot(setupCourseId) : null;
+    const haveCourse = !!(snap && snap.course);
+    const done = { 1:haveCourse, 2:haveCourse && snap.topics.length>0, 3:haveCourse && snap.lectures.length>0, 4:false };
+    const stepCard = (n, title, body, enabled) => `
+      <div class="setup-step${setupStep===n?' open':''}${done[n]?' done':''}${enabled?'':' locked'}" id="setupStep${n}" data-setup-step="${n}">
+        <button type="button" class="ss-head" data-setup-go="${n}" ${enabled?'':'disabled'}>
+          <span class="ss-num">${done[n] ? '✓' : n}</span>
+          <span class="ss-title">${title}</span>
+          <span class="ss-state">${!enabled ? 'after step 1' : done[n] ? 'done — open to add more' : setupStep===n ? '' : 'open'}</span>
+        </button>
+        ${setupStep===n ? `<div class="ss-body">${body}</div>` : ''}
+      </div>`;
+
+    // Step 1 -- the course
+    const known = setupKnownCourses();
+    const s1 = haveCourse ? `
+        <p class="card-sub">You're building <b>${esc2(setupCourseId)} — ${esc2(snap.course.label)}</b>${snap.course.pending ? ' <span class="mlc-pending">⏳ waiting for review</span>' : ''}. It's on the map on the right.</p>
+        <div class="btn-row"><button type="button" class="primary" data-setup-go="2">Next: topics →</button><button type="button" data-setup-reset>Build a different course</button></div>`
+      : `
+        <div class="ss-choice">
+          <label class="ss-radio${setupNewMode?' on':''}"><input type="radio" name="setupMode" value="new" ${setupNewMode?'checked':''}> <b>A new course</b><span>It isn't in the game yet</span></label>
+          <label class="ss-radio${!setupNewMode?' on':''}"><input type="radio" name="setupMode" value="existing" ${!setupNewMode?'checked':''}> <b>Continue an existing one</b><span>Add its topics or lectures</span></label>
+        </div>
+        ${setupNewMode ? `
+        <div class="row2">
+          <label class="field"><span class="fl-label">Course code <span class="req">*</span></span><span class="fl-help">The unit code. Becomes its id everywhere.</span><input type="text" id="setup_code" placeholder="e.g. MEDS3002" autocomplete="off"></label>
+          <label class="field"><span class="fl-label">Course name <span class="req">*</span></span><span class="fl-help">The title on its home-screen card.</span><input type="text" id="setup_label" placeholder="e.g. Breakthroughs in Medical Science"></label>
+        </div>
+        <label class="field"><span class="fl-label">One-line description <span class="req">*</span></span><span class="fl-help">Under the name on the card.</span><input type="text" id="setup_blurb" placeholder="e.g. Diagnostics, biomarkers and how new treatments reach patients"></label>
+        <div class="field"><span class="fl-label">Icon</span><div class="ss-icons" id="setup_icons">${SETUP_ICONS.map((ic,i)=>`<button type="button" class="ss-icon${i===0?' on':''}" data-icon="${ic}">${ic}</button>`).join('')}</div></div>
+        <p class="card-sub" style="margin:4px 0 10px;">👀 Watch the card on the right fill in as you type — that's what students pick on the home screen.</p>
+        <div class="btn-row"><button type="button" class="primary" id="setup_createBtn">+ Add this course →</button></div>`
+        : `
+        <label class="field"><span class="fl-label">Course</span><select id="setup_existing">${known.map(c=>`<option value="${esc2(c.id)}">${esc2(c.id)} — ${esc2(c.label)}</option>`).join('')}</select></label>
+        <div class="btn-row"><button type="button" class="primary" id="setup_useBtn">Use this course →</button></div>`}`;
+
+    // Step 2 -- topics
+    const s2 = !haveCourse ? '' : `
+        <p class="card-sub">A <b>topic</b> is what your unit calls a <b>module</b> — Genetics, Immunology, Diagnostics. It's how the game groups the study-guide cards for students, so one per module is about right.${snap.topics.length ? ` This course already has <b>${snap.topics.length}</b>.` : ''}</p>
+        <label class="field"><span class="fl-label">Topic names, one per line</span>
+          <textarea id="setup_topics" rows="4" placeholder="Genetics&#10;Immunology&#10;Diagnostics"></textarea></label>
+        <div class="btn-row"><button type="button" class="primary" id="setup_topicsBtn">+ Add these topics →</button><button type="button" data-setup-go="3">${snap.topics.length ? 'Next: lectures →' : 'Skip for now →'}</button></div>`;
+
+    // Step 3 -- lectures
+    const s3 = !haveCourse ? '' : `
+        <p class="card-sub">One row per lecture: the <b>number</b> (L14), the <b>name</b>, and the <b>learning outcomes</b> separated by semicolons. Copy the three columns straight out of your spreadsheet and paste them here — tabs between columns are what it expects. A number that already exists updates that lecture instead of making a second one.${snap.lectures.length ? ` <b>${snap.lectures.length}</b> already listed.` : ''}</p>
+        <label class="field"><span class="fl-label">Lecture list</span>
+          <textarea id="setup_lectures" rows="6" class="mono" placeholder="L1&#9;Transcriptional regulation&#9;Explain how promoters work; Describe enhancers&#10;L2&#9;Epigenetic markers&#9;Define methylation; Compare histone marks"></textarea></label>
+        <div id="setup_lecPreview"></div>
+        <div class="btn-row"><button type="button" class="primary" id="setup_lecturesBtn">+ Add these lectures →</button><button type="button" data-setup-go="4">${snap.lectures.length ? 'Next: content →' : 'Skip for now →'}</button></div>`;
+
+    // Step 4 -- hand off to the content routes
+    const nTopics = snap ? snap.topics.length : 0, nLec = snap ? snap.lectures.length : 0;
+    const s4 = !haveCourse ? '' : `
+        <p class="card-sub">The frame is up: <b>${nTopics}</b> topic${nTopics===1?'':'s'} and <b>${nLec}</b> lecture${nLec===1?'':'s'}. Concepts and questions are the part you'll keep coming back to, and they live in two places built for it:</p>
+        <div class="ss-handoff">
+          <button type="button" class="start-way" id="setup_toMyLecture"${nLec?'':' disabled title="Add at least one lecture first"'}>
+            <span class="sw-icon">🎓</span><span class="sw-name">My lecture</span>
+            <span class="sw-blurb">Pick a lecture, add concepts and questions to it one at a time. Best for a lecturer doing their own lecture.</span>
+          </button>
+          <button type="button" class="start-way" id="setup_toBulk">
+            <span class="sw-icon">📄</span><span class="sw-name">Bulk import</span>
+            <span class="sw-blurb">Paste a whole sheet of questions. Each row names its topic and lecture — the ones you just added.</span>
+          </button>
+        </div>
+        ${nLec ? '' : `<p class="card-sub" style="margin-top:10px;">⚠️ My lecture needs a lecture to attach things to — go back to step 3 and add at least one.</p>`}
+        <p class="card-sub" style="margin-top:10px;">Everything you've added here is waiting in <button type="button" class="link-btn" data-goto="queue">👥 Team queue</button> for an admin to merge. Until then it's marked ⏳ on the map.</p>`;
+
+    host.innerHTML = stepCard(1, '🎓 The course', s1, true)
+      + stepCard(2, '🧬 Topics (modules)', s2, haveCourse)
+      + stepCard(3, '📚 Lectures', s3, haveCourse)
+      + stepCard(4, '📄 Concepts & questions', s4, haveCourse);
+    wireSetupSteps(host);
+  }
+  function wireSetupSteps(host){
+    host.querySelectorAll('[data-setup-go]').forEach(b=> b.addEventListener('click', ()=>{ setupStep = +b.dataset.setupGo; renderSetup(); }));
+    host.querySelectorAll('[data-setup-reset]').forEach(b=> b.addEventListener('click', ()=>{ setupCourseId = null; setupStep = 1; renderSetup(); }));
+    host.querySelectorAll('input[name="setupMode"]').forEach(r=> r.addEventListener('change', ()=>{ setupNewMode = r.value==='new'; renderSetup(); }));
+    const icons = host.querySelector('#setup_icons');
+    if(icons) icons.querySelectorAll('.ss-icon').forEach(b=> b.addEventListener('click', ()=>{ icons.querySelectorAll('.ss-icon').forEach(x=>x.classList.remove('on')); b.classList.add('on'); renderSetupMap(); }));
+    ['setup_code','setup_label','setup_blurb'].forEach(id=>{ const el = host.querySelector('#'+id); if(el) el.addEventListener('input', renderSetupMap); });
+    const create = host.querySelector('#setup_createBtn');
+    if(create) create.addEventListener('click', ()=>{
+      if(!requireContributorIdentity()) return;
+      const d = setupDraftCourse();
+      if(!d.id){ toast('Give the course a code first, e.g. MEDS3002'); host.querySelector('#setup_code').focus(); return; }
+      if(!host.querySelector('#setup_label').value.trim()){ toast('Give the course a name first'); host.querySelector('#setup_label').focus(); return; }
+      if(!host.querySelector('#setup_blurb').value.trim()){ toast('Add a one-line description — it shows on the card'); host.querySelector('#setup_blurb').focus(); return; }
+      if(!queueNewCourse(d)) return;
+      setupCourseId = d.id; setupStep = 2; renderSetup();
+    });
+    const use = host.querySelector('#setup_useBtn');
+    if(use) use.addEventListener('click', ()=>{ const sel = host.querySelector('#setup_existing'); if(!sel.value){ toast('There are no courses yet — add a new one'); return; } setupCourseId = sel.value; setupStep = 2; renderSetup(); });
+    const topicsBtn = host.querySelector('#setup_topicsBtn');
+    if(topicsBtn) topicsBtn.addEventListener('click', ()=>{
+      if(!requireContributorIdentity()) return;
+      const names = host.querySelector('#setup_topics').value.split('\n').map(x=>x.trim()).filter(Boolean);
+      if(!names.length){ toast('Type at least one topic name'); return; }
+      let added = 0; names.forEach(n=>{ if(queueNewTopic(setupCourseId, n, '📋')) added++; });
+      if(added) toast(`${added} topic${added===1?'':'s'} added to the queue`);
+      if(added===names.length) setupStep = 3;
+      renderSetup();
+    });
+    const lecTa = host.querySelector('#setup_lectures');
+    if(lecTa){ lecTa.addEventListener('input', renderSetupLecPreview); lecTa.addEventListener('paste', ()=> setTimeout(renderSetupLecPreview, 0)); }
+    const lecBtn = host.querySelector('#setup_lecturesBtn');
+    if(lecBtn) lecBtn.addEventListener('click', ()=>{
+      if(!requireContributorIdentity()) return;
+      const { valid, errors } = parseSetupLectures();
+      if(!valid.length){ toast(errors[0] || 'Nothing to add — one lecture per line'); return; }
+      valid.forEach(o=>{
+        pushToQueue({ type:'lectureOutcomes', title:`${o.course} ${o.classKey}`, code:lectureOutcomesCodeString(o), note:`${o.label} · ${o.isNew?'new lecture':'lecture update'}`, data:{ course:o.course, classKey:o.classKey, label:o.label, outcomes:o.outcomes, intro:o.intro } });
+        // Register locally so the map and the Lectures tab show it at once.
+        if(KNOWN_COURSES[o.course]) KNOWN_COURSES[o.course].classes[o.classKey] = KNOWN_COURSES[o.course].classes[o.classKey] || { label:o.label };
+      });
+      toast(`${valid.length} lecture${valid.length===1?'':'s'} added to the queue${errors.length?` (${errors.length} line${errors.length===1?'':'s'} skipped)`:''}`);
+      setupStep = 4; renderSetup(); renderLectures();
+    });
+    const toMl = host.querySelector('#setup_toMyLecture');
+    if(toMl) toMl.addEventListener('click', ()=>{
+      showTab('mylecture'); mlFillCourses();
+      if([...ml_course.options].some(o=>o.value===setupCourseId)){ ml_course.value = setupCourseId; mlFillLectures(); }
+    });
+    const toBulk = host.querySelector('#setup_toBulk');
+    if(toBulk) toBulk.addEventListener('click', ()=> showTab('csv'));
+  }
+  function setupDraftCourse(){
+    const g = id => (document.getElementById(id)||{}).value || '';
+    const code = g('setup_code').trim().replace(/\s+/g,'').toUpperCase();
+    const icon = (document.querySelector('#setup_icons .ss-icon.on')||{}).dataset?.icon || '📘';
+    return { id:code, label:g('setup_label').trim() || code || 'Untitled course', icon, blurb:g('setup_blurb').trim() || '(add a description)' };
+  }
+  // Same rules as the Lectures tab's grid (resolveLectureKey/splitList), fed
+  // from pasted lines instead of table cells. Tabs separate columns; a line
+  // with no tab is read as "L3 Some name" with no outcomes.
+  function parseSetupLectures(){
+    const ta = document.getElementById('setup_lectures'); if(!ta) return { valid:[], errors:[] };
+    const errors = [], valid = [];
+    ta.value.replace(/\r/g,'').split('\n').forEach((line, i)=>{
+      if(!line.trim()) return;
+      let cells = line.split('\t').map(x=>x.trim());
+      if(cells.length===1){
+        // No tabs: "L3 Some name". Only accept it when the first word really
+        // looks like a lecture number, or a stray sentence becomes lecture "BAD".
+        const m = line.trim().match(/^([A-Za-z]{1,4}\d{1,3})\s+(.*)$/);
+        if(!m){ errors.push(`Line ${i+1}: doesn't start with a lecture number like L3 — skipped.`); return; }
+        cells = [m[1], m[2], ''];
+      }
+      const [num, name, lo] = cells;
+      if(!num){ errors.push(`Line ${i+1}: no lecture number.`); return; }
+      if(!name){ errors.push(`Line ${i+1}: no name.`); return; }
+      const existing = resolveLectureKey(setupCourseId, num);
+      const classKey = existing || num.toUpperCase().replace(/^([A-Z]+)0*(\d)/, '$1$2');
+      valid.push({ course:setupCourseId, classKey, label:name, outcomes:splitList(lo||''), intro:'', isNew:!existing });
+    });
+    return { valid, errors };
+  }
+  function renderSetupLecPreview(){
+    const box = document.getElementById('setup_lecPreview'); if(!box) return;
+    const { valid, errors } = parseSetupLectures();
+    if(!valid.length && !errors.length){ box.innerHTML = ''; renderSetupMap(); return; }
+    const n = valid.filter(v=>v.isNew).length, u = valid.length - n;
+    box.innerHTML = (valid.length ? `<div class="status ok">✅ ${n} new lecture${n===1?'':'s'}${u?`, ${u} update${u===1?'':'s'}`:''} ready — shown as drafts on the map.</div>` : '')
+      + (errors.length ? `<div class="status bad" style="margin-top:6px;">⚠️ ${esc2(errors.join(' '))}</div>` : '');
+    renderSetupMap();
+  }
+
+  // ---- right: the live map of this course ------------------------------
+  function renderSetupMap(){
+    const host = document.getElementById('setupMap'); if(!host) return;
+    const snap = setupCourseId ? setupSnapshot(setupCourseId) : null;
+    const draft = (!snap || !snap.course) && setupNewMode && document.getElementById('setup_code') ? setupDraftCourse() : null;
+    const c = snap && snap.course ? { ...snap.course, id:setupCourseId } : draft && (draft.id || document.getElementById('setup_label').value) ? { ...draft, draft:true } : null;
+    const pend = `<span class="sm-pend" title="Waiting for an admin to merge it">⏳</span>`;
+    const hl = kind => (
+      (kind==='course' && setupStep===1) || (kind==='topic' && setupStep===2) ||
+      (kind==='lecture' && setupStep===3) || (kind==='concept' && setupStep===4)) ? ' hot' : '';
+
+    // The home-screen card, as the game draws it.
+    const card = c ? `
+      <div class="sm-card${c.draft?' draft':''}">
+        <div class="sm-card-icon">${esc2(c.icon||'📘')}</div>
+        <div class="sm-card-code">${esc2(c.id||'CODE')}</div>
+        <div class="sm-card-name">${esc2(c.label||'Course name')}</div>
+        <div class="sm-card-blurb">${esc2(c.blurb && c.blurb!=='(add a description)' ? c.blurb : 'One-line description')}</div>
+        ${c.draft ? `<div class="sm-card-tag">draft — not added yet</div>` : c.pending ? `<div class="sm-card-tag">⏳ waiting for review</div>` : ''}
+      </div>` : `
+      <div class="sm-card empty"><div class="sm-card-icon">📘</div><div class="sm-card-code">CODE</div><div class="sm-card-name">Your course</div><div class="sm-card-blurb">This is the card students pick on the home screen. Fill in step 1 and it appears here.</div></div>`;
+
+    // Draft lectures from the textarea, before they're added, so the paste
+    // can be checked against the map rather than a status line.
+    const draftLec = setupStep===3 && snap ? parseSetupLectures().valid.filter(v=> !snap.lectures.some(l=>l.key===v.classKey)) : [];
+
+    const topics = snap ? snap.topics : [];
+    const lectures = snap ? snap.lectures : [];
+    const nConcepts = topics.reduce((n,t)=> n + t.concepts, 0), nQ = topics.reduce((n,t)=> n + t.questions, 0);
+
+    host.innerHTML = `
+      <h3 class="card-title" style="margin-top:0;">Where it all goes</h3>
+      <p class="card-sub" style="margin-bottom:10px;">Live — content in the game plus anything of yours still ⏳ in the queue.</p>
+      <div class="sm-sub">What students see on the home screen</div>
+      ${card}
+      <div class="sm-tree">
+        <div class="sm-node${hl('course')}" style="--tc:${DM_COLORS.course}">
+          <div class="sm-kind">🎓 Course</div>
+          <div class="sm-val">${c ? esc2(c.id) + (c.pending ? ' ' + pend : '') : '<span class="sm-empty">step 1</span>'}</div>
+          <div class="sm-node${hl('topic')}" style="--tc:${DM_COLORS.topic}">
+            <div class="sm-kind">🧬 Topics (modules) · ${topics.length}</div>
+            <div class="sm-chips">${topics.length
+              ? topics.map(t=>`<span class="sm-chip${t.pending?' pending':''}" title="${esc2(t.label)} · ${t.concepts} concept${t.concepts===1?'':'s'}, ${t.questions} question${t.questions===1?'':'s'}">${t.icon?esc2(t.icon)+' ':''}${esc2(t.label)}${t.pending?' '+pend:''}<small>${t.concepts}·${t.questions}</small></span>`).join('')
+              : `<span class="sm-empty">${c ? 'none yet — step 2 puts them here' : 'the modules inside the course'}</span>`}</div>
+            <div class="sm-node${hl('concept')}" style="--tc:${DM_COLORS.concept}">
+              <div class="sm-kind">📄 Concepts · ${nConcepts} &nbsp; ❓ Questions · ${nQ}</div>
+              <div class="sm-note">${c ? (nConcepts ? `Each topic chip above shows its own <small>concepts·questions</small>.` : 'None yet — step 4 is where these come from. Each one records which lecture taught it.') : 'Study-guide pages, with the questions hanging off them.'}</div>
+            </div>
+          </div>
+        </div>
+        <div class="sm-node${hl('lecture')}" style="--tc:${DM_COLORS.lecture};margin-top:12px;">
+          <div class="sm-kind">📚 Lectures · ${lectures.length}${draftLec.length?` <span class="sm-draftn">+${draftLec.length} in the box</span>`:''}</div>
+          <div class="sm-note" style="margin-bottom:4px;">Not a level inside the course — each concept just records which lecture taught it, and that's how My lecture finds yours.</div>
+          <div class="sm-lecs">${lectures.length || draftLec.length
+            ? lectures.map(l=>`<div class="sm-lec${l.pending?' pending':''}"><b>${esc2(l.key)}</b> ${esc2(l.label)}${l.pending?' '+pend:(l.updated?' <span class="sm-pend" title="An update is waiting">✏️⏳</span>':'')}</div>`).join('')
+              + draftLec.map(l=>`<div class="sm-lec draft"><b>${esc2(l.classKey)}</b> ${esc2(l.label)} <small>draft</small></div>`).join('')
+            : `<span class="sm-empty">${c ? 'none yet — step 3 puts them here' : 'the timetable: L1, L2, …'}</span>`}</div>
+        </div>
+      </div>`;
+  }
+  // Keep the map honest when the shared queue moves under us.
+  function setupRefreshIfOpen(){
+    const sec = document.querySelector('section[data-section="setup"]');
+    if(sec && sec.classList.contains('active')) renderSetupMap();
+  }
 
   // ======================================================================
   // INIT
