@@ -370,6 +370,19 @@
   /* ---- How it's organised: the data-shape explainer ----
      Drawn from the live data rather than a static picture, so it can never
      describe a shape the tool no longer has. */
+  .dm-lec{ font-family:var(--display, Georgia, serif); background:#f6f2ea; border-radius:12px; padding:18px 22px 10px; color:#2c3440; }
+  .dml-course{ font-size:17px; font-weight:600; color:var(--c-course); }
+  .dml-topic{ margin:6px 0 10px 34px; }
+  .dml-topic-name{ font-size:16px; font-weight:600; color:var(--c-topic); }
+  .dml-topic-name span{ font-weight:400; color:#6b7385; }
+  .dml-items-head{ margin:4px 0 2px 120px; font-size:15px; font-weight:700; color:var(--c-item); }
+  .dml-group{ display:grid; grid-template-columns:52px 22px max-content; justify-content:start; align-items:stretch; column-gap:14px; margin:4px 0 4px 132px; }
+  .dml-items{ list-style:none; margin:0; padding:2px 0; }
+  .dml-items li{ font-size:22px; line-height:1.5; padding-left:22px; position:relative; }
+  .dml-items li::before{ content:''; position:absolute; left:2px; top:50%; width:9px; height:9px; margin-top:-4px; border-radius:50%; background:#2c3440; }
+  .dml-bracket{ border:3px solid var(--c-lec); border-left:none; border-radius:0 4px 4px 0; margin:4px 0; }
+  .dml-lec{ align-self:center; font-size:16px; font-weight:600; color:var(--c-lec); white-space:nowrap; }
+  @media (max-width:640px){ .dml-topic{ margin-left:12px; } .dml-items-head{ margin-left:40px; } .dml-group{ margin-left:52px; } }
   .dm-chain{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:4px 0 2px; }
   .dm-pill{ display:inline-flex; align-items:center; gap:6px; border:2px solid var(--tc,#ccc); border-radius:20px;
     padding:5px 14px; font-weight:700; font-size:13px; background:#fff; }
@@ -5756,6 +5769,27 @@
     Object.values(KNOWN_COURSES).forEach(c=> lectures += Object.keys(c.classes || {}).length);
     return { courses:Object.keys(RD.THEMES).length, topics, concepts, questions, tagged, lectures };
   }
+  // The lecturer-facing picture: Course → Topics → Items, with each
+  // lecture drawn as a bracket over the items it taught.
+  function dmLectureDiagram(){
+    const topics = [
+      { name:'Topic A', groups:[ { lec:'Lecture 1', items:['A','B','C'] }, { lec:'Lecture 2', items:['D','E','F'] } ] },
+      { name:'Topic B', alias:'Module', groups:[ { lec:'Lecture 3', items:['G','H'] } ] },
+    ];
+    return `<div class="dm-lec" style="--c-course:${DM_COLORS.course};--c-topic:${DM_COLORS.topic};--c-item:${DM_COLORS.concept};--c-lec:${DM_COLORS.lecture}">
+      <div class="dml-course">🎓 Course</div>
+      ${topics.map((t,ti)=>`<div class="dml-topic">
+        <div class="dml-topic-name">🧬 ${t.name}${t.alias?` <span>/ ${t.alias}</span>`:''}</div>
+        ${ti===0 ? `<div class="dml-items-head">📄 Items</div>` : ''}
+        ${t.groups.map(g=>`<div class="dml-group">
+          <ul class="dml-items">${g.items.map(i=>`<li>${i}</li>`).join('')}</ul>
+          <div class="dml-bracket"></div>
+          <div class="dml-lec">📚 ${g.lec}</div>
+        </div>`).join('')}
+      </div>`).join('')}
+    </div>
+    <p class="card-sub" style="margin:10px 0 0;">So when you add a question in <b>My lecture</b>, you pick your lecture and see only the items it brackets — the topic is already decided by the item.</p>`;
+  }
   function renderDataMap(){
     const host = document.getElementById('dataMapBody');
     if(!host) return;
@@ -5808,6 +5842,12 @@
           <span class="dm-pill" style="--tc:${DM_COLORS.concept}">📄 Concept</span>
           <span class="dm-note" style="margin:0;">— and a concept can name more than one</span>
         </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title" style="margin-top:0;">Where lectures come in</h3>
+        <p class="card-sub" style="font-size:14px;">Lectures aren't a box inside the course. They're a bracket drawn across the items: each item says which lecture taught it. A topic can hold several lectures' worth of items, and a lecture's items can sit in different topics.</p>
+        ${dmLectureDiagram()}
       </div>
 
       <div class="card">
