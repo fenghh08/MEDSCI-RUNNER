@@ -16,7 +16,9 @@ fs.mkdirSync(wwwDir, { recursive: true });
 
 fs.copyFileSync(path.join(root, 'medsci-runner.html'), path.join(wwwDir, 'index.html'));
 fs.copyFileSync(path.join(root, 'game-data.js'), path.join(wwwDir, 'game-data.js'));
+fs.copyFileSync(path.join(root, 'feedback.html'), path.join(wwwDir, 'feedback.html'));
+fs.copyFileSync(path.join(root, 'feedback-questions.js'), path.join(wwwDir, 'feedback-questions.js'));
 fs.cpSync(path.join(root, 'icons'), path.join(wwwDir, 'icons'), { recursive: true });
 fs.cpSync(path.join(root, 'images'), path.join(wwwDir, 'images'), { recursive: true });
 
-console.log('www/ rebuilt from medsci-runner.html, game-data.js, icons/, images/ (developer-tool.html excluded)');
+console.log('www/ rebuilt from medsci-runner.html, game-data.js, feedback.html, icons/, images/ (developer-tool.html excluded)');

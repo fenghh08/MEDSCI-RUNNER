@@ -582,7 +582,8 @@
   .ev-table td{ padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:middle; font-variant-numeric:tabular-nums; white-space:nowrap; }
   .ev-table td.ev-q{ white-space:normal; min-width:260px; line-height:1.4; }
   .ev-id{ font-family:var(--mono); font-size:11px; color:var(--faint); }
-  .ev-na{ color:var(--faint); font-size:11px; }
+  .ev-na{ color:var(--faint); font-size:11px; font-weight:400; }
+  .ev-tag{ display:inline-block; font-size:10.5px; color:var(--accent); background:var(--accent-soft); border-radius:8px; padding:0 7px; margin-left:4px; white-space:nowrap; }
   .ev-barcell{ min-width:180px; }
   .ev-dist{ display:flex; height:18px; border-radius:5px; overflow:hidden; background:#f0f2f7; }
   .ev-dist i{ font-style:normal; font-size:10.5px; color:#fff; display:flex; align-items:center; justify-content:center; min-width:14px; }
@@ -761,6 +762,14 @@
   .ss-icons{ display:flex; flex-wrap:wrap; gap:6px; }
   .ss-icon{ font-size:18px; width:36px; height:36px; border-radius:9px; border:1px solid var(--line-strong); background:#fff; cursor:pointer; padding:0; }
   .ss-icon.on{ border-color:var(--accent); background:var(--accent-soft); box-shadow:0 0 0 2px var(--accent-line); }
+  /* Set up a course -> Lectures rows */
+  .slr-head, .slr-row{ display:grid; grid-template-columns:90px minmax(0,1fr) minmax(0,1.4fr) 34px; gap:8px; align-items:start; }
+  .slr-head{ font-size:12px; font-weight:600; color:var(--muted); margin:4px 0 6px; } .slr-head i{ font-weight:400; font-style:normal; color:var(--faint); }
+  .slr-row + .slr-row ::placeholder{ color:transparent; } /* example text on the first row only, or empty rows look filled in */
+  .slr-row{ margin-bottom:8px; } .slr-row textarea{ min-height:40px; } .slr-row .slr-del{ padding:6px 0; }
+  .slr-row .slr-bad{ border-color:var(--danger); box-shadow:0 0 0 3px var(--danger-soft); }
+  .slr-paste{ margin-top:12px; border:1px dashed var(--line-strong); border-radius:10px; padding:8px 12px; } .slr-paste summary{ cursor:pointer; font-size:13px; color:var(--muted); }
+  @media (max-width:640px){ .slr-head{ display:none; } .slr-row{ grid-template-columns:80px 1fr 34px; } .slr-row textarea{ grid-column:1 / 3; } }
   .ss-handoff{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   @media (max-width:640px){ .ss-handoff{ grid-template-columns:1fr; } }
   /* the map */
@@ -1690,6 +1699,7 @@
         <div class="an-seg" id="evSeg"><button type="button" data-ev="all" class="on">Everyone</button><button type="button" data-ev="student">Students</button><button type="button" data-ev="staff">Staff</button></div>
         <button id="evRefreshBtn" class="subtle">🔄 Refresh</button>
         <button id="evCopyBtn" class="subtle">📋 Copy summary for report</button>
+        <button id="evMethodsBtn" class="subtle">📋 Copy method + references</button>
         <button id="evCsvBtn" class="subtle">⬇️ Responses (CSV)</button>
         <button id="evCodebookBtn" class="subtle">⬇️ Question key (CSV)</button>
         <span id="evStatus" class="status"></span>
@@ -4868,7 +4878,15 @@
     const dist = [1,2,3,4,5].map(k=> v.filter(x=> x===k).length);
     return { n:v.length, na, mean:evMean(v), sd:evSD(v), med:evMedian(v), agree: v.filter(x=> x>=4).length, dist };
   }
-  function evGroupOf(id){ return Object.keys(EVQ.likert).find(g=> EVQ.likert[g].some(it=> it.id===id)); }
+  const evGroups = ()=> Object.entries(EVQ.likert).map(([key, g])=> ({ key, ...g }));
+  // Construct score = each respondent's mean over their answered statements
+  // for that construct (SUS excluded -- it has its own score), then
+  // summarised across respondents.
+  function evConstructStats(rows, construct){
+    const ids = evGroups().filter(g=> g.key!=='sus').flatMap(g=> g.items).filter(it=> it.construct===construct).map(it=> it.id);
+    const scores = rows.map(r=>{ const v = ids.map(id=> (r.ans||{})[id]).filter(x=> typeof x==='number'); return v.length ? evMean(v) : null; }).filter(x=> x!==null);
+    return { ids, n:scores.length, mean:evMean(scores), sd:evSD(scores), pos:scores.filter(x=> x>=4).length };
+  }
   function evSummary(rows){
     const stu = rows.filter(r=> r.role==='student'), staff = rows.filter(evIsStaff);
     const sus = evNums(rows, r=> r.susScore);
@@ -4915,19 +4933,24 @@
       tile(rows.filter(r=> r.followUp).length, 'happy to be emailed a follow-up'),
     ].join('');
 
-    const GROUP_TITLES = { engagement:'🎮 Engagement', learning:'🧠 Learning', staff:'🧑‍🏫 Teaching staff', sus:'⚡ Usability (SUS — raw answers; negatively worded items are the even ones)' };
-    const likertHtml = Object.keys(EVQ.likert).map(g=>{
-      const items = EVQ.likert[g];
-      const al = g==='sus' ? null : evAlpha(rows, items.map(it=> it.id));
+    const CON = EVQ.CONSTRUCTS || {};
+    const likertHtml = evGroups().map(g=>{
+      const sc = EVQ.scales[g.scale], items = g.items;
+      const al = g.key==='sus' ? null : evAlpha(rows, items.filter(it=> !it.retired).map(it=> it.id));
       const trs = items.map(it=>{
         const s = evLikertStats(rows, it.id); if(!s.n && !s.na) return '';
-        const bar = s.n ? `<div class="ev-dist" title="${s.dist.map((c,i)=> `${EVQ.agree5[i]}: ${c}`).join('\n')}">${s.dist.map((c,i)=> c ? `<i class="d${i+1}" style="flex:${c}">${c}</i>` : '').join('')}</div>` : '';
-        return `<tr><td class="ev-q"><span class="ev-id">${it.id}</span> ${evEsc(it.text)}</td><td>${s.n}${s.na?`<span class="ev-na"> +${s.na} N/A</span>`:''}</td><td><b>${evF(s.mean)}</b></td><td>${evF(s.sd)}</td><td>${Number.isFinite(s.med)?s.med:'—'}</td><td>${evPct(s.agree, s.n)}</td><td class="ev-barcell">${bar}</td></tr>`;
+        const bar = s.n ? `<div class="ev-dist" title="${s.dist.map((c,i)=> `${sc.long[i]}: ${c}`).join('\n')}">${s.dist.map((c,i)=> c ? `<i class="d${i+1}" style="flex:${c}">${c}</i>` : '').join('')}</div>` : '';
+        const tag = CON[it.construct] && g.key!=='sus' ? `<span class="ev-tag">${evEsc(CON[it.construct].label)}</span>` : '';
+        return `<tr><td class="ev-q"><span class="ev-id">${it.id}</span> ${evEsc(it.text)} ${tag}</td><td>${s.n}${s.na?`<span class="ev-na"> +${s.na} N/A</span>`:''}</td><td><b>${evF(s.mean)}</b></td><td>${evF(s.sd)}</td><td>${Number.isFinite(s.med)?s.med:'—'}</td><td>${evPct(s.agree, s.n)}</td><td class="ev-barcell">${bar}</td></tr>`;
       }).join('');
       if(!trs) return '';
-      return `<h4 class="ev-h">${GROUP_TITLES[g]||g}${al && Number.isFinite(al.a) ? ` <span class="struct-qbadge">Cronbach’s α = ${evF(al.a)} (${al.k} items, n = ${al.n})</span>` : ''}</h4>
-        <div style="overflow-x:auto;"><table class="ev-table"><thead><tr><th>Statement</th><th>n</th><th>Mean</th><th>SD</th><th>Median</th><th>Agree</th><th>Distribution</th></tr></thead><tbody>${trs}</tbody></table></div>`;
+      const note = g.key==='sus' ? ' — raw answers; even-numbered statements are negatively worded' : g.scale==='compare' ? ' — 1 = Much worse … 5 = Much better' : '';
+      return `<h4 class="ev-h">${evEsc(g.title)}<span class="ev-na">${note}</span>${al && Number.isFinite(al.a) ? ` <span class="struct-qbadge">Cronbach’s α = ${evF(al.a)} (${al.k} items, n = ${al.n})</span>` : ''}</h4>
+        <div style="overflow-x:auto;"><table class="ev-table"><thead><tr><th>Statement</th><th>n</th><th>Mean</th><th>SD</th><th>Median</th><th>% ${sc.positive}</th><th>Distribution</th></tr></thead><tbody>${trs}</tbody></table></div>`;
     }).join('');
+    const conRows = Object.entries(CON).filter(([k])=> k!=='sus').map(([k,c])=>{ const s = evConstructStats(rows, k); if(!s.n) return '';
+      return `<tr><td class="ev-q"><b>${evEsc(c.label)}</b></td><td class="ev-q">${evEsc(c.ref || '—')}</td><td>${s.ids.length}</td><td>${s.n}</td><td><b>${evF(s.mean)}</b></td><td>${evF(s.sd)}</td><td>${evPct(s.pos, s.n)}</td></tr>`; }).join('');
+    const conHtml = conRows ? `<div style="overflow-x:auto;"><table class="ev-table"><thead><tr><th>Construct</th><th>Framework</th><th>Items</th><th>n</th><th>Mean</th><th>SD</th><th>% ≥ 4</th></tr></thead><tbody>${conRows}</tbody></table></div>` : '<p class="card-sub">No answers yet.</p>';
 
     const choiceHtml = Object.entries(EVQ.choices).map(([key, cfg])=>{
       const answered = rows.filter(r=> (r.choices||{})[key] !== undefined);
@@ -4957,8 +4980,9 @@
       </tbody></table></div>`;
 
     body.innerHTML = `<div class="an-tiles">${tiles}</div>
-      <div class="card"><h3 class="card-title">Agreement statements</h3><p class="card-sub">1 = Strongly disagree … 5 = Strongly agree. “Agree” = 4 or 5. N/A answers are left out of every number. Hover a bar for counts.</p>
-        <div class="ev-legend">${EVQ.agree5.map((l,i)=> `<span><i class="d${i+1}"></i>${l}</span>`).join('')}</div>${likertHtml}</div>
+      <div class="card"><h3 class="card-title">By theory (construct)</h3><p class="card-sub">What each group of statements measures and where the idea comes from. Score = each person’s average across that construct’s statements, then averaged over people. Comparison rows use the Much worse (1) … Much better (5) scale.</p>${conHtml}</div>
+      <div class="card"><h3 class="card-title">Every statement</h3><p class="card-sub">“% Agree” / “% Better” = answers of 4 or 5. N/A answers are left out of every number. Hover a bar for counts.</p>
+        <div class="ev-legend">${EVQ.scales.agree.long.map((l,i)=> `<span><i class="d${i+1}"></i>${i+1} ${l} / ${EVQ.scales.compare.long[i]}</span>`).join('')}</div>${likertHtml}</div>
       <div class="card"><h3 class="card-title">Who answered</h3><div class="ev-freqs">${roleHtml}${choiceHtml}</div></div>
       <div class="card"><h3 class="card-title">In their own words</h3>${textHtml}</div>
       <details class="card an-all"><summary><b>📋 Every response</b> <span class="card-sub">${rows.length}</span></summary>${rowsHtml}</details>`;
@@ -4971,50 +4995,93 @@
   }
 
   // ---- exports ----
-  const evAllLikertIds = ()=> Object.values(EVQ.likert).flat().map(it=> it.id);
+  const evAllLikertIds = ()=> evGroups().flatMap(g=> g.items).map(it=> it.id);
   function evCsvCell(v){ if(v===undefined || v===null) return ''; const s = Array.isArray(v) ? v.join(';') : String(v); return /[",\n\r]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; }
   function evCsv(){
     const rows = evRows(), lik = evAllLikertIds(), ch = Object.keys(EVQ.choices), tx = EVQ.text.map(t=> t.id);
-    const head = ['id','submitted','version','name','email','role','followUp','durationSec', ...ch, ...lik, 'susScore','confBefore','confAfter','overall','nps', ...tx.map(t=> 'text_'+t), 'opened_from','meta_device','in_app'];
-    const lines = rows.map(r=> [r.id, new Date(r.createdAt||r.clientAt||0).toISOString(), r.v, r.name, r.email, r.role, r.followUp?1:0, r.durationSec,
+    const head = ['id','submitted','version','name','email','role','followUp','durationSec','compareTo', ...ch, ...lik, 'susScore','confBefore','confAfter','overall','nps', ...tx.map(t=> 'text_'+t), 'opened_from','meta_device','in_app'];
+    const lines = rows.map(r=> [r.id, new Date(r.createdAt||r.clientAt||0).toISOString(), r.v, r.name, r.email, r.role, r.followUp?1:0, r.durationSec, r.compareTo,
       ...ch.map(k=> (r.choices||{})[k]), ...lik.map(k=> (r.ans||{})[k]), r.susScore, r.confBefore, r.confAfter, r.overall, r.nps,
       ...tx.map(k=> (r.text||{})[k]), (r.meta||{}).from, (r.meta||{}).device, (r.meta||{}).app ? 1 : 0].map(evCsvCell).join(','));
     return [head.join(','), ...lines].join('\n');
   }
   function evCodebook(){
-    const L = [['column','question','values']];
-    Object.entries(EVQ.choices).forEach(([k,c])=> L.push([k, c.label, c.options.map(([v,l])=> `${v}=${l}`).join('; ') + (c.multi ? ' (several, ; separated)' : '')]));
-    Object.entries(EVQ.likert).forEach(([g,items])=> items.forEach(it=> L.push([it.id, `[${g}] ${it.text}`, '1=Strongly disagree … 5=Strongly agree' + (it.na ? '; na=Not applicable' : '')])));
-    L.push(['susScore','System Usability Scale score (Brooke, 1996)','0–100, blank unless all ten s1–s10 answered']);
-    L.push(['confBefore / confAfter','Self-rated confidence with the unit content before / after playing (students only)','1=Lost 2=Shaky 3=Okay 4=Solid 5=Nailed it']);
-    L.push(['overall','Overall rating','1–5 stars']); L.push(['nps','Likelihood to recommend','0–10']);
-    EVQ.text.forEach(t=> L.push(['text_'+t.id, t.label, 'free text']));
-    L.push(['role','Respondent role', EVQ.roles.map(r=> `${r.id}=${r.label}`).join('; ')]);
-    L.push(['opened_from','Where the survey was opened','menu=game home screen; gameover=after a run; landing=site landing page; direct=shared link']);
-    L.push(['meta_device','Device class detected from the browser','phone / tablet / computer']); L.push(['in_app','Filled in inside the installed app','1=yes 0=no']);
+    const CON = EVQ.CONSTRUCTS || {};
+    const L = [['column','question','values','construct','framework']];
+    L.push(['compareTo','Which comparison the respondent saw','kahoot=had used Kahoot!; usual=compared with usual revision','','']);
+    Object.entries(EVQ.choices).forEach(([k,c])=> L.push([k, c.label, c.options.map(([v,l])=> `${v}=${l}`).join('; ') + (c.multi ? ' (several, ; separated)' : ''), '', '']));
+    evGroups().forEach(g=> g.items.forEach(it=>{ const sc = EVQ.scales[g.scale];
+      L.push([it.id, `[${g.title}] ${g.stem ? g.stem + ' ' : ''}${it.text}`, sc.long.map((l,i)=> `${i+1}=${l}`).join('; ') + (it.na ? '; na=Not applicable' : ''), (CON[it.construct]||{}).label || '', (CON[it.construct]||{}).ref || '']); }));
+    L.push(['susScore','System Usability Scale score','0–100, blank unless all ten s1–s10 answered','System Usability Scale','Brooke, 1996']);
+    L.push(['confBefore / confAfter','Self-rated confidence with the session’s topics before / after playing (students only)','1=Lost 2=Shaky 3=Okay 4=Solid 5=Nailed it','Perceived learning','']);
+    L.push(['overall','Overall rating','1–5 stars','','']); L.push(['nps','Likelihood to recommend','0–10','Net Promoter Score','Reichheld, 2003']);
+    EVQ.text.forEach(t=> L.push(['text_'+t.id, t.label, 'free text','','']));
+    L.push(['role','Respondent role', EVQ.roles.map(r=> `${r.id}=${r.label}`).join('; '),'','']);
+    L.push(['opened_from','Where the survey was opened','menu=game home screen; gameover=after a run; landing=site landing page; direct=shared link','','']);
+    L.push(['meta_device','Device class detected from the browser','phone / tablet / computer','','']); L.push(['in_app','Filled in inside the installed app','1=yes 0=no','','']);
     return L.map(r=> r.map(evCsvCell).join(',')).join('\n');
   }
+  const evChoiceShare = (rows, key, vals)=>{ const a = rows.map(r=> (r.choices||{})[key]).filter(Boolean); return { n:a.length, k:a.filter(x=> vals.includes(x)).length }; };
   function evReportText(){
     const rows = evRows(), S = evSummary(rows); if(!rows.length) return 'No responses yet.';
+    const CON = EVQ.CONSTRUCTS || {};
     const fmtD = t=> new Date(t).toLocaleDateString(undefined, { day:'numeric', month:'short', year:'numeric' });
     const times = rows.map(r=> r.createdAt||r.clientAt).filter(Boolean);
     const out = [];
     out.push(`Evaluation survey${evSeg!=='all' ? ` (${evSeg} only)` : ''}: N = ${S.n} responses (${S.stu} students, ${S.staff} teaching staff${S.n-S.stu-S.staff ? `, ${S.n-S.stu-S.staff} other` : ''})${times.length ? `, collected ${fmtD(Math.min(...times))} – ${fmtD(Math.max(...times))}` : ''}. Median completion time ${S.dur.length ? Math.round(evMedian(S.dur)/60) : '—'} min.`);
-    if(S.sus.length){ const m = evMean(S.sus); out.push(`Usability: mean System Usability Scale score ${evF(m,1)} (SD ${evF(evSD(S.sus),1)}, n = ${S.sus.length}), rated "${evSusWord(m)}"; the published average is 68.`); }
+    const first = evChoiceShare(rows, 'playedBefore', ['first']), short = evChoiceShare(rows, 'sessionTime', ['lt5','5to10']);
+    if(first.n || short.n) out.push(`Exposure: ${first.n ? `${evPct(first.k, first.n)} were playing for the first time (n = ${first.n})` : ''}${first.n && short.n ? ' and ' : ''}${short.n ? `${evPct(short.k, short.n)} played for 10 minutes or less (n = ${short.n})` : ''}, so these results describe first impressions.`);
+    if(S.sus.length){ const m = evMean(S.sus); out.push(`Usability: mean System Usability Scale score ${evF(m,1)} (SD ${evF(evSD(S.sus),1)}, n = ${S.sus.length}), "${evSusWord(m)}" against the benchmark average of 68 (Sauro, 2011).`); }
     if(S.overall.length) out.push(`Overall rating: ${evF(evMean(S.overall),2)} / 5 (SD ${evF(evSD(S.overall),2)}, n = ${S.overall.length}).`);
     if(S.nps) out.push(`Net Promoter Score: ${S.nps.score>0?'+':''}${S.nps.score} (${evPct(S.nps.pro,S.nps.n)} promoters, ${evPct(S.nps.det,S.nps.n)} detractors, n = ${S.nps.n}).`);
     if(S.tt){ const b = evMean(S.pairs.map(p=>p[0])), a = evMean(S.pairs.map(p=>p[1]));
-      out.push(`Perceived learning: self-rated confidence with the unit content rose from ${evF(b,2)} to ${evF(a,2)} out of 5 (mean change ${S.tt.m>=0?'+':''}${evF(S.tt.m,2)}, SD ${evF(S.tt.sd,2)}; paired t(${S.tt.df}) = ${evF(S.tt.t,2)}, ${evP(S.tt.p)}, d_z = ${evF(S.tt.dz,2)}; n = ${S.tt.n}). Note this is a retrospective self-report, not a test score.`); }
+      out.push(`Perceived learning: self-rated confidence with the session’s topics rose from ${evF(b,2)} to ${evF(a,2)} out of 5 (mean change ${S.tt.m>=0?'+':''}${evF(S.tt.m,2)}, SD ${evF(S.tt.sd,2)}; paired t(${S.tt.df}) = ${evF(S.tt.t,2)}, ${evP(S.tt.p)}, d_z = ${evF(S.tt.dz,2)}; n = ${S.tt.n}). This is a retrospective self-report, not a test score.`); }
+    const bel = evChoiceShare(rows, 'beliefGBL', ['yes','somewhat']);
+    if(bel.n) out.push(`Belief in game-based learning: ${evPct(bel.k, bel.n)} thought learning through a quiz game like this helps people learn (definitely or somewhat; n = ${bel.n}).`);
     if(S.exam.length) out.push(`Exam use: ${evPct(S.examYes, S.exam.length)} of students would definitely or probably use it to revise before an exam (n = ${S.exam.length}).`);
-    Object.entries(EVQ.likert).forEach(([g, items])=>{
-      if(g==='sus') return;
-      const lines = items.map(it=> ({ it, s: evLikertStats(rows, it.id) })).filter(x=> x.s.n);
+    const kRows = rows.filter(r=> r.compareTo==='kahoot');
+    if(kRows.length){
+      const k = EVQ.likert.kahoot.items.map(it=> ({ it, s: evLikertStats(kRows, it.id) })).filter(x=> x.s.n);
+      const pref = evChoiceShare(kRows, 'preferKahoot', ['rmr']), prefK = evChoiceShare(kRows, 'preferKahoot', ['kahoot']), prefB = evChoiceShare(kRows, 'preferKahoot', ['both']);
+      out.push(`\nComparison with Kahoot! (respondents who had used it, n = ${kRows.length}; 1 = much worse, 5 = much better):`);
+      k.forEach(({it, s})=> out.push(`• ${it.text}: M = ${evF(s.mean,2)}, SD = ${evF(s.sd,2)}, ${evPct(s.agree, s.n)} rated Run Morris Run! better (n = ${s.n}).`));
+      if(pref.n) out.push(`For revising a unit, ${evPct(pref.k, pref.n)} would rather use Run Morris Run!, ${evPct(prefK.k, pref.n)} Kahoot! and ${evPct(prefB.k, pref.n)} both (n = ${pref.n}).`);
+    }
+    const cons = Object.entries(CON).filter(([key])=> key!=='sus' && !key.startsWith('cmp')).map(([key,c])=> ({ c, s: evConstructStats(rows, key) })).filter(x=> x.s.n);
+    if(cons.length){
+      out.push(`\nConstruct scores (mean of each respondent’s statements, 1–5 agreement):`);
+      cons.forEach(({c, s})=> out.push(`• ${c.label}${c.ref ? ` (${c.ref})` : ''}: M = ${evF(s.mean,2)}, SD = ${evF(s.sd,2)}, n = ${s.n}.`));
+    }
+    evGroups().forEach(g=>{
+      if(g.key==='sus' || g.key==='kahoot') return;
+      const lines = g.items.map(it=> ({ it, s: evLikertStats(rows, it.id) })).filter(x=> x.s.n);
       if(!lines.length) return;
-      const al = evAlpha(rows, items.map(it=> it.id));
-      out.push(`\n${{ engagement:'Engagement', learning:'Learning', staff:'Teaching staff' }[g] || g}${al && Number.isFinite(al.a) ? ` (Cronbach's α = ${evF(al.a,2)}, n = ${al.n})` : ''}:`);
-      lines.forEach(({it, s})=> out.push(`• "${it.text}": M = ${evF(s.mean,2)}, SD = ${evF(s.sd,2)}, ${evPct(s.agree, s.n)} agree (n = ${s.n}).`));
+      const al = evAlpha(rows, g.items.filter(it=> !it.retired).map(it=> it.id));
+      out.push(`\n${g.title}${al && Number.isFinite(al.a) ? ` (Cronbach's α = ${evF(al.a,2)}, n = ${al.n})` : ''}:`);
+      if(g.scale==='compare') out.push('(1 = much worse, 5 = much better)');
+      lines.forEach(({it, s})=> out.push(g.scale==='compare'
+        ? `• ${it.text}: M = ${evF(s.mean,2)}, SD = ${evF(s.sd,2)}, ${evPct(s.agree, s.n)} rated Run Morris Run! better (n = ${s.n}).`
+        : `• "${it.text}": M = ${evF(s.mean,2)}, SD = ${evF(s.sd,2)}, ${evPct(s.agree, s.n)} agree (n = ${s.n}).`));
     });
     return out.join('\n');
+  }
+  // A Method-section draft built from the live config + data, with references.
+  function evMethodsText(){
+    const rows = evRows(), S = evSummary(rows);
+    const sess = rows.map(r=> (r.choices||{}).sessionTime).filter(Boolean);
+    const modeSess = sess.length ? Object.entries(sess.reduce((m,x)=> (m[x]=(m[x]||0)+1, m), {})).sort((a,b)=> b[1]-a[1])[0][0] : null;
+    const sessLabel = modeSess ? (EVQ.choices.sessionTime.options.find(o=> o[0]===modeSess)||[])[1] : null;
+    const nLik = evGroups().filter(g=> g.key!=='sus').reduce((n,g)=> n + g.items.filter(it=> !it.retired).length, 0);
+    return [
+      `Participants and procedure. Students and teaching staff were invited to play Run Morris Run! for a short session${sessLabel ? ` (most commonly ${sessLabel.toLowerCase()})` : ''} and then complete an online questionnaire, which took a median of ${S.dur.length ? Math.round(evMedian(S.dur)/60) : '—'} minutes. Participation was voluntary, and respondents consented to their answers being used without their name or email. ${S.n} responses were received (${S.stu} students, ${S.staff} teaching staff).`,
+      ``,
+      `Instrument. The questionnaire (version ${EVQ.version}) comprised: (1) background questions on role, year, unit, session length, prior play and prior use of study tools; (2) ${nLik} statements rated on 5-point scales, covering enjoyment, aesthetics and challenge, adapted from MEEGA+ (Petri et al., 2016); flow (Csikszentmihalyi, 1990); perceived ease of use, perceived usefulness and intention to use, adapted from the Technology Acceptance Model (Davis, 1989); and the learning principles the game is designed around: retrieval practice (Roediger & Karpicke, 2006), immediate feedback (Hattie & Timperley, 2007), active learning (Freeman et al., 2014), the basic psychological needs of self-determination theory (Ryan & Deci, 2000), cognitive load (Sweller, 1988), spaced repetition (Cepeda et al., 2006) and alignment with the curriculum (Biggs, 1996); (3) a comparison with Kahoot! for respondents who had used it (Wang & Tahir, 2020), or with their usual revision methods otherwise (Dunlosky et al., 2013), rated from 1 (much worse) to 5 (much better); (4) the 10-item System Usability Scale (Brooke, 1996), interpreted against a benchmark average of 68 (Sauro, 2011; Bangor et al., 2009); and (5) an overall star rating, a likelihood-to-recommend question scored as a Net Promoter Score (Reichheld, 2003), and open-ended questions. Teaching staff answered an additional set of statements on fit with teaching practice. Students also rated their confidence with the session’s topics before and after playing (retrospective pre/post).`,
+      ``,
+      `Analysis. Each statement is reported as mean, standard deviation, median and the percentage of responses at 4 or 5. Construct scores are the mean of each respondent’s answered statements for that construct; “not applicable” answers were excluded. Internal consistency was estimated with Cronbach’s α. Pre/post confidence was compared with a two-tailed paired t-test, with Cohen’s d_z as the effect size. Open-ended answers were analysed thematically. Because most participants played only briefly, the results describe first impressions and perceived learning rather than measured learning gains.`,
+      ``,
+      `References`,
+      ...(EVQ.REFERENCES || []),
+    ].join('\n');
   }
   document.querySelectorAll('#evSeg [data-ev]').forEach(b=> b.addEventListener('click', ()=>{
     evSeg = b.dataset.ev; document.querySelectorAll('#evSeg [data-ev]').forEach(x=> x.classList.toggle('on', x===b)); renderEvaluation();
@@ -5023,6 +5090,7 @@
   document.getElementById('evCsvBtn').addEventListener('click', ()=>{ if(!evData) return toast('Load the responses first');
     downloadText(`evaluation-${evSeg}-${new Date().toISOString().slice(0,10)}.csv`, '﻿' + evCsv(), 'text/csv'); });
   document.getElementById('evCodebookBtn').addEventListener('click', ()=>{ if(!EVQ) return; downloadText('evaluation-question-key.csv', '﻿' + evCodebook(), 'text/csv'); });
+  document.getElementById('evMethodsBtn').addEventListener('click', ()=>{ if(!evData) return toast('Load the responses first'); copyText(evMethodsText()); });
   document.getElementById('evCopyBtn').addEventListener('click', ()=>{ if(!evData) return toast('Load the responses first'); copyText(evReportText()); });
 
   const DEFAULT_TEMPLATE = {"before": "/* ============================================================================\n   game-data.js — all game CONTENT for Runner Game (cancer-runner-group.html)\n   and the Contributor tool (contributor.html) live in this one file.\n\n   Nothing in here is executable game logic — it's just numbers, labels and\n   study-guide content. The game and the contributor tool both load this file\n   as a plain <script> (NOT type=\"module\", so it still works when you just\n   double-click the .html file — no local server needed) and read everything\n   off `window.RUNNER_DATA`.\n\n   HOW TO ADD CONTENT\n   -------------------\n   • Easiest: open contributor.html, fill in the form, it writes the object\n     literal for you in the exact shape below — paste it in.\n   • By hand: follow the shape of an existing entry and keep the same keys.\n\n   SHAPE OVERVIEW\n   ---------------\n   COURSES        — real university courses (e.g. MEDS3002), each broken into\n                     Classes/lectures (individual lectures, e.g. \"L14\"). This\n                     is ALSO the top level of THEMES below now -- a course\n                     code like 'MEDS3002' is both a playable top-level group\n                     AND (via `course`/`class` on an item/question) a lecture\n                     citation, which is why an item's own course usually\n                     matches its top-level THEMES key but doesn't have to.\n                     A class/lecture can optionally carry `outcomes` (an\n                     array of learning-outcome strings) — shown as a bullet\n                     list at the top of that lecture in \"Browse by lecture\".\n   THEMES         — Course (e.g. \"MEDS3002\") → Topic → study-guide Item.\n                     Topics are specific to their course now -- each one\n                     carries its own `label`/`icon`/`color` inline instead of\n                     pointing at a shared taxonomy. Each item can point at a\n                     COURSES entry via `course` + `class`, and carries its own\n                     `questions` array — the MCQs players get asked about\n                     that item (each with its own `difficulty`, one of\n                     'easy'/'medium'/'hard', optional). A question only\n                     needs its own `course`/`class` (or, rarely, a literal\n                     `relatedCourse` string) if it genuinely differs from its\n                     item's — most just inherit the item's.\n   STAGES         — Course → ordered list of Runner-mode stages.\n   RUNNABLE_THEMES— which course ids have a STAGES entry (playable in Runner\n                     mode vs. Study & Practice-only).\n   GAME_CONFIG    — every tunable gameplay number.\n   LIFE_CONFIG    — the global label/icon for the \"life\" resource, same for\n                     every course.\n   COMPLETE_SCENARIO — text shown after the last stage.\n   ============================================================================ */\n(function(){\n\n/* ======================================================================\n   COURSES — real university courses, broken into Classes (individual\n   lectures). Items and questions reference these via `course` (the course\n   code, e.g. 'MEDS3002') + `class` (the class key, e.g. 'L14') instead of\n   writing the whole label out by hand every time. The display string\n   (\"MEDS3002 · L14 · Cancer Hallmarks\") is generated automatically — see\n   courseDisplayString() in cancer-runner-group.html.\n   ====================================================================== */\n                  ", "betweenCoursesThemes": "\n\n/* ======================================================================\n   GAME_CONFIG — every tunable number lives here in one place.\n   ====================================================================== */\n  const GAME_CONFIG = {\n    baseSpeed: 600,            // px/s at Stage I\n    speedRampPerStage: 40,     // added per stage index (0-based) — one-time bump on stage change\n    speedRampPerSecond: 10,    // added continuously for every second survived — this is what makes it feel gradual\n    maxSpeed: 1000,             // speed never exceeds this\n    startingGlucose: 100,\n    glucosePickupValue: 5,     // gained per life pickup collected\n    wrongAnswerPenalty: 40,    // life lost per wrong MCQ answer\n    postAnswerPauseMs: 2000,   // brief freeze after clicking Continue, before the run resumes -- gives a beat to\n                               // get oriented instead of getting dropped straight back next to whatever piled up\n    obstacleSpawnBaseMs: 500,  // topic-block spawn interval = base + random(0..rand) -- widened per playtester\n                               // feedback that questions/obstacles were coming at the player too frequently\n    obstacleSpawnRandMs: 700,\n    glucoseSpawnBaseMs: 550,   // life-pickup spawn interval = base + random(0..rand)\n    glucoseSpawnRandMs: 300,\n    initialObstacleDelayMs: 1200, // delay before the very first topic block spawns\n    initialGlucoseDelayMs: 500,   // delay before the very first life pickup spawns\n    bombDamage: 40,               // life lost when a bomb is hit (instant, no question)\n    bombIcon: '💣',                // swap for 'icons/bomb.png' (or any path/URL -- see the ICONS comment\n                                   // in medsci-runner.html) to use your own image instead of the emoji\n    bombSpawnBaseMs: 800,        // bomb spawn interval — base + random(0..rand) -- widened alongside obstacleSpawn* above\n    bombSpawnRandMs: 1600,\n    scoreCorrectWeight: 50,    // Group Race ranking score = correct*this - incorrect*this + life*this + stageIndex*stageWeight\n    scoreIncorrectWeight: 35,\n    scoreLifeWeight: 0,\n    stageWeight: 300,          // added per stage reached (stageIndex is 0-based, so Stage I contributes 0)\n    streakBonusEvery: 3,       // award a bonus every Nth correct answer IN A ROW (resets to 0 on any wrong answer)\n    streakBonusAmount: 0,     // life gained when a streak bonus triggers\n    streakBonusAppliesToLife: true, // set false to stop the streak bonus from also topping up life -- the life-award code below stays intact either way, this just gates it\n    streakBonusScoreAmount: 150, // flat score points awarded when a streak bonus triggers (on top of the usual correct/incorrect/life/stage weights)\n    speedPresets: { slow:0.75, normal:1, fast:1.25 }, // Customise → Game speed: multiplies baseSpeed/maxSpeed (a Group Race uses the host's pick for everyone)\n    bombIntervalByDifficulty: { easy:1.5, medium:1, hard:0.7 }, // bomb spawn interval multiplier per stage difficulty (easy = fewer bombs)\n    // ---- Group Race gifts: +50 life, Bomb Hell, Grenade, Shield -- see\n    // renderGiftShop() in medsci-runner.html. Free to pick (2 of the 4 are\n    // offered at random each time; no life cost). ----\n    giftUnlockQuestionsPerPlayer: 3, // gift questions start once the room has answered (right or wrong, combined) at least this many questions per player -- e.g. 3 players needs 9 total answered\n    giftSpawnBaseMs: 7000,     // a gift-question block is ROLLED for every base + random(0..rand) ms ...\n    giftSpawnRandMs: 6000,\n    giftChanceMin: 0.3,        // ... and appears with this chance for the racer in 1st place ...\n    giftChanceMax: 0.85,       // ... rising to this for whoever is last -- falling behind gets you more gifts\n    grenadeDamage: 40,         // life an unshielded grenade target loses if they fail the shield question (same as a bomb)\n    // ---- Catch-up window ----\n    // Two things can start this window, whichever happens first: (a) a racer\n    // finishes all stages (reason:'finished'), or (b) a racer becomes the\n    // LAST ONE STILL RACING because everyone else is done, for any reason\n    // (reason:'last-standing') -- instead of instantly locking that survivor\n    // in, they get this long for one final stretch to set the best score.\n    // Only the very first qualifying event starts the window (a transaction\n    // guards this) -- anything after that doesn't restart or extend it.\n    // Whoever has the highest score once it expires (or once everyone's\n    // actually done, if that happens first) wins -- reaching the end first,\n    // or simply being the one left standing, is not itself a win condition.\n    catchUpWindowMs: 45000,\n  };\n\n/* ======================================================================\n   LIFE — the \"health\" resource. One global label (\"Life\") and icon\n   (🩸) for every course -- not keyed by course, so a new course never needs\n   an entry added here (nothing to forget). Every place it's shown (HUD,\n   pickups, penalties, the bomb warning) reads this via lifeCfg() in\n   medsci-runner.html.\n   ====================================================================== */\n  const LIFE_CONFIG = { label:'Life', icon:'🩸' };\n\n/* ======================================================================\n   THEMES — Course -> Topic -> Item. Each item can carry \"hashtags\" (which\n   cancer type / sub-area it belongs to, e.g. ['Leukemia']), course + class\n   fields pointing into COURSES above (e.g. course:'MEDS3002', class:'L14'),\n   and its own \"questions\" array — the MCQs players get asked when they hit\n   this item's topic in Runner mode or match it in Study & Practice. A\n   question only needs its own course/class if it genuinely differs from\n   its item's (e.g. a question spanning several classes at once) — most\n   questions just inherit the item's.\n   ====================================================================== */\n                  ", "afterThemes": "\n\n/* ======================================================================\n   FUN_FACT_QUESTIONS — standalone trivia, not tied to any course/topic/item,\n   used only for the Group Race grenade gift's \"shield it by answering a\n   question\" mini-game. Never counted toward stage requirements or score.\n   ====================================================================== */\n  const FUN_FACT_QUESTIONS = {};\n\n/* ======================================================================\n   STAGES — per course. Each stage has correct-answer requirements (reset\n   each stage), a difficulty ('easy'/'medium'/'hard' — questions tagged with\n   it are served first, and bomb frequency scales with it), and a narrative\n   shown on the transition screen before that stage begins.\n   ====================================================================== */\n  const STAGES = {\n    'MEDS3002': [\n      /* \"scenario\" is patient-facing narrative — this is also where a real\n         case study can be dropped in later (per stage). Three stages, one\n         per difficulty: questions tagged with the stage's difficulty are\n         served first, untagged ones count as medium. */\n      { n:1, roman:'I', difficulty:'easy', requirements:{ genetics:3, immunology:3, pharmacology:3, oncology:3 },\n        scenario:\"Patient presents with fatigue and unexplained bruising. Bloodwork shows an abnormal white cell count — the care team orders genetic testing to find out exactly what's driving it.\" },\n      { n:2, roman:'II', difficulty:'medium', requirements:{ genetics:4, immunology:8, pharmacology:5 },\n        scenario:\"The genetic picture is in. Now the patient's own immune system is in the fight and treatment is about to start — how well the body recognises the disease, and which drugs will actually work against it, shape what comes next.\" },\n      { n:3, roman:'III', difficulty:'hard', requirements:{ genetics:3, immunology:6, pharmacology:8, oncology:8 },\n        scenario:\"The patient is now deep into treatment. Staging, complications, and what happens next define the road ahead.\" },\n    ],\n    // Deliberately short right now — MEDS2003 only has a handful of\n    // seed questions so far. Expand requirements as you add more content\n    // (see the contributor tool or dev notes).\n    'MEDS2003': [\n      { n:1, roman:'I', difficulty:'easy', requirements:{ metabolism:2 },\n        scenario:\"You're tracing how a cell fuels itself — starting with how it handles glucose and energy production.\" },\n      { n:2, roman:'II', difficulty:'medium', requirements:{ metabolism:1, molecularBiology:1 },\n        scenario:\"From metabolism to the molecular machinery that reads and copies the genome — the next layer of the picture.\" },\n    ],\n  };\n  const COMPLETE_SCENARIO = \"You've worked through the full case — review your answers below, or start again to reinforce what you've learned. (Real case studies coming soon.)\";\n\n  const RUNNABLE_THEMES = ['MEDS3002', 'MEDS2003']; // course ids with a matching STAGES config, playable in Runner mode\n\n\n  window.RUNNER_DATA = {\n    COURSES, GAME_CONFIG, LIFE_CONFIG, THEMES,\n    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES, FUN_FACT_QUESTIONS,\n  };\n\n})();\n"};
@@ -6692,6 +6760,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
     evaluation: { title:'Evaluation survey', tags:['evaluation/<id>','admin-only','feedback-questions.js'], body:`
       <p>The survey lives in <code>feedback.html</code> (linked from the landing page, the game's home screen and its game-over screen). Each response is written to <code>evaluation/&lt;id&gt;</code> in Firebase. The questions themselves live in <code>feedback-questions.js</code>, which both the survey and this tab load, so the wording here always matches what people saw.</p>
       <p><b>Database rules:</b> the survey needs write access to <code>evaluation</code> and this tab needs read access. If the console's rules don't already allow it, add <code>"evaluation": { ".read": true, ".write": true }</code> under <code>rules</code>.</p>
+      <p><b>Theory:</b> every statement is tagged with the construct it measures (retrieval practice, immediate feedback, TAM's perceived usefulness, self-determination theory, …) and that construct's source, set in <code>feedback-questions.js</code>. "By theory" averages each person's statements per construct. People who've used Kahoot! compare against it; everyone else compares against their usual revision. "Copy method + references" drafts a Method section and APA reference list from the live questions and data.</p>
       <p><b>The numbers:</b> SUS is the standard System Usability Scale (0–100, average 68; Brooke 1996, Sauro 2011). NPS = % scoring 9–10 minus % scoring 0–6. Confidence gain is a paired t-test on students' self-rated confidence before vs after playing. It's a retrospective self-report, so describe it as <i>perceived</i> learning. Cronbach's α checks that a section's statements hang together (≥ .7 is usually called acceptable).</p>
       <p><b>Exports:</b> "Copy summary for report" gives plain sentences with the stats filled in. The responses CSV has one row per person, and the question key CSV says what every column means. All three follow the Everyone / Students / Staff filter. ✕ under Every response deletes one for good (handy for test entries).</p>` },
     feedback: { title:'Where feedback goes', tags:['type:\'feedback\'','admin-only read','excluded from merge'], body:`
@@ -6922,11 +6991,20 @@ const themesDecl  = text.indexOf('const THEMES = {');
           <textarea id="setup_topics" rows="4" placeholder="Genetics&#10;Immunology&#10;Diagnostics"></textarea></label>
         <div class="btn-row"><button type="button" class="primary" id="setup_topicsBtn">+ Add these topics →</button><button type="button" data-setup-go="3">${snap.topics.length ? 'Next: lectures →' : 'Skip for now →'}</button></div>`;
 
-    // Step 3 -- lectures
+    // Step 3 -- lectures. A row per lecture (number | name | outcomes) rather
+    // than one tab-separated textarea: Tab can't be typed into a textarea (it
+    // jumps focus), so anyone typing by hand had no way to split the columns.
+    // Spreadsheet users paste into the fold-out box, which fills the rows.
     const s3 = !haveCourse ? '' : `
-        <p class="card-sub">One row per lecture: the <b>number</b> (L14), the <b>name</b>, and the <b>learning outcomes</b> separated by semicolons. Copy the three columns straight out of your spreadsheet and paste them here — tabs between columns are what it expects. A number that already exists updates that lecture instead of making a second one.${snap.lectures.length ? ` <b>${snap.lectures.length}</b> already listed.` : ''}</p>
-        <label class="field"><span class="fl-label">Lecture list</span>
-          <textarea id="setup_lectures" rows="6" class="mono" placeholder="L1&#9;Transcriptional regulation&#9;Explain how promoters work; Describe enhancers&#10;L2&#9;Epigenetic markers&#9;Define methylation; Compare histone marks"></textarea></label>
+        <p class="card-sub">One row per lecture: its <b>number</b>, its <b>name</b>, and its <b>learning outcomes</b> (one per line, optional). A number that already exists updates that lecture instead of making a second one.${snap.lectures.length ? ` <b>${snap.lectures.length}</b> already listed.` : ''}</p>
+        <div class="slr-head"><span>Number</span><span>Lecture name</span><span>Learning outcomes <i>· one per line</i></span><span></span></div>
+        <div id="setup_lecRows">${setupLecRowHtml()}${setupLecRowHtml()}</div>
+        <button type="button" class="subtle" id="setup_lecAddRow" style="margin-top:6px;">+ Another lecture</button>
+        <details class="slr-paste" id="setup_lecPasteBox">
+          <summary>📋 Got them in a spreadsheet? Paste them instead</summary>
+          <p class="card-sub" style="margin:8px 0;">In Excel or Google Sheets, select the three columns (number, name, outcomes) without the header row, copy, and paste below. The rows above fill in for you. Several outcomes in one cell can be separated with semicolons.</p>
+          <textarea id="setup_lecPaste" rows="3" class="mono" placeholder="Paste here (Ctrl/Cmd + V)"></textarea>
+        </details>
         <div id="setup_lecPreview"></div>
         <div class="btn-row"><button type="button" class="primary" id="setup_lecturesBtn">+ Add these lectures →</button><button type="button" data-setup-go="4">${snap.lectures.length ? 'Next: content →' : 'Skip for now →'}</button></div>`;
 
@@ -6983,19 +7061,32 @@ const themesDecl  = text.indexOf('const THEMES = {');
       if(added + already.length === names.length) setupStep = 3;
       renderSetup();
     });
-    const lecTa = host.querySelector('#setup_lectures');
-    if(lecTa){ lecTa.addEventListener('input', renderSetupLecPreview); lecTa.addEventListener('paste', ()=> setTimeout(renderSetupLecPreview, 0)); }
+    const lecRows = host.querySelector('#setup_lecRows');
+    if(lecRows){
+      lecRows.addEventListener('input', ()=> renderSetupLecPreview());
+      lecRows.addEventListener('click', e=>{ const del = e.target.closest('.slr-del'); if(!del) return;
+        del.closest('.slr-row').remove(); if(!lecRows.querySelector('.slr-row')) lecRows.insertAdjacentHTML('beforeend', setupLecRowHtml()); renderSetupLecPreview(); });
+      // Pasting a multi-line, tab-separated selection straight into a row
+      // (what most people will try first) is routed to the paste parser.
+      lecRows.addEventListener('paste', e=>{ const t = (e.clipboardData||window.clipboardData).getData('text');
+        if(t && t.includes('\t')){ e.preventDefault(); const n = setupFillLecRowsFromPaste(t); toast(`Filled ${n} row${n===1?'':'s'} from your spreadsheet`); renderSetupLecPreview(); } });
+      host.querySelector('#setup_lecAddRow').addEventListener('click', ()=>{ lecRows.insertAdjacentHTML('beforeend', setupLecRowHtml()); lecRows.lastElementChild.querySelector('.slr-num').focus(); });
+      const paste = host.querySelector('#setup_lecPaste');
+      paste.addEventListener('paste', ()=> setTimeout(()=>{ const n = setupFillLecRowsFromPaste(paste.value); paste.value = '';
+        if(n){ host.querySelector('#setup_lecPasteBox').open = false; toast(`Filled ${n} row${n===1?'':'s'}. Check them above.`); } renderSetupLecPreview(); }, 0));
+    }
     const lecBtn = host.querySelector('#setup_lecturesBtn');
     if(lecBtn) lecBtn.addEventListener('click', ()=>{
       if(!requireContributorIdentity()) return;
       const { valid, errors } = parseSetupLectures();
-      if(!valid.length){ toast(errors[0] || 'Nothing to add — one lecture per line'); return; }
+      if(errors.length){ renderSetupLecPreview(true); toast(errors[0]); return; }
+      if(!valid.length){ toast('Fill in at least one lecture: a number and a name'); return; }
       valid.forEach(o=>{
         pushToQueue({ type:'lectureOutcomes', title:`${o.course} ${o.classKey}`, code:lectureOutcomesCodeString(o), note:`${o.label} · ${o.isNew?'new lecture':'lecture update'}`, data:{ course:o.course, classKey:o.classKey, label:o.label, outcomes:o.outcomes, intro:o.intro } });
         // Register locally so the map and the Lectures tab show it at once.
         if(KNOWN_COURSES[o.course]) KNOWN_COURSES[o.course].classes[o.classKey] = KNOWN_COURSES[o.course].classes[o.classKey] || { label:o.label };
       });
-      toast(`${valid.length} lecture${valid.length===1?'':'s'} added to the queue${errors.length?` (${errors.length} line${errors.length===1?'':'s'} skipped)`:''}`);
+      toast(`${valid.length} lecture${valid.length===1?'':'s'} added to the queue`);
       setupStep = 4; renderSetup(); renderLectures();
     });
     const toMl = host.querySelector('#setup_toMyLecture');
@@ -7012,38 +7103,52 @@ const themesDecl  = text.indexOf('const THEMES = {');
     const icon = (document.querySelector('#setup_icons .ss-icon.on')||{}).dataset?.icon || '📘';
     return { id:code, label:g('setup_label').trim() || code || 'Untitled course', icon, blurb:g('setup_blurb').trim() || '(add a description)' };
   }
-  // Same rules as the Lectures tab's grid (resolveLectureKey/splitList), fed
-  // from pasted lines instead of table cells. Tabs separate columns; a line
-  // with no tab is read as "L3 Some name" with no outcomes.
-  function parseSetupLectures(){
-    const ta = document.getElementById('setup_lectures'); if(!ta) return { valid:[], errors:[] };
-    const errors = [], valid = [];
-    ta.value.replace(/\r/g,'').split('\n').forEach((line, i)=>{
-      if(!line.trim()) return;
-      let cells = line.split('\t').map(x=>x.trim());
-      if(cells.length===1){
-        // No tabs: "L3 Some name". Only accept it when the first word really
-        // looks like a lecture number, or a stray sentence becomes lecture "BAD".
-        const m = line.trim().match(/^([A-Za-z]{1,4}\d{1,3})\s+(.*)$/);
-        if(!m){ errors.push(`Line ${i+1}: doesn't start with a lecture number like L3 — skipped.`); return; }
-        cells = [m[1], m[2], ''];
-      }
-      const [num, name, lo] = cells;
-      if(!num){ errors.push(`Line ${i+1}: no lecture number.`); return; }
-      if(!name){ errors.push(`Line ${i+1}: no name.`); return; }
-      const existing = resolveLectureKey(setupCourseId, num);
-      const classKey = existing || num.toUpperCase().replace(/^([A-Z]+)0*(\d)/, '$1$2');
-      valid.push({ course:setupCourseId, classKey, label:name, outcomes:splitList(lo||''), intro:'', isNew:!existing });
-    });
-    return { valid, errors };
+  function setupLecRowHtml(num, name, lo){
+    const e = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    return `<div class="slr-row">
+      <input type="text" class="slr-num" placeholder="L1" value="${e(num)}" aria-label="Lecture number">
+      <input type="text" class="slr-name" placeholder="Transcriptional regulation" value="${e(name)}" aria-label="Lecture name">
+      <textarea class="slr-lo" rows="2" placeholder="Explain how promoters work&#10;Describe enhancers" aria-label="Learning outcomes, one per line">${e(lo)}</textarea>
+      <button type="button" class="subtle slr-del" title="Remove this row">✕</button></div>`;
   }
-  function renderSetupLecPreview(){
+  // Fills the rows from a pasted spreadsheet selection: tab-separated
+  // columns (what Excel/Sheets put on the clipboard), or "|" if typed.
+  function setupFillLecRowsFromPaste(text){
+    const rowsBox = document.getElementById('setup_lecRows'); if(!rowsBox) return 0;
+    const lines = (text||'').replace(/\r/g,'').split('\n').filter(l=> l.trim());
+    const parsed = lines.map(l=> (l.includes('\t') ? l.split('\t') : l.split('|')).map(x=> x.trim()));
+    if(!parsed.length) return 0;
+    rowsBox.querySelectorAll('.slr-row').forEach(r=>{ if(![...r.querySelectorAll('input,textarea')].some(x=> x.value.trim())) r.remove(); });
+    parsed.forEach(([num, name, ...rest])=> rowsBox.insertAdjacentHTML('beforeend', setupLecRowHtml(num, name, rest.join('; ').split(';').map(x=>x.trim()).filter(Boolean).join('\n'))));
+    return parsed.length;
+  }
+  // "1" or "l01" -> "L1"; an existing lecture's own key wins (resolveLectureKey).
+  function setupNormLecNum(num){ const t = (num||'').trim(); if(!t) return ''; return /^\d+$/.test(t) ? 'L' + Number(t) : t.toUpperCase().replace(/^([A-Z]+)0*(\d)/, '$1$2'); }
+  function parseSetupLectures(){
+    const errors = [], valid = [], bad = [];
+    document.querySelectorAll('#setup_lecRows .slr-row').forEach((row, i)=>{
+      const num = row.querySelector('.slr-num').value.trim(), name = row.querySelector('.slr-name').value.trim(), lo = row.querySelector('.slr-lo').value;
+      if(!num && !name && !lo.trim()) return; // blank row -- ignore
+      if(!num){ errors.push(`Row ${i+1}: add a lecture number (e.g. L3).`); bad.push(row.querySelector('.slr-num')); return; }
+      if(!/^[A-Za-z]{0,4}\d{1,3}[A-Za-z]?$/.test(num)){ errors.push(`Row ${i+1}: “${num}” doesn’t look like a lecture number (e.g. L3).`); bad.push(row.querySelector('.slr-num')); return; }
+      if(!name){ errors.push(`Row ${i+1}: add the lecture’s name.`); bad.push(row.querySelector('.slr-name')); return; }
+      const existing = resolveLectureKey(setupCourseId, num) || resolveLectureKey(setupCourseId, setupNormLecNum(num));
+      const classKey = existing || setupNormLecNum(num);
+      if(valid.some(v=> v.classKey===classKey)){ errors.push(`Row ${i+1}: ${classKey} is listed twice.`); bad.push(row.querySelector('.slr-num')); return; }
+      valid.push({ course:setupCourseId, classKey, label:name, outcomes:lo.split(/[\n;]/).map(s=>s.trim()).filter(Boolean), intro:'', isNew:!existing });
+    });
+    return { valid, errors, bad };
+  }
+  // Live, but quiet: counts what's ready. Problems only show once someone
+  // clicks Add (showErrors), so a half-typed row isn't flagged mid-sentence.
+  function renderSetupLecPreview(showErrors){
     const box = document.getElementById('setup_lecPreview'); if(!box) return;
-    const { valid, errors } = parseSetupLectures();
-    if(!valid.length && !errors.length){ box.innerHTML = ''; renderSetupMap(); return; }
+    const { valid, errors, bad } = parseSetupLectures();
+    document.querySelectorAll('#setup_lecRows .slr-bad').forEach(x=> x.classList.remove('slr-bad'));
+    if(showErrors === true) bad.forEach(x=> x.classList.add('slr-bad'));
     const n = valid.filter(v=>v.isNew).length, u = valid.length - n;
-    box.innerHTML = (valid.length ? `<div class="status ok">✅ ${n} new lecture${n===1?'':'s'}${u?`, ${u} update${u===1?'':'s'}`:''} ready — shown as drafts on the map.</div>` : '')
-      + (errors.length ? `<div class="status bad" style="margin-top:6px;">⚠️ ${esc2(errors.join(' '))}</div>` : '');
+    box.innerHTML = (valid.length ? `<div class="status ok" style="margin-top:8px;">✅ ${n} new lecture${n===1?'':'s'}${u?`, ${u} update${u===1?'':'s'}`:''} ready, shown as drafts on the map.</div>` : '')
+      + (showErrors === true && errors.length ? `<div class="status bad" style="margin-top:6px;">⚠️ ${esc2(errors.join(' '))}</div>` : '');
     renderSetupMap();
   }
 
@@ -7346,7 +7451,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
       loadAnalytics, renderDuplicates, findDuplicateGroups, allQuestionsRich, questionQuality, discriminationFromBins,
       // Same idea for the 📈 Evaluation tab: fake survey responses, real render path.
       stubEvaluation(raw){ maintainerUnlocked = true; applyMaintainerLockUI(); evData = raw; showTab('evaluation'); },
-      evReportText: ()=> evReportText(), evCsv: ()=> evCsv(),
+      evReportText: ()=> evReportText(), evCsv: ()=> evCsv(), evMethodsText: ()=> evMethodsText(), evCodebook: ()=> evCodebook(),
     };
   }
 </script>

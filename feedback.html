@@ -84,6 +84,7 @@
   input:focus,textarea:focus{ border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
   textarea{ min-height:84px; resize:vertical; line-height:1.45; }
   .field + .field{ margin-top:14px; }
+  .q-block + .field{ margin-top:20px; padding-top:18px; border-top:1px dashed var(--line); }
   .field label{ display:block; font-weight:650; font-size:14px; margin-bottom:6px; }
 
   /* role cards */
@@ -171,7 +172,7 @@
 <body>
 <div class="top">
   <div class="top-in">
-    <div class="brand"><b>Run Morris Run!</b><span id="timeLeft">~5 min</span></div>
+    <div class="brand"><b>Run Morris Run!</b><span id="timeLeft">~7 min</span></div>
     <div class="track" aria-hidden="true"><div class="track-fill" id="fill"></div><div class="morris" id="morris"><i></i></div><span class="flag">🏁</span></div>
     <div class="step-label"><span id="stepName"></span><span id="stepNum"></span></div>
   </div>
@@ -228,20 +229,29 @@
 
   const isStaff = ()=> Q.staffRoles.includes(S.role);
   const isStudent = ()=> S.role === 'student';
-  const shown = item => !(item.studentOnly && !isStudent()) && !(item.staffOnly && !isStaff());
+  const usedKahoot = ()=> (S.c.usedTools || []).includes('kahoot');
+  const shown = item => !item.retired
+    && !(item.studentOnly && !isStudent()) && !(item.staffOnly && !isStaff())
+    && !(item.when === 'kahoot' && !usedKahoot()) && !(item.when === 'noKahoot' && usedKahoot());
 
   // ---- the steps ----
   const STEPS = {
     hello: { name:'Say hi', em:'👋', title:'Help us make Morris better',
-      sub:'We’re a student team building <b>Run Morris Run!</b> for our final project. Your answers go straight into our evaluation. It takes about 5 minutes and there are no wrong answers.' },
+      sub:'We’re a student team building <b>Run Morris Run!</b> for our final project. Your answers go straight into our evaluation. It takes about 7 minutes and there are no wrong answers.' },
     about: { name:'About you', em:'🧬', title:'A bit about you', sub:'So we know whose eyes we’re seeing the game through.' },
-    fun:   { name:'The fun part', em:'🎮', title:'How did it feel to play?', sub:'Tap whatever feels closest. Gut feelings are perfect.' },
-    learn: { name:'Learning', em:'🧠', title:'Did it actually help?', sub:'Learning is the whole point, so be honest.' },
+    fun:   { name:'First impressions', em:'🎮', title:'First impressions', sub:'You’ve only had a quick go, and that’s exactly what we want to hear about. Gut feelings are perfect.' },
+    learn: { name:'Learning', em:'🧠', title:'Did it actually help?', sub:'Even from a short session, what’s your sense of it? Be honest.' },
+    science: { name:'Learning science', em:'🔬', title:'The learning-science bit',
+      sub:'The game is built on a few well-researched ideas: <b>testing yourself beats re-reading</b>, <b>instant feedback</b> fixes mistakes early, and <b>a bit of challenge and choice</b> keeps you going. Did they work for you?' },
+    compare: { name:'Compare', em:'🆚',
+      title: ()=> usedKahoot() ? 'Run Morris Run! vs Kahoot!' : 'How does it compare?',
+      sub: ()=> usedKahoot() ? 'You’ve used Kahoot!, the classic classroom quiz game. How does this stack up against it?' : 'Compared with how you normally study, how does it stack up?' },
     staff: { name:'Teaching', em:'🧑‍🏫', title:'For teaching staff', sub:'You see the unit from the other side, and we’d love your take.' },
     sus:   { name:'Quick-fire', em:'⚡', title:'Quick-fire round', sub:'Ten short statements. Go with your first instinct and don’t overthink it.' },
     big:   { name:'Finish line', em:'🏁', title:'Almost there!', sub:'The big picture, plus anything you want to get off your chest.' },
   };
-  const stepList = ()=> ['hello','about','fun','learn', ...(isStaff() ? ['staff'] : []), 'sus','big'];
+  const stepList = ()=> ['hello','about','fun','learn','science','compare', ...(isStaff() ? ['staff'] : []), 'sus','big'];
+  const val = x => typeof x === 'function' ? x() : x;
 
   // ---- small builders ----
   const chipGroup = (key, cfg) => `<div class="chips" role="group" aria-label="${esc(cfg.label)}">${cfg.options.map(([v,l])=>{
@@ -250,19 +260,22 @@
     }).join('')}</div>`;
   const choiceBlock = key => { const cfg = Q.choices[key]; if(!shown(cfg)) return '';
     return `<div class="q-block"><p class="q">${esc(cfg.label)}${cfg.multi?' <span class="opt-tag">· pick any</span>':''}</p>${chipGroup(key, cfg)}</div>`; };
-  const SHORT = ['Strongly disagree','Disagree','Neutral','Agree','Strongly agree'];
-  const likertRow = (item, n) => {
+  const choicesFor = step => Object.keys(Q.choices).filter(k=> Q.choices[k].step === step).map(choiceBlock).join('');
+  const likertRow = (item, n, labels) => {
     const cur = S.a[item.id];
-    const pts = SHORT.map((lbl,i)=>`<button type="button" class="pt${cur===i+1?' on':''}" aria-pressed="${cur===i+1}" aria-label="${lbl}" data-k="a" data-q="${item.id}" data-v="${i+1}"><span class="dot"></span><span class="lbl">${lbl}</span></button>`).join('');
+    const pts = labels.map((lbl,i)=>`<button type="button" class="pt${cur===i+1?' on':''}" aria-pressed="${cur===i+1}" aria-label="${lbl}" data-k="a" data-q="${item.id}" data-v="${i+1}"><span class="dot"></span><span class="lbl">${lbl}</span></button>`).join('');
     const na = item.na ? `<button type="button" class="pt na${cur==='na'?' on':''}" aria-pressed="${cur==='na'}" data-k="a" data-q="${item.id}" data-v="na">N/A</button>` : '';
     return `<div class="lk" data-lk="${item.id}"><div class="lk-text"><span class="n">${n}</span><span>${esc(item.text)}</span></div><div class="scale${item.na?' has-na':''}" role="radiogroup">${pts}${na}</div></div>`;
   };
-  const likertCard = group => { const items = Q.likert[group].filter(shown);
-    return `<div class="card">${items.map((it,i)=> likertRow(it, i+1)).join('')}</div>`; };
+  const likertCard = key => { const g = Q.likert[key]; if(!shown(g)) return '';
+    const items = g.items.filter(shown), labels = Q.scales[g.scale].short;
+    return `<div class="card">${g.stem ? `<p class="q">${esc(g.stem)}</p>` : ''}${items.map((it,i)=> likertRow(it, i+1, labels)).join('')}</div>`; };
   const CONF = [['😵','Lost'],['😬','Shaky'],['🙂','Okay'],['😎','Solid'],['💪','Nailed it']];
   const confRow = key => `<div class="conf">${CONF.map(([e,l],i)=>`<button type="button" class="pt${S.a[key]===i+1?' on':''}" aria-pressed="${S.a[key]===i+1}" data-k="a" data-q="${key}" data-v="${i+1}"><span class="e">${e}</span><span class="lbl">${l}</span></button>`).join('')}</div>`;
   const STAR_WORDS = ['', 'Needs a lot of work', 'Not great yet', 'Pretty decent', 'Really good', 'Absolutely loved it'];
   const textBlock = item => !shown(item) ? '' : `<div class="field"><label for="t_${item.id}">${esc(item.label)}</label><textarea id="t_${item.id}" data-t="${item.id}" maxlength="2000" placeholder="${esc(item.placeholder||'')}">${esc(S.t[item.id]||'')}</textarea></div>`;
+  const textsFor = step => Q.text.filter(t=> t.step === step).map(textBlock).join('');
+  const card = html => html.trim() ? `<div class="card">${html}</div>` : '';
 
   // ---- step bodies ----
   const BODY = {
@@ -281,14 +294,16 @@
         <label class="check"><input type="checkbox" data-f="consent"${S.consent?' checked':''}><span>I’m happy for my answers to be used in the team’s project report. My name and email won’t appear in it.</span></label>
         <div class="err" id="e_consent">We need this tick before we can use your answers.</div>
       </div>`,
-    about: ()=> `<div class="card">${['year','units','playTime','modes','device','revise'].map(choiceBlock).join('')}</div>`,
+    about: ()=> card(choicesFor('about')),
     fun: ()=> likertCard('engagement'),
     learn: ()=> likertCard('learning') + (isStudent() ? `
       <div class="card">
-        <div class="q-block"><p class="q">Before playing, how confident were you with the unit’s content?</p>${confRow('confBefore')}</div>
-        <div class="q-block"><p class="q">And now, after playing?</p>${confRow('confAfter')}<div class="gain" id="gain"></div></div>
+        <div class="q-block"><p class="q">Before today’s session, how confident were you with the topics it covered?</p>${confRow('confBefore')}</div>
+        <div class="q-block"><p class="q">And after playing?</p>${confRow('confAfter')}<div class="gain" id="gain"></div></div>
       </div>` : ''),
-    staff: ()=> likertCard('staff'),
+    science: ()=> likertCard('science') + card(choicesFor('science') + textsFor('science')),
+    compare: ()=> likertCard('kahoot') + likertCard('usual') + card(choicesFor('compare') + textsFor('compare')),
+    staff: ()=> likertCard('staff') + card(choicesFor('staff')),
     sus: ()=> likertCard('sus'),
     big: ()=> `
       <div class="card">
@@ -298,10 +313,9 @@
         <div class="q-block"><p class="q">How likely are you to recommend it to ${isStaff() ? 'a colleague or your students' : 'a friend in your course'}?</p>
           <div class="nps">${Array.from({length:11},(_,n)=>`<button type="button" class="${S.a.nps===n?'on':''}" aria-pressed="${S.a.nps===n}" data-k="a" data-q="nps" data-v="${n}">${n}</button>`).join('')}</div>
           <div class="nps-ends"><span>Not at all likely</span><span>Extremely likely</span></div></div>
-        ${choiceBlock('favFeature')}
-        ${choiceBlock('examUse')}
+        ${choicesFor('big')}
       </div>
-      <div class="card">${Q.text.map(textBlock).join('')}</div>
+      ${card(textsFor('big'))}
       <div class="card"><label class="check"><input type="checkbox" data-f="followUp"${S.followUp?' checked':''}><span>Happy for the team to email me one or two follow-up questions.</span></label></div>`,
   };
 
@@ -311,7 +325,7 @@
     const list = stepList();
     S.step = Math.min(S.step, list.length - 1);
     const key = list[S.step], st = STEPS[key];
-    $('main').innerHTML = `<section class="step${lastDir<0?' back':''}"><div class="hero"><span class="em">${st.em}</span><h1>${st.title}</h1><p>${st.sub}</p></div>${BODY[key]()}</section>`;
+    $('main').innerHTML = `<section class="step${lastDir<0?' back':''}"><div class="hero"><span class="em">${st.em}</span><h1>${val(st.title)}</h1><p>${val(st.sub)}</p></div>${BODY[key]()}</section>`;
     const pct = S.step / list.length * 100;
     $('fill').style.width = pct + '%';
     $('morris').style.left = `calc(${pct}% + ${S.step===0 ? 15 : 0}px)`;
@@ -421,7 +435,7 @@
   }
   function payload(){
     const role = S.role, ans = {};
-    ['engagement','learning','sus', ...(isStaff() ? ['staff'] : [])].forEach(g=> Q.likert[g].filter(shown).forEach(it=>{ if(S.a[it.id] !== undefined) ans[it.id] = S.a[it.id]; }));
+    Object.values(Q.likert).filter(shown).forEach(g=> g.items.filter(shown).forEach(it=>{ if(S.a[it.id] !== undefined) ans[it.id] = S.a[it.id]; }));
     const choices = {};
     Object.entries(Q.choices).forEach(([k,cfg])=>{ const v = S.c[k]; if(shown(cfg) && v !== undefined && !(Array.isArray(v) && !v.length)) choices[k] = v; });
     const text = {};
@@ -430,7 +444,7 @@
       v: Q.version, createdAt: dbMod.serverTimestamp(), clientAt: Date.now(),
       durationSec: Math.round((Date.now() - S.startedAt) / 1000),
       name: S.name.trim().slice(0, 80), email: S.email.trim().toLowerCase().slice(0, 120),
-      role, consent: true, followUp: !!S.followUp,
+      role, consent: true, followUp: !!S.followUp, compareTo: usedKahoot() ? 'kahoot' : 'usual',
       choices, ans, text,
       susScore: Q.susScore(ans),
       meta: { from: FROM, device: deviceClass(), app: !!window.Capacitor, w: Math.round(innerWidth), theme: document.documentElement.dataset.theme || 'light' },
