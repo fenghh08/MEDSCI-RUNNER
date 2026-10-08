@@ -721,6 +721,7 @@
           <button class="secondary" id="customizeBtnMenu">🎨 Customise</button>
           <button class="secondary" id="themeToggleBtn">🌙 Dark</button>
           <button class="secondary" id="signInBtn" style="display:none;">👤 Sign in</button>
+          <button class="secondary" id="feedbackBtn">💬 Rate the game</button>
           <select id="langSelect" data-no-i18n aria-label="Language" title="Language / 語言 / 言語 / 언어">
             <option value="en">🌐 English</option>
             <option value="zh-Hant">🌐 繁體中文</option>
@@ -998,6 +999,7 @@
         <button class="secondary" id="againBtn">Play again</button>
         <button class="secondary" id="quitFromOverBtn">🏠 Quit to menu</button>
       </div>
+      <button class="secondary" id="feedbackFromOverBtn" style="margin-top:10px;">💬 Rate the game · help our project</button>
     </div>
 
     <!-- GROUP RACE: host-only (non-racing host) view -->
@@ -5513,6 +5515,15 @@
     }
   });
   manualBtn.addEventListener('click', ()=> manualModal.classList.add('active'));
+  // Evaluation survey (feedback.html, next to this file both on the site and
+  // in the app's www/). `back` is this page's own filename -- the game is
+  // medsci-runner.html on the site but index.html inside the app.
+  function openFeedback(from){
+    const back = location.pathname.split('/').pop() || 'index.html';
+    location.href = `feedback.html?from=${from}&back=${encodeURIComponent(back)}`;
+  }
+  document.getElementById('feedbackBtn').addEventListener('click', ()=> openFeedback('menu'));
+  document.getElementById('feedbackFromOverBtn').addEventListener('click', ()=> openFeedback('gameover'));
   manualClose.addEventListener('click', ()=> manualModal.classList.remove('active'));
   manualFromPauseBtn.addEventListener('click', ()=> manualModal.classList.add('active'));
   courseListBtnGuide.addEventListener('click', openCourseList);

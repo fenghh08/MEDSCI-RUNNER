@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<!-- Evaluation survey for the final project report. Questions live in
+     feedback-questions.js (shared with developer-tool.html's 📈 Evaluation
+     tab, which is where the results are read). Each response is written to
+     Firebase at evaluation/<id> -- see TECHNICAL_OVERVIEW.md §2.3.
+     Linked from index.html, the game's home screen and its game-over screen
+     (?from=… records which, ?back=<file>.html is where "Back to the game"
+     goes). The page follows the game's saved light / white / dark theme. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Rate Run Morris Run!</title>
+<link rel="icon" type="image/png" href="icons/app-icon-32.png">
+<link rel="apple-touch-icon" href="icons/app-icon-180.png">
+<style>
+  /* Same palettes as the game's three themes (medsci-runner.html :root). */
+  :root{
+    --bg:#ffe3ea; --bg-hi:#fffbfc; --card:#ffffff; --ink:#3a0d1c; --sub:#8a5568;
+    --accent:#d6106a; --accent-2:#ff5d8f; --accent-soft:#fdeaf2; --line:rgba(214,16,106,.2); --line-strong:rgba(214,16,106,.38);
+    --good:#0f9e78; --warn:#c81a3f; --shadow:0 10px 30px rgba(214,16,106,.10); --chip:#fff6f9;
+    --btn-a:#ff5d8f; --btn-b:#d6106a;
+    --display:'Georgia','Iowan Old Style',serif;
+    color-scheme:light;
+  }
+  :root[data-theme="white"]{
+    --bg:#eef0f2; --bg-hi:#ffffff; --card:#ffffff; --ink:#20222a; --sub:#767b88;
+    --accent-soft:#fbeef4; --line:rgba(32,34,42,.14); --line-strong:rgba(32,34,42,.3); --shadow:0 10px 30px rgba(32,34,42,.08); --chip:#f7f8f9;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d0308; --bg-hi:#2a0b18; --card:#1c0710; --ink:#ffe9ef; --sub:#c98a9c;
+    --accent:#ff5d8f; --accent-2:#ff8fb1; --accent-soft:rgba(255,93,143,.2); --line:rgba(255,93,143,.2); --line-strong:rgba(255,93,143,.45);
+    --good:#3ee6b8; --warn:#ff3b5c; --shadow:0 10px 30px rgba(0,0,0,.4); --chip:rgba(255,255,255,.04);
+    color-scheme:dark;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  /* keep scrolled-to fields clear of the sticky header and the bottom nav */
+  html{ scroll-padding-top:120px; scroll-padding-bottom:130px; }
+  body{ font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; color:var(--ink); min-height:100vh;
+    background:radial-gradient(ellipse at top, var(--bg-hi) 0%, var(--bg) 70%) fixed; background-color:var(--bg);
+    -webkit-font-smoothing:antialiased; }
+  button,input,textarea{ font:inherit; color:inherit; }
+  button{ cursor:pointer; -webkit-tap-highlight-color:transparent; }
+
+  /* ---------- top: brand + Morris running the progress track ---------- */
+  .top{ position:sticky; top:0; z-index:20; padding:12px 16px 10px; padding-top:max(12px, env(safe-area-inset-top));
+    background:linear-gradient(var(--bg-hi) 70%, transparent); }
+  [data-theme="dark"] .top{ background:linear-gradient(var(--bg) 70%, transparent); }
+  .top-in{ max-width:640px; margin:0 auto; }
+  .brand{ display:flex; justify-content:space-between; align-items:baseline; font-size:13px; color:var(--sub); margin-bottom:10px; }
+  .brand b{ font-family:var(--display); font-style:italic; font-weight:400; font-size:16px; color:var(--ink); }
+  .track{ position:relative; height:14px; border-radius:99px; background:var(--card); border:1px solid var(--line); overflow:visible; }
+  .track::before{ content:''; position:absolute; left:10px; right:10px; top:50%; border-top:2px dashed var(--line-strong); }
+  .track-fill{ position:absolute; left:0; top:0; bottom:0; width:0; border-radius:99px; background:linear-gradient(90deg, var(--accent-2), var(--accent)); transition:width .6s cubic-bezier(.3,.9,.3,1); }
+  .flag{ position:absolute; right:-6px; top:50%; transform:translateY(-58%); font-size:18px; }
+  .morris{ position:absolute; top:50%; left:0; width:30px; height:30px; margin:-15px 0 0 -15px; transition:left .6s cubic-bezier(.3,.9,.3,1); z-index:1; }
+  .morris i{ position:absolute; inset:0; border-radius:50%; background:radial-gradient(circle at 35% 30%, #ff9fbe, #e0336f 60%, #a3124a); box-shadow:0 2px 8px rgba(214,16,106,.35);
+    animation:bob .5s ease-in-out infinite alternate; }
+  .morris i::before,.morris i::after{ content:''; position:absolute; top:10px; width:5px; height:7px; border-radius:50%; background:#2a0612; box-shadow:inset 1px 1px 0 #fff; }
+  .morris i::before{ left:9px; } .morris i::after{ right:9px; }
+  @keyframes bob{ from{ transform:translateY(0) rotate(-4deg); } to{ transform:translateY(-3px) rotate(4deg); } }
+  .step-label{ display:flex; justify-content:space-between; font-size:12px; color:var(--sub); margin-top:9px; }
+
+  /* ---------- the step card ---------- */
+  main{ max-width:640px; margin:0 auto; padding:6px 16px 120px; }
+  .step{ animation:in .45s cubic-bezier(.2,.8,.25,1); }
+  .step.back{ animation-name:inBack; }
+  @keyframes in{ from{ opacity:0; transform:translateX(26px); } to{ opacity:1; transform:none; } }
+  @keyframes inBack{ from{ opacity:0; transform:translateX(-26px); } to{ opacity:1; transform:none; } }
+  .hero{ text-align:center; margin:14px 0 18px; }
+  .hero .em{ font-size:44px; line-height:1; display:inline-block; animation:pop .5s cubic-bezier(.3,1.6,.5,1); }
+  @keyframes pop{ from{ transform:scale(.4); opacity:0; } to{ transform:none; opacity:1; } }
+  .hero h1{ font-family:var(--display); font-style:italic; font-weight:400; font-size:clamp(26px,6.5vw,34px); margin:10px 0 6px; line-height:1.15; }
+  .hero p{ color:var(--sub); margin:0 auto; max-width:460px; line-height:1.5; font-size:15px; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:18px; box-shadow:var(--shadow); margin-bottom:14px; }
+  .q{ font-weight:650; font-size:15.5px; margin:0 0 10px; line-height:1.4; }
+  .q .opt-tag{ font-weight:400; color:var(--sub); font-size:13px; }
+  .hint{ font-size:12.5px; color:var(--sub); margin:6px 0 0; line-height:1.45; }
+  .q-block + .q-block{ margin-top:20px; padding-top:18px; border-top:1px dashed var(--line); }
+
+  input[type=text],input[type=email],textarea{ width:100%; padding:12px 14px; border-radius:12px; border:1.5px solid var(--line-strong); background:var(--chip);
+    outline:none; transition:border-color .15s, box-shadow .15s; font-size:16px; }
+  input:focus,textarea:focus{ border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
+  textarea{ min-height:84px; resize:vertical; line-height:1.45; }
+  .field + .field{ margin-top:14px; }
+  .field label{ display:block; font-weight:650; font-size:14px; margin-bottom:6px; }
+
+  /* role cards */
+  .roles{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  .role{ border:1.5px solid var(--line); background:var(--chip); border-radius:14px; padding:14px 10px; text-align:center; transition:transform .15s, border-color .15s, background .15s; }
+  .role span{ display:block; font-size:28px; margin-bottom:4px; }
+  .role b{ font-size:14px; font-weight:650; }
+  .role:hover{ border-color:var(--line-strong); }
+  .role.on{ border-color:var(--accent); border-width:2px; background:var(--accent-soft); transform:translateY(-2px); box-shadow:0 6px 16px rgba(214,16,106,.15); }
+
+  /* chips */
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{ border:1.5px solid var(--line); background:var(--chip); border-radius:99px; padding:8px 14px; font-size:14px; transition:all .15s; }
+  .chip:hover{ border-color:var(--line-strong); }
+  .chip.on{ background:var(--accent); border-color:var(--accent); color:#fff; animation:tap .25s; }
+  @keyframes tap{ 50%{ transform:scale(1.07); } }
+
+  /* agreement scale */
+  .lk{ padding:14px 0; }
+  .lk + .lk{ border-top:1px dashed var(--line); }
+  .lk-text{ font-size:15px; line-height:1.4; margin-bottom:10px; display:flex; gap:8px; }
+  .lk-text .n{ color:var(--accent); font-weight:700; font-variant-numeric:tabular-nums; flex-shrink:0; }
+  .lk.miss{ animation:shake .45s; }
+  .lk.miss .lk-text{ color:var(--warn); }
+  @keyframes shake{ 20%,60%{ transform:translateX(-5px); } 40%,80%{ transform:translateX(5px); } }
+  .scale{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; }
+  .scale.has-na{ grid-template-columns:repeat(5,minmax(0,1fr)) auto; }
+  .pt{ border:1.5px solid var(--line); background:var(--chip); border-radius:12px; padding:9px 2px 7px; font-size:11px; line-height:1.2; color:var(--sub);
+    display:flex; flex-direction:column; align-items:center; gap:5px; transition:all .15s; min-width:0; }
+  .pt .dot{ width:16px; height:16px; border-radius:50%; border:2px solid var(--line-strong); transition:all .15s; }
+  .pt:nth-child(1) .dot{ width:20px; height:20px; } .pt:nth-child(5) .dot{ width:20px; height:20px; }
+  .pt:nth-child(2) .dot,.pt:nth-child(4) .dot{ width:17px; height:17px; } .pt:nth-child(3) .dot{ width:14px; height:14px; margin:3px 0; }
+  .pt:hover{ border-color:var(--line-strong); }
+  .pt.on{ border-color:var(--accent); background:var(--accent-soft); color:var(--ink); font-weight:650; }
+  .pt.on .dot{ background:var(--accent); border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); animation:tap .25s; }
+  .pt.na{ padding:9px 8px; justify-content:center; }
+  .pt.na.on{ background:var(--sub); border-color:var(--sub); color:var(--card); }
+  @media (max-width:420px){ .pt .lbl{ font-size:9.5px; } .pt{ padding:8px 1px 6px; } }
+
+  /* confidence before/after */
+  .conf{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; }
+  .conf .pt{ font-size:12px; } .conf .pt .e{ font-size:22px; line-height:1; transition:transform .15s; }
+  .conf .pt.on .e{ transform:scale(1.25); }
+  .gain{ text-align:center; font-size:13.5px; color:var(--good); font-weight:650; margin-top:10px; min-height:18px; }
+
+  /* stars + 0-10 */
+  .stars{ display:flex; gap:6px; justify-content:center; }
+  .star{ background:none; border:0; font-size:40px; line-height:1; padding:2px; filter:grayscale(1) opacity(.35); transition:transform .15s, filter .15s; }
+  .star.on{ filter:none; } .star:hover{ transform:scale(1.12); }
+  .star-word{ text-align:center; font-size:13.5px; color:var(--sub); margin-top:6px; min-height:18px; }
+  .nps{ display:grid; grid-template-columns:repeat(11,minmax(0,1fr)); gap:4px; }
+  .nps button{ border:1.5px solid var(--line); background:var(--chip); border-radius:10px; padding:10px 0; font-weight:650; font-variant-numeric:tabular-nums; font-size:14px; transition:all .15s; min-width:0; }
+  .nps button.on{ background:var(--accent); border-color:var(--accent); color:#fff; transform:translateY(-2px); }
+  .nps-ends{ display:flex; justify-content:space-between; font-size:11.5px; color:var(--sub); margin-top:6px; }
+  @media (max-width:340px){ .nps{ grid-template-columns:repeat(6,minmax(0,1fr)); } }
+
+  .check{ display:flex; gap:10px; align-items:flex-start; font-size:14px; line-height:1.45; cursor:pointer; }
+  .check input{ width:20px; height:20px; margin:1px 0 0; accent-color:var(--accent); flex-shrink:0; }
+  .err{ color:var(--warn); font-size:13px; margin-top:6px; display:none; }
+  .err.show{ display:block; }
+
+  /* ---------- bottom nav ---------- */
+  .nav{ position:fixed; left:0; right:0; bottom:0; z-index:20; padding:12px 16px; padding-bottom:max(12px, env(safe-area-inset-bottom));
+    background:linear-gradient(transparent, var(--bg) 35%); }
+  .nav-in{ max-width:640px; margin:0 auto; display:flex; gap:10px; align-items:center; }
+  .btn{ border-radius:14px; padding:14px 20px; font-weight:700; font-size:15.5px; border:1.5px solid var(--line-strong); background:var(--card); transition:transform .12s, box-shadow .15s, opacity .15s; }
+  .btn:active{ transform:scale(.97); }
+  .btn.primary{ flex:1; border:0; color:#fff; background:linear-gradient(135deg, var(--btn-a), var(--btn-b)); box-shadow:0 8px 20px rgba(214,16,106,.3); }
+  .btn.primary:disabled{ opacity:.6; cursor:progress; }
+  .nudge{ max-width:640px; margin:0 auto 8px; font-size:13px; text-align:center; color:var(--sub); min-height:0; }
+  .nudge:empty{ display:none; }
+
+  /* ---------- done ---------- */
+  .done{ text-align:center; padding-top:30px; }
+  .done .em{ font-size:64px; }
+  .done .card{ text-align:left; }
+  .done-actions{ display:flex; flex-direction:column; gap:10px; margin-top:18px; }
+  .done-actions a,.done-actions button{ text-decoration:none; text-align:center; }
+  #confetti{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:30; }
+  #confetti i{ position:absolute; top:-20px; width:9px; height:14px; border-radius:2px; animation:fall linear forwards; }
+  @keyframes fall{ to{ transform:translate3d(var(--dx),110vh,0) rotate(var(--r)); } }
+  @media (prefers-reduced-motion:reduce){ *{ animation:none !important; transition:none !important; } #confetti{ display:none; } }
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="top-in">
+    <div class="brand"><b>Run Morris Run!</b><span id="timeLeft">~5 min</span></div>
+    <div class="track" aria-hidden="true"><div class="track-fill" id="fill"></div><div class="morris" id="morris"><i></i></div><span class="flag">🏁</span></div>
+    <div class="step-label"><span id="stepName"></span><span id="stepNum"></span></div>
+  </div>
+</div>
+<main id="main"></main>
+<div class="nav" id="nav">
+  <div class="nudge" id="nudge"></div>
+  <div class="nav-in">
+    <button class="btn" id="backBtn" type="button">←</button>
+    <button class="btn primary" id="nextBtn" type="button">Let's go →</button>
+  </div>
+</div>
+<div id="confetti"></div>
+
+<script src="feedback-questions.js"></script>
+<script type="module">
+  const Q = window.FEEDBACK_SURVEY;
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+
+  // ---- theme: whatever the player last picked in the game (same origin) ----
+  try { const t = localStorage.getItem('theme'); if(t==='dark' || t==='white') document.documentElement.dataset.theme = t; } catch(e){}
+
+  // ---- where we came from / where "back to the game" goes ----
+  const params = new URLSearchParams(location.search);
+  const FROM = (params.get('from') || 'direct').slice(0, 20);
+  const BACK = /^[\w.-]+\.html$/.test(params.get('back') || '') ? params.get('back') : 'index.html';
+
+  // ---- Firebase (same project + dynamic import pattern as the game) ----
+  const firebaseConfig = {
+    apiKey: "AIzaSyBO3Ztpzg2tCTLapxdxmy-vBh0uOaEHnus",
+    authDomain: "runner-9b11b.firebaseapp.com",
+    databaseURL: "https://runner-9b11b-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "runner-9b11b",
+    storageBucket: "runner-9b11b.firebasestorage.app",
+    messagingSenderId: "1043816875668",
+    appId: "1:1043816875668:web:53bd52882fd7976da31681"
+  };
+  let db = null, dbMod = null;
+  const firebaseInit = (async ()=>{
+    const appMod = await import('https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js');
+    dbMod = await import('https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js');
+    db = dbMod.getDatabase(appMod.initializeApp(firebaseConfig));
+  })().catch(err=> console.warn('[Feedback] Firebase unavailable', err));
+
+  // ---- state: a draft in localStorage so a refresh never loses answers ----
+  const DRAFT_KEY = 'evaluationDraft';
+  const newId = ()=> Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  let S = null;
+  try { S = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch(e){}
+  if(!S || S.v !== Q.version || S.sent) S = { v:Q.version, id:newId(), startedAt:Date.now(), step:0, name:'', email:'', role:'', consent:false, followUp:false, c:{}, a:{}, t:{} };
+  try { if(!S.name) S.name = localStorage.getItem('contributorName') || ''; if(!S.email) S.email = localStorage.getItem('contributorEmail') || ''; } catch(e){}
+  const save = ()=>{ try { localStorage.setItem(DRAFT_KEY, JSON.stringify(S)); } catch(e){} };
+
+  const isStaff = ()=> Q.staffRoles.includes(S.role);
+  const isStudent = ()=> S.role === 'student';
+  const shown = item => !(item.studentOnly && !isStudent()) && !(item.staffOnly && !isStaff());
+
+  // ---- the steps ----
+  const STEPS = {
+    hello: { name:'Say hi', em:'👋', title:'Help us make Morris better',
+      sub:'We’re a student team building <b>Run Morris Run!</b> for our final project. Your answers go straight into our evaluation. It takes about 5 minutes and there are no wrong answers.' },
+    about: { name:'About you', em:'🧬', title:'A bit about you', sub:'So we know whose eyes we’re seeing the game through.' },
+    fun:   { name:'The fun part', em:'🎮', title:'How did it feel to play?', sub:'Tap whatever feels closest. Gut feelings are perfect.' },
+    learn: { name:'Learning', em:'🧠', title:'Did it actually help?', sub:'Learning is the whole point, so be honest.' },
+    staff: { name:'Teaching', em:'🧑‍🏫', title:'For teaching staff', sub:'You see the unit from the other side, and we’d love your take.' },
+    sus:   { name:'Quick-fire', em:'⚡', title:'Quick-fire round', sub:'Ten short statements. Go with your first instinct and don’t overthink it.' },
+    big:   { name:'Finish line', em:'🏁', title:'Almost there!', sub:'The big picture, plus anything you want to get off your chest.' },
+  };
+  const stepList = ()=> ['hello','about','fun','learn', ...(isStaff() ? ['staff'] : []), 'sus','big'];
+
+  // ---- small builders ----
+  const chipGroup = (key, cfg) => `<div class="chips" role="group" aria-label="${esc(cfg.label)}">${cfg.options.map(([v,l])=>{
+      const cur = S.c[key]; const on = cfg.multi ? (cur||[]).includes(v) : cur===v;
+      return `<button type="button" class="chip${on?' on':''}" aria-pressed="${on}" data-k="c" data-q="${key}" data-v="${v}" data-multi="${cfg.multi?1:''}">${esc(l)}</button>`;
+    }).join('')}</div>`;
+  const choiceBlock = key => { const cfg = Q.choices[key]; if(!shown(cfg)) return '';
+    return `<div class="q-block"><p class="q">${esc(cfg.label)}${cfg.multi?' <span class="opt-tag">· pick any</span>':''}</p>${chipGroup(key, cfg)}</div>`; };
+  const SHORT = ['Strongly disagree','Disagree','Neutral','Agree','Strongly agree'];
+  const likertRow = (item, n) => {
+    const cur = S.a[item.id];
+    const pts = SHORT.map((lbl,i)=>`<button type="button" class="pt${cur===i+1?' on':''}" aria-pressed="${cur===i+1}" aria-label="${lbl}" data-k="a" data-q="${item.id}" data-v="${i+1}"><span class="dot"></span><span class="lbl">${lbl}</span></button>`).join('');
+    const na = item.na ? `<button type="button" class="pt na${cur==='na'?' on':''}" aria-pressed="${cur==='na'}" data-k="a" data-q="${item.id}" data-v="na">N/A</button>` : '';
+    return `<div class="lk" data-lk="${item.id}"><div class="lk-text"><span class="n">${n}</span><span>${esc(item.text)}</span></div><div class="scale${item.na?' has-na':''}" role="radiogroup">${pts}${na}</div></div>`;
+  };
+  const likertCard = group => { const items = Q.likert[group].filter(shown);
+    return `<div class="card">${items.map((it,i)=> likertRow(it, i+1)).join('')}</div>`; };
+  const CONF = [['😵','Lost'],['😬','Shaky'],['🙂','Okay'],['😎','Solid'],['💪','Nailed it']];
+  const confRow = key => `<div class="conf">${CONF.map(([e,l],i)=>`<button type="button" class="pt${S.a[key]===i+1?' on':''}" aria-pressed="${S.a[key]===i+1}" data-k="a" data-q="${key}" data-v="${i+1}"><span class="e">${e}</span><span class="lbl">${l}</span></button>`).join('')}</div>`;
+  const STAR_WORDS = ['', 'Needs a lot of work', 'Not great yet', 'Pretty decent', 'Really good', 'Absolutely loved it'];
+  const textBlock = item => !shown(item) ? '' : `<div class="field"><label for="t_${item.id}">${esc(item.label)}</label><textarea id="t_${item.id}" data-t="${item.id}" maxlength="2000" placeholder="${esc(item.placeholder||'')}">${esc(S.t[item.id]||'')}</textarea></div>`;
+
+  // ---- step bodies ----
+  const BODY = {
+    hello: ()=> `
+      <div class="card">
+        <div class="field"><label for="f_name">What should we call you?</label><input type="text" id="f_name" data-f="name" autocomplete="name" maxlength="80" value="${esc(S.name)}" placeholder="Your name"><div class="err" id="e_name">We’d love a name, even just your first one.</div></div>
+        <div class="field"><label for="f_email">Your email</label><input type="email" id="f_email" data-f="email" autocomplete="email" inputmode="email" maxlength="120" value="${esc(S.email)}" placeholder="you@uni.sydney.edu.au">
+          <p class="hint">Only so we can credit you or ask a quick follow-up. It’s never shown publicly.</p><div class="err" id="e_email">That email doesn’t look quite right.</div></div>
+      </div>
+      <div class="card">
+        <p class="q">You are a…</p>
+        <div class="roles">${Q.roles.map(r=>`<button type="button" class="role${S.role===r.id?' on':''}" aria-pressed="${S.role===r.id}" data-k="role" data-v="${r.id}"><span>${r.icon}</span><b>${esc(r.label)}</b></button>`).join('')}</div>
+        <div class="err" id="e_role">Pick whichever fits best.</div>
+      </div>
+      <div class="card">
+        <label class="check"><input type="checkbox" data-f="consent"${S.consent?' checked':''}><span>I’m happy for my answers to be used in the team’s project report. My name and email won’t appear in it.</span></label>
+        <div class="err" id="e_consent">We need this tick before we can use your answers.</div>
+      </div>`,
+    about: ()=> `<div class="card">${['year','units','playTime','modes','device','revise'].map(choiceBlock).join('')}</div>`,
+    fun: ()=> likertCard('engagement'),
+    learn: ()=> likertCard('learning') + (isStudent() ? `
+      <div class="card">
+        <div class="q-block"><p class="q">Before playing, how confident were you with the unit’s content?</p>${confRow('confBefore')}</div>
+        <div class="q-block"><p class="q">And now, after playing?</p>${confRow('confAfter')}<div class="gain" id="gain"></div></div>
+      </div>` : ''),
+    staff: ()=> likertCard('staff'),
+    sus: ()=> likertCard('sus'),
+    big: ()=> `
+      <div class="card">
+        <div class="q-block"><p class="q" style="text-align:center;">Overall, how would you rate it?</p>
+          <div class="stars" role="radiogroup">${[1,2,3,4,5].map(n=>`<button type="button" class="star${(S.a.overall||0)>=n?' on':''}" aria-label="${n} star${n>1?'s':''}" data-k="a" data-q="overall" data-v="${n}">⭐</button>`).join('')}</div>
+          <div class="star-word" id="starWord">${STAR_WORDS[S.a.overall||0]}</div></div>
+        <div class="q-block"><p class="q">How likely are you to recommend it to ${isStaff() ? 'a colleague or your students' : 'a friend in your course'}?</p>
+          <div class="nps">${Array.from({length:11},(_,n)=>`<button type="button" class="${S.a.nps===n?'on':''}" aria-pressed="${S.a.nps===n}" data-k="a" data-q="nps" data-v="${n}">${n}</button>`).join('')}</div>
+          <div class="nps-ends"><span>Not at all likely</span><span>Extremely likely</span></div></div>
+        ${choiceBlock('favFeature')}
+        ${choiceBlock('examUse')}
+      </div>
+      <div class="card">${Q.text.map(textBlock).join('')}</div>
+      <div class="card"><label class="check"><input type="checkbox" data-f="followUp"${S.followUp?' checked':''}><span>Happy for the team to email me one or two follow-up questions.</span></label></div>`,
+  };
+
+  // ---- render ----
+  let lastDir = 1;
+  function render(){
+    const list = stepList();
+    S.step = Math.min(S.step, list.length - 1);
+    const key = list[S.step], st = STEPS[key];
+    $('main').innerHTML = `<section class="step${lastDir<0?' back':''}"><div class="hero"><span class="em">${st.em}</span><h1>${st.title}</h1><p>${st.sub}</p></div>${BODY[key]()}</section>`;
+    const pct = S.step / list.length * 100;
+    $('fill').style.width = pct + '%';
+    $('morris').style.left = `calc(${pct}% + ${S.step===0 ? 15 : 0}px)`;
+    $('stepName').textContent = st.name;
+    $('stepNum').textContent = `${S.step+1} of ${list.length}`;
+    const minsLeft = Math.max(1, Math.round((list.length - S.step) * 0.75));
+    $('timeLeft').textContent = S.step === list.length-1 ? 'Last bit!' : `~${minsLeft} min left`;
+    $('backBtn').style.visibility = S.step === 0 ? 'hidden' : '';
+    $('nextBtn').textContent = S.step === 0 ? 'Let’s go →' : S.step === list.length-1 ? 'Send it 🚀' : (S.step === Math.floor(list.length/2) ? 'Halfway! Keep going →' : 'Next →');
+    $('nudge').textContent = '';
+    skipWarned = false;
+    updateGain();
+    save();
+  }
+  function updateGain(){
+    const g = $('gain'); if(!g) return;
+    const b = S.a.confBefore, a = S.a.confAfter;
+    g.textContent = (b && a) ? (a > b ? `📈 Up ${a-b} step${a-b>1?'s':''}. Nice!` : a === b ? 'Holding steady.' : 'Thanks for being honest. That helps us most.') : '';
+  }
+
+  // ---- input handling (one delegated listener) ----
+  $('main').addEventListener('click', e=>{
+    const b = e.target.closest('button[data-k]'); if(!b) return;
+    const k = b.dataset.k, q = b.dataset.q, raw = b.dataset.v;
+    if(k === 'role'){
+      S.role = raw;
+      b.parentElement.querySelectorAll('.role').forEach(x=>{ x.classList.toggle('on', x===b); x.setAttribute('aria-pressed', x===b); });
+      $('e_role').classList.remove('show');
+      // the step count changes for staff, so refresh the header
+      const list = stepList(); $('stepNum').textContent = `${S.step+1} of ${list.length}`;
+    } else if(k === 'c'){
+      if(b.dataset.multi){
+        const set = new Set(S.c[q] || []); set.has(raw) ? set.delete(raw) : set.add(raw); S.c[q] = [...set];
+        b.classList.toggle('on'); b.setAttribute('aria-pressed', b.classList.contains('on'));
+      } else {
+        S.c[q] = S.c[q] === raw ? undefined : raw;
+        b.parentElement.querySelectorAll('.chip').forEach(x=>{ const on = x===b && S.c[q]===raw; x.classList.toggle('on', on); x.setAttribute('aria-pressed', on); });
+      }
+    } else if(k === 'a'){
+      const v = raw === 'na' ? 'na' : Number(raw);
+      S.a[q] = v;
+      if(q === 'overall'){
+        b.parentElement.querySelectorAll('.star').forEach((x,i)=> x.classList.toggle('on', i < v));
+        $('starWord').textContent = STAR_WORDS[v];
+      } else {
+        b.parentElement.querySelectorAll('button').forEach(x=>{ x.classList.toggle('on', x===b); x.setAttribute('aria-pressed', x===b); });
+      }
+      const row = b.closest('.lk'); if(row) row.classList.remove('miss');
+      updateGain();
+    }
+    save();
+  });
+  $('main').addEventListener('input', e=>{
+    const t = e.target;
+    if(t.dataset.f === 'name' || t.dataset.f === 'email'){ S[t.dataset.f] = t.value; $('e_'+t.dataset.f).classList.remove('show'); }
+    if(t.dataset.t) S.t[t.dataset.t] = t.value;
+    save();
+  });
+  $('main').addEventListener('change', e=>{
+    const t = e.target;
+    if(t.dataset.f === 'consent' || t.dataset.f === 'followUp'){ S[t.dataset.f] = t.checked; if(t.dataset.f==='consent') $('e_consent').classList.remove('show'); save(); }
+  });
+
+  // ---- validation ----
+  // Only the first step is strictly required, plus all ten quick-fire
+  // statements (the usability score needs every one). Anywhere else, a
+  // skipped statement gets ONE gentle nudge, then Next lets you through.
+  let skipWarned = false;
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  function validate(key){
+    if(key === 'hello'){
+      const bad = [];
+      if(!S.name.trim()) bad.push('name');
+      if(!EMAIL_RE.test(S.email.trim())) bad.push('email');
+      if(!S.role) bad.push('role');
+      if(!S.consent) bad.push('consent');
+      bad.forEach(f=> $('e_'+f).classList.add('show'));
+      if(bad.length){ const el = $('f_'+bad[0]) || $('e_'+bad[0]); el.scrollIntoView({ behavior:'smooth', block:'center' }); if(el.focus) el.focus({ preventScroll:true }); }
+      return !bad.length;
+    }
+    const rows = [...document.querySelectorAll('.lk')].filter(r=> S.a[r.dataset.lk] === undefined);
+    if(!rows.length) return true;
+    rows.forEach(r=>{ r.classList.remove('miss'); void r.offsetWidth; r.classList.add('miss'); });
+    rows[0].scrollIntoView({ behavior:'smooth', block:'center' });
+    if(key === 'sus'){ $('nudge').textContent = `${rows.length} left. We need all ten for the usability score.`; return false; }
+    if(skipWarned) return true;
+    skipWarned = true;
+    $('nudge').textContent = `You skipped ${rows.length}. That's fine, just tap Next again to move on.`;
+    return false;
+  }
+
+  // ---- navigation ----
+  $('backBtn').addEventListener('click', ()=>{ if(S.step > 0){ S.step--; lastDir = -1; render(); window.scrollTo({ top:0 }); } });
+  $('nextBtn').addEventListener('click', ()=>{
+    const list = stepList();
+    if(!validate(list[S.step])) return;
+    if(S.step === list.length - 1){ submit(); return; }
+    S.step++; lastDir = 1; render(); window.scrollTo({ top:0 });
+  });
+
+  // ---- submit ----
+  function deviceClass(){
+    const ua = navigator.userAgent;
+    if(/iPad|Tablet/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua)) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua))) return 'tablet';
+    if(/Mobi|iPhone|Android/i.test(ua)) return 'phone';
+    return 'computer';
+  }
+  function payload(){
+    const role = S.role, ans = {};
+    ['engagement','learning','sus', ...(isStaff() ? ['staff'] : [])].forEach(g=> Q.likert[g].filter(shown).forEach(it=>{ if(S.a[it.id] !== undefined) ans[it.id] = S.a[it.id]; }));
+    const choices = {};
+    Object.entries(Q.choices).forEach(([k,cfg])=>{ const v = S.c[k]; if(shown(cfg) && v !== undefined && !(Array.isArray(v) && !v.length)) choices[k] = v; });
+    const text = {};
+    Q.text.filter(shown).forEach(it=>{ const v = (S.t[it.id]||'').trim(); if(v) text[it.id] = v.slice(0, 2000); });
+    const p = {
+      v: Q.version, createdAt: dbMod.serverTimestamp(), clientAt: Date.now(),
+      durationSec: Math.round((Date.now() - S.startedAt) / 1000),
+      name: S.name.trim().slice(0, 80), email: S.email.trim().toLowerCase().slice(0, 120),
+      role, consent: true, followUp: !!S.followUp,
+      choices, ans, text,
+      susScore: Q.susScore(ans),
+      meta: { from: FROM, device: deviceClass(), app: !!window.Capacitor, w: Math.round(innerWidth), theme: document.documentElement.dataset.theme || 'light' },
+    };
+    if(isStudent()){ if(S.a.confBefore) p.confBefore = S.a.confBefore; if(S.a.confAfter) p.confAfter = S.a.confAfter; }
+    if(S.a.overall) p.overall = S.a.overall;
+    if(typeof S.a.nps === 'number') p.nps = S.a.nps;
+    return p;
+  }
+  async function submit(){
+    const btn = $('nextBtn');
+    btn.disabled = true; btn.textContent = 'Sending…'; $('nudge').textContent = '';
+    try {
+      await Promise.race([firebaseInit, new Promise(r=> setTimeout(r, 8000))]);
+      if(!db) throw new Error('offline');
+      // Written to evaluation/<draft id>, not push(): a retry after a
+      // timeout overwrites the same entry instead of creating a duplicate.
+      await Promise.race([
+        dbMod.set(dbMod.ref(db, 'evaluation/' + S.id), payload()),
+        new Promise((_, rej)=> setTimeout(()=> rej(new Error('timeout')), 12000)),
+      ]);
+      S.sent = true; save();
+      try { localStorage.setItem('evaluationSentAt', String(Date.now())); localStorage.removeItem(DRAFT_KEY); } catch(e){}
+      showDone();
+    } catch(err){
+      console.warn('[Feedback] send failed', err);
+      btn.disabled = false; btn.textContent = 'Try sending again 🚀';
+      $('nudge').textContent = 'Couldn’t reach our server. Check your connection and try again. Your answers are saved on this device.';
+    }
+  }
+
+  function showDone(){
+    const first = esc(S.name.trim().split(/\s+/)[0] || 'friend');
+    $('nav').style.display = 'none';
+    $('fill').style.width = '100%'; $('morris').style.left = '100%';
+    $('stepName').textContent = 'Finished!'; $('stepNum').textContent = '🎉'; $('timeLeft').textContent = 'All done';
+    const backLabel = FROM === 'landing' ? 'Back to the home page' : 'Back to the game';
+    $('main').innerHTML = `<section class="step done">
+      <div class="hero"><span class="em">🎉</span><h1>Thank you, ${first}!</h1>
+      <p>Morris made it to the finish line thanks to you. Every answer goes straight into our evaluation, and your ideas really do shape what we build next.</p></div>
+      <div class="done-actions">
+        <a class="btn primary" href="${esc(BACK)}">${backLabel} 🏃</a>
+        <button class="btn" type="button" id="shareBtn">📋 Copy the link for a friend</button>
+      </div></section>`;
+    $('shareBtn').addEventListener('click', ()=>{
+      const url = location.origin + location.pathname;
+      (navigator.share ? navigator.share({ title:'Run Morris Run!', text:'Try Run Morris Run! and tell the team what you think', url }) : navigator.clipboard.writeText(url))
+        .then(()=>{ if(!navigator.share) $('shareBtn').textContent = '✓ Link copied'; }).catch(()=>{});
+    });
+    confetti();
+  }
+  function confetti(){
+    const box = $('confetti'), colors = ['#ff5d8f','#d6106a','#ffd23f','#3ee6b8','#8b5cf6','#ff9fbe'];
+    for(let i=0;i<90;i++){
+      const c = document.createElement('i');
+      c.style.left = Math.random()*100 + 'vw';
+      c.style.background = colors[i % colors.length];
+      c.style.setProperty('--dx', (Math.random()*160 - 80) + 'px');
+      c.style.setProperty('--r', (Math.random()*900 + 180) + 'deg');
+      c.style.animationDuration = (2.2 + Math.random()*1.8) + 's';
+      c.style.animationDelay = (Math.random()*0.6) + 's';
+      box.appendChild(c);
+    }
+    setTimeout(()=> box.innerHTML = '', 5000);
+  }
+
+  render();
+</script>
+</body>
+</html>
