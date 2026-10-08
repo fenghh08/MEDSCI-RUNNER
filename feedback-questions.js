@@ -24,7 +24,8 @@
      new key, mark the old one `retired:true` (hidden from the survey, still
      counted in results/CSV), and bump `version`.
    • The ten `sus` statements are the standard System Usability Scale (Brooke,
-     1996), with "system" swapped for "game". Keep their order and wording —
+     1996), with "system" swapped for "game" and "cumbersome" swapped for
+     "awkward" in s8 (an accepted substitution — Bangor et al., 2008). Keep their order and wording —
      the SUS score (0–100) is only comparable to published benchmarks
      (average ≈ 68) if they stay as they are.
    ============================================================================ */
@@ -162,7 +163,7 @@
         { id:'s5',  construct:'sus', text:'I found the various functions in this game were well integrated.' },
         { id:'s6',  construct:'sus', text:'I thought there was too much inconsistency in this game.' },
         { id:'s7',  construct:'sus', text:'I would imagine that most people would learn to use this game very quickly.' },
-        { id:'s8',  construct:'sus', text:'I found the game very cumbersome to use.' },
+        { id:'s8',  construct:'sus', text:'I found the game very awkward to use.' }, // "awkward" replaces "cumbersome" (unclear to many respondents) -- the accepted substitution, Bangor et al., 2008
         { id:'s9',  construct:'sus', text:'I felt very confident using the game.' },
         { id:'s10', construct:'sus', text:'I needed to learn a lot of things before I could get going with this game.' },
       ]},
@@ -203,6 +204,7 @@
       sus:         { label:'System Usability Scale', ref:'Brooke, 1996' },
     },
     REFERENCES: [
+      'Bangor, A., Kortum, P. T., & Miller, J. T. (2008). An empirical evaluation of the System Usability Scale. International Journal of Human–Computer Interaction, 24(6), 574–594.',
       'Bangor, A., Kortum, P., & Miller, J. (2009). Determining what individual SUS scores mean: Adding an adjective rating scale. Journal of Usability Studies, 4(3), 114–123.',
       'Biggs, J. (1996). Enhancing teaching through constructive alignment. Higher Education, 32(3), 347–364.',
       'Brooke, J. (1996). SUS: A “quick and dirty” usability scale. In P. W. Jordan et al. (Eds.), Usability evaluation in industry (pp. 189–194). Taylor & Francis.',

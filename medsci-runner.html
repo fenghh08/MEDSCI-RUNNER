@@ -251,6 +251,18 @@
      reused (theme pickers, lecture pickers, etc.), not just the landing
      screen. */
   .cancer-grid .pick-card{ text-align:center; }
+  .pick-course-btn{ display:flex; align-items:center; gap:14px; width:100%; max-width:460px; margin:14px auto 0; padding:16px 20px; text-align:left;
+    background:var(--panel); color:var(--hud-ink); border:1.5px solid var(--membrane); border-radius:14px; font-family:inherit; cursor:pointer;
+    box-shadow:0 6px 18px rgba(214,16,106,.12); transition:transform .15s, box-shadow .15s; }
+  .pick-course-btn:hover{ transform:translateY(-1px); box-shadow:0 10px 24px rgba(214,16,106,.18); }
+  .pick-course-btn .pcb-icon{ font-size:28px; line-height:1; }
+  .pick-course-btn .pcb-text{ flex:1; display:flex; flex-direction:column; gap:3px; }
+  .pick-course-btn .pcb-text b{ font-size:16px; }
+  .pick-course-btn .pcb-text small{ font-size:11.5px; color:var(--hud-dim); }
+  .pick-course-btn .pcb-chev{ font-size:16px; color:var(--membrane); transition:transform .2s; }
+  .pick-course-btn.open .pcb-chev{ transform:rotate(180deg); }
+  .landing-divider{ width:100%; max-width:460px; margin:20px auto 14px; border-top:1.5px dashed var(--panel-line); }
+  .brief-name{ display:block; font-size:.55em; font-weight:400; color:var(--hud-dim); margin-top:4px; }
   /* width:100%/box-sizing/display are explicit here rather than relying on
      a plain <button>'s width:auto to stretch to fill its container -- that
      technically should happen per spec once display:block is set (as the
@@ -730,12 +742,37 @@
             <option value="ko">🌐 한국어</option>
           </select>
         </div>
-        <!-- The home screen is one decision: which course. Everything you
-             can do -- the runner, study guide, lectures, practice, custom
-             run, group race, review -- lives on the course's own page
-             (briefView), so nothing here competes with picking a course. -->
-        <div class="p-sub landing-section-title" style="width:100%;max-width:460px;margin:14px auto 6px;">Pick a course</div>
-        <div class="cancer-grid" id="cancerGrid"></div>
+        <!-- Home: one big "Pick a course" button (opens the course cards,
+             each leading to that course's page: runner, study guide,
+             lectures, practice), then the course-independent modes below
+             it. Each of those has its own course picker, so they don't
+             need a course chosen first. -->
+        <button type="button" class="pick-course-btn" id="pickCourseBtn" aria-expanded="false" aria-controls="cancerGrid">
+          <span class="pcb-icon">📚</span>
+          <span class="pcb-text"><b>Pick a course</b><small>Runner game, study guide and lectures for your unit</small></span>
+          <span class="pcb-chev" aria-hidden="true">▾</span>
+        </button>
+        <div class="cancer-grid" id="cancerGrid" style="display:none;margin-top:12px;"></div>
+        <div class="landing-divider" aria-hidden="true"></div>
+        <div class="p-sub landing-section-title" style="width:100%;max-width:460px;margin:0 auto 8px;">More ways to play</div>
+        <div class="cancer-grid" id="homeMoreGrid">
+          <button class="pick-card" id="customModeCard">
+            <span class="cc-icon">🎯</span><span class="cc-name">Custom run</span>
+            <span class="cc-blurb">Pick your own question mix.</span>
+          </button>
+          <button class="pick-card" id="mpModeCard">
+            <span class="cc-icon">🆚</span><span class="cc-name">Group Race</span>
+            <span class="cc-blurb">Race friends on any course.</span>
+          </button>
+          <button class="pick-card" id="practiceModeCard">
+            <span class="cc-icon">📝</span><span class="cc-name">Study &amp; Practice</span>
+            <span class="cc-blurb">Untimed practice, any topic.</span>
+          </button>
+          <button class="pick-card" id="reviewModeCard">
+            <span class="cc-icon">📅</span><span class="cc-name">Review</span>
+            <span class="cc-blurb" id="reviewModeBlurb">Spaced repetition, questions you've already studied.</span>
+          </button>
+        </div>
       </div>
       <div id="customizeView" style="display:none;">
         <h2>Customise Your Cell</h2>
@@ -787,25 +824,18 @@
             <span class="cc-icon">📝</span><span class="cc-name">Study &amp; Practice</span><span class="cc-blurb"></span>
           </button>
         </div>
-        <!-- Formerly on the home screen. Same ids, same handlers; they now
-             open with this course already selected. -->
+        <!-- Shortcuts to the home screen's modes with THIS course already
+             selected: each just clicks the matching home card (data-proxy)
+             while currentCancerId still points at this course. -->
         <div class="p-sub landing-section-title" style="width:100%;max-width:460px;margin:14px auto 6px;">More ways to play</div>
         <div class="cancer-grid" id="courseMoreGrid">
-          <button class="pick-card" id="mpModeCard">
+          <button class="pick-card" data-proxy="mpModeCard">
             <span class="cc-icon">🆚</span><span class="cc-name">Group Race</span>
             <span class="cc-blurb">Race friends on this course.</span>
           </button>
-          <button class="pick-card" id="customModeCard">
+          <button class="pick-card" data-proxy="customModeCard">
             <span class="cc-icon">🎯</span><span class="cc-name">Custom run</span>
             <span class="cc-blurb">Pick your own question mix.</span>
-          </button>
-          <button class="pick-card" id="practiceModeCard" style="display:none;">
-            <span class="cc-icon">📝</span><span class="cc-name">Study &amp; Practice</span>
-            <span class="cc-blurb">Untimed practice, any topic.</span>
-          </button>
-          <button class="pick-card" id="reviewModeCard">
-            <span class="cc-icon">📅</span><span class="cc-name">Review</span>
-            <span class="cc-blurb" id="reviewModeBlurb">Spaced repetition, questions you've already studied.</span>
           </button>
         </div>
         <div class="btn-row">
@@ -1733,6 +1763,16 @@
     STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES, FUN_FACT_QUESTIONS,
   } = window.RUNNER_DATA;
 
+  // A course is always shown by its unit code, with its name underneath.
+  // Taken from COURSES (code + label), NOT THEMES[id].label: that label is
+  // free text and has drifted (SA2013 / PCOL2021 were saved with the
+  // course name in it, so their cards showed the name twice and no code).
+  const courseCode = id => (COURSES[id] && COURSES[id].code) || id;
+  const courseName = id => {
+    const n = (COURSES[id] && COURSES[id].label) || (THEMES[id] && THEMES[id].label) || '';
+    return n === courseCode(id) ? '' : n;
+  };
+
   // Topics are authored per-course now (each carries its own label/icon/
   // color inline under THEMES[courseId].topics[topicId]) rather than a
   // shared taxonomy, since a topic belongs to the specific course it's
@@ -2453,9 +2493,8 @@
       // blurb and the name never appeared anywhere (reported: "I gave the
       // name before, why is the course name not changed?"). A long blurb
       // belongs on the course hub, not squeezed onto a card.
-      const courseName = (COURSES[id] && COURSES[id].label) || '';
-      const sub = courseName || c.blurb || '';
-      card.innerHTML = `<span class="cc-icon">${iconHTML(c.icon,26)}</span><span class="cc-name">${c.label}</span><span class="cc-blurb">${escapeHtml(sub)}</span>`;
+      const sub = courseName(id) || c.blurb || '';
+      card.innerHTML = `<span class="cc-icon">${iconHTML(c.icon,26)}</span><span class="cc-name">${escapeHtml(courseCode(id))}</span><span class="cc-blurb">${escapeHtml(sub)}</span>`;
       card.addEventListener('click', ()=> openBrief(id));
       cancerGrid.appendChild(card);
     });
@@ -2475,7 +2514,7 @@
   function openBrief(id){
     currentCancerId = id;
     const c = THEMES[id];
-    briefTitle.innerHTML = `${iconHTML(c.icon,22)} ${c.label}`;
+    briefTitle.innerHTML = `${iconHTML(c.icon,22)} ${escapeHtml(courseCode(id))}${courseName(id) ? `<span class="brief-name">${escapeHtml(courseName(id))}</span>` : ''}`;
     briefBlurb.textContent = c.blurb;
     const on = courseFeatures(id);
     [[startBtn,on.start],[courseGuideBtn,on.guide],[courseLecturesBtn,on.lectures],[coursePracticeBtn,on.practice]].forEach(([btn,enabled])=>{
@@ -2485,6 +2524,20 @@
     cancerPickView.style.display = 'none';
     briefView.style.display = 'block';
   }
+  // Home: "Pick a course" folds the course cards open/closed.
+  const pickCourseBtn = document.getElementById('pickCourseBtn');
+  pickCourseBtn.addEventListener('click', ()=>{
+    const open = cancerGrid.style.display === 'none';
+    cancerGrid.style.display = open ? '' : 'none';
+    pickCourseBtn.setAttribute('aria-expanded', open);
+    pickCourseBtn.classList.toggle('open', open);
+  });
+  // A mode opened from HOME has no course behind it: clear the last course
+  // page's id so it isn't pre-selected and Back returns home, not to that
+  // course. The course page's shortcuts click these same cards
+  // programmatically (isTrusted false), which keeps their course.
+  document.getElementById('homeMoreGrid').addEventListener('click', e=>{ if(e.isTrusted) currentCancerId = null; }, true);
+  document.querySelectorAll('#courseMoreGrid [data-proxy]').forEach(b=> b.addEventListener('click', ()=> document.getElementById(b.dataset.proxy).click()));
   backToPickBtn.addEventListener('click', ()=>{
     briefView.style.display = 'none';
     cancerPickView.style.display = 'block';
@@ -2547,7 +2600,7 @@
   }
   function renderCustomChecks(){
     customThemeChecks.innerHTML = Object.entries(THEMES).map(([id,t])=>
-      `<label><input type="checkbox" class="cust-check" value="${id}"> ${iconHTML(t.icon,14)} ${t.label}</label>`).join('');
+      `<label><input type="checkbox" class="cust-check" value="${id}"> ${iconHTML(t.icon,14)} ${escapeHtml(courseCode(id))}</label>`).join('');
     customTopicChecks.innerHTML = Object.entries(TOPICS).map(([id,t])=>
       `<label><input type="checkbox" class="cust-check" value="${id}"> ${iconHTML(t.icon,14)} ${t.label}</label>`).join('');
     [customThemeChecks, customTopicChecks].forEach(container=>{
@@ -2745,7 +2798,7 @@
     practiceThemeGrid.innerHTML = Object.entries(THEMES).map(([id,t])=>{
       const active = id===practiceSelectedTheme;
       return `<button class="pick-card" data-th="${id}" style="border-color:${active?'var(--membrane)':'var(--panel-line)'};padding:10px;text-align:center;">
-        <span class="cc-icon" style="font-size:20px;">${iconHTML(t.icon,20)}</span><span class="cc-name" style="font-size:12.5px;">${t.label}</span>
+        <span class="cc-icon" style="font-size:20px;">${iconHTML(t.icon,20)}</span><span class="cc-name" style="font-size:12.5px;">${escapeHtml(courseCode(id))}</span>
       </button>`;
     }).join('');
     practiceThemeGrid.querySelectorAll('[data-th]').forEach(btn=>{
@@ -4843,7 +4896,7 @@
     const themeIds = Object.keys(THEMES);
     guideActiveTheme = jumpTheme && THEMES[jumpTheme] ? jumpTheme : (THEMES[guideActiveTheme] ? guideActiveTheme : themeIds[0]);
     const c = THEMES[guideActiveTheme];
-    guideTitle.innerHTML = `${iconHTML(c.icon,20)} ${c.label} — study guide`;
+    guideTitle.innerHTML = `${iconHTML(c.icon,20)} ${escapeHtml(courseCode(guideActiveTheme))} — study guide`;
     guideBlurb.textContent = c.blurb;
     renderGuideThemeTabs(themeIds);
     const topics = Object.keys(c.topics);
@@ -4870,7 +4923,7 @@
     guideThemeTabs.innerHTML = themeIds.map(id=>{
       const t = THEMES[id];
       const active = id===guideActiveTheme;
-      return `<button class="theme-tab" data-th="${id}" style="border-color:${active?'var(--membrane)':'var(--panel-line)'};color:${active?'#1a0508':'var(--hud-ink)'};background:${active?'var(--membrane)':'transparent'}">${iconHTML(t.icon,15)} ${t.label}</button>`;
+      return `<button class="theme-tab" data-th="${id}" style="border-color:${active?'var(--membrane)':'var(--panel-line)'};color:${active?'#1a0508':'var(--hud-ink)'};background:${active?'var(--membrane)':'transparent'}">${iconHTML(t.icon,15)} ${escapeHtml(courseCode(id))}</button>`;
     }).join('');
     guideThemeTabs.querySelectorAll('[data-th]').forEach(btn=>{
       btn.addEventListener('click', ()=> openStudyGuide(btn.dataset.th, null, null));
@@ -4944,7 +4997,7 @@
       const card = document.createElement('div');
       card.className = 'item-card';
       card.style.color = meta.color;
-      card.innerHTML = `<div class="ic-name">${iconHTML(meta.icon,13)} ${item.label}</div><div class="ic-hint">${THEMES[themeId].label} · ${meta.label}</div>`;
+      card.innerHTML = `<div class="ic-name">${iconHTML(meta.icon,13)} ${item.label}</div><div class="ic-hint">${escapeHtml(courseCode(themeId))} · ${meta.label}</div>`;
       card.addEventListener('click', ()=> openItemDetail(topicId, itemId, item));
       guideItemGrid.appendChild(card);
     });
@@ -5245,7 +5298,7 @@
       card.className = 'item-card';
       card.style.color = meta.color;
       card.dataset.search = `${item.label} ${item.description||''} ${(item.hashtags||[]).join(' ')}`.toLowerCase();
-      card.innerHTML = `<div class="ic-name">${iconHTML(meta.icon,13)} ${item.label}</div><div class="ic-hint">${THEMES[themeId].label} · ${meta.label}</div>`;
+      card.innerHTML = `<div class="ic-name">${iconHTML(meta.icon,13)} ${item.label}</div><div class="ic-hint">${escapeHtml(courseCode(themeId))} · ${meta.label}</div>`;
       card.addEventListener('click', ()=> openItemDetail(topicId, itemId, item));
       guideItemGrid.appendChild(card);
     });
@@ -5747,7 +5800,7 @@
       const t = THEMES[id];
       const active = id===mp.selectedTheme;
       return `<button class="pick-card" data-th="${id}" style="border-color:${active?'var(--membrane)':'var(--panel-line)'};padding:10px;text-align:center;">
-        <span class="cc-icon" style="font-size:20px;">${iconHTML(t.icon,20)}</span><span class="cc-name" style="font-size:12.5px;">${t.label}</span>
+        <span class="cc-icon" style="font-size:20px;">${iconHTML(t.icon,20)}</span><span class="cc-name" style="font-size:12.5px;">${escapeHtml(courseCode(id))}</span>
       </button>`;
     }).join('');
     mpThemeGrid.querySelectorAll('[data-th]').forEach(btn=>{
