@@ -438,8 +438,10 @@
                                    // in medsci-runner.html) to use your own image instead of the emoji
     bombSpawnBaseMs: 800,        // bomb spawn interval — base + random(0..rand) -- widened alongside obstacleSpawn* above
     bombSpawnRandMs: 1600,
-    bombHellSpawnBaseMs: 165,    // bomb interval DURING a Group Race Bomb Hell (the 10s gift attack) -- far tighter
+    bombHellSpawnBaseMs: 165,    // bomb interval DURING a Group Race Bomb Hell (the 10s gift attack) on HARD -- far tighter
     bombHellSpawnRandMs: 165,    // than the normal one above; lower both numbers for an even denser storm
+    bombHellEasySpawnBaseMs: 420, // same, on EASY (the default the host can switch in Host a race → Bomb Hell)
+    bombHellEasySpawnRandMs: 300,
     scoreCorrectWeight: 50,    // Group Race ranking score = correct*this - incorrect*this + life*this + stageIndex*stageWeight
     scoreIncorrectWeight: 35,
     scoreLifeWeight: 0,
