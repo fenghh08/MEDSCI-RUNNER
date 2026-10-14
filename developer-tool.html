@@ -273,6 +273,34 @@
   .bank-preview-body{ padding:8px 0 2px; }
 
   /* queue */
+  /* ---- Team queue v2 + reports ---- */
+  .q2-bar{ display:grid; grid-template-columns:minmax(0,2fr) repeat(3, minmax(0,1fr)); gap:8px; margin-bottom:10px; }
+  @media (max-width:900px){ .q2-bar{ grid-template-columns:1fr 1fr; } }
+  .q2-group{ border:1px solid var(--line); border-radius:10px; margin-bottom:10px; background:#fbfbfd; }
+  .q2-group > summary{ cursor:pointer; padding:10px 14px; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; list-style:none; }
+  .q2-group > summary::-webkit-details-marker{ display:none; }
+  .q2-group > summary::before{ content:'▶'; font-size:10px; color:var(--faint); transition:transform .15s; }
+  .q2-group[open] > summary::before{ transform:rotate(90deg); }
+  .q2-gtitle{ font-weight:650; font-size:14px; } .q2-gsum{ font-size:12px; color:var(--muted); flex-basis:100%; padding-left:18px; }
+  .q2-group[open] > summary{ border-bottom:1px solid var(--line); }
+  .q2-group > .queue-item{ margin:8px 10px; }
+  .queue-item.q2 .q2-row, .queue-item.r2 .q2-row{ display:flex; align-items:center; gap:10px; }
+  .q2-main{ flex:1; min-width:0; } .q2-head{ font-size:13.5px; line-height:1.4; color:var(--ink); }
+  .q2-kind{ flex-shrink:0; font-size:11px; font-weight:600; border-radius:6px; padding:3px 8px; white-space:nowrap; background:#f0f2f7; color:var(--muted); min-width:96px; text-align:center; }
+  .q2-questions{ background:#eaf1ff; color:#2c5bb8; } .q2-concepts{ background:#fff3e2; color:#a35a00; } .q2-setup{ background:#efe9fb; color:#6d28d9; }
+  .q2-removal{ background:var(--danger-soft); color:var(--danger); } .q2-open{ background:var(--warn-soft); color:var(--warn); } .q2-solved{ background:var(--good-soft); color:var(--good); }
+  .queue-item.q2 .qi-actions button, .queue-item.r2 .qi-actions button{ font-size:12px; padding:5px 10px; }
+  .qp-card{ background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+  .qp-prompt{ font-weight:600; font-size:13.5px; margin-bottom:6px; }
+  .qp-opts{ margin:0 0 6px; padding-left:22px; list-style:upper-alpha; } .qp-opts li{ margin:2px 0; } .qp-opts li.ok{ color:var(--good); font-weight:650; }
+  .qp-expl{ font-size:12.5px; color:var(--ink); background:#fbfbfd; border-radius:6px; padding:6px 8px; } .qp-missing{ color:var(--warn); font-style:italic; }
+  .qp-meta{ font-size:11.5px; color:var(--muted); margin-top:4px; }
+  .qp-compare{ display:grid; grid-template-columns:1fr 1fr; gap:8px; } @media (max-width:800px){ .qp-compare{ grid-template-columns:1fr; } }
+  .qp-code{ margin-top:6px; } .qp-code summary{ cursor:pointer; font-size:12px; color:var(--muted); }
+  .r2-reasons{ margin:8px 0 0 106px; } .r2-reason{ font-size:13px; margin:3px 0; } .r2-reason span{ color:var(--muted); font-size:12px; }
+  .queue-item.r2 .qp-code{ margin-left:106px; }
+  .r2-solved{ opacity:.75; } .r2-solvednote{ margin:8px 0 0 106px; font-size:12.5px; color:var(--good); }
+  @media (max-width:700px){ .r2-reasons, .queue-item.r2 .qp-code, .r2-solvednote{ margin-left:0; } .queue-item.q2 .q2-row, .queue-item.r2 .q2-row{ flex-wrap:wrap; } }
   .queue-item{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin-bottom:8px; }
   .queue-item.qi-mine{ border-left:4px solid var(--info); background:var(--info-soft); }
   .queue-item.qi-report{ border-left:4px solid var(--warn); }
@@ -1441,7 +1469,7 @@
     <section data-section="queue">
       <div class="section-head">
         <h2>Team queue <button class="info-btn" data-info="firebase-queue" title="How this works">i</button></h2>
-        <p id="queueSubtext">Everything anyone adds shows up for the whole team in real time. Open a row to read exactly what was submitted. Once the admin has merged something, remove it here. Reports sent from inside the game live in their own Reports tab.</p>
+        <p id="queueSubtext">Everything waiting to go into the game, live for the whole team. Filter or search to find what you want to check, and press <b>👁 Preview</b> to see a question the way students will. Edits show the current version next to the proposed one. Reports from players live in their own tab.</p>
       </div>
       <div class="card">
         <div class="struct-stats" id="queueStats"></div>
@@ -1449,7 +1477,7 @@
       </div>
       <div class="card">
         <h2 style="margin-top:0;">📥 Content to merge</h2>
-        <p class="card-sub">New/edited items, questions, courses, topics, lecture outcomes, and deletion requests — everything an admin folds into <code>game-data.js</code> on merge, and what "Remove the merged entries from the queue" clears out afterward.</p>
+        <p class="card-sub">Big batches (like a pasted spreadsheet) are folded into one line per course and topic. Click a group to open it. 🚩 asks an admin to remove an entry; ✕ removes it (developer, after merging).</p>
         <div id="batchListContent"></div>
       </div>
     </section>
@@ -1458,7 +1486,7 @@
     <section data-section="reports">
       <div class="section-head">
         <h2>Reports from players <button class="info-btn" data-info="firebase-queue" title="How this works">i</button></h2>
-        <p>Flags sent from inside the game about an existing item/question. These are never merged and never touched by "Remove the merged entries from the queue" in Admin — a report only leaves here once an admin removes it by hand (✕) after dealing with it, or anyone can 🚩 flag it for removal first.</p>
+        <p>Problems players reported from inside the game, grouped by the question or concept they're about. Fix it with ✏️, then press <b>✅ Mark solved</b> and add a short note on what you did. Solved reports move to the ✅ Solved list (Reopen if it comes back). They're never merged into the game.</p>
       </div>
       <div class="card">
         <div id="batchListReports"></div>
@@ -4708,46 +4736,247 @@
   // report is actually about (see reportEditButtonHtml).
   const QUEUE_ICONS = { item:'📄', question:'❓', 'edit-question':'✏️', course:'📚', topic:'🗂️', 'edit-item':'✏️', 'merge-item':'⤵', 'stages':'🏁', 'delete-item':'🗑', 'delete-question':'🗑', 'delete-course':'🗑', lectureOutcomes:'🧭', 'flag-item':'🚩', 'flag-question':'⚠️' };
   const RESUMABLE_FORM = { item:'item', 'edit-item':'item', question:'question', 'edit-question':'question' };
-  // Renders one of the two permanently-separate queue lists (content to
-  // merge vs. reports from players) into its own container. Kept as one
-  // shared row-builder since a row looks and behaves the same either way --
-  // only which array feeds it differs.
-  function renderQueueRows(container, entries, emptyMessage){
-    const expandedKeys = new Set([...container.querySelectorAll('.queue-item')].filter(row => row.querySelector('.qi-details')?.style.display === 'block').map(row => row.dataset.key));
-    if(!entries.length){ container.innerHTML = `<p class="batch-empty">${emptyMessage}</p>`; return; }
-    container.innerHTML = '';
-    entries.forEach(([key, entry])=>{
-      const row = document.createElement('div');
-      const attribution = contributorDisplayLabel(entry);
-      row.className = 'queue-item' + (attribution==='You' ? ' qi-mine' : '') + (isReport(entry) ? ' qi-report' : '') + (entry.removalFlagged ? ' qi-removal-flagged' : '');
-      row.dataset.key = key;
-      const formKind = RESUMABLE_FORM[entry.type];
-      const editBtn = formKind ? '<button class="subtle qi-edit" type="button" title="Edit this queued entry">✏️ Edit</button>' : (isReport(entry) ? reportEditButtonHtml(entry, 'subtle') : '');
-      const metaParts = [attribution ? `by ${esc2(attribution)}` : null, entry.createdAt ? new Date(entry.createdAt).toLocaleString() : null].filter(Boolean);
-      row.innerHTML = `<div class="qi-row"><div><div class="qi-label">${entry.removalFlagged?'🚩 ':''}${QUEUE_ICONS[entry.type]||'📄'} <b>${esc2(entry.title)}</b> — ${esc2(entry.note||'')}</div><div class="qi-meta">${metaParts.join(' · ')}</div></div>
-        <div class="qi-actions"><button class="qi-toggle" type="button">${expandedKeys.has(key)?'▴ Hide':'▾ Details'}</button>${editBtn}<button class="subtle qi-flag-removal" type="button" title="${entry.removalFlagged?'Un-flag':'Flag this for an admin to remove'}">${entry.removalFlagged?'↺ Unflag':'🚩 Flag for removal'}</button><button class="subtle list-remove" type="button" title="Remove from the queue (after merging)">✕</button></div></div>
-        <div class="qi-details" style="display:${expandedKeys.has(key)?'block':'none'};">${queueDetailHtml(entry)}</div>`;
-      row.querySelector('.qi-toggle').addEventListener('click', e=>{ const d = row.querySelector('.qi-details'); const open = d.style.display !== 'block'; d.style.display = open ? 'block' : 'none'; e.currentTarget.textContent = open ? '▴ Hide' : '▾ Details'; });
-      row.querySelector('.qi-flag-removal').addEventListener('click', ()=> toggleQueueRemovalFlag(key));
-      if(formKind) row.querySelector('.qi-edit').addEventListener('click', ()=>{
-        if(!requireMaintainerUnlock()) return;
-        const live = batch[key]; if(!live) return; // could have been merged/removed by someone else in the meantime
-        showTab('add'); showPane('add', formKind);
-        if(formKind==='item') loadItemFromQueueEntry(key, live.data);
-        else loadQuestionFromQueueEntry(key, live.data);
-      });
-      row.querySelector('.list-remove').addEventListener('click', ()=>{
-        if(!requireDeveloper()) return;
-        const entry = batch[key];
-        // Un-queuing something never merged: clean up the picker entries it added, so no phantom stays behind.
-        if(entry && entry.type==='item' && entry.data && !RD.THEMES[entry.data.theme]?.topics?.[entry.data.topicId]?.items?.[entry.data.itemId]){ const i = KNOWN_ITEMS.findIndex(it=>it.id===entry.data.itemId); if(i>=0) KNOWN_ITEMS.splice(i,1); }
-        if(entry && entry.type==='course' && entry.data && !RD.THEMES[entry.data.id]){ const i = KNOWN_THEMES.findIndex(t=>t.id===entry.data.id); if(i>=0) KNOWN_THEMES.splice(i,1); }
-        if(entry && entry.type==='topic' && entry.data && !RD.THEMES[entry.data.theme]?.topics?.[entry.data.topicId]) delete KNOWN_TOPICS[entry.data.topicId];
-        removeFromQueue(key); refreshAllPickers();
-      });
-      wireEditButtons(row);
-      container.appendChild(row);
+  // ======================================================================
+  // TEAM QUEUE + REPORTS — readable rows, grouping, filters, solved state
+  // ======================================================================
+  // A reviewer wants to know: what is it, where does it go, who sent it, is
+  // it right. So each row leads with a plain-words kind + the full text
+  // (the question prompt itself, not a 50-char title), and Preview renders
+  // it the way a student would see it -- generated code is still there,
+  // folded away under "Show code".
+  const QKINDS = {
+    question:{ label:'New question', group:'questions' }, 'edit-question':{ label:'Edit question', group:'questions' },
+    'funfact-question':{ label:'Fun-fact question', group:'questions' },
+    item:{ label:'New concept', group:'concepts' }, 'edit-item':{ label:'Edit concept', group:'concepts' },
+    course:{ label:'New course', group:'setup' }, topic:{ label:'New topic', group:'setup' }, lectureOutcomes:{ label:'Lecture', group:'setup' }, stages:{ label:'Stages', group:'setup' },
+    'merge-item':{ label:'Merge concepts', group:'removal' }, 'delete-item':{ label:'Delete concept', group:'removal' },
+    'delete-question':{ label:'Delete question', group:'removal' }, 'delete-course':{ label:'Delete course', group:'removal' },
+  };
+  const QGROUPS = [['all','All'],['questions','Questions'],['concepts','Concepts'],['setup','Courses, topics & lectures'],['removal','Deletions & merges'],['flagged','🚩 Flagged']];
+  const qState = { search:'', kind:'all', course:'', who:'', group:'course', openGroups:new Set(), closedGroups:new Set(), openRows:new Set() };
+  function qKindOf(e){
+    const d = e.data || {};
+    if(e.type==='question' && d.editingQuestionId) return QKINDS['edit-question'];
+    if(e.type==='edit-item' && /fun fact/i.test(e.note||'')) return { label:'Fun fact', group:'concepts' };
+    if(e.type==='edit-item' && /\+ note/i.test(e.note||'')) return { label:'Note', group:'concepts' };
+    return QKINDS[e.type] || { label: e.type || 'Entry', group:'setup' };
+  }
+  const qCourseOf = e => { const d = e.data || {}; return d.theme || d.course || d.themeId || (e.type==='course' ? d.id : '') || ''; };
+  const qTopicOf = e => { const d = e.data || {}; return d.topic || d.topicId || d.fromTopicId || ''; };
+  const qTopicLabel = id => (KNOWN_TOPICS[id] || {}).label || (RD.TOPICS[id] || {}).label || id;
+  const qItemLabel = id => (KNOWN_ITEMS.find(i=> i.id===id) || {}).label || id;
+  const qWhoOf = e => e.contributorName || 'Anonymous';
+  function qHeadline(e){
+    const d = e.data || {};
+    if(e.type==='question' || e.type==='funfact-question') return d.prompt || e.title;
+    if(e.type==='lectureOutcomes') return `${d.classKey||''} ${d.label||''}`.trim() || e.title;
+    if(e.type==='merge-item') return `${d.fromLabel||d.fromItemId} → ${d.toLabel||d.toItemId}`;
+    return d.label || e.title || '(untitled)';
+  }
+  function qWhere(e){
+    const d = e.data || {}, bits = [];
+    const c = qCourseOf(e), t = qTopicOf(e);
+    if(c) bits.push(c);
+    if(t) bits.push(qTopicLabel(t));
+    if(d.itemId && e.type==='question') bits.push(qItemLabel(d.itemId));
+    if(d.class) bits.push(d.class);
+    return bits.join(' › ');
+  }
+  function qAgo(t){
+    if(!t) return ''; const s = (Date.now() - t) / 1000;
+    if(s < 90) return 'just now'; if(s < 3600) return Math.round(s/60) + ' min ago'; if(s < 86400) return Math.round(s/3600) + ' h ago';
+    if(s < 86400*14) return Math.round(s/86400) + ' days ago'; return new Date(t).toLocaleDateString();
+  }
+  // ---- preview ----
+  const qOptionsHtml = (opts, correct)=> `<ol class="qp-opts">${(opts||[]).map((o,i)=> `<li class="${i===correct?'ok':''}">${i===correct?'✓ ':''}${esc2(o)}</li>`).join('')}</ol>`;
+  const qQuestionCard = (q, title)=> `<div class="qp-card">${title ? `<div class="qi-detail-label">${title}</div>` : ''}<div class="qp-prompt">${esc2(q.prompt||'')}</div>${qOptionsHtml(q.options, q.correctIndex)}
+    ${q.explanation ? `<div class="qp-expl"><b>Explanation:</b> ${esc2(q.explanation)}</div>` : '<div class="qp-expl qp-missing">No explanation given</div>'}
+    <div class="qp-meta">${[q.difficulty ? `Difficulty: ${esc2(q.difficulty)}` : '', q.class ? `Lecture ${esc2(q.class)}` : ''].filter(Boolean).join(' · ')}</div></div>`;
+  const qText = v => Array.isArray(v) ? v.map(x=> typeof x==='string' ? x : (x && (x.text || x.prompt)) || '').filter(Boolean) : [];
+  function qItemDiffHtml(e){
+    const d = e.data || {};
+    const live = RD.THEMES[d.theme]?.topics?.[d.topicId]?.items?.[d.itemId];
+    const field = (k, label)=> (d[k] && (!live || String(live[k]||'') !== String(d[k]))) ? `<div class="qi-detail-label">${label}${live && live[k] ? ' (changed)' : ''}</div><div class="qi-detail-text">${esc2(d[k])}</div>` : '';
+    const added = (k, label)=>{ const before = new Set(qText(live && live[k])); const add = qText(d[k]).filter(x=> !before.has(x));
+      return add.length ? `<div class="qi-detail-label">${live ? 'Added ' : ''}${label}</div><div class="qi-detail-text">${add.map(x=> '• ' + esc2(x)).join('\n')}</div>` : ''; };
+    const html = (live && d.label !== live.label ? `<div class="qi-detail-label">Renamed</div><div class="qi-detail-text">${esc2(live.label)} → ${esc2(d.label)}</div>` : '')
+      + field('description','Description') + field('mechanism','Mechanism') + added('funFacts','fun facts') + added('notes','notes') + added('activeRecall','active-recall prompts') + added('saq','short-answer questions');
+    return html || `<div class="qi-detail-text">No visible changes to the text — open “Show code” to see exactly what was submitted.</div>`;
+  }
+  function qPreviewHtml(e){
+    const d = e.data || {}; let body;
+    if(e.type==='question' || e.type==='funfact-question'){
+      const live = d.editingQuestionId ? findQuestionLocation(d.editingQuestionId) : null;
+      body = live ? `<div class="qp-compare">${qQuestionCard(live.question, 'Now in the game')}${qQuestionCard(d, 'Proposed')}</div>` : qQuestionCard(d, '');
+    } else if(e.type==='item' || e.type==='edit-item') body = qItemDiffHtml(e);
+    else if(e.type==='lectureOutcomes') body = `<div class="qi-detail-label">Learning outcomes</div><div class="qi-detail-text">${esc2((d.outcomes||[]).map(o=> '• ' + o).join('\n') || '(none)')}</div>`;
+    else body = queueDetailHtmlInner(e).replace(/<div class="qi-detail-label">Generated code<\/div><pre[\s\S]*?<\/pre>/, '');
+    return removalFlagBannerHtml(e) + body
+      + (e.code ? `<details class="qp-code"><summary>Show code</summary><pre class="code-out" style="margin:6px 0 0;max-height:220px;">${esc2(e.code)}</pre></details>` : '');
+  }
+  // ---- one row ----
+  function qRowHtml(key, e){
+    const k = qKindOf(e), open = qState.openRows.has(key), formKind = RESUMABLE_FORM[e.type];
+    const mine = contributorDisplayLabel(e) === 'You';
+    return `<div class="queue-item q2${mine ? ' qi-mine' : ''}${e.removalFlagged ? ' qi-removal-flagged' : ''}" data-key="${esc2(key)}">
+      <div class="q2-row">
+        <span class="q2-kind q2-${k.group}">${esc2(k.label)}</span>
+        <div class="q2-main"><div class="q2-head">${e.removalFlagged ? '🚩 ' : ''}${esc2(qHeadline(e))}</div>
+          <div class="qi-meta">${[qWhere(e), `by ${esc2(contributorDisplayLabel(e) || qWhoOf(e))}`, `<span title="${e.createdAt ? new Date(e.createdAt).toLocaleString() : ''}">${qAgo(e.createdAt)}</span>`].filter(Boolean).join(' · ')}</div></div>
+        <div class="qi-actions">
+          <button class="qi-toggle" type="button">${open ? '▴ Hide' : '👁 Preview'}</button>
+          ${formKind ? '<button class="subtle qi-edit" type="button" title="Edit this queued entry">✏️</button>' : ''}
+          <button class="subtle qi-flag-removal" type="button" title="${e.removalFlagged ? 'Un-flag' : 'Flag this for an admin to remove'}">${e.removalFlagged ? '↺' : '🚩'}</button>
+          <button class="subtle list-remove" type="button" title="Remove from the queue (developer, after merging)">✕</button>
+        </div>
+      </div>
+      <div class="qi-details" style="display:${open ? 'block' : 'none'};">${open ? qPreviewHtml(e) : ''}</div></div>`;
+  }
+  function wireQueueRow(row){
+    const key = row.dataset.key;
+    row.querySelector('.qi-toggle').addEventListener('click', ()=>{
+      const d = row.querySelector('.qi-details'), open = d.style.display !== 'block';
+      if(open){ qState.openRows.add(key); d.innerHTML = qPreviewHtml(batch[key] || {}); wireEditButtons(d); } else qState.openRows.delete(key);
+      d.style.display = open ? 'block' : 'none'; row.querySelector('.qi-toggle').textContent = open ? '▴ Hide' : '👁 Preview';
     });
+    row.querySelector('.qi-flag-removal').addEventListener('click', ()=> toggleQueueRemovalFlag(key));
+    const edit = row.querySelector('.qi-edit');
+    if(edit) edit.addEventListener('click', ()=>{
+      if(!requireMaintainerUnlock()) return;
+      const live = batch[key]; if(!live) return; // could have been merged/removed by someone else in the meantime
+      const formKind = RESUMABLE_FORM[live.type];
+      showTab('add'); showPane('add', formKind);
+      if(formKind==='item') loadItemFromQueueEntry(key, live.data); else loadQuestionFromQueueEntry(key, live.data);
+    });
+    row.querySelector('.list-remove').addEventListener('click', ()=>{
+      if(!requireDeveloper()) return;
+      const entry = batch[key];
+      // Un-queuing something never merged: clean up the picker entries it added, so no phantom stays behind.
+      if(entry && entry.type==='item' && entry.data && !RD.THEMES[entry.data.theme]?.topics?.[entry.data.topicId]?.items?.[entry.data.itemId]){ const i = KNOWN_ITEMS.findIndex(it=>it.id===entry.data.itemId); if(i>=0) KNOWN_ITEMS.splice(i,1); }
+      if(entry && entry.type==='course' && entry.data && !RD.THEMES[entry.data.id]){ const i = KNOWN_THEMES.findIndex(t=>t.id===entry.data.id); if(i>=0) KNOWN_THEMES.splice(i,1); }
+      if(entry && entry.type==='topic' && entry.data && !RD.THEMES[entry.data.theme]?.topics?.[entry.data.topicId]) delete KNOWN_TOPICS[entry.data.topicId];
+      removeFromQueue(key); refreshAllPickers();
+    });
+    wireEditButtons(row);
+  }
+  // ---- the content list: toolbar + groups ----
+  function qMatches(e){
+    const k = qKindOf(e);
+    if(qState.kind==='flagged' ? !e.removalFlagged : (qState.kind!=='all' && k.group!==qState.kind)) return false;
+    if(qState.course && qCourseOf(e)!==qState.course) return false;
+    if(qState.who && qWhoOf(e)!==qState.who) return false;
+    if(qState.search){
+      const hay = [qHeadline(e), e.title, e.note, qWhere(e), qWhoOf(e), k.label, (e.data||{}).explanation, ...((e.data||{}).options||[])].join(' ').toLowerCase();
+      // every word must start a word in the entry ("3" finds "question 3", not "L3")
+      const esc = w=> w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if(!qState.search.toLowerCase().split(/\s+/).every(w=> new RegExp('(^|[^a-z0-9])' + esc(w)).test(hay))) return false;
+    }
+    return true;
+  }
+  function qSummaryOf(entries){
+    const counts = {}; entries.forEach(([,e])=>{ const l = qKindOf(e).label; counts[l] = (counts[l]||0) + 1; });
+    const who = [...new Set(entries.map(([,e])=> qWhoOf(e)))];
+    return `${Object.entries(counts).sort((a,b)=> b[1]-a[1]).map(([l,n])=> `${n} ${l.toLowerCase()}${n>1 && !/s$/.test(l) ? 's' : ''}`).join(' · ')} — ${who.slice(0,3).map(esc2).join(', ')}${who.length>3 ? ` +${who.length-3}` : ''}`;
+  }
+  function renderContentQueue(all){
+    const box = batchListContent;
+    // toolbar (built once, then only its counts/options refresh)
+    if(!box.querySelector('.q2-bar')){
+      box.innerHTML = `<div class="q2-bar">
+          <input type="text" class="struct-search q2-search" placeholder="🔍 Search question text, concept, person…" style="margin:0;">
+          <select class="q2-course"><option value="">All courses</option></select>
+          <select class="q2-who"><option value="">Everyone</option></select>
+          <select class="q2-group"><option value="course">Group by course &amp; topic</option><option value="who">Group by person</option><option value="none">No grouping (newest first)</option></select>
+        </div><div class="an-chips q2-chips"></div><div class="q2-list"></div>`;
+      box.querySelector('.q2-search').addEventListener('input', ev=>{ qState.search = ev.target.value.trim(); renderBatch(); });
+      box.querySelector('.q2-course').addEventListener('change', ev=>{ qState.course = ev.target.value; renderBatch(); });
+      box.querySelector('.q2-who').addEventListener('change', ev=>{ qState.who = ev.target.value; renderBatch(); });
+      box.querySelector('.q2-group').addEventListener('change', ev=>{ qState.group = ev.target.value; renderBatch(); });
+    }
+    const fillSel = (sel, values, cur, allLabel)=>{ const html = `<option value="">${allLabel}</option>` + values.map(v=> `<option value="${esc2(v)}"${v===cur?' selected':''}>${esc2(v)}</option>`).join(''); if(sel.dataset.html !== html){ sel.innerHTML = html; sel.dataset.html = html; } };
+    fillSel(box.querySelector('.q2-course'), [...new Set(all.map(([,e])=> qCourseOf(e)).filter(Boolean))].sort(), qState.course, 'All courses');
+    fillSel(box.querySelector('.q2-who'), [...new Set(all.map(([,e])=> qWhoOf(e)))].sort(), qState.who, 'Everyone');
+    box.querySelector('.q2-chips').innerHTML = QGROUPS.map(([id,label])=>{
+      const n = id==='all' ? all.length : id==='flagged' ? all.filter(([,e])=> e.removalFlagged).length : all.filter(([,e])=> qKindOf(e).group===id).length;
+      return (n || id==='all') ? `<button type="button" class="an-chip${qState.kind===id ? ' on' : ''}" data-qk="${id}">${label} <small>${n}</small></button>` : '';
+    }).join('');
+    box.querySelectorAll('.q2-chips [data-qk]').forEach(b=> b.addEventListener('click', ()=>{ qState.kind = b.dataset.qk; renderBatch(); }));
+
+    const list = box.querySelector('.q2-list');
+    const shown = all.filter(([,e])=> qMatches(e));
+    if(!all.length){ list.innerHTML = '<p class="batch-empty">Nothing to merge yet — add something from "Add content" or "Bulk import".</p>'; return; }
+    if(!shown.length){ list.innerHTML = '<p class="batch-empty">Nothing matches these filters.</p>'; return; }
+    let groups;
+    if(qState.group==='none') groups = [['', 'All matching entries', [...shown].sort((a,b)=> (b[1].createdAt||0) - (a[1].createdAt||0))]];
+    else {
+      const m = new Map();
+      shown.forEach(([k,e])=>{
+        const id = qState.group==='who' ? qWhoOf(e) : `${qCourseOf(e) || 'No course'}${qTopicOf(e) ? ' › ' + qTopicLabel(qTopicOf(e)) : ''}`;
+        if(!m.has(id)) m.set(id, []); m.get(id).push([k,e]);
+      });
+      groups = [...m.entries()].sort((a,b)=> a[0].localeCompare(b[0])).map(([id, es])=> [id, id, es.sort((a,b)=> (a[1].createdAt||0) - (b[1].createdAt||0))]);
+    }
+    // Small groups start open; big ones (bulk imports) start folded so the page stays scannable.
+    const isOpen = (id, n)=> qState.group==='none' || qState.openGroups.has(id) || (!qState.closedGroups.has(id) && (n <= 4 || groups.length === 1 || !!qState.search));
+    list.innerHTML = groups.map(([id, title, es])=> `<details class="q2-group" data-gid="${esc2(id)}"${isOpen(id, es.length) ? ' open' : ''}>
+        <summary><span class="q2-gtitle">${esc2(title)}</span> <span class="struct-qbadge">${es.length}</span><span class="q2-gsum">${qSummaryOf(es)}</span></summary>
+        ${es.map(([k,e])=> qRowHtml(k, e)).join('')}</details>`).join('');
+    list.querySelectorAll('.q2-group').forEach(g=> g.addEventListener('toggle', ()=>{ const id = g.dataset.gid; if(g.open){ qState.openGroups.add(id); qState.closedGroups.delete(id); } else { qState.openGroups.delete(id); qState.closedGroups.add(id); } }));
+    list.querySelectorAll('.queue-item').forEach(wireQueueRow);
+  }
+
+  // ---- reports: open / solved, grouped by what they're about ----
+  const rState = { show:'open' };
+  const rTargetOf = e => { const d = e.data || {}; return d.qId ? 'q:' + d.qId : 'i:' + (d.itemId || e.title); };
+  function markReportsSolved(keys, solved){
+    let fields;
+    if(solved){
+      const note = prompt('Mark as solved. What was done? (optional, e.g. "fixed the answer key")', '');
+      if(note === null) return; // cancelled
+      fields = { solved:true, solvedBy: currentContributorName(), solvedAt: Date.now(), solvedNote: note.trim() || null };
+    } else fields = { solved:false, solvedBy:null, solvedAt:null, solvedNote:null };
+    keys.forEach(k=> setQueueRemovalFlag(k, { ...fields }));
+    toast(solved ? `Marked solved${keys.length>1 ? ` (${keys.length} reports)` : ''}` : 'Reopened');
+  }
+  function renderReports(reportEntries){
+    const box = batchListReports;
+    const groups = new Map();
+    reportEntries.forEach(([k,e])=>{ const t = rTargetOf(e); if(!groups.has(t)) groups.set(t, []); groups.get(t).push([k,e]); });
+    const all = [...groups.values()].map(es=> ({ es, solved: es.every(([,e])=> e.solved), latest: Math.max(...es.map(([,e])=> e.createdAt||0)) }));
+    const nOpen = all.filter(g=> !g.solved).length, nSolved = all.length - nOpen;
+    const list = all.filter(g=> rState.show==='all' || (rState.show==='open' ? !g.solved : g.solved)).sort((a,b)=> b.latest - a.latest);
+    const chip = (id, label, n)=> `<button type="button" class="an-chip${rState.show===id ? ' on' : ''}" data-rs="${id}">${label} <small>${n}</small></button>`;
+    box.innerHTML = `<div class="an-chips">${chip('open','🟠 Open', nOpen)}${chip('solved','✅ Solved', nSolved)}${chip('all','All', all.length)}</div>`
+      + (list.length ? list.map(g=>{
+        const [, first] = g.es[0], d = first.data || {};
+        const live = d.qId ? findQuestionLocation(d.qId) : null;
+        const prompt = d.prompt || (live && live.question.prompt) || '';
+        const where = [d.theme, d.topicId ? qTopicLabel(d.topicId) : '', d.itemId ? qItemLabel(d.itemId) : ''].filter(Boolean).join(' › ');
+        const solvedE = g.es.find(([,e])=> e.solved);
+        const keys = g.es.map(([k])=> k).join(',');
+        return `<div class="queue-item r2${g.solved ? ' r2-solved' : ''}" data-keys="${esc2(keys)}">
+          <div class="q2-row">
+            <span class="q2-kind ${g.solved ? 'q2-solved' : 'q2-open'}">${g.solved ? '✅ Solved' : '🟠 Open'}</span>
+            <div class="q2-main"><div class="q2-head">${first.type==='flag-question' ? '' : '📄 '}${esc2(prompt || first.title)}</div>
+              <div class="qi-meta">${esc2(where || '(location unknown)')}${g.es.length>1 ? ` · <b>reported ${g.es.length} times</b>` : ''} · latest ${qAgo(g.latest)}</div></div>
+            <div class="qi-actions">${reportEditButtonHtml(first, 'subtle')}
+              ${g.solved ? '<button type="button" class="subtle r2-reopen">↺ Reopen</button>' : '<button type="button" class="primary r2-solve">✅ Mark solved</button>'}
+              <button class="subtle r2-remove" type="button" title="Delete these reports for good (developer)">✕</button></div>
+          </div>
+          <div class="r2-reasons">${g.es.map(([,e])=> `<div class="r2-reason">“${esc2((e.data||{}).reason || e.note || '(no reason given)')}” <span>— ${esc2(qWhoOf(e))}, ${qAgo(e.createdAt)}</span></div>`).join('')}</div>
+          ${live && !g.solved ? `<details class="qp-code"><summary>Show the question as it is now</summary>${qQuestionCard(live.question, '')}</details>` : ''}
+          ${solvedE ? `<div class="r2-solvednote">✅ Solved by ${esc2(solvedE[1].solvedBy || 'someone')}${solvedE[1].solvedAt ? ', ' + qAgo(solvedE[1].solvedAt) : ''}${solvedE[1].solvedNote ? `: ${esc2(solvedE[1].solvedNote)}` : ''}</div>` : ''}
+        </div>`;
+      }).join('') : `<p class="batch-empty">${rState.show==='open' ? 'No open reports — all caught up. 🎉' : 'Nothing here.'}</p>`);
+    box.querySelectorAll('[data-rs]').forEach(b=> b.addEventListener('click', ()=>{ rState.show = b.dataset.rs; renderBatch(); }));
+    box.querySelectorAll('.r2').forEach(row=>{
+      const keys = row.dataset.keys.split(',');
+      const s = row.querySelector('.r2-solve'); if(s) s.addEventListener('click', ()=> markReportsSolved(keys, true));
+      const r = row.querySelector('.r2-reopen'); if(r) r.addEventListener('click', ()=> markReportsSolved(keys, false));
+      row.querySelector('.r2-remove').addEventListener('click', ()=>{ if(!requireDeveloper()) return; if(!confirm(`Delete ${keys.length>1 ? `these ${keys.length} reports` : 'this report'} for good?`)) return; keys.forEach(removeFromQueue); });
+      wireEditButtons(row);
+    });
+    return nOpen;
   }
   function renderBatch(){
     syncKnownFromQueue();
@@ -4756,11 +4985,11 @@
     const contentEntries = all.filter(([k,e])=>!isReport(e) && !isFeedback(e)).sort((a,b)=> (a[1].createdAt||0) - (b[1].createdAt||0));
     const reportEntries = all.filter(([k,e])=>isReport(e)).sort((a,b)=> (a[1].createdAt||0) - (b[1].createdAt||0));
     queueTabBadge.textContent = contentEntries.length ? String(contentEntries.length) : '';
-    reportsTabBadge.textContent = (maintainerUnlocked && reportEntries.length) ? String(reportEntries.length) : '';
-    renderQueueRows(batchListContent, contentEntries, 'Nothing to merge yet — add something from "Add content" or "Bulk import".');
+    renderContentQueue(contentEntries);
     // Player reports and sent feedback are for admins and the developer only.
-    if(maintainerUnlocked) renderQueueRows(batchListReports, reportEntries, 'No reports from players yet.');
-    else { batchListReports.innerHTML = `<div class="struct-empty">🔒 Reports are for admins — log in under <button type="button" class="link-btn" data-goto="maintainer">🔐 Log in</button>.</div>`; batchListReports.querySelector('[data-goto]').addEventListener('click', ()=> showTab('maintainer')); }
+    // The badge counts OPEN reports only -- solved ones stay listed under ✅ Solved.
+    if(maintainerUnlocked){ const nOpen = renderReports(reportEntries); reportsTabBadge.textContent = nOpen ? String(nOpen) : ''; }
+    else { reportsTabBadge.textContent = ''; batchListReports.innerHTML = `<div class="struct-empty">🔒 Reports are for admins — log in under <button type="button" class="link-btn" data-goto="maintainer">🔐 Log in</button>.</div>`; batchListReports.querySelector('[data-goto]').addEventListener('click', ()=> showTab('maintainer')); }
     renderFeedbackList();
   }
   function fullBatchText(){
