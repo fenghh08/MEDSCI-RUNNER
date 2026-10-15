@@ -5436,7 +5436,16 @@
       else th.topics[o.topicId] = th.topics[o.topicId] || { items:{} };
       const existingItem = th.topics[o.topicId].items[o.itemId];
       const data = itemDataObject(o);
-      if(entry.type === 'edit-item') data.questions = o.existingQuestions || [];
+      if(entry.type === 'edit-item'){
+        // Keep every question the concept has at THIS point in the merge,
+        // plus any from the edit's own snapshot. existingQuestions is copied
+        // when the edit form was opened, so it can predate a merge-item in
+        // the same batch that moved questions onto this concept -- using it
+        // alone silently dropped those (5 questions were lost this way).
+        const cur = (existingItem && existingItem.questions) || [];
+        const ids = new Set(cur.map(q=> q.id));
+        data.questions = [...cur, ...(o.existingQuestions || []).filter(q=> !ids.has(q.id))];
+      }
       else if(existingItem) data.questions = existingItem.questions || [];
       // Credits whoever ORIGINALLY created this item even through later
       // edits by someone else -- the point is finding the creator to
@@ -5529,9 +5538,13 @@
       full = full.replace(/(\n  window\.RUNNER_DATA = \{)/, `\n${serializeTopLevelConst('FUN_FACT_QUESTIONS', funFactQuestions)}\n$1`);
       full = full.replace(/(window\.RUNNER_DATA = \{[^}]*)\};/, '$1FUN_FACT_QUESTIONS,\n  };');
     }
-    if(stagesTouched){
-      const stPattern = /const STAGES = \{[\s\S]*?\n  \};/, rtPattern = /const RUNNABLE_THEMES = \[[^\]]*\];/;
-      if(!stPattern.test(full) || !rtPattern.test(full)) return { ok:false, error:'the merge template has no STAGES / RUNNABLE_THEMES block to update — refresh the template from GitHub', appliedCount, skippedNoData };
+    // Always written from the LOADED game-data.js (plus any queued stages
+    // change), never left as the template's copy: a stale template once
+    // dropped PCOL2021 from RUNNABLE_THEMES and its Runner stages silently.
+    const stPattern = /const STAGES = \{[\s\S]*?\n  \};/, rtPattern = /const RUNNABLE_THEMES = \[[^\]]*\];/;
+    const haveStageBlocks = stPattern.test(full) && rtPattern.test(full);
+    if(stagesTouched && !haveStageBlocks) return { ok:false, error:'the merge template has no STAGES / RUNNABLE_THEMES block to update — refresh the template from GitHub', appliedCount, skippedNoData };
+    if(haveStageBlocks){
       full = full.replace(stPattern, serializeTopLevelConst('STAGES', stagesOut).trim());
       full = full.replace(rtPattern, `const RUNNABLE_THEMES = ${serializeValue(runnableOut, 1)};`);
     }
