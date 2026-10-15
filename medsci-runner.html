@@ -2561,7 +2561,7 @@
     return {
       start: RUNNABLE_THEMES.includes(id) && !!STAGES[id] && hasTopics,
       guide: hasTopics,
-      lectures: !!buildCourseUnitMap().units[unit],
+      lectures: (buildCourseUnitMap().units[unit] || []).length > 0,
       practice: hasTopics,
     };
   }
@@ -5598,7 +5598,18 @@
         });
       });
     });
+    // Every course and every lecture authored in COURSES is listed too, even
+    // before a concept is tagged to it -- this list used to be built only
+    // from tagged concepts, so a new course didn't appear at all and a
+    // course showed 2 of its 8 lectures (reported: "courses not consistent").
     const units = {}; // unit code -> [full relatedCourse lines]
+    Object.values(COURSES).forEach(c=>{
+      units[c.code] = units[c.code] || [];
+      Object.keys(c.classes || {}).forEach(cls=>{
+        const line = courseDisplayString(c.code, cls);
+        if(line && !(line in courseMap)) courseMap[line] = 0;
+      });
+    });
     Object.keys(courseMap).forEach(name=>{
       const unit = name.split(/\s+/)[0] || 'Other';
       (units[unit] = units[unit] || []).push(name);
@@ -5635,7 +5646,8 @@
         const card = document.createElement('div');
         card.className = 'item-card';
         card.dataset.search = unit.toLowerCase();
-        card.innerHTML = `<div class="ic-name">📘 ${unit}</div><div class="ic-hint">${units[unit].length} lecture${units[unit].length===1?'':'s'} · ${itemCount} item${itemCount===1?'':'s'}</div>`;
+        const nLec = units[unit].length;
+        card.innerHTML = `<div class="ic-name">📘 ${unit}</div><div class="ic-hint">${nLec ? `${nLec} lecture${nLec===1?'':'s'} · ${itemCount} item${itemCount===1?'':'s'}` : 'No lectures added yet'}</div>`;
         card.addEventListener('click', ()=> openCourseUnitLectures(unit));
         guideItemGrid.appendChild(card);
       });
@@ -5670,13 +5682,13 @@
     guideItemGrid.classList.add('list-mode');
     guideItemGrid.innerHTML = '';
     if(!lectures.length){
-      guideItemGrid.innerHTML = `<p class="p-desc">No lectures found for this course.</p>`;
+      guideItemGrid.innerHTML = `<p class="p-desc">No lectures have been added to this course yet.</p>`;
     } else {
       lectures.forEach(name=>{
         const card = document.createElement('div');
         card.className = 'item-card list-row';
         card.dataset.search = name.toLowerCase();
-        card.innerHTML = `<div class="ic-name">🎓 ${name}</div><div class="ic-hint">${courseMap[name]} item${courseMap[name]===1?'':'s'}</div>`;
+        card.innerHTML = `<div class="ic-name">🎓 ${name}</div><div class="ic-hint">${courseMap[name] ? `${courseMap[name]} item${courseMap[name]===1?'':'s'}` : 'No items yet'}</div>`;
         card.addEventListener('click', ()=> openCourseView(name, 'unit'));
         guideItemGrid.appendChild(card);
       });
