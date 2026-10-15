@@ -190,6 +190,7 @@
   details.struct-item-toggle > summary::before{ content:'▸ '; color:var(--faint); font-size:11px; }
   details.struct-item-toggle[open] > summary::before{ content:'▾ '; }
   details.struct-item-toggle > summary:hover{ background:#f0f2f7; }
+  .struct-course-name{ font-weight:400; color:var(--muted); font-size:.85em; margin-left:4px; }
   .struct-qbadge{ font-size:11px; color:var(--muted); background:#f0f2f7; border-radius:10px; padding:1px 8px; margin-left:6px; }
   .struct-item-detail{ background:#fbfbfd; border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin:4px 0 8px 18px; font-size:13px; }
   .struct-q{ border-top:1px solid var(--line); padding:8px 0; }
@@ -1799,7 +1800,15 @@
   Object.values(RD.THEMES).forEach(course=>{
     Object.entries(course.topics).forEach(([topicId, t])=>{ RD.TOPICS[topicId] = { label:t.label, icon:t.icon, color:t.color }; });
   });
-  const KNOWN_THEMES = Object.entries(RD.THEMES).map(([id,t])=>({ id, label:t.label }));
+  // ONE rule for naming a course, everywhere: its unit code is the title and
+  // its name sits beside it, both from COURSES (code / label). THEMES[id].label
+  // used to be free text and drifted (some courses had the code, some the
+  // name), so it's forced to the code here -- every screen then agrees, and a
+  // merge writes the corrected value back into game-data.js.
+  Object.entries(RD.THEMES).forEach(([id, t])=>{ t.label = ((RD.COURSES||{})[id] || {}).code || id; });
+  const KNOWN_THEMES = Object.entries(RD.THEMES).map(([id,t])=>({ id, label:t.label, name:((RD.COURSES||{})[id]||{}).label || '' }));
+  // "MEDS3002 — Breakthroughs in Medical Science" (or just the code when there's no separate name)
+  function courseFull(id){ const t = KNOWN_THEMES.find(x=> x.id===id) || {}; const name = (KNOWN_COURSES[id]||{}).label || t.name || ''; const code = t.label || id; return name && name!==code ? `${code} — ${name}` : code; }
   const KNOWN_TOPICS = {};
   Object.entries(RD.THEMES).forEach(([themeId, theme])=>{
     Object.keys(theme.topics).forEach(topicId=>{ KNOWN_TOPICS[topicId] = { label:(RD.TOPICS[topicId]||{}).label || topicId, theme:themeId }; });
@@ -2301,7 +2310,7 @@
       return { options, correctIndex: correctIndex<0?0:correctIndex };
     };
   }
-  function fillThemeSelect(sel){ sel.innerHTML = KNOWN_THEMES.map(t=>`<option value="${t.id}">${t.label}</option>`).join(''); }
+  function fillThemeSelect(sel){ sel.innerHTML = KNOWN_THEMES.map(t=>`<option value="${t.id}">${esc2(courseFull(t.id))}</option>`).join(''); }
   function fillTopicSelect(sel, themeId){
     const topics = Object.entries(KNOWN_TOPICS).filter(([id,t])=>t.theme===themeId);
     sel.innerHTML = topics.map(([id,t])=>`<option value="${id}">${t.label}</option>`).join('');
@@ -2773,7 +2782,7 @@
   // ---- Question bank: a flat, filterable view of every question, instead
   // of expanding each item one at a time under Browse content ----
   function fillBankCourseSelect(){
-    document.getElementById('bank_course').innerHTML = '<option value="">All courses</option>' + KNOWN_THEMES.map(t=>`<option value="${t.id}">${esc2(t.label)}</option>`).join('');
+    document.getElementById('bank_course').innerHTML = '<option value="">All courses</option>' + KNOWN_THEMES.map(t=>`<option value="${t.id}">${esc2(courseFull(t.id))}</option>`).join('');
   }
   function fillBankTopicSelect(){
     const courseId = document.getElementById('bank_course').value;
@@ -3290,7 +3299,7 @@
     const code = c_code.value.trim().replace(/\s+/g, '').toUpperCase();
     return { id: code, label: c_label.value.trim() || code || 'Untitled course', icon: c_icon.value.trim() || '📘', blurb: c_blurb.value.trim() || '(add a description)' };
   }
-  function courseCodeString(o){ return `// new course — new top-level key in THEMES *and* COURSES in game-data.js\nTHEMES['${o.id}'] = {\n  label:'${esc(o.label)}', icon:'${o.icon}',\n  blurb:'${esc(o.blurb)}',\n  topics:{}\n};\nCOURSES['${o.id}'] = { code:'${o.id}', label:'${esc(o.label)}', classes:{} };`; }
+  function courseCodeString(o){ return `// new course — new top-level key in THEMES *and* COURSES in game-data.js\nTHEMES['${o.id}'] = {\n  label:'${o.id}', icon:'${o.icon}',\n  blurb:'${esc(o.blurb)}',\n  topics:{}\n};\nCOURSES['${o.id}'] = { code:'${o.id}', label:'${esc(o.label)}', classes:{} };`; }
   function renderCourse(){ const o = buildCourseObject(); c_idPreview.textContent = `id: ${o.id}`; c_codeOut.textContent = courseCodeString(o); }
   document.getElementById('c_copyOne').addEventListener('click', ()=> copyText(courseCodeString(buildCourseObject())));
   document.getElementById('c_addBatch').addEventListener('click', ()=>{
@@ -3485,7 +3494,7 @@
   // importers embed whichever they happened to have on hand (label for the
   // grid/lecture importer, raw theme id for the CSV item importer).
   function resolveThemeId(text){
-    const t = KNOWN_THEMES.find(t=> t.id.toLowerCase()===text.toLowerCase() || t.label.toLowerCase()===text.toLowerCase());
+    const t = KNOWN_THEMES.find(t=> t.id.toLowerCase()===text.toLowerCase() || t.label.toLowerCase()===text.toLowerCase() || (t.name||'').toLowerCase()===text.toLowerCase());
     return t ? t.id : null;
   }
   function resolveCourseCode(text){
@@ -3586,7 +3595,7 @@
       if(!courseInput){ errors.push(`Row ${rowNum}: missing course, skipped.`); continue; }
       if(!topicInput){ errors.push(`Row ${rowNum}: missing topic, skipped.`); continue; }
       if(!itemLabel){ errors.push(`Row ${rowNum}: missing item, skipped.`); continue; }
-      const theme = KNOWN_THEMES.find(t=>t.id.toLowerCase()===courseInput.toLowerCase() || t.label.toLowerCase()===courseInput.toLowerCase());
+      const theme = KNOWN_THEMES.find(t=>t.id.toLowerCase()===courseInput.toLowerCase() || t.label.toLowerCase()===courseInput.toLowerCase() || (t.name||'').toLowerCase()===courseInput.toLowerCase());
       if(!theme){ errors.push(`Row ${rowNum}: course "${courseInput}" doesn't match any existing course, skipped.`); continue; }
       const topicEntry = Object.entries(KNOWN_TOPICS).filter(([id,t])=>t.theme===theme.id).find(([id,t])=> id.toLowerCase()===topicInput.toLowerCase() || t.label.toLowerCase()===topicInput.toLowerCase());
       if(!topicEntry){ errors.push(`Row ${rowNum}: topic "${topicInput}" doesn't match any topic under ${theme.label}, skipped.`); continue; }
@@ -3855,7 +3864,7 @@
         themeItems += topicItems; themeQuestions += topicQuestions;
         themeHtml += `<div class="struct-topic">${esc2(topic.label)} <span class="struct-counts">${topicItems} item${topicItems===1?'':'s'} · ${topicQuestions} question${topicQuestions===1?'':'s'}</span> <button type="button" class="link-btn" style="margin-left:8px;" data-add-item-topic="${theme.id}::${topicId}">➕ add an item here</button></div>${topicHtml}`;
       });
-      html += `<details class="struct-theme-toggle" open><summary class="struct-theme">${esc2(theme.label)} <span class="struct-counts">${themeItems} item${themeItems===1?'':'s'} · ${themeQuestions} question${themeQuestions===1?'':'s'}</span> <button type="button" class="danger struct-edit-link" data-delete-course="${theme.id}">🗑 Request deletion</button></summary>${themeHtml}</details>`;
+      html += `<details class="struct-theme-toggle" open><summary class="struct-theme">${esc2(theme.label)}${courseFull(theme.id)!==theme.label ? ` <span class="struct-course-name">${esc2(courseFull(theme.id).slice(theme.label.length + 3))}</span>` : ''} <span class="struct-counts">${themeItems} item${themeItems===1?'':'s'} · ${themeQuestions} question${themeQuestions===1?'':'s'}</span> <button type="button" class="danger struct-edit-link" data-delete-course="${theme.id}">🗑 Request deletion</button></summary>${themeHtml}</details>`;
     });
     structureList.innerHTML = html;
     const totalLectures = Object.values(KNOWN_COURSES).reduce((n, c)=> n + Object.keys(c.classes||{}).length, 0);
@@ -3866,7 +3875,7 @@
   function buildStructureText(){
     let out = '';
     KNOWN_THEMES.forEach(theme=>{
-      out += `${theme.label}\n`;
+      out += `${courseFull(theme.id)}\n`;
       Object.entries(KNOWN_TOPICS).filter(([id,t])=>t.theme===theme.id).forEach(([topicId, topic])=>{
         out += `  ${topic.label}\n`;
         KNOWN_ITEMS.filter(it=>it.theme===theme.id && it.topic===topicId).forEach(it=>{ out += `    - ${it.label}\n`; });
@@ -3895,7 +3904,7 @@
     container.innerHTML = INCOMPLETE_FIELDS.map(f=>`<label><input type="checkbox" class="incfilter-check" value="${f.key}" ${f.core?'checked':''}> ${f.label}</label>`).join('');
     container.querySelectorAll('.incfilter-check').forEach(cb=>cb.addEventListener('change', renderIncompleteSummary));
     const courseSel = document.getElementById('incompleteCourseFilter');
-    courseSel.innerHTML = `<option value="">All courses</option>` + KNOWN_THEMES.map(t=>`<option value="${esc2(t.id)}">${esc2(t.label)}</option>`).join('');
+    courseSel.innerHTML = `<option value="">All courses</option>` + KNOWN_THEMES.map(t=>`<option value="${esc2(t.id)}">${esc2(courseFull(t.id))}</option>`).join('');
     courseSel.addEventListener('change', renderIncompleteSummary);
   }
   function renderIncompleteSummary(){
@@ -3924,7 +3933,7 @@
       const byTopic = groups[theme.id];
       if(!byTopic) return;
       const n = Object.values(byTopic).reduce((sum, rows)=> sum + rows.length, 0);
-      html += `<details class="struct-theme-toggle" open><summary class="struct-theme">${esc2(theme.label)} <span class="struct-counts">${n} item${n===1?'':'s'} need attention</span></summary>`;
+      html += `<details class="struct-theme-toggle" open><summary class="struct-theme">${esc2(courseFull(theme.id))} <span class="struct-counts">${n} item${n===1?'':'s'} need attention</span></summary>`;
       Object.entries(KNOWN_TOPICS).filter(([topicId, topic])=> topic.theme===theme.id && byTopic[topicId]).forEach(([topicId, topic])=>{
         const rows = byTopic[topicId].sort((a,b)=> b.gaps.length - a.gaps.length);
         html += `<div class="struct-topic">${esc2(topic.label)} <span class="struct-counts">${rows.length}</span></div>` + rows.map(rowHtml).join('');
@@ -4059,7 +4068,7 @@
     const showingDetail = !!detailItem;
     const query = simEls.search.value.trim().toLowerCase().replace(/^#/, '');
 
-    simEls.title.innerHTML = `${esc2(theme.icon||'')} ${esc2(theme.label)} — study guide`;
+    simEls.title.innerHTML = `${esc2(theme.icon||'')} ${esc2(courseFull(simState.theme))} — study guide`;
     simEls.blurb.textContent = theme.blurb || '';
     simEls.browse.style.display = (showingDetail || query) ? 'none' : 'block';
     simEls.search.style.display = showingDetail ? 'none' : 'block';
@@ -4589,7 +4598,7 @@
         KNOWN_TOPICS[entry.data.topicId] = { label:entry.data.label||entry.data.topicId, theme:entry.data.theme };
       }
       if(entry.type==='course' && entry.data && entry.data.id){
-        if(!KNOWN_THEMES.some(t=>t.id===entry.data.id)) KNOWN_THEMES.push({ id:entry.data.id, label:entry.data.label||entry.data.id });
+        if(!KNOWN_THEMES.some(t=>t.id===entry.data.id)) KNOWN_THEMES.push({ id:entry.data.id, label:entry.data.id, name:entry.data.label||'' });
         // Also register the COURSES side (see c_addBatch/applyEntry) -- without
         // this, a pending course only ever shows up in Browse content (built
         // from KNOWN_THEMES) and never in the Lectures tab's course picker
@@ -5415,7 +5424,7 @@
     // creates the matching COURSES entry (see buildCourseObject()'s comment)
     // so the new course can immediately have lectures added under it.
     if(entry.type === 'course'){
-      themes[o.id] = { label:o.label, icon:o.icon, blurb:o.blurb, topics:(themes[o.id]||{}).topics||{} };
+      themes[o.id] = { label:o.id, icon:o.icon, blurb:o.blurb, topics:(themes[o.id]||{}).topics||{} }; // title is always the unit code; the name lives in COURSES
       courses[o.id] = { code:o.id, label:o.label, classes:(courses[o.id]||{}).classes||{} };
       return;
     }

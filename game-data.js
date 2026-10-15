@@ -13850,7 +13850,7 @@
       },
     },
     'SA2013': {
-      'label': 'Frontiers of Human Health',
+      'label': 'SA2013',
       'icon': '🧠',
       'blurb': 'This unit explores how advances in human genetics, genomics, and medical science improve our understanding of the human body and drive innovative treatments and future healthcare developments.',
       'topics': {
@@ -13892,7 +13892,7 @@
       },
     },
     'PCOL2021': {
-      'label': 'Foundations of Pharmacology',
+      'label': 'PCOL2021',
       'icon': '💊',
       'blurb': 'Have you ever wanted to know how drugs work? Pharmacology is the study of the properties and biological actions of drugs and chemicals and the key roles they play in the prevention and treatment of human diseases. In this unit of study you will be introduced to the foundational concepts in pharmacology: a) principles of drug action, b) pharmacokinetics and precision medicine, c) drug design, and d) drug development and regulation. Additionally, you will learn the tools pharmacologists use in their investigations and develop skills in laboratory and problem-based enquiry. You will have the opportunity to explore and apply the core concepts in pharmacology through practicals, simulations and problem-based workshops. By undertaking this unit you will not only learn to view health and disease through the lens of a pharmacologist, you will further develop valuable skills in critical thinking and problem solving, communication, digital literacy, teamwork and interdisciplinary effectiveness. This unit of study is highly recommended for students interested in pursuing a career in medicine and allied health professions (e.g. nursing, pharmacy, physiotherapy, dentistry) and medical research pathways.',
       'topics': {
@@ -16552,7 +16552,7 @@
       },
     },
     'PCOL3011': {
-      'label': 'Toxicology',
+      'label': 'PCOL3011',
       'icon': '💊',
       'blurb': 'We are constantly exposed to chemicals over our lifetime that can harm us and lead to disease and even death. The study of toxicology helps you understand why a chemical or drug can have toxic effects and what your risk is for harm. This understanding is central to drug development and chemical and drug regulation. In this this unit of study you will gain further knowledge in target organ toxicology (lung, liver, CNS), environmental toxicology (such as asbestos and pesticides) and the diverse world of plant and animal toxins. The fundamental mechanisms for toxic reactions in the human body will be explored. As a final consequence of exposure to many toxicants, the biology and causes of cancer are discussed. As part of the unit you will be introduced to methods for the collection and analysis of data from human and animal populations, including clinical trials, forensic problems and epidemiological data. This unit of study is highly recommended for students interested in pursuing a career in medicine and allied health professions (e.g., nursing, pharmacy, physiotherapy, dentistry) and medical research pathways.',
       'topics': {},

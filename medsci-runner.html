@@ -1827,6 +1827,10 @@
     return n === courseCode(id) ? '' : n;
   };
 
+  // Same rule applied to the data itself, so every screen that reads a
+  // course's THEMES label (summary, scenario, practice, guide…) agrees.
+  Object.keys(THEMES).forEach(id=>{ THEMES[id].label = courseCode(id); });
+
   // Topics are authored per-course now (each carries its own label/icon/
   // color inline under THEMES[courseId].topics[topicId]) rather than a
   // shared taxonomy, since a topic belongs to the specific course it's
