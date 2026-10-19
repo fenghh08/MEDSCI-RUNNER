@@ -3219,6 +3219,12 @@
     else if(screenState==='paused') resumeGame();
   }
   function endRun(outcome){
+    // The demo tour never shows a game over: refill and carry on.
+    if(demo.active && outcome==='loss'){
+      glucose = GAME_CONFIG.startingGlucose; updateGlucoseUI();
+      startResumeCountdown(900);
+      return;
+    }
     if(mp.active && !mp.finished){
       mpMarkDone(outcome==='win' ? 'finished' : (outcome==='ended' ? 'ended' : 'eliminated'));
       return;
@@ -4818,7 +4824,9 @@
     // would have it expire before ever seeing a bomb.
     if(mp.bombHellLeftMs > 0) mp.bombHellLeftMs = Math.max(0, mp.bombHellLeftMs - dt*1000);
     const inBombHell = mp.bombHellLeftMs > 0;
-    if(!inBombHell){
+    // The demo tour (?demo) places blocks/bombs itself in its Runner steps.
+    const scripted = demoHoldsSpawns();
+    if(!inBombHell && !scripted){
       obstacleTimer -= dt*1000;
       glucoseTimer -= dt*1000;
       if(obstacleTimer <= 0){
@@ -4831,7 +4839,7 @@
       }
     }
     bombTimer -= dt*1000;
-    if(bombTimer <= 0){
+    if(bombTimer <= 0 && !scripted){
       spawnBomb();
       if(inBombHell){
         // Host's pick (room.bombHellLevel). Easy falls back to built-in numbers
@@ -7134,6 +7142,287 @@
   // Open the game with ?debug=1 to get a couple of preview helpers on the
   // console -- lets anyone see the grenade/shield sequence in a solo run
   // without needing a second racer to throw one.
+  // ---------- demo tour (?demo) ----------
+  // A click-through walkthrough of the whole game for screen-recording a
+  // demo video: a caption card with Back/Next drives the REAL screens and the
+  // real run (same renderer, same question card), places blocks/bombs/
+  // glucose in front of Morris on cue, and stages a Group Race with
+  // simulated racers -- no Firebase (every room write already no-ops while
+  // mp.roomCode is unset). Life never runs out while it's on. Only exists
+  // with ?demo in the URL; ?demo=PCOL2021 picks the course, &name=Eason sets
+  // your racer name. Keys: N / PageDown = next, B / PageUp = back, H = hide card.
+  const demoParams = new URLSearchParams(location.search);
+  const demo = { active:false, i:0, holdSpawns:false, botTimer:null, floorTimer:null, ringRaf:0, ring:null, joinTimers:[] };
+  function demoHoldsSpawns(){ return demo.active && demo.holdSpawns; }
+  if(demoParams.has('demo')){
+    const want = demoParams.get('demo');
+    const DEMO_COURSE = (want && RUNNABLE_THEMES.includes(want)) ? want
+      : (RUNNABLE_THEMES.includes('AMED3003') ? 'AMED3003' : RUNNABLE_THEMES[0]);
+    const DEMO_NAME = (demoParams.get('name') || 'You').slice(0, 20);
+    const $ = id => document.getElementById(id);
+    const css = document.createElement('style');
+    css.textContent = `
+      #demoCard{ position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:10000;
+        width:min(580px, calc(100vw - 32px)); box-sizing:border-box; padding:12px 16px 12px;
+        background:var(--panel); color:var(--hud-ink); border:1px solid var(--panel-line); border-radius:14px;
+        box-shadow:0 10px 30px rgba(0,0,0,.28); font-family:var(--mono); transition:opacity .2s; }
+      #demoCard.hidden{ opacity:0; pointer-events:none; }
+      /* Wide screens: dock bottom-right, clear of Morris's lanes and the centred menus. */
+      @media (min-width:1100px){ #demoCard{ left:auto; right:20px; bottom:20px; transform:none; width:400px; } }
+      #demoCard .dc-top{ display:flex; justify-content:space-between; font-size:10.5px; letter-spacing:.08em;
+        text-transform:uppercase; color:var(--hud-dim); margin-bottom:4px; }
+      #demoCard .dc-title{ font-family:var(--display); font-style:italic; font-size:19px; margin:0 0 4px; }
+      #demoCard .dc-caption{ font-size:12.5px; line-height:1.55; color:var(--hud-ink); margin:0 0 10px; }
+      #demoCard .dc-bar{ height:3px; border-radius:2px; background:var(--panel-line); margin-bottom:10px; overflow:hidden; }
+      #demoCard .dc-fill{ height:100%; background:var(--membrane); transition:width .3s; }
+      #demoCard .dc-btns{ display:flex; gap:8px; justify-content:flex-end; }
+      #demoRing{ position:fixed; z-index:9999; pointer-events:none; display:none; border:3px solid var(--nucleus);
+        border-radius:14px; box-shadow:0 0 0 4px rgba(255,217,63,.25), 0 0 22px rgba(255,217,63,.55);
+        animation:demoPulse 1.3s ease-in-out infinite; transition:left .25s, top .25s, width .25s, height .25s; }
+      @keyframes demoPulse{ 50%{ box-shadow:0 0 0 8px rgba(255,217,63,.12), 0 0 30px rgba(255,217,63,.7); } }`;
+    document.head.appendChild(css);
+    const card = document.createElement('div');
+    card.id = 'demoCard';
+    card.innerHTML = `<div class="dc-top"><span id="demoChapter"></span><span id="demoCount"></span></div>
+      <div class="dc-bar"><div class="dc-fill" id="demoFill"></div></div>
+      <div class="dc-title" id="demoTitle"></div><div class="dc-caption" id="demoCaption"></div>
+      <div class="dc-btns"><button class="secondary" id="demoBack">← Back</button><button class="primary" id="demoNext">Next →</button></div>`;
+    document.body.appendChild(card);
+    const ringEl = document.createElement('div');
+    ringEl.id = 'demoRing';
+    document.body.appendChild(ringEl);
+
+    // Follows whatever the current step points at (it can move as panels
+    // open or the window resizes); hidden when the target isn't on screen.
+    function trackRing(){
+      const el = typeof demo.ring==='function' ? demo.ring() : (demo.ring ? document.querySelector(demo.ring) : null);
+      const r = el && el.getClientRects().length ? el.getBoundingClientRect() : null;
+      if(r && r.width && r.height){
+        Object.assign(ringEl.style, { display:'block', left:(r.left-7)+'px', top:(r.top-7)+'px', width:(r.width+14)+'px', height:(r.height+14)+'px' });
+      } else ringEl.style.display = 'none';
+      demo.ringRaf = requestAnimationFrame(trackRing);
+    }
+
+    const G = GAME_CONFIG;
+    const closeOverlays = ()=>{
+      ['infoModal','summaryModal','manualModal','scoreInfoModal','mcqModal','scenarioOverlay','grenadeOverlay','giftUnlockOverlay'].forEach(id=> $(id) && $(id).classList.remove('active'));
+      podiumClose();
+      applyHudSpotlight(null);
+    };
+    const hideViews = ()=> ['cancerPickView','briefView','customizeView','practiceSetupView','customSetupView','reviewView','mpSetupView','mpHostSetupView','mpJoinEntryView','mpWaitView']
+      .forEach(id=> $(id) && ($(id).style.display = 'none'));
+    function stopRace(){
+      clearInterval(demo.botTimer); demo.botTimer = null;
+      demo.joinTimers.forEach(clearTimeout); demo.joinTimers = [];
+      if(mp.active || mp.playerId) mpTeardown();
+    }
+    function toMenu(){
+      closeOverlays(); stopRace();
+      demo.holdSpawns = false;
+      quitToMenu();
+    }
+    function toHome(){ toMenu(); if(cancerGrid.style.display!=='none') pickCourseBtn.click(); }
+    // A run in the demo course, sitting on the Stage I briefing.
+    function ensureRun(){
+      if(['running','resuming','mcq','grenade','giftUnlock','scenario','paused'].includes(screenState) && !mp.active && currentCancerId===DEMO_COURSE) return;
+      toMenu();
+      currentCancerId = DEMO_COURSE;
+      demo.holdSpawns = true;
+      startRun();
+    }
+    function ensureRunning(){
+      ensureRun();
+      if(screenState==='scenario') scenarioContinueBtn.click();
+      else if(screenState==='paused') resumeGame();
+      closeOverlays();
+    }
+    // Puts an entity a short way up Morris's lane (or the next lane over),
+    // clear of anything already there, so it arrives ~1.5s later on camera.
+    function drop(type, laneOffset){
+      if(screenState!=='running' && screenState!=='resuming') return;
+      const lane = ((player.targetLane + (laneOffset||0)) % 3 + 3) % 3;
+      const z = ZSPAWN * 0.62;
+      entities = entities.filter(e=> !(e.lane===lane && Math.abs(e.z - z) < MIN_ENTITY_GAP*SCALE*1.5));
+      const topics = activeTopicsForStage();
+      const topic = topics.length ? topics[Math.floor(Math.random()*topics.length)] : Object.keys(currentStages()[stageIndex].requirements)[0];
+      const r = { topic:24, gift:24, bomb:20, glucose:10 }[type] * SCALE;
+      entities.push({ z, lane, r, type, topic, hit:false });
+    }
+
+    // ----- simulated Group Race -----
+    const BOTS = [
+      { pid:'bot-steph',   name:'Steph',   look:{ color:CUSTOMIZE_COLORS[1], face:CUSTOMIZE_FACES[1], accessory:CUSTOMIZE_ACCESSORIES[1] }, skill:.85 },
+      { pid:'bot-caitlin', name:'Caitlin', look:{ color:CUSTOMIZE_COLORS[2], face:CUSTOMIZE_FACES[2], accessory:CUSTOMIZE_ACCESSORIES[2] }, skill:.7 },
+      { pid:'bot-sara',    name:'Sara',    look:{ color:CUSTOMIZE_COLORS[3], face:CUSTOMIZE_FACES[0], accessory:CUSTOMIZE_ACCESSORIES[3] }, skill:.6 },
+      { pid:'bot-valerie', name:'Valerie', look:{ color:CUSTOMIZE_COLORS[4], face:CUSTOMIZE_FACES[3], accessory:CUSTOMIZE_ACCESSORIES[0] }, skill:.5 },
+    ];
+    const stageNeeds = ()=> (STAGES[DEMO_COURSE]||[]).map(s=> Object.values(s.requirements).reduce((a,b)=>a+b,0));
+    function syncMe(){
+      if(!mp.roster[mp.playerId]) return;
+      Object.assign(mp.roster[mp.playerId], { correctCount:myCorrectCount, incorrectCount:myIncorrectCount,
+        glucose:Math.max(0,glucose), stageIndex, stageRoman:currentStages()[stageIndex].roman, bonusScore:myBonusScore });
+    }
+    function botTick(){
+      const needs = stageNeeds();
+      BOTS.forEach(b=>{
+        const p = mp.roster[b.pid];
+        if(!p || p.done || Math.random() < .7) return; // ~one answer per 8s each, like a real racer
+        if(Math.random() < b.skill){
+          p.correctCount++;
+          let sum = 0, st = 0;
+          for(let k=0;k<needs.length;k++){ sum += needs[k]; if(p.correctCount >= sum) st = Math.min(k+1, needs.length-1); }
+          p.stageIndex = st; p.stageRoman = (STAGES[DEMO_COURSE][st]||{}).roman || 'I';
+        } else { p.incorrectCount++; p.glucose = Math.max(5, p.glucose - G.wrongAnswerPenalty); }
+      });
+      syncMe();
+      mpRenderLeaderboard(mp.roster);
+      updateGiftHUD();
+    }
+    function seedRoster(){
+      mp.playerId = 'demo-me';
+      mp.myName = DEMO_NAME;
+      mp.roster = { 'demo-me': { name:DEMO_NAME, look:mpMyLook(), correctCount:0, incorrectCount:0, glucose:G.startingGlucose, stageIndex:0, stageRoman:'I', bonusScore:0, done:false } };
+    }
+    function startRace(){
+      toMenu();
+      seedRoster();
+      BOTS.forEach(b=> mp.roster[b.pid] = { name:b.name, look:b.look, correctCount:0, incorrectCount:0, glucose:G.startingGlucose, stageIndex:0, stageRoman:'I', bonusScore:0, done:false });
+      mp.theme = DEMO_COURSE; mp.selectedTheme = DEMO_COURSE; mp.isHost = true;
+      demo.holdSpawns = false;
+      mpRunCountdown(serverNow() + 3200);
+      clearInterval(demo.botTimer);
+      demo.botTimer = setInterval(botTick, 1500);
+    }
+    function inRace(){ return mp.active && mp.roster && mp.roster['bot-steph']; }
+
+    // Keeps the run going for the whole recording: life is topped back up
+    // before it can drop below zero (worst single hit is 40).
+    demo.floorTimer = setInterval(()=>{
+      if(!demo.active) return;
+      if(['running','resuming','mcq'].includes(screenState) && glucose < 45){ glucose = G.startingGlucose; updateGlucoseUI(); }
+    }, 150);
+
+    const life = ()=> lifeCfg().label;
+    const STEPS = [
+      // ---- 1. Welcome ----
+      { ch:'Welcome', title:'Run Morris Run!', ring:null, enter: toHome,
+        caption:()=> `A revision game for medical science units. Steer Morris the cell down the bloodstream, and every topic block you hit asks a question from your own unit — with an explanation straight after.` },
+      { ch:'Welcome', title:'First time? Practice run', ring:'#trialBtn', enter: toHome,
+        caption:`A one-minute practice run teaches the controls at a slower speed — move, hit a block, grab ${'life'}, dodge bombs. Nothing is recorded, so new players can learn before it counts.` },
+      { ch:'Welcome', title:'Make Morris yours', ring:'#customizeBtnMenu', enter: toHome,
+        caption:`Pick Morris's colour, face and accessory, a dyslexia-friendly or sans-serif reading font, and a slow, normal or fast game speed.` },
+      { ch:'Welcome', title:'Pick a course', ring:'#cancerGrid', enter(){ toHome(); pickCourseBtn.click(); },
+        caption:`Every course has its own question bank, organised by topic and by lecture, so students revise exactly what their unit teaches.` },
+      { ch:'Welcome', title:'The course page', ring:'#startBtn', enter(){ toMenu(); openBrief(DEMO_COURSE); },
+        caption:()=> `${courseCode(DEMO_COURSE)}'s page: start Runner mode, open the study guide, browse lecture by lecture with each lecture's learning outcomes, or jump to another mode.` },
+      { ch:'Welcome', title:'Study guide', ring:null, enter(){ toMenu(); openBrief(DEMO_COURSE); openStudyGuide(DEMO_COURSE, null, null); },
+        caption:`Each concept has its own notes and its questions. Every question in the game links back here, so a wrong answer leads straight to the content behind it.` },
+      // ---- 2. Runner mode ----
+      { ch:'Runner mode', title:'Stage briefing', ring:'#scenarioOverlay .panel-card', enter(){ ensureRun(); if(screenState!=='scenario'){ toMenu(); ensureRun(); } },
+        caption:`A run has three stages, easy → medium → hard, each opened by a short patient scenario. The counters show how many questions per topic you must get right to clear the stage.` },
+      { ch:'Runner mode', title:'Steer Morris', ring:null, enter(){ ensureRunning(); },
+        caption:`Three lanes: ← / → (or A / D, or swipe on a phone) moves Morris. The track speeds up the longer you survive and in harder stages.` },
+      { ch:'Runner mode', title:'Topic blocks ask questions', ring:null, enter(){ ensureRunning(); drop('topic'); },
+        caption:`A topic block is coming down your lane. Hit it and a multiple-choice question from that topic opens, with the options shuffled every time. Answer to see right or wrong and an explanation, then link to the study guide, flag it for later, or report a problem.` },
+      { ch:'Runner mode', title:`Glucose keeps you alive`, ring:()=> lifeLabel.closest('.hud-block'), enter(){ ensureRunning(); drop('glucose'); applyHudSpotlight(['life']); },
+        caption:()=> `Yellow glucose pickups add +${G.glucosePickupValue} ${life()}. ${life()} is how long you survive: the run ends if it drops below zero.` },
+      { ch:'Runner mode', title:'Dodge the bombs', ring:()=> lifeLabel.closest('.hud-block'), enter(){ ensureRunning(); drop('bomb'); drop('glucose', 1); applyHudSpotlight(['life']); },
+        caption:()=> `A bomb costs ${G.bombDamage} ${life()} straight away, with no question — so watch the road, not just the questions. A wrong answer also costs ${G.wrongAnswerPenalty} ${life()}.` },
+      { ch:'Runner mode', title:`Score is separate from ${'life'}`, ring:'#scoreHudBlock', enter(){ ensureRunning(); applyHudSpotlight(['score']); drop('topic', 1); },
+        caption:()=> `Score ranks you: +${G.scoreCorrectWeight} per correct answer, −${G.scoreIncorrectWeight} per wrong one, +${G.stageWeight} for each stage reached, and +${G.streakBonusScoreAmount} for every 3 in a row. Your score can go negative and you keep running, as long as ${life()} lasts.` },
+      { ch:'Runner mode', title:'Clearing a stage', ring:'#topicChips', enter(){ ensureRunning(); applyHudSpotlight(['stage']); drop('topic'); },
+        caption:`These counters fill as you answer correctly. Clear every one and the next stage's scenario opens — harder questions, a faster track.` },
+      { ch:'Runner mode', title:'Session summary', ring:null, enter(){ ensureRun(); if(screenState==='running' || screenState==='mcq') pauseGame(); closeOverlays(); openSummary(); },
+        caption:`Every answer from the session, in order, by topic, or just the ones you flagged — each with the correct answer and a link back to the study guide.` },
+      // ---- 3. More ways to revise ----
+      { ch:'More ways to revise', title:'Study & Practice', ring:'#practiceSetupView', enter(){ toMenu(); hideViews(); openPracticeSetup(DEMO_COURSE); },
+        caption:`Untimed questions, no bombs: filter by course, topic and lecture, then browse the guide or start a practice quiz.` },
+      { ch:'More ways to revise', title:'Review: spaced repetition', ring:'#reviewView', enter(){ toMenu(); hideViews(); reviewModeCard.click(); },
+        caption:`Questions you've answered come back on a schedule: miss one and it returns sooner, get it right and it waits longer. Sign in with Google to keep your progress across devices.` },
+      { ch:'More ways to revise', title:'Custom run', ring:'#customSetupView', enter(){ toMenu(); openBrief(DEMO_COURSE); customModeCard.click(); },
+        caption:`Runner mode with your own question mix — pick courses, topics and lectures, for example just this week's lectures before a quiz.` },
+      // ---- 4. Group Race ----
+      { ch:'Group Race', title:'Host a race', ring:'#mpHostSpectateChk', enter(){
+          toMenu(); hideViews(); $('mpHostSetupView').style.display = 'block';
+          mp.selectedTheme = DEMO_COURSE; renderMpThemeGrid(); renderMpFilterChecks(); },
+        caption:`Pick a course (and optionally topics or lectures) and how wild Bomb Hell gets. Tick "Just host" to run it from the front of a class: a live leaderboard, then a breakdown of the questions people got wrong.` },
+      { ch:'Group Race', title:'Everyone joins with a code', ring:'#mpRoomCodeDisplay', enter(){
+          toMenu(); stopRace(); hideViews(); seedRoster();
+          $('mpWaitView').style.display = 'block';
+          $('mpWaitTitle').textContent = 'Waiting for racers…';
+          mpRoomCodeDisplay.textContent = 'MRN26';
+          $('mpWaitStatus').textContent = 'Share this code with your friends.';
+          $('mpStartRaceBtn').style.display = 'inline-block';
+          renderRosterList(mp.roster);
+          BOTS.forEach((b,k)=> demo.joinTimers.push(setTimeout(()=>{ mp.roster[b.pid] = { name:b.name }; renderRosterList(mp.roster); SoundFX.pickup(); }, 700 + k*900))); },
+        caption:`Each student joins on their own phone or laptop with the 5-letter room code, so everyone answers at their own pace and nobody can copy from a shared screen.` },
+      { ch:'Group Race', title:'3, 2, 1… race!', ring:'#mpLeaderboardPanel', enter(){ startRace(); },
+        caption:`Same stages and rules as Runner mode, with a live leaderboard of everyone's score. (The other racers here are simulated for the demo.)` },
+      { ch:'Group Race', title:'Gifts unlock', ring:null, enter(){
+          if(!inRace()) startRace();
+          const go = ()=>{ mp.giftsUnlocked = true; mp.giftFirstRollDone = true; mp.giftTimer = 1e9; showGiftUnlockAnnouncement();
+            setTimeout(()=> drop('gift'), 4300); };
+          screenState==='running' ? go() : setTimeout(go, 3600); },
+        caption:`Partway through, gift blocks appear — more often for whoever is near the bottom of the leaderboard, so nobody falls too far behind. Answer one correctly to pick a gift: a grenade for a rival, a shield, Bomb Hell, or extra ${'life'}.` },
+      { ch:'Group Race', title:'Incoming grenade!', ring:null, enter(){
+          if(!inRace()) startRace();
+          const go = ()=>{ if(screenState==='running') showIncomingGrenade({ fromName:'Steph', fromId:'bot-steph' }); else setTimeout(go, 400); };
+          go(); },
+        caption:()=> `A rival threw a grenade. Answer the bonus question correctly to defend it, or lose ${G.grenadeDamage} ${life()}.` },
+      { ch:'Group Race', title:'Bomb Hell', ring:null, enter(){
+          if(!inRace()) startRace();
+          const go = ()=>{
+            if(screenState!=='running'){ setTimeout(go, 400); return; }
+            mp.bombHellEndsAt = serverNow() + 10000; mp.bombHellLeftMs = 10000;
+            entities = entities.filter(e=> e.type==='bomb');
+            mpShowEliminationToast('💣 BOMB HELL! Caitlin unleashed it — dodge for your life!'); };
+          go(); },
+        caption:`Bomb Hell fills everyone else's track with bombs for ten seconds. A shield blocks one bomb.` },
+      { ch:'Group Race', title:'The podium', ring:null, enter(){
+          if(!inRace()) startRace();
+          syncMe();
+          Object.values(mp.roster).forEach(p=> p.done = true);
+          closeOverlays(); mp.pendingGrenade = null; mp.bombHellLeftMs = 0;
+          screenState = 'over'; syncHudVisibility();
+          clearInterval(demo.botTimer); demo.botTimer = null;
+          mpShowPodium(mp.roster); },
+        caption:`When everyone's done, the top three take the podium. The host then sees which questions the class got wrong — a ready-made list of what to go over next.` },
+      // ---- 5. For teaching staff ----
+      { ch:'For teaching staff', title:'Built for your unit', ring:null, enter(){ toHome(); },
+        caption:`Staff add questions in the developer tool — one by one, lecture by lecture, or in bulk from a spreadsheet. Everything is reviewed before students see it, and the data analysis dashboard shows which topics and lectures the cohort is struggling with.` },
+      { ch:'For teaching staff', title:'Try it', ring:null, enter(){ toHome(); },
+        caption:`fenghh08.github.io/MEDSCI-RUNNER — free, runs in any browser, nothing to install. Thanks for watching!` },
+    ];
+
+    function show(i){
+      demo.i = Math.max(0, Math.min(STEPS.length-1, i));
+      const s = STEPS[demo.i];
+      applyHudSpotlight(null);
+      try { s.enter(); } catch(err){ console.warn('[demo] step', demo.i, err); }
+      demo.ring = s.ring;
+      $('demoChapter').textContent = s.ch;
+      $('demoCount').textContent = `${demo.i+1} / ${STEPS.length}`;
+      $('demoFill').style.width = `${(demo.i+1)/STEPS.length*100}%`;
+      $('demoTitle').textContent = s.title.replace('life', lifeCfg().label);
+      $('demoCaption').textContent = (typeof s.caption==='function' ? s.caption() : s.caption).replace(/\blife\b/g, lifeCfg().label);
+      $('demoBack').disabled = demo.i===0;
+      $('demoNext').textContent = demo.i===STEPS.length-1 ? 'Finish' : 'Next →';
+    }
+    function next(){ if(demo.i===STEPS.length-1){ toHome(); card.classList.add('hidden'); demo.ring = null; return; } show(demo.i+1); }
+    $('demoNext').addEventListener('click', e=>{ e.currentTarget.blur(); next(); });
+    $('demoBack').addEventListener('click', e=>{ e.currentTarget.blur(); show(demo.i-1); });
+    window.addEventListener('keydown', e=>{
+      if(e.target.closest && e.target.closest('input, textarea, select')) return;
+      const k = e.key.toLowerCase();
+      if(k==='n' || e.key==='PageDown'){ e.preventDefault(); next(); }
+      else if(k==='b' || e.key==='PageUp'){ e.preventDefault(); show(demo.i-1); }
+      else if(k==='h'){ card.classList.toggle('hidden'); }
+    });
+    demo.active = true;
+    show(0);
+    trackRing();
+  }
+
   if(new URLSearchParams(location.search).has('debug')){
     // Seeds just enough fake Group Race state for the gift shop's
     // ranking-based UI (chance-for-me, the "throw at everyone" grenade
