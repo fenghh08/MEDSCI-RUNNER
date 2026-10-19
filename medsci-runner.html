@@ -4839,7 +4839,7 @@
       }
     }
     bombTimer -= dt*1000;
-    if(bombTimer <= 0 && !scripted){
+    if(bombTimer <= 0 && (!scripted || inBombHell)){
       spawnBomb();
       if(inBombHell){
         // Host's pick (room.bombHellLevel). Easy falls back to built-in numbers
@@ -6669,6 +6669,7 @@
     landingScreen.classList.remove('active');
     mpCountdownOverlay.classList.add('active');
     function tick(){
+      if(demo.active && !mpCountdownOverlay.classList.contains('active')) return; // the demo tour skipped past it
       const remain = targetAt - serverNow();
       if(remain <= 250){
         mpCountdownText.textContent = 'GO!';
@@ -7213,6 +7214,7 @@
       .forEach(id=> $(id) && ($(id).style.display = 'none'));
     function stopRace(){
       clearInterval(demo.botTimer); demo.botTimer = null;
+      clearInterval(demo.specTick); demo.specTick = null; demo.qstats = null;
       demo.joinTimers.forEach(clearTimeout); demo.joinTimers = [];
       if(mp.active || mp.playerId) mpTeardown();
     }
@@ -7283,17 +7285,87 @@
       mp.myName = DEMO_NAME;
       mp.roster = { 'demo-me': { name:DEMO_NAME, look:mpMyLook(), correctCount:0, incorrectCount:0, glucose:G.startingGlucose, stageIndex:0, stageRoman:'I', bonusScore:0, done:false } };
     }
-    function startRace(){
-      toMenu();
-      seedRoster();
+    function addBots(){
       BOTS.forEach(b=> mp.roster[b.pid] = { name:b.name, look:b.look, correctCount:0, incorrectCount:0, glucose:G.startingGlucose, stageIndex:0, stageRoman:'I', bonusScore:0, done:false });
+    }
+    function startBots(){ clearInterval(demo.botTimer); demo.botTimer = setInterval(botTick, 1500); }
+    // countdown=true plays the real 3-2-1 overlay; otherwise (Back, or jumping
+    // into the middle of the chapter) the race just starts on the spot.
+    function startRace(countdown){
+      toMenu();
+      seedRoster(); addBots();
       mp.theme = DEMO_COURSE; mp.selectedTheme = DEMO_COURSE; mp.isHost = true;
-      demo.holdSpawns = false;
-      mpRunCountdown(serverNow() + 3200);
-      clearInterval(demo.botTimer);
-      demo.botTimer = setInterval(botTick, 1500);
+      demo.holdSpawns = true; // nothing random on the track -- each step places its own thing
+      if(countdown) mpRunCountdown(serverNow() + 3200); else mpBeginRace();
+      startBots();
     }
     function inRace(){ return mp.active && mp.roster && mp.roster['bot-steph']; }
+    // Every step starts from a clean, moving track: closes whatever the last
+    // step left open (question, grenade, gift banner, host screen, podium),
+    // stops a pending 3-2-1, and gets the loop running again.
+    function cleanTrack(){
+      if(!inRace()) startRace(false);
+      clearMcqTimer();
+      ['mcqModal','grenadeOverlay','giftUnlockOverlay','mpCountdownOverlay'].forEach(id=> $(id).classList.remove('active'));
+      podiumClose();
+      spectatorScreen.classList.remove('active'); clearInterval(mp.specTimer);
+      resumeIndicator.style.display = 'none';
+      pendingEntity = null; pendingQuestion = null; mp.pendingGrenade = null;
+      mp.bombHellLeftMs = 0; mp.bombHellEndsAt = null;
+      entities = entities.filter(e=> e.type==='glucose');
+      demo.holdSpawns = true;
+      if(screenState!=='running'){
+        screenState = 'running'; syncHudVisibility();
+        lastT = performance.now(); requestAnimationFrame(loop);
+      }
+      startBots();
+      mpRenderLeaderboard(mp.roster);
+    }
+    // Runs fn once the track is actually moving (after a 3-2-1 or a resume),
+    // unless the presenter has already moved on to another step.
+    function whenRunning(fn, delay){
+      const token = demo.token;
+      (function poll(){
+        if(token!==demo.token) return;
+        if(screenState==='running') setTimeout(()=>{ if(token===demo.token && screenState==='running') fn(); }, delay||0);
+        else setTimeout(poll, 150);
+      })();
+    }
+    // Host-screen data: the live board, and once finished, how the room did
+    // on each question (same shape the real room's qstats uses).
+    function fakeQstats(){
+      const pool = ALL_QUESTIONS.filter(q=> q.theme===DEMO_COURSE).slice().sort(()=> Math.random()-.5).slice(0, 8);
+      const n = Object.keys(mp.roster).length;
+      const out = {};
+      pool.forEach((q, k)=>{
+        const c = Math.max(0, Math.min(n, [1,2,2,3,3,4,4,5][k]));
+        const st = { n, c };
+        q.options.forEach((_, i)=> st['p'+i] = 0);
+        st['p'+q.correctIndex] = c;
+        const wrongs = q.options.map((_, i)=> i).filter(i=> i!==q.correctIndex);
+        for(let w=0; w<n-c; w++){ const i = w < (n-c)/2+1 ? wrongs[0] : wrongs[w % wrongs.length]; st['p'+i]++; }
+        out[q.itemId+'::'+q.id] = st;
+      });
+      return out;
+    }
+    function showHostScreen(finished){
+      if(!inRace()) startRace(false);
+      clearMcqTimer();
+      ['mcqModal','grenadeOverlay','giftUnlockOverlay'].forEach(id=> $(id).classList.remove('active'));
+      podiumClose();
+      screenState = 'over'; syncHudVisibility(); // stops the track behind the host screen
+      syncMe();
+      const ranked = mpRankedRoster(mp.roster);
+      // Winner finished the course; everyone else was still going when time ran out.
+      if(finished){ ranked.forEach((p,k)=> Object.assign(mp.roster[p.pid], { done:true, doneReason: k===0 ? 'finished' : 'timeup' })); clearInterval(demo.botTimer); demo.botTimer = null; }
+      mp.lastRoom = { players: mp.roster, status: finished ? 'finished' : 'racing', winner: finished ? ranked[0].pid : null,
+        qstats: finished ? (demo.qstats ||= fakeQstats()) : null };
+      mp.roomCode = null; mp.isHost = false; // no real End-race controls on the demo host screen
+      mpShowSpectator();
+      clearInterval(mp.specTimer); // its refresher would blank the room code; the demo's own one below keeps it
+      $('specRoomCode').textContent = 'MRN26';
+      if(!finished){ startBots(); clearInterval(demo.specTick); demo.specTick = setInterval(()=>{ if(!demo.active || !spectatorScreen.classList.contains('active')) return; mp.lastRoom.players = mp.roster; renderSpectator(mp.lastRoom); $('specRoomCode').textContent = 'MRN26'; }, 1500); }
+    }
 
     // Keeps the run going for the whole recording: life is topped back up
     // before it can drop below zero (worst single hit is 40).
@@ -7342,51 +7414,55 @@
       { ch:'More ways to revise', title:'Custom run', ring:'#customSetupView', enter(){ toMenu(); openBrief(DEMO_COURSE); customModeCard.click(); },
         caption:`Runner mode with your own question mix — pick courses, topics and lectures, for example just this week's lectures before a quiz.` },
       // ---- 4. Group Race ----
-      { ch:'Group Race', title:'Host a race', ring:'#mpHostSpectateChk', enter(){
+      { ch:'Group Race', title:'Revise together', ring:'#mpModeCard', enter: toHome,
+        caption:`Group Race turns revision into a live class activity. Students race each other through the same course, or a lecturer hosts from the front of the room.` },
+      { ch:'Group Race', title:'1. Host a race', ring:'#mpHostSpectateChk', enter(){
           toMenu(); hideViews(); $('mpHostSetupView').style.display = 'block';
-          mp.selectedTheme = DEMO_COURSE; renderMpThemeGrid(); renderMpFilterChecks(); },
-        caption:`Pick a course (and optionally topics or lectures) and how wild Bomb Hell gets. Tick "Just host" to run it from the front of a class: a live leaderboard, then a breakdown of the questions people got wrong.` },
-      { ch:'Group Race', title:'Everyone joins with a code', ring:'#mpRoomCodeDisplay', enter(){
-          toMenu(); stopRace(); hideViews(); seedRoster();
+          mp.selectedTheme = DEMO_COURSE; renderMpThemeGrid(); renderMpFilterChecks();
+          $('mpNameInput').value = DEMO_NAME; },
+        caption:`The host picks the course (and, optionally, just some topics or lectures). Ticking "Just host" lets a lecturer run the race from the projector without playing.` },
+      { ch:'Group Race', title:'2. Students join with a code', ring:'#mpRoomCodeDisplay', enter(){
+          toMenu(); hideViews(); seedRoster();
           $('mpWaitView').style.display = 'block';
           $('mpWaitTitle').textContent = 'Waiting for racers…';
           mpRoomCodeDisplay.textContent = 'MRN26';
           $('mpWaitStatus').textContent = 'Share this code with your friends.';
+          $('mpWaitPlaying').textContent = '';
           $('mpStartRaceBtn').style.display = 'inline-block';
           renderRosterList(mp.roster);
-          BOTS.forEach((b,k)=> demo.joinTimers.push(setTimeout(()=>{ mp.roster[b.pid] = { name:b.name }; renderRosterList(mp.roster); SoundFX.pickup(); }, 700 + k*900))); },
-        caption:`Each student joins on their own phone or laptop with the 5-letter room code, so everyone answers at their own pace and nobody can copy from a shared screen.` },
-      { ch:'Group Race', title:'3, 2, 1… race!', ring:'#mpLeaderboardPanel', enter(){ startRace(); },
-        caption:`Same stages and rules as Runner mode, with a live leaderboard of everyone's score. (The other racers here are simulated for the demo.)` },
-      { ch:'Group Race', title:'Gifts unlock', ring:null, enter(){
-          if(!inRace()) startRace();
-          const go = ()=>{ mp.giftsUnlocked = true; mp.giftFirstRollDone = true; mp.giftTimer = 1e9; showGiftUnlockAnnouncement();
-            setTimeout(()=> drop('gift'), 4300); };
-          screenState==='running' ? go() : setTimeout(go, 3600); },
-        caption:`Partway through, gift blocks appear — more often for whoever is near the bottom of the leaderboard, so nobody falls too far behind. Answer one correctly to pick a gift: a grenade for a rival, a shield, Bomb Hell, or extra ${'life'}.` },
-      { ch:'Group Race', title:'Incoming grenade!', ring:null, enter(){
-          if(!inRace()) startRace();
-          const go = ()=>{ if(screenState==='running') showIncomingGrenade({ fromName:'Steph', fromId:'bot-steph' }); else setTimeout(go, 400); };
-          go(); },
-        caption:()=> `A rival threw a grenade. Answer the bonus question correctly to defend it, or lose ${G.grenadeDamage} ${life()}.` },
-      { ch:'Group Race', title:'Bomb Hell', ring:null, enter(){
-          if(!inRace()) startRace();
-          const go = ()=>{
-            if(screenState!=='running'){ setTimeout(go, 400); return; }
+          BOTS.forEach((b,k)=> demo.joinTimers.push(setTimeout(()=>{ mp.roster[b.pid] = { name:b.name }; renderRosterList(mp.roster); SoundFX.pickup(); }, 900 + k*1100))); },
+        caption:`Everyone opens the game on their own phone or laptop and types the 5-letter code. Each student answers on their own screen, at their own pace, so nobody can copy from a shared screen.` },
+      { ch:'Group Race', title:'3. Race!', ring:null, enter(){ startRace(true); },
+        caption:`3, 2, 1… everyone starts together, with the same stages and rules as Runner mode. (The other racers here are simulated for this demo.)` },
+      { ch:'Group Race', title:'4. Live leaderboard', ring:'#mpLeaderboardPanel', enter(){
+          cleanTrack(); whenRunning(()=>{ drop('topic'); drop('glucose', 1); }, 300); },
+        caption:`Scores update live as people answer: correct answers and stages push you up. Answer the block in your lane and watch your own row move.` },
+      { ch:'Group Race', title:'5. Gift mode switches on', ring:null, enter(){
+          cleanTrack(); mp.giftsUnlocked = true; mp.giftFirstRollDone = true; mp.giftTimer = 1e9;
+          whenRunning(()=> showGiftUnlockAnnouncement(), 400); },
+        caption:()=> `Once the room has answered ${G.giftUnlockQuestionsPerPlayer} questions per racer, gift mode turns on for everyone.` },
+      { ch:'Group Race', title:'6. Gift blocks', ring:null, enter(){
+          cleanTrack(); mp.giftsUnlocked = true; mp.giftTimer = 1e9;
+          whenRunning(()=> drop('gift'), 300); },
+        caption:`A 🎁 gift block is a normal question with a prize. Answer it correctly to choose a gift: a grenade for a rival, a shield, Bomb Hell for everyone else, or extra life. Racers near the bottom get gift blocks more often, so nobody falls too far behind.` },
+      { ch:'Group Race', title:'7. Incoming grenade!', ring:null, enter(){
+          cleanTrack(); whenRunning(()=> showIncomingGrenade({ fromName:'Steph', fromId:'bot-steph' }), 700); },
+        caption:()=> `A rival threw a grenade at you. Answer the bonus question correctly to defend it — get it wrong and you lose ${G.grenadeDamage} life.` },
+      { ch:'Group Race', title:'8. Shields and Bomb Hell', ring:()=> $('giftHudLine'), enter(){
+          cleanTrack(); mp.shields = 1; updateGiftHUD();
+          whenRunning(()=>{
             mp.bombHellEndsAt = serverNow() + 10000; mp.bombHellLeftMs = 10000;
-            entities = entities.filter(e=> e.type==='bomb');
-            mpShowEliminationToast('💣 BOMB HELL! Caitlin unleashed it — dodge for your life!'); };
-          go(); },
-        caption:`Bomb Hell fills everyone else's track with bombs for ten seconds. A shield blocks one bomb.` },
-      { ch:'Group Race', title:'The podium', ring:null, enter(){
-          if(!inRace()) startRace();
-          syncMe();
-          Object.values(mp.roster).forEach(p=> p.done = true);
-          closeOverlays(); mp.pendingGrenade = null; mp.bombHellLeftMs = 0;
-          screenState = 'over'; syncHudVisibility();
-          clearInterval(demo.botTimer); demo.botTimer = null;
+            mpShowEliminationToast('💣 BOMB HELL! Caitlin unleashed it — dodge for your life!'); }, 700); },
+        caption:`Bomb Hell fills everyone else's track with bombs for ten seconds. Your 🛡 shield (shown under your life) blocks the first bomb that hits you.` },
+      { ch:'Group Race', title:"9. The host's screen", ring:'#specBoard', enter(){ showHostScreen(false); },
+        caption:`What a hosting lecturer sees on the projector: every racer's stage, life, right and wrong answers and score, live, plus when gift mode switches on.` },
+      { ch:'Group Race', title:'10. The podium', ring:null, enter(){
+          showHostScreen(true); spectatorScreen.classList.remove('active');
           mpShowPodium(mp.roster); },
-        caption:`When everyone's done, the top three take the podium. The host then sees which questions the class got wrong — a ready-made list of what to go over next.` },
+        caption:`When the race ends, the top three take the podium, revealed third, second, first.` },
+      { ch:'Group Race', title:'11. What the class got wrong', ring:'#specInsights', enter(){
+          showHostScreen(true); },
+        caption:`Then the host gets the most-missed questions, with how many people picked each option — a ready-made list of what to go over in class.` },
       // ---- 5. For teaching staff ----
       { ch:'For teaching staff', title:'Built for your unit', ring:null, enter(){ toHome(); },
         caption:`Staff add questions in the developer tool — one by one, lecture by lecture, or in bulk from a spreadsheet. Everything is reviewed before students see it, and the data analysis dashboard shows which topics and lectures the cohort is struggling with.` },
@@ -7395,6 +7471,7 @@
     ];
 
     function show(i){
+      demo.token = (demo.token||0) + 1;
       demo.i = Math.max(0, Math.min(STEPS.length-1, i));
       const s = STEPS[demo.i];
       applyHudSpotlight(null);
@@ -7410,6 +7487,15 @@
     }
     function next(){ if(demo.i===STEPS.length-1){ toHome(); card.classList.add('hidden'); demo.ring = null; return; } show(demo.i+1); }
     $('demoNext').addEventListener('click', e=>{ e.currentTarget.blur(); next(); });
+    // On camera, pressing the real button reads better than reaching for Next:
+    // these do the tour's next step instead of their usual (Firebase) action.
+    document.addEventListener('click', e=>{
+      if(!demo.active) return;
+      const b = e.target.closest && e.target.closest('#mpModeCard, #mpHostBtn, #mpStartRaceBtn, #podiumContinueBtn, #specLeaveBtn');
+      if(!b) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      next();
+    }, true);
     $('demoBack').addEventListener('click', e=>{ e.currentTarget.blur(); show(demo.i-1); });
     window.addEventListener('keydown', e=>{
       if(e.target.closest && e.target.closest('input, textarea, select')) return;
