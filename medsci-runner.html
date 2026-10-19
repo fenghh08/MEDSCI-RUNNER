@@ -4425,9 +4425,10 @@
   function renderGiftShop(){
     mcqGiftShop.style.display = 'block'; // built its content below -- was never actually un-hidden, so the shop silently never appeared after a correct gift answer
     const life = lifeCfg().label;
-    const offered = Object.keys(GIFT_TYPES).sort(()=>Math.random()-0.5).slice(0,2);
+    // The demo tour (?demo) shows every gift at once; a real race offers 2 of the 4.
+    const offered = demo.active ? Object.keys(GIFT_TYPES) : Object.keys(GIFT_TYPES).sort(()=>Math.random()-0.5).slice(0,2);
     mcqGiftShopBody.innerHTML = `
-      <div style="font-size:12.5px;line-height:1.5;margin-bottom:8px;">Pick one of these two, or keep going.</div>
+      <div style="font-size:12.5px;line-height:1.5;margin-bottom:8px;">${demo.active ? 'Pick a gift, or keep going.' : 'Pick one of these two, or keep going.'}</div>
       <div class="btn-row" id="giftChoiceRow">
         ${offered.map(key=>`<button type="button" class="secondary" data-gift="${key}">${GIFT_TYPES[key].icon} ${GIFT_TYPES[key].label}</button>`).join('')}
         <button type="button" class="secondary" id="giftDeclineBtn">No thanks</button>
@@ -4470,7 +4471,7 @@
     }));
   }
   function throwGrenade(targetPids){
-    if(!mp.roomCode) return;
+    if(!mp.roomCode){ if(demo.onGrenade) demo.onGrenade(targetPids); return; }
     targetPids.forEach(pid=>{
       fbPush(ref(fbdb, `rooms/${mp.roomCode}/players/${pid}/incoming`), { fromName: mp.myName, fromId: mp.playerId, at: serverNow() }).catch(()=>{});
     });
@@ -4486,7 +4487,7 @@
   // shared field rather than per-target pushes, since it's a track-wide
   // effect, not something delivered to specific people like a grenade.
   function startBombHell(){
-    if(!mp.roomCode) return;
+    if(!mp.roomCode){ if(demo.active) mpShowEliminationToast('💣 You unleashed Bomb Hell — every other racer is dodging bombs for 10 seconds!'); return; }
     fbUpdate(ref(fbdb, `rooms/${mp.roomCode}`), { bombHellEndsAt: serverNow() + 10000, bombHellFromId: mp.playerId, bombHellFromName: mp.myName }).catch(()=>{});
   }
   function updateGiftHUD(){
@@ -7235,9 +7236,46 @@
     function ensureRunning(){
       ensureRun();
       if(screenState==='scenario') scenarioContinueBtn.click();
-      else if(screenState==='paused') resumeGame();
       closeOverlays();
+      forceRunning();
     }
+    // Drops whatever question/pause/countdown is up and gets the track moving.
+    function forceRunning(){
+      clearMcqTimer();
+      ['mcqModal','grenadeOverlay','giftUnlockOverlay','mpCountdownOverlay'].forEach(id=> $(id).classList.remove('active'));
+      pauseScreen.classList.remove('active'); pauseBtn.textContent = '⏸';
+      resumeIndicator.style.display = 'none';
+      if(pendingEntity) entities = entities.filter(e=> e!==pendingEntity);
+      pendingEntity = null; pendingQuestion = null; mp.pendingGrenade = null;
+      if(screenState!=='running'){
+        screenState = 'running'; syncHudVisibility();
+        lastT = performance.now(); requestAnimationFrame(loop);
+      }
+    }
+    // Demo answers: a question the tour opens answers itself after a beat
+    // (right, unless the step asks for a wrong one), so the video never waits
+    // on a typed answer. &answers=manual turns this off.
+    demo.autoAnswer = demoParams.get('answers') !== 'manual';
+    demo.wantWrong = false;
+    let demoQOpenedAt = 0, demoGrenadeAt = 0;
+    setInterval(()=>{
+      if(!demo.active || !demo.autoAnswer) return;
+      const qUp = mcqModal.classList.contains('active') && !mcqAnswered && pendingQuestion && quizMode==='runner';
+      if(!qUp) demoQOpenedAt = 0;
+      else if(!demoQOpenedAt) demoQOpenedAt = performance.now();
+      else if(performance.now() - demoQOpenedAt > 2200){
+        const q = pendingQuestion;
+        const pick = demo.wantWrong ? q.options.findIndex((_, i)=> i!==q.correctIndex) : q.correctIndex;
+        demo.wantWrong = false;
+        const btn = mcqOptions.querySelectorAll('.mcq-option')[pick];
+        if(btn) btn.click(); else answerMCQ(pick);
+        demoQOpenedAt = 0;
+      }
+      const gUp = screenState==='grenade' && grenadeOverlay.classList.contains('active') && mp.pendingGrenade;
+      if(!gUp) demoGrenadeAt = 0;
+      else if(!demoGrenadeAt) demoGrenadeAt = performance.now();
+      else if(performance.now() - demoGrenadeAt > 2600){ demoGrenadeAt = 0; resolveGrenade(true); }
+    }, 200);
     // Puts an entity a short way up Morris's lane (or the next lane over),
     // clear of anything already there, so it arrives ~1.5s later on camera.
     function drop(type, laneOffset){
@@ -7300,6 +7338,28 @@
       startBots();
     }
     function inRace(){ return mp.active && mp.roster && mp.roster['bot-steph']; }
+    const demoLeader = ()=> mpRankedRoster(mp.roster).find(p=> p.pid!==mp.playerId && !p.done);
+    // Opens a gift question and answers it right, so the shop is on screen.
+    function openGiftShop(){
+      if(mcqModal.classList.contains('active') && mcqGiftShop.style.display==='block' && mcqGiftShopBody.querySelector('[data-gift]')) return;
+      cleanTrack(); mp.giftsUnlocked = true; mp.giftTimer = 1e9;
+      const topics = activeTopicsForStage();
+      const e = { z:0, lane:player.targetLane, r:24*SCALE, type:'gift', topic: topics[0] || Object.keys(currentStages()[stageIndex].requirements)[0], hit:true };
+      entities.push(e);
+      openMCQ(e);
+      if(pendingQuestion) answerMCQ(pendingQuestion.correctIndex);
+    }
+    // No real room in the demo: a thrown grenade lands on the simulated rival.
+    demo.onGrenade = pids=>{
+      pids.forEach(pid=>{
+        const p = mp.roster[pid]; if(!p) return;
+        setTimeout(()=>{
+          p.glucose = Math.max(5, (p.glucose||0) - G.grenadeDamage);
+          noteGrenadeResults({ grenadeResults: { ['demo-'+Date.now()]: { targetName:p.name, shielded:false, at:Date.now() } } });
+          mpRenderLeaderboard(mp.roster);
+        }, 1600);
+      });
+    };
     // Every step starts from a clean, moving track: closes whatever the last
     // step left open (question, grenade, gift banner, host screen, podium),
     // stops a pending 3-2-1, and gets the loop running again.
@@ -7400,11 +7460,22 @@
         caption:()=> `Yellow glucose pickups add +${G.glucosePickupValue} ${life()}. ${life()} is how long you survive: the run ends if it drops below zero.` },
       { ch:'Runner mode', title:'Dodge the bombs', ring:()=> lifeLabel.closest('.hud-block'), enter(){ ensureRunning(); drop('bomb'); drop('glucose', 1); applyHudSpotlight(['life']); },
         caption:()=> `A bomb costs ${G.bombDamage} ${life()} straight away, with no question — so watch the road, not just the questions. A wrong answer also costs ${G.wrongAnswerPenalty} ${life()}.` },
-      { ch:'Runner mode', title:`Score is separate from ${'life'}`, ring:'#scoreHudBlock', enter(){ ensureRunning(); applyHudSpotlight(['score']); drop('topic', 1); },
+      { ch:'Runner mode', title:`Score is separate from ${'life'}`, ring:'#scoreHudBlock', enter(){ ensureRunning(); applyHudSpotlight(['score']); demo.wantWrong = true; drop('topic'); },
         caption:()=> `Score ranks you: +${G.scoreCorrectWeight} per correct answer, −${G.scoreIncorrectWeight} per wrong one, +${G.stageWeight} for each stage reached, and +${G.streakBonusScoreAmount} for every 3 in a row. Your score can go negative and you keep running, as long as ${life()} lasts.` },
       { ch:'Runner mode', title:'Clearing a stage', ring:'#topicChips', enter(){ ensureRunning(); applyHudSpotlight(['stage']); drop('topic'); },
         caption:`These counters fill as you answer correctly. Clear every one and the next stage's scenario opens — harder questions, a faster track.` },
-      { ch:'Runner mode', title:'Session summary', ring:null, enter(){ ensureRun(); if(screenState==='running' || screenState==='mcq') pauseGame(); closeOverlays(); openSummary(); },
+      { ch:'Runner mode', title:'Session summary', ring:null, enter(){
+          ensureRun(); forceRunning(); pauseGame(); closeOverlays();
+          if(sessionLog.length < 4){
+            const pool = ALL_QUESTIONS.filter(q=> q.theme===DEMO_COURSE).sort(()=> Math.random()-.5).slice(0, 5 - sessionLog.length);
+            pool.forEach((q, k)=>{
+              const wrong = k===1 || k===3;
+              const chosen = wrong ? q.options.findIndex((_, i)=> i!==q.correctIndex) : q.correctIndex;
+              sessionLog.push({ mode:'runner', theme:DEMO_COURSE, stage:1, topic:q.topic, itemId:q.itemId, prompt:q.prompt, options:q.options,
+                correctIndex:q.correctIndex, chosenIndex:chosen, correct:!wrong, flagged: k===3 });
+            });
+          }
+          openSummary(); },
         caption:`Every answer from the session, in order, by topic, or just the ones you flagged — each with the correct answer and a link back to the study guide.` },
       // ---- 3. More ways to revise ----
       { ch:'More ways to revise', title:'Study & Practice', ring:'#practiceSetupView', enter(){ toMenu(); hideViews(); openPracticeSetup(DEMO_COURSE); },
@@ -7444,30 +7515,36 @@
       { ch:'Group Race', title:'6. Gift blocks', ring:null, enter(){
           cleanTrack(); mp.giftsUnlocked = true; mp.giftTimer = 1e9;
           whenRunning(()=> drop('gift'), 300); },
-        caption:`A 🎁 gift block is a normal question with a prize. Answer it correctly to choose a gift: a grenade for a rival, a shield, Bomb Hell for everyone else, or extra life. Racers near the bottom get gift blocks more often, so nobody falls too far behind.` },
-      { ch:'Group Race', title:'7. Incoming grenade!', ring:null, enter(){
+        caption:`A 🎁 gift block is a normal question with a prize — answer it correctly to win a gift. Racers near the bottom of the leaderboard get gift blocks more often, so nobody falls too far behind.` },
+      { ch:'Group Race', title:'7. Pick a gift', ring:'#mcqGiftShop', enter(){ openGiftShop(); },
+        caption:()=> `❤️ +50 life · 🛡 a shield that blocks your next bomb · 💣 a grenade to throw at a rival · Bomb Hell for every other racer. (A real race offers two of these at random.)` },
+      { ch:'Group Race', title:'8. Throw a grenade', ring:'#mpLeaderboardPanel', enter(){
+          openGiftShop();
+          const pick = mcqGiftShopBody.querySelector('[data-gift="grenade"]');
+          const leader = demoLeader();
+          if(pick){ pick.click(); setTimeout(()=> leader && mcqGiftShopBody.querySelector(`[data-target="${leader.pid}"]`)?.click(), 900); } },
+        caption:()=> { const l = demoLeader(); return `Throw it at the leader${l ? ', ' + l.name : ''}: unless they answer a bonus question, they lose ${G.grenadeDamage} life.`; } },
+      { ch:'Group Race', title:'9. Incoming grenade!', ring:null, enter(){
           cleanTrack(); whenRunning(()=> showIncomingGrenade({ fromName:'Steph', fromId:'bot-steph' }), 700); },
         caption:()=> `A rival threw a grenade at you. Answer the bonus question correctly to defend it — get it wrong and you lose ${G.grenadeDamage} life.` },
-      { ch:'Group Race', title:'8. Shields and Bomb Hell', ring:()=> $('giftHudLine'), enter(){
+      { ch:'Group Race', title:'10. Shields and Bomb Hell', ring:()=> $('giftHudLine'), enter(){
           cleanTrack(); mp.shields = 1; updateGiftHUD();
           whenRunning(()=>{
             mp.bombHellEndsAt = serverNow() + 10000; mp.bombHellLeftMs = 10000;
             mpShowEliminationToast('💣 BOMB HELL! Caitlin unleashed it — dodge for your life!'); }, 700); },
         caption:`Bomb Hell fills everyone else's track with bombs for ten seconds. Your 🛡 shield (shown under your life) blocks the first bomb that hits you.` },
-      { ch:'Group Race', title:"9. The host's screen", ring:'#specBoard', enter(){ showHostScreen(false); },
+      { ch:'Group Race', title:"11. The host's screen", ring:'#specBoard', enter(){ showHostScreen(false); },
         caption:`What a hosting lecturer sees on the projector: every racer's stage, life, right and wrong answers and score, live, plus when gift mode switches on.` },
-      { ch:'Group Race', title:'10. The podium', ring:null, enter(){
+      { ch:'Group Race', title:'12. The podium', ring:null, enter(){
           showHostScreen(true); spectatorScreen.classList.remove('active');
           mpShowPodium(mp.roster); },
         caption:`When the race ends, the top three take the podium, revealed third, second, first.` },
-      { ch:'Group Race', title:'11. What the class got wrong', ring:'#specInsights', enter(){
+      { ch:'Group Race', title:'13. What the class got wrong', ring:'#specInsights', enter(){
           showHostScreen(true); },
         caption:`Then the host gets the most-missed questions, with how many people picked each option — a ready-made list of what to go over in class.` },
       // ---- 5. For teaching staff ----
       { ch:'For teaching staff', title:'Built for your unit', ring:null, enter(){ toHome(); },
-        caption:`Staff add questions in the developer tool — one by one, lecture by lecture, or in bulk from a spreadsheet. Everything is reviewed before students see it, and the data analysis dashboard shows which topics and lectures the cohort is struggling with.` },
-      { ch:'For teaching staff', title:'Try it', ring:null, enter(){ toHome(); },
-        caption:`fenghh08.github.io/MEDSCI-RUNNER — free, runs in any browser, nothing to install. Thanks for watching!` },
+        caption:`Everything students play comes from questions staff add and review in the developer tool. Next: a quick look inside it.` },
     ];
 
     function show(i){
@@ -7483,9 +7560,13 @@
       $('demoTitle').textContent = s.title.replace('life', lifeCfg().label);
       $('demoCaption').textContent = (typeof s.caption==='function' ? s.caption() : s.caption).replace(/\blife\b/g, lifeCfg().label);
       $('demoBack').disabled = demo.i===0;
-      $('demoNext').textContent = demo.i===STEPS.length-1 ? 'Finish' : 'Next →';
+      $('demoNext').textContent = demo.i===STEPS.length-1 ? 'Developer tool →' : 'Next →';
     }
-    function next(){ if(demo.i===STEPS.length-1){ toHome(); card.classList.add('hidden'); demo.ring = null; return; } show(demo.i+1); }
+    // The last step carries on into the developer tool's own tour.
+    function next(){
+      if(demo.i===STEPS.length-1){ location.href = 'developer-tool.html?demo' + (demoParams.get('name') ? '&name=' + encodeURIComponent(DEMO_NAME) : ''); return; }
+      show(demo.i+1);
+    }
     $('demoNext').addEventListener('click', e=>{ e.currentTarget.blur(); next(); });
     // On camera, pressing the real button reads better than reaching for Next:
     // these do the tour's next step instead of their usual (Firebase) action.
@@ -7505,7 +7586,8 @@
       else if(k==='h'){ card.classList.toggle('hidden'); }
     });
     demo.active = true;
-    show(0);
+    const startAt = demoParams.get('step');
+    show(startAt==='last' ? STEPS.length-1 : Math.max(0, (parseInt(startAt, 10) || 1) - 1));
     trackRing();
   }
 
