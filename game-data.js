@@ -552,8 +552,6 @@
     'MEDS3002': { label:'Life', icon:'🩸' },
     'MEDS2003': { label:'Life', icon:'🩸' },
     'MEDS3003': { label:'Life', icon:'🩸' },
-    'PCOL2021': { label:'Life', icon:'🩸' },
-    'AMED3003': { label:'Life', icon:'🩸' },
   };
 
 /* ======================================================================
@@ -13242,14 +13240,15 @@
                   'prompt': 'In a qPCR assay, a high Ct value indicates:',
                 },
                 {
-                  'contributorName': 'AMED3003 unit coordinator (master MCQ bank)',
-                  'correctIndex': 3,
-                  'difficulty': 'hard',
-                  'explanation': 'During the exponential phase, product doubles each cycle in proportion to the starting template. At the plateau, reagents run out and samples converge, so input quantity can no longer be read.',
-                  'hashtags': ['qPCR', 'Ct'],
                   'id': 'q-amed3003-mb26',
-                  'options': ['Fluorescence is too low to detect reliably during the plateau phase', 'The plateau phase reflects primer dimer rather than specific product', 'Reaction efficiency is highest at the plateau, which saturates the detector', 'Amplification is proportional to starting template only while reagents are in excess, so the plateau no longer reflects input quantity'],
                   'prompt': 'Why must the Ct value be read from the exponential phase of the amplification curve rather than the plateau phase?',
+                  'options': ['Plateau fluorescence is too low for reliable detection.', 'Plateau signal reflects primer dimers, not specific products.', 'Peak reaction efficiency at plateau saturates the detector.', 'Exponential amplification reflects starting quantity before reagents become limiting.'],
+                  'correctIndex': 3,
+                  'explanation': 'During the exponential phase, product doubles each cycle in proportion to the starting template. At the plateau, reagents run out and samples converge, so input quantity can no longer be read.',
+                  'difficulty': 'hard',
+                  'hashtags': ['qPCR', 'Ct'],
+                  'contributorName': 'Henry',
+                  'contributorEmail': 'henryhaoyan@gmail.com',
                 },
               ],
             },
@@ -13266,14 +13265,15 @@
               'course': 'AMED3003',
               'questions': [
                 {
-                  'contributorName': 'AMED3003 unit coordinator (master MCQ bank)',
-                  'correctIndex': 1,
-                  'difficulty': 'hard',
-                  'explanation': 'Motor neurons are lost irreversibly before symptoms appear, and treatments work best when started pre-symptomatically. That window for effective early treatment is what justifies population screening.',
-                  'hashtags': ['SMA', 'NewbornScreening'],
                   'id': 'q-amed3003-mb23',
-                  'options': ['Screening removes the need for confirmatory molecular testing in symptomatic infants', 'Irreversible loss of motor neurons begins before clinical onset, so disease-modifying therapy is most effective when started pre-symptomatically', 'SMA has no effective treatment, so early identification allows families to plan palliative care', 'A positive screen establishes that both parents are carriers, which informs their future reproductive decisions'],
                   'prompt': 'Which statement best explains why SMA satisfies the criteria for population newborn screening?',
+                  'options': ['Screening eliminates confirmatory testing in symptomatic infants.', 'Motor neuron loss precedes symptoms; treatment works best presymptomatically.', 'No effective treatment; early diagnosis supports palliative planning.', 'Positive screens establish both parents\' carrier status for reproduction.'],
+                  'correctIndex': 1,
+                  'explanation': 'Motor neurons are lost irreversibly before symptoms appear, and treatments work best when started pre-symptomatically. That window for effective early treatment is what justifies population screening.',
+                  'difficulty': 'hard',
+                  'hashtags': ['SMA', 'NewbornScreening'],
+                  'contributorName': 'Henry',
+                  'contributorEmail': 'henryhaoyan@gmail.com',
                 },
                 {
                   'contributorName': 'AMED3003 unit coordinator (master MCQ bank)',
@@ -13287,14 +13287,15 @@
                   'class': 'L8',
                 },
                 {
-                  'contributorName': 'AMED3003 unit coordinator (master MCQ bank)',
-                  'correctIndex': 1,
-                  'difficulty': 'hard',
-                  'explanation': 'ΔΔCt normalises the target gene to a reference gene (ΔCt) and then to a calibrator of known copy number (ΔΔCt), giving relative SMN1 or SMN2 copy number. The input is DNA, so it does not measure transcripts.',
-                  'hashtags': ['SMA', 'qPCR', 'CopyNumber'],
                   'id': 'q-amed3003-mb27',
-                  'options': ['SMN1 transcript abundance, relative to a housekeeping gene', 'SMN1 or SMN2 copy number, relative to a reference gene and to a calibrator of known copy number', 'The absolute number of SMN1 molecules present in the sample', 'The proportion of SMN2 transcripts that retain exon 7'],
                   'prompt': 'In SMA testing, the ΔΔCt method is applied to DNA extracted from a dried blood spot. What does the calculation quantify?',
+                  'options': ['SMN transcript abundance relative to a housekeeping gene', 'SMN1/SMN2 copy number relative to reference gene and calibrator', 'Absolute SMN1 molecule count in the sample', 'Proportion of SMN2 transcripts retaining exon 7'],
+                  'correctIndex': 1,
+                  'explanation': 'ΔΔCt normalises the target gene to a reference gene (ΔCt) and then to a calibrator of known copy number (ΔΔCt), giving relative SMN1 or SMN2 copy number. The input is DNA, so it does not measure transcripts.',
+                  'difficulty': 'hard',
+                  'hashtags': ['SMA', 'qPCR', 'CopyNumber'],
+                  'contributorName': 'Henry',
+                  'contributorEmail': 'henryhaoyan@gmail.com',
                 },
               ],
             },
@@ -13374,14 +13375,14 @@
               'class': 'L7',
               'questions': [
                 {
-                  'contributorName': 'AMED3003 unit coordinator (master MCQ bank)',
+                  'id': 'q-amed3003-mb21',
+                  'prompt': 'A peptide antigen:',
+                  'options': ['Synthesised peptide matching a protein’s amino acid sequence', 'Injected into mammals to produce peptide- and protein-reactive antibodies', 'Can generate antibodies against virtually any protein of interest', 'All of the other options'],
                   'correctIndex': 3,
-                  'difficulty': 'medium',
                   'explanation': 'A synthetic peptide matching part of a protein sequence can be injected into an animal to raise antibodies that recognise the whole protein, so the approach works for almost any target.',
                   'hashtags': ['Antibodies'],
-                  'id': 'q-amed3003-mb21',
-                  'options': ['Is a chemically synthesised peptide comprising the amino acid sequence of a protein of interest', 'Is injected into a mammal to challenge its adaptive immune system and produce antibodies against the peptide and hence the corresponding protein', 'Can be used to generate antibodies for virtually any protein of interest', 'All of the other options'],
-                  'prompt': 'A peptide antigen:',
+                  'contributorName': 'Henry',
+                  'contributorEmail': 'henryhaoyan@gmail.com',
                 },
                 {
                   'contributorName': 'AMED3003 unit coordinator (master MCQ bank)',
@@ -16378,58 +16379,171 @@
    ====================================================================== */
   const STAGES = {
     'MEDS3002': [
-      /* "scenario" is patient-facing narrative — this is also where a real
-         case study can be dropped in later (per stage). Three stages, one
-         per difficulty: questions tagged with the stage's difficulty are
-         served first, untagged ones count as medium. */
-      { n:1, roman:'I', difficulty:'easy', requirements:{ genetics:3, immunology:3, pharmacology:3, oncology:3 },
-        scenario:"Patient presents with fatigue and unexplained bruising. Bloodwork shows an abnormal white cell count — the care team orders genetic testing to find out exactly what's driving it." },
-      { n:2, roman:'II', difficulty:'medium', requirements:{ genetics:4, immunology:8, pharmacology:5 },
-        scenario:"The genetic picture is in. Now the patient's own immune system is in the fight and treatment is about to start — how well the body recognises the disease, and which drugs will actually work against it, shape what comes next." },
-      { n:3, roman:'III', difficulty:'hard', requirements:{ genetics:3, immunology:6, pharmacology:8, oncology:8 },
-        scenario:"The patient is now deep into treatment. Staging, complications, and what happens next define the road ahead." },
+      {
+        'n': 1,
+        'roman': 'I',
+        'difficulty': 'easy',
+        'requirements': {
+          'genetics': 3,
+          'immunology': 3,
+          'pharmacology': 3,
+          'oncology': 3,
+        },
+        'scenario': 'Patient presents with fatigue and unexplained bruising. Bloodwork shows an abnormal white cell count — the care team orders genetic testing to find out exactly what\'s driving it.',
+      },
+      {
+        'n': 2,
+        'roman': 'II',
+        'difficulty': 'medium',
+        'requirements': {
+          'genetics': 4,
+          'immunology': 8,
+          'pharmacology': 5,
+        },
+        'scenario': 'The genetic picture is in. Now the patient\'s own immune system is in the fight and treatment is about to start — how well the body recognises the disease, and which drugs will actually work against it, shape what comes next.',
+      },
+      {
+        'n': 3,
+        'roman': 'III',
+        'difficulty': 'hard',
+        'requirements': {
+          'genetics': 3,
+          'immunology': 6,
+          'pharmacology': 8,
+          'oncology': 8,
+        },
+        'scenario': 'The patient is now deep into treatment. Staging, complications, and what happens next define the road ahead.',
+      },
     ],
-    // Deliberately short right now — MEDS2003 only has a handful of
-    // seed questions so far. Expand requirements as you add more content
-    // (see the contributor tool or dev notes).
     'MEDS2003': [
-      { n:1, roman:'I', difficulty:'easy', requirements:{ metabolism:2 },
-        scenario:"You're tracing how a cell fuels itself — starting with how it handles glucose and energy production." },
-      { n:2, roman:'II', difficulty:'medium', requirements:{ metabolism:1, molecularBiology:1 },
-        scenario:"From metabolism to the molecular machinery that reads and copies the genome — the next layer of the picture." },
+      {
+        'n': 1,
+        'roman': 'I',
+        'difficulty': 'easy',
+        'requirements': {
+          'metabolism': 2,
+        },
+        'scenario': 'You\'re tracing how a cell fuels itself — starting with how it handles glucose and energy production.',
+      },
+      {
+        'n': 2,
+        'roman': 'II',
+        'difficulty': 'medium',
+        'requirements': {
+          'metabolism': 1,
+          'molecularBiology': 1,
+        },
+        'scenario': 'From metabolism to the molecular machinery that reads and copies the genome — the next layer of the picture.',
+      },
     ],
-    // First-pass split across the 7 topics -- roughly follows the course's
-    // own lecture order (L2 mass spec -> L3-4 gene therapy -> L5-6 ATTR ->
-    // L7-8 nanoparticles/vesicles -> L9-12 auditory/biosensors) rather than
-    // requiring all 7 every stage, which would make each stage huge. Per-
-    // topic counts are kept well under each topic's real question pool
-    // (smallest is extracellularVesicles at 10) so there's room for variety
-    // without heavy repetition. Adjust freely -- this is a starting point,
-    // not a tuned design; STAGES isn't touched by the dev tool's merge, so
-    // changes here are a direct hand-edit.
     'MEDS3003': [
-      { n:1, roman:'I', difficulty:'easy', requirements:{ massSpectrometry:3, geneTherapyStrategies:3, attrAmyloidosis:3 },
-        scenario:"A newborn's blood spot flags an abnormal metabolite on mass spectrometry screening. While the diagnosis is confirmed, the care team is already mapping out whether a gene therapy or a targeted protein-stabilising drug could treat the defect directly." },
-      { n:2, roman:'II', difficulty:'medium', requirements:{ geneTherapyStrategies:5, attrAmyloidosis:5, nanoparticleDelivery:5, extracellularVesicles:3 },
-        scenario:"An older patient with progressive nerve and heart symptoms is diagnosed with ATTR amyloidosis. Treatment only works if it reaches the right tissue — nanoparticle carriers, and the body's own extracellular vesicles, both become part of the delivery problem." },
-      { n:3, roman:'III', difficulty:'hard', requirements:{ massSpectrometry:4, nanoparticleDelivery:4, auditorySystem:6, biosensors:6 },
-        scenario:"With treatment underway, care shifts to monitoring: implantable biosensors track how well it's working, while a parallel case of hearing loss shows the same advanced-therapeutics toolkit — engineered proteins, targeted delivery, implanted devices — applied to the auditory system." },
+      {
+        'n': 1,
+        'roman': 'I',
+        'difficulty': 'easy',
+        'requirements': {
+          'massSpectrometry': 3,
+          'geneTherapyStrategies': 3,
+          'attrAmyloidosis': 3,
+        },
+        'scenario': 'A newborn\'s blood spot flags an abnormal metabolite on mass spectrometry screening. While the diagnosis is confirmed, the care team is already mapping out whether a gene therapy or a targeted protein-stabilising drug could treat the defect directly.',
+      },
+      {
+        'n': 2,
+        'roman': 'II',
+        'difficulty': 'medium',
+        'requirements': {
+          'geneTherapyStrategies': 5,
+          'attrAmyloidosis': 5,
+          'nanoparticleDelivery': 5,
+          'extracellularVesicles': 3,
+        },
+        'scenario': 'An older patient with progressive nerve and heart symptoms is diagnosed with ATTR amyloidosis. Treatment only works if it reaches the right tissue — nanoparticle carriers, and the body\'s own extracellular vesicles, both become part of the delivery problem.',
+      },
+      {
+        'n': 3,
+        'roman': 'III',
+        'difficulty': 'hard',
+        'requirements': {
+          'massSpectrometry': 4,
+          'nanoparticleDelivery': 4,
+          'auditorySystem': 6,
+          'biosensors': 6,
+        },
+        'scenario': 'With treatment underway, care shifts to monitoring: implantable biosensors track how well it\'s working, while a parallel case of hearing loss shows the same advanced-therapeutics toolkit — engineered proteins, targeted delivery, implanted devices — applied to the auditory system.',
+      },
     ],
     'PCOL2021': [
-      { n:1, roman:'I', difficulty:'easy', requirements:{ pd_pcol2021:3, ans_pcol2021:3, mol_pcol2021:2 },
-        scenario:"A lab team has a new compound that relaxes airway smooth muscle. Before anything else, you need to know what it binds, how strongly it activates that receptor, and which branch of the autonomic nervous system it is acting on." },
-      { n:2, roman:'II', difficulty:'medium', requirements:{ pd_pcol2021:3, mol_pcol2021:3, pk_pcol2021:4 },
-        scenario:"It works in the organ bath. Now the chemists tune its shape and charge, and you have to work out whether it will survive the trip: absorbed, distributed, metabolised by the liver and cleared, at a dose that still reaches the target." },
-      { n:3, roman:'III', difficulty:'hard', requirements:{ pk_pcol2021:4, dev_pcol2021:3, ans_pcol2021:2, mol_pcol2021:2 },
-        scenario:"Into people. Phase 1 volunteers, adverse reactions to watch for, and patients whose genes change how fast they handle the drug. Get it through safely and onto the market." },
+      {
+        'n': 1,
+        'roman': 'I',
+        'difficulty': 'easy',
+        'requirements': {
+          'pd_pcol2021': 3,
+          'ans_pcol2021': 3,
+          'mol_pcol2021': 2,
+        },
+        'scenario': 'A lab team has a new compound that relaxes airway smooth muscle. Before anything else, you need to know what it binds, how strongly it activates that receptor, and which branch of the autonomic nervous system it is acting on.',
+      },
+      {
+        'n': 2,
+        'roman': 'II',
+        'difficulty': 'medium',
+        'requirements': {
+          'pd_pcol2021': 3,
+          'mol_pcol2021': 3,
+          'pk_pcol2021': 4,
+        },
+        'scenario': 'It works in the organ bath. Now the chemists tune its shape and charge, and you have to work out whether it will survive the trip: absorbed, distributed, metabolised by the liver and cleared, at a dose that still reaches the target.',
+      },
+      {
+        'n': 3,
+        'roman': 'III',
+        'difficulty': 'hard',
+        'requirements': {
+          'pk_pcol2021': 4,
+          'dev_pcol2021': 3,
+          'ans_pcol2021': 2,
+          'mol_pcol2021': 2,
+        },
+        'scenario': 'Into people. Phase 1 volunteers, adverse reactions to watch for, and patients whose genes change how fast they handle the drug. Get it through safely and onto the market.',
+      },
     ],
     'AMED3003': [
-      { n:1, roman:'I', difficulty:'easy', requirements:{ unitintroduction:3, imaging:2, immunoassays:3 },
-        scenario:"A patient arrives with an unexplained illness. Before ordering anything, you need to know what makes a good biomarker, which assay measures what, and which scan to request." },
-      { n:2, roman:'II', difficulty:'medium', requirements:{ genomicsandcellbiology:3, immunoassays:3, labmedicine:3 },
-        scenario:"Samples are in the lab. Run the qPCR, read the flow plots, and decide whether a newborn's screening result needs follow-up." },
-      { n:3, roman:'III', difficulty:'hard', requirements:{ unitintroduction:2, genomicsandcellbiology:3, immunoassays:3, labmedicine:2 },
-        scenario:"Results don't always line up. Troubleshoot the assays, interpret copy number and clonality, and judge whether a result outside the reference range really matters." },
+      {
+        'n': 1,
+        'roman': 'I',
+        'difficulty': 'easy',
+        'requirements': {
+          'unitintroduction': 3,
+          'imaging': 2,
+          'immunoassays': 3,
+        },
+        'scenario': 'A patient arrives with an unexplained illness. Before ordering anything, you need to know what makes a good biomarker, which assay measures what, and which scan to request.',
+      },
+      {
+        'n': 2,
+        'roman': 'II',
+        'difficulty': 'medium',
+        'requirements': {
+          'genomicsandcellbiology': 3,
+          'immunoassays': 3,
+          'labmedicine': 3,
+        },
+        'scenario': 'Samples are in the lab. Run the qPCR, read the flow plots, and decide whether a newborn\'s screening result needs follow-up.',
+      },
+      {
+        'n': 3,
+        'roman': 'III',
+        'difficulty': 'hard',
+        'requirements': {
+          'unitintroduction': 2,
+          'genomicsandcellbiology': 3,
+          'immunoassays': 3,
+          'labmedicine': 2,
+        },
+        'scenario': 'Results don\'t always line up. Troubleshoot the assays, interpret copy number and clonality, and judge whether a result outside the reference range really matters.',
+      },
     ],
   };
   const COMPLETE_SCENARIO = "You've worked through the full case — review your answers below, or start again to reinforce what you've learned. (Real case studies coming soon.)";
