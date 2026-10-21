@@ -7515,11 +7515,19 @@
           }, 500); },
         points:['Answer a bonus question to block a grenade', 'Bomb Hell: 10 seconds of bombs', 'A shield blocks one bomb'] },
       { ch:'Group Race', title:'Results for the lecturer', ring:null, enter(){
+          // A quick glance at the podium, already filled in (no reveal animation
+          // or confetti), then the real focus: the question analysis.
           showHostScreen(true); spectatorScreen.classList.remove('active');
           mpShowPodium(mp.roster);
+          podiumTimers.forEach(clearTimeout); podiumTimers = [];
+          podiumStage.querySelectorAll('.pod-col').forEach(col=>{
+            col.classList.add('show');
+            const sc = col.querySelector('.pod-score'); if(sc) sc.textContent = sc.dataset.target;
+          });
+          podiumContinueBtn.classList.add('show');
           const token = demo.token;
-          setTimeout(()=>{ if(token!==demo.token) return; podiumClose(); showHostScreen(true); demo.ring = '#specInsights'; }, 5200); },
-        points:['Top three on the podium', 'Most-missed questions, option by option', 'A ready-made list to go over in class'] },
+          setTimeout(()=>{ if(token!==demo.token) return; podiumClose(); showHostScreen(true); demo.ring = '#specInsights'; }, 1800); },
+        points:['Most-missed questions, option by option', 'A ready-made list to go over in class', 'Plus a podium for the top three'] },
     ];
 
     function show(i){
