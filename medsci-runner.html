@@ -7427,6 +7427,11 @@
       podiumClose();
       screenState = 'over'; syncHudVisibility(); // stops the track behind the host screen
       syncMe();
+      // Jumped straight here (no race played yet): give the racers believable results.
+      if(BOTS.every(b=> !(mp.roster[b.pid]||{}).correctCount)){
+        [[9,1,2],[7,2,1],[5,3,1],[4,4,0]].forEach(([c,w,st], k)=> Object.assign(mp.roster[BOTS[k].pid],
+          { correctCount:c, incorrectCount:w, stageIndex:st, stageRoman:['I','II','III'][st], glucose:Math.max(5, 100 - w*25) }));
+      }
       const ranked = mpRankedRoster(mp.roster);
       // Winner finished the course; everyone else was still going when time ran out.
       if(finished){ ranked.forEach((p,k)=> Object.assign(mp.roster[p.pid], { done:true, doneReason: k===0 ? 'finished' : 'timeup' })); clearInterval(demo.botTimer); demo.botTimer = null; }
