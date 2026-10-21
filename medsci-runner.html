@@ -4731,6 +4731,7 @@
   // by the post-answer pause, un-pausing (so you can read the frozen track
   // first), and the aftermath of an incoming grenade.
   function startResumeCountdown(ms){
+    if(demo.active) ms = Math.min(ms, 200); // the demo tour keeps moving -- no 3-2-1 between scenes
     screenState = 'resuming';
     syncHudVisibility();
     const resumeAt = performance.now() + ms;
@@ -7198,6 +7199,13 @@
     ringEl.id = 'demoRing';
     document.body.appendChild(ringEl);
 
+    function union(...els){
+      els = els.filter(e=> e && e.getClientRects().length);
+      return { getClientRects: ()=> els.length ? [1] : [], getBoundingClientRect(){
+        const rs = els.map(e=> e.getBoundingClientRect());
+        const l = Math.min(...rs.map(r=>r.left)), t = Math.min(...rs.map(r=>r.top)), r = Math.max(...rs.map(r=>r.right)), b = Math.max(...rs.map(r=>r.bottom));
+        return { left:l, top:t, width:r-l, height:b-t }; } };
+    }
     // Follows whatever the current step points at (it can move as panels
     // open or the window resizes); hidden when the target isn't on screen.
     function trackRing(){
@@ -7446,8 +7454,13 @@
     const STEPS = [
       { ch:'Welcome', title:'Run Morris Run!', ring:null, enter: toHome,
         points:['A revision game for medical science units', 'Steer Morris, hit a block, answer a question', 'Questions come from your own unit'] },
-      { ch:'Welcome', title:'Pick your course', ring:'#startBtn', enter(){ toMenu(); openBrief(DEMO_COURSE); },
-        points:['Organised by topic and by lecture', 'Study guide with learning outcomes', '1-minute practice run for new players'] },
+      { ch:'Welcome', title:'Built in for every player', ring:()=> union($('manualBtn').parentElement, $('trialBtn')), enter: toHome,
+        points:['Sign in with Google to sync progress', 'Customise Morris, reading font and speed', 'Light or dark mode · 5 languages', 'Guide, video tutorial and practice run'] },
+      { ch:'Welcome', title:'Pick your course', ring:'#cancerGrid', enter(){
+          toHome(); pickCourseBtn.click();
+          const token = demo.token;
+          setTimeout(()=>{ if(token!==demo.token) return; toMenu(); openBrief(DEMO_COURSE); demo.ring = '#briefView'; }, 3200); },
+        points:['Every unit has its own question bank', 'Revise by topic or lecture by lecture', 'Study guide with learning outcomes'] },
       { ch:'Runner mode', title:'Three stages, one patient case', ring:'#scenarioOverlay .panel-card', enter(){ ensureRun(); if(screenState!=='scenario'){ toMenu(); ensureRun(); } },
         points:['Easy → medium → hard', 'Clear each topic counter to move on'] },
       { ch:'Runner mode', title:'Hit a block, answer it', ring:null, enter(){ ensureRunning(); drop('topic'); drop('glucose', 1); drop('bomb', 2); },
@@ -7480,7 +7493,7 @@
           renderRosterList(mp.roster);
           BOTS.forEach((b,k)=> demo.joinTimers.push(setTimeout(()=>{ mp.roster[b.pid] = { name:b.name }; renderRosterList(mp.roster); SoundFX.pickup(); }, 700 + k*700))); },
         points:['Students join with a 5-letter code', 'Lecturers can host without playing'] },
-      { ch:'Group Race', title:'Live leaderboard', ring:'#mpLeaderboardPanel', enter(){ startRace(true); whenRunning(()=> drop('topic'), 400); },
+      { ch:'Group Race', title:'Live leaderboard', ring:'#mpLeaderboardPanel', enter(){ startRace(false); whenRunning(()=> drop('topic'), 400); },
         points:['Everyone on their own device', 'Scores update as people answer'] },
       { ch:'Group Race', title:'Gifts', ring:'#mcqGiftShop', enter(){
           openGiftShop();

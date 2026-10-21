@@ -7726,14 +7726,17 @@ const themesDecl  = text.indexOf('const THEMES = {');
         width:min(580px, calc(100vw - 32px)); box-sizing:border-box; padding:12px 16px;
         background:var(--card); color:var(--ink); border:1px solid var(--line-strong); border-radius:14px;
         box-shadow:0 10px 30px rgba(20,30,60,.25); font-family:var(--sans); transition:opacity .2s; }
-      @media (min-width:1100px){ #demoCard{ left:auto; right:20px; bottom:20px; transform:none; width:400px; } }
+      @media (min-width:1100px){ #demoCard{ left:auto; right:24px; bottom:24px; transform:none; width:440px; } }
       #demoCard.hidden{ opacity:0; pointer-events:none; }
       #demoCard .dc-top{ display:flex; justify-content:space-between; font-size:10.5px; letter-spacing:.08em;
         text-transform:uppercase; color:var(--muted); margin-bottom:4px; }
       #demoCard .dc-bar{ height:3px; border-radius:2px; background:var(--line); margin-bottom:10px; overflow:hidden; }
       #demoCard .dc-fill{ height:100%; background:var(--accent); transition:width .3s; }
-      #demoCard .dc-title{ font-family:Georgia,'Iowan Old Style',serif; font-style:italic; font-size:19px; margin:0 0 4px; }
-      #demoCard .dc-caption{ font-size:13px; line-height:1.55; margin:0 0 10px; }
+      #demoCard{ padding:16px 20px 14px; }
+      #demoCard .dc-title{ font-family:Georgia,'Iowan Old Style',serif; font-style:italic; font-size:29px; line-height:1.15; margin:2px 0 10px; }
+      #demoCard .dc-points{ list-style:none; margin:0 0 14px; padding:0; display:grid; gap:7px; }
+      #demoCard .dc-points li{ position:relative; padding-left:22px; font-size:18px; line-height:1.35; }
+      #demoCard .dc-points li::before{ content:''; position:absolute; left:3px; top:.48em; width:9px; height:9px; border-radius:50%; background:var(--accent); }
       #demoCard .dc-btns{ display:flex; gap:8px; justify-content:flex-end; }
       #demoRing{ position:fixed; z-index:9999; pointer-events:none; display:none; border:3px solid #f5c518;
         border-radius:14px; box-shadow:0 0 0 4px rgba(245,197,24,.25), 0 0 22px rgba(245,197,24,.55);
@@ -7744,7 +7747,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
     card.id = 'demoCard';
     card.innerHTML = `<div class="dc-top"><span>Developer tool · for teaching staff</span><span id="demoCount"></span></div>
       <div class="dc-bar"><div class="dc-fill" id="demoFill"></div></div>
-      <div class="dc-title" id="demoTitle"></div><div class="dc-caption" id="demoCaption"></div>
+      <div class="dc-title" id="demoTitle"></div><ul class="dc-points" id="demoPoints"></ul>
       <div class="dc-btns"><button id="demoBack">← Back</button><button class="primary" id="demoNext">Next →</button></div>`;
     document.body.appendChild(card);
     const ringEl = document.createElement('div');
@@ -7762,45 +7765,37 @@ const themesDecl  = text.indexOf('const THEMES = {');
       requestAnimationFrame(trackRing);
     })();
     const sec = name=> document.querySelector(`section[data-section="${name}"]`);
+    // Continues the game tour's count (&from = steps already shown there).
+    const FROM = parseInt(params.get('from'), 10) || 0;
     const STEPS = [
-      { title:'The developer tool', ring:'.start-ways', enter(){ showTab('start'); },
-        caption:`A separate web page where staff build and check the question bank. Nothing added here reaches students until an admin has reviewed and approved it.` },
-      { title:"How it's organised", ring:()=> sec('datamap').querySelector('.card') || sec('datamap'), enter(){ showTab('datamap'); },
-        caption:`Each course is split into topics, topics into concepts, and each concept holds its questions. Lectures are tags on concepts, each with its learning outcomes, so students can revise by topic or lecture by lecture.` },
-      { title:'Add questions to your lecture', ring:()=> [...sec('mylecture').querySelectorAll('.card')].find(c=> c.offsetParent && /Add a question/.test(c.textContent)) || sec('mylecture'), enter(){
+      { title:'Add questions', ring:()=> [...sec('mylecture').querySelectorAll('.card')].find(c=> c.offsetParent && /Add a question/.test(c.textContent)) || sec('mylecture'), enter(){
           showTab('mylecture');
           try {
             if(KNOWN_COURSES[DEMO_COURSE]){ ml_course.value = DEMO_COURSE; mlFillLectures(); ml_lecture.value = 'L1'; mlOpen(DEMO_COURSE, 'L1'); }
           } catch(err){ console.warn('[demo] my lecture', err); } },
-        caption:`The quickest route for a lecturer: pick your lecture once, then type the question, fill in the options, tick the right one and add an explanation.` },
-      { title:'Bulk import from a spreadsheet', ring:()=> sec('csv').querySelector('.card'), enter(){ showTab('csv'); },
-        caption:`Already have a question bank in Excel or Google Sheets? Copy the rows and paste them here. Every row is checked before anything is added.` },
-      { title:'Review before it goes live', ring:()=> sec('queue').querySelectorAll('.card')[1] || sec('queue'), enter(){ showTab('queue'); },
-        caption:`Everything new or edited waits in the team queue. An admin previews each question exactly as students will see it, then approves or removes it.` },
-      { title:'Question bank and duplicates', ring:'#dupDetails', enter(){
+        points:['Add questions lecture by lecture', 'Or bulk import from a spreadsheet', 'Guided setup for a new course'] },
+      { title:'Checked before it goes live', ring:'#dupDetails', enter(){
           showTab('questionbank');
           const d = document.getElementById('dupDetails'); if(d) d.open = true;
           setTimeout(()=> d && window.scrollTo({ top: d.getBoundingClientRect().top + scrollY - 90, behavior:'smooth' }), 150); },
-        caption:`Every question in one searchable list. Near-identical questions are grouped automatically so an admin can keep the best one.` },
-      { title:'Reports from students', ring:()=> sec('reports').querySelector('.card'), enter(){ showTab('reports'); },
-        caption:`When a student taps "Report question" in the game, it lands here, grouped by question. Fix it, then mark it solved.` },
-      { title:'Data analysis', ring:()=> canSeeAnalytics() ? document.getElementById('analyticsSummary') : document.getElementById('maintainerLockGate'),
+        points:['Admin reviews every new question', 'Duplicates grouped automatically', 'Student reports come straight here'] },
+      { title:'See where students struggle', ring:()=> canSeeAnalytics() ? document.getElementById('analyticsSummary') : document.getElementById('maintainerLockGate'),
         enter(){ showTab(canSeeAnalytics() ? 'analysis' : 'maintainer'); },
-        caption:()=> canSeeAnalytics()
-          ? `Every answer in the game, summed by course, topic and lecture: where the cohort is struggling, and which questions may need fixing. No individual student is ever identified.`
-          : `Signed-in staff get a dashboard of every answer in the game by course, topic and lecture, showing where the cohort is struggling. (Sign in here to show it.)` },
-      { title:'Try it', ring:null, enter(){ showTab('start'); },
-        caption:`fenghh08.github.io/MEDSCI-RUNNER — free, runs in any browser, nothing to install. Thanks for watching!` },
+        points:['Every answer, by topic and lecture', 'Weak questions flagged for review', 'No student is ever identified'] },
+      { title:'Try it', ring:null, enter(){ window.scrollTo({ top:0 }); showTab('start'); },
+        points:['fenghh08.github.io/MEDSCI-RUNNER', 'Free · any browser · nothing to install'] },
     ];
     function show(n){
       i = Math.max(0, Math.min(STEPS.length-1, n));
       const s = STEPS[i];
       try { s.enter(); } catch(err){ console.warn('[demo] step', i, err); }
       ring = s.ring;
-      document.getElementById('demoCount').textContent = `${i+1} / ${STEPS.length}`;
-      document.getElementById('demoFill').style.width = `${(i+1)/STEPS.length*100}%`;
+      const total = parseInt(params.get('total'), 10) || (FROM + STEPS.length);
+      document.getElementById('demoCount').textContent = `${FROM+i+1} / ${total}`;
+      document.getElementById('demoFill').style.width = `${(FROM+i+1)/total*100}%`;
       document.getElementById('demoTitle').textContent = s.title;
-      document.getElementById('demoCaption').textContent = typeof s.caption==='function' ? s.caption() : s.caption;
+      const ul = document.getElementById('demoPoints'); ul.textContent = '';
+      s.points.forEach(pt=>{ const li = document.createElement('li'); li.textContent = pt; ul.appendChild(li); });
       document.getElementById('demoNext').textContent = i===STEPS.length-1 ? 'Finish' : 'Next →';
     }
     // Back from the first step returns to the end of the game's tour.
