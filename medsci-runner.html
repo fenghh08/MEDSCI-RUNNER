@@ -7384,6 +7384,7 @@
       resumeIndicator.style.display = 'none';
       pendingEntity = null; pendingQuestion = null; mp.pendingGrenade = null;
       mp.bombHellLeftMs = 0; mp.bombHellEndsAt = null;
+      mpEliminationToast.classList.remove('show'); // no pop-up left over from the last step
       entities = entities.filter(e=> e.type==='glucose');
       demo.holdSpawns = true;
       if(screenState!=='running'){
@@ -7428,7 +7429,7 @@
       screenState = 'over'; syncHudVisibility(); // stops the track behind the host screen
       syncMe();
       // Jumped straight here (no race played yet): give the racers believable results.
-      if(BOTS.every(b=> !(mp.roster[b.pid]||{}).correctCount)){
+      if(BOTS.every(b=> ((mp.roster[b.pid]||{}).correctCount||0) < 4)){ // a short race: make the results readable
         [[9,1,2],[7,2,1],[5,3,1],[4,4,0]].forEach(([c,w,st], k)=> Object.assign(mp.roster[BOTS[k].pid],
           { correctCount:c, incorrectCount:w, stageIndex:st, stageRoman:['I','II','III'][st], glucose:Math.max(5, 100 - w*25) }));
       }
@@ -7513,7 +7514,7 @@
       { ch:'Group Race', title:'Grenades & Bomb Hell', ring:null, enter(){
           cleanTrack(); mp.shields = 1; updateGiftHUD();
           whenRunning(()=>{
-            showIncomingGrenade({ fromName:'Steph', fromId:'bot-steph' });
+            showIncomingGrenade({ fromName:'Sara', fromId:'bot-sara' });
             whenRunning(()=>{
               mp.bombHellEndsAt = serverNow() + 10000; mp.bombHellLeftMs = 10000;
               mpShowEliminationToast('💣 BOMB HELL! Caitlin unleashed it — dodge for your life!'); }, 600);
@@ -7575,6 +7576,9 @@
       else if(k==='h'){ card.classList.toggle('hidden'); }
     });
     demo.active = true;
+    // For scripted screen recordings of the tour (e.g. a trailer): jump to a
+    // step, place an object in a lane, or steer Morris. Demo mode only.
+    window.__demoApi = { show: n=> show(n-1), next, drop, steer: dir=> setLane(dir), get step(){ return demo.i + 1; } };
     const startAt = demoParams.get('step');
     show(startAt==='last' ? STEPS.length-1 : Math.max(0, (parseInt(startAt, 10) || 1) - 1));
     trackRing();

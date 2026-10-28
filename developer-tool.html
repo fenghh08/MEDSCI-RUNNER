@@ -574,6 +574,10 @@
   #faqSearch{ margin-bottom:6px; }
   /* ---- Data analysis ---- */
   .an-bar{ display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .ev-lock{ display:flex; gap:12px; align-items:center; padding:12px 16px; margin:0 0 12px; border-radius:var(--radius);
+    background:var(--warn-soft); border:1px solid #f1c98a; color:var(--warn); font-size:14px; line-height:1.45; }
+  .ev-lock b{ color:var(--ink); }
+  .ev-lock .ev-lock-icon{ font-size:24px; }
   .an-bar .field{ margin:0; min-width:260px; max-width:380px; flex:1; }
   .an-tiles{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; margin-bottom:16px; }
   @media (max-width:900px){ .an-tiles{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
@@ -1731,8 +1735,10 @@
         <button id="evMethodsBtn" class="subtle">📋 Copy method + references</button>
         <button id="evCsvBtn" class="subtle">⬇️ Responses (CSV)</button>
         <button id="evCodebookBtn" class="subtle">⬇️ Question key (CSV)</button>
+        <button id="evLockBtn" class="subtle">🔒 Close survey</button>
         <span id="evStatus" class="status"></span>
       </div>
+      <div id="evLockBanner"></div>
       <div id="evBody"></div>
     </section>
   </main>
@@ -5074,9 +5080,16 @@
   // ======================================================================
   const EVQ = window.FEEDBACK_SURVEY || null;
   let evData = null, evSeg = 'all';
+  // surveyStatus in Firebase: { closed, closedAt, closedBy }. While closed, the
+  // survey page refuses new responses and every figure here only counts
+  // responses received before closedAt, so the report's numbers stay fixed.
+  let evLock = null;
+  const evLocked = ()=> !!(evLock && evLock.closed && evLock.closedAt);
+  const evWhen = r=> r.createdAt || r.clientAt || 0;
   const evEsc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
   const evIsStaff = r => EVQ && EVQ.staffRoles.includes(r.role);
-  function evRows(){ const all = Object.entries(evData || {}).map(([id, r])=> ({ id, ...r })).sort((a,b)=> (a.createdAt||a.clientAt||0) - (b.createdAt||b.clientAt||0));
+  function evRows(){ const all = Object.entries(evData || {}).map(([id, r])=> ({ id, ...r }))
+      .filter(r=> !evLocked() || evWhen(r) <= evLock.closedAt).sort((a,b)=> evWhen(a) - evWhen(b));
     return evSeg==='all' ? all : all.filter(r=> evSeg==='staff' ? evIsStaff(r) : r.role===evSeg); }
   // ---- small stats ----
   const evMean = a => a.length ? a.reduce((s,x)=>s+x,0)/a.length : NaN;
@@ -5152,6 +5165,8 @@
     try {
       const snap = await fbGet(fbRef(fbdb, 'evaluation'));
       evData = snap.val() || {};
+      try { evLock = (await fbGet(fbRef(fbdb, 'surveyStatus'))).val(); } catch(e){ evLock = null; }
+      renderEvLock();
       st.className = 'status ok'; st.textContent = `Updated ${new Date().toLocaleTimeString()}`;
       renderEvaluation();
     } catch(err){
@@ -5330,6 +5345,30 @@
     evSeg = b.dataset.ev; document.querySelectorAll('#evSeg [data-ev]').forEach(x=> x.classList.toggle('on', x===b)); renderEvaluation();
   }));
   document.getElementById('evRefreshBtn').addEventListener('click', ()=> loadEvaluation(true));
+  function renderEvLock(){
+    const btn = document.getElementById('evLockBtn'), box = document.getElementById('evLockBanner');
+    btn.textContent = evLocked() ? '🔓 Reopen survey' : '🔒 Close survey';
+    if(!evLocked()){ box.innerHTML = ''; return; }
+    const all = Object.values(evData || {});
+    const kept = all.filter(r=> evWhen(r) <= evLock.closedAt).length, late = all.length - kept;
+    const when = new Date(evLock.closedAt).toLocaleString(undefined, { dateStyle:'medium', timeStyle:'short' });
+    box.innerHTML = `<div class="ev-lock"><span class="ev-lock-icon">🔒</span><div><b>Survey closed · data locked.</b>
+      Closed ${evEsc(when)}${evLock.closedBy ? ' by ' + evEsc(evLock.closedBy) : ''}. The survey no longer accepts responses, and every figure below
+      uses the <b>${kept}</b> response${kept===1?'':'s'} received before closing${late ? ` (${late} later one${late===1?'':'s'} left out)` : ''}.</div></div>`;
+  }
+  document.getElementById('evLockBtn').addEventListener('click', async ()=>{
+    if(!maintainerUnlocked) return toast('Log in as an admin first');
+    if(!evData) return toast('Load the responses first');
+    const closing = !evLocked();
+    const msg = closing
+      ? 'Close the survey?\n\nNew visitors will see "Survey closed" and no more responses will be accepted. The results here are locked to the responses received so far.'
+      : 'Reopen the survey?\n\nIt will accept responses again, and the results will include everything received.';
+    if(!confirm(msg)) return;
+    const next = closing ? { closed:true, closedAt: Date.now(), closedBy: currentContributorName() }
+                         : { closed:false, reopenedAt: Date.now(), reopenedBy: currentContributorName() };
+    try { await fbSet(fbRef(fbdb, 'surveyStatus'), next); evLock = next; renderEvLock(); renderEvaluation(); toast(closing ? 'Survey closed — data locked' : 'Survey reopened'); }
+    catch(err){ console.warn('[Evaluation] lock failed', err); toast('Couldn’t save — check the database rules allow writing surveyStatus'); }
+  });
   document.getElementById('evCsvBtn').addEventListener('click', ()=>{ if(!evData) return toast('Load the responses first');
     downloadText(`evaluation-${evSeg}-${new Date().toISOString().slice(0,10)}.csv`, '﻿' + evCsv(), 'text/csv'); });
   document.getElementById('evCodebookBtn').addEventListener('click', ()=>{ if(!EVQ) return; downloadText('evaluation-question-key.csv', '﻿' + evCodebook(), 'text/csv'); });
@@ -7707,6 +7746,8 @@ const themesDecl  = text.indexOf('const THEMES = {');
       loadAnalytics, renderDuplicates, findDuplicateGroups, allQuestionsRich, questionQuality, discriminationFromBins,
       // Same idea for the 📈 Evaluation tab: fake survey responses, real render path.
       stubEvaluation(raw){ maintainerUnlocked = true; applyMaintainerLockUI(); evData = raw; showTab('evaluation'); },
+      // Fake a closed survey (surveyStatus) to check the lock banner and the frozen counts.
+      stubSurveyLock(lock){ evLock = lock; renderEvLock(); renderEvaluation(); },
       evReportText: ()=> evReportText(), evCsv: ()=> evCsv(), evMethodsText: ()=> evMethodsText(), evCodebook: ()=> evCodebook(),
     };
   }

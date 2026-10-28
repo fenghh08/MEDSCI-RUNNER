@@ -460,6 +460,7 @@
     try {
       await Promise.race([firebaseInit, new Promise(r=> setTimeout(r, 8000))]);
       if(!db) throw new Error('offline');
+      if(await surveyClosed()){ showClosed(); return; }   // closed while they were filling it in
       // Written to evaluation/<draft id>, not push(): a retry after a
       // timeout overwrites the same entry instead of creating a duplicate.
       await Promise.race([
@@ -511,7 +512,23 @@
     setTimeout(()=> box.innerHTML = '', 5000);
   }
 
+  // ---- closed survey (the team closes it from the developer tool) ----
+  async function surveyClosed(){
+    try { const s = (await dbMod.get(dbMod.ref(db, 'surveyStatus'))).val(); return !!(s && s.closed); }
+    catch(e){ return false; }
+  }
+  function showClosed(){
+    $('nav').style.display = 'none';
+    $('stepName').textContent = 'Survey closed'; $('stepNum').textContent = '🔒'; $('timeLeft').textContent = '';
+    const backLabel = FROM === 'landing' ? 'Back to the home page' : 'Back to the game';
+    $('main').innerHTML = `<section class="step done">
+      <div class="hero"><span class="em">🔒</span><h1>This survey is now closed</h1>
+      <p>Thanks for your interest! We’ve finished collecting responses for our evaluation, so new answers can’t be submitted. You can still keep playing <b>Run Morris Run!</b></p></div>
+      <div class="done-actions"><a class="btn primary" href="${esc(BACK)}">${backLabel} 🏃</a></div></section>`;
+  }
+
   render();
+  firebaseInit.then(async ()=>{ if(db && await surveyClosed()) showClosed(); });
 </script>
 </body>
 </html>
