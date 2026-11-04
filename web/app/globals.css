@@ -1,0 +1,109 @@
+:root {
+  --bg: #fdf2f8;
+  --panel: #ffffff;
+  --panel-line: #f9a8d4;
+  --ink: #3f1d38;
+  --ink-dim: #8b6b84;
+  --accent: #db2777;
+  --accent-ink: #ffffff;
+  --good: #15803d;
+  --bad: #b91c1c;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #1a0f18;
+    --panel: #2a1826;
+    --panel-line: #4b2742;
+    --ink: #fce7f3;
+    --ink-dim: #c9a7bf;
+    --accent: #f472b6;
+    --accent-ink: #2a1826;
+    --good: #4ade80;
+    --bad: #fca5a5;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #1a0f18;
+  --panel: #2a1826;
+  --panel-line: #4b2742;
+  --ink: #fce7f3;
+  --ink-dim: #c9a7bf;
+  --accent: #f472b6;
+  --accent-ink: #2a1826;
+  --good: #4ade80;
+  --bad: #fca5a5;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--mono);
+  line-height: 1.55;
+}
+
+main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+
+h1 { font-size: 24px; margin: 0 0 4px; }
+h2 { font-size: 16px; margin: 32px 0 12px; letter-spacing: .04em; }
+p  { margin: 0 0 12px; }
+a  { color: var(--accent); }
+
+.sub { color: var(--ink-dim); font-size: 13px; }
+
+.card {
+  display: block;
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+
+.option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  background: var(--panel);
+  color: inherit;
+  border: 1px solid var(--panel-line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.option:disabled { cursor: default; }
+.option.correct { border-color: var(--good); }
+.option.wrong   { border-color: var(--bad); }
+
+.verdict { border-left: 3px solid var(--panel-line); padding-left: 12px; margin: 16px 0; font-size: 14px; }
+.verdict.correct { border-left-color: var(--good); }
+.verdict.wrong   { border-left-color: var(--bad); }
+
+button.primary {
+  font: inherit;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 22px;
+  cursor: pointer;
+}
+
+.notice {
+  border: 1px dashed var(--panel-line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--ink-dim);
+}

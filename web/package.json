@@ -1,0 +1,28 @@
+{
+  "name": "medsci-runner-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Website version of Medsci Runner. Questions live in Neon Postgres and are graded server-side, so the answer key never ships to the browser. Firebase handles sign-in and live group-race rooms.",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:schema": "node scripts/apply-schema.mjs",
+    "db:import": "node scripts/import-game-data.mjs"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.1",
+    "firebase": "^12.0.0",
+    "next": "^15.5.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "^5.9.0"
+  }
+}
