@@ -22,13 +22,15 @@ if (!url) {
 const sql = neon(url);
 
 const data = await loadGameData();
-const { COURSES, THEMES, STAGES, RUNNABLE_THEMES } = data;
+const { COURSES, THEMES, STAGES, RUNNABLE_THEMES,
+        GAME_CONFIG, LIFE_CONFIG, COMPLETE_SCENARIO, FUN_FACT_QUESTIONS } = data;
 
 const str = (v) => (typeof v === 'string' && v.length ? v : null);
 const list = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
 const json = (v) => JSON.stringify(Array.isArray(v) ? v : []);
 
-const counts = { courses: 0, classes: 0, topics: 0, items: 0, questions: 0, stages: 0 };
+const counts = { courses: 0, classes: 0, topics: 0, items: 0, questions: 0,
+                 stages: 0, funFacts: 0, settings: 0 };
 
 // ---------------------------------------------------------------- courses
 // A course can appear in COURSES (as a lecture citation), in THEMES (as a
@@ -148,6 +150,37 @@ for (const [code, stageList] of Object.entries(STAGES)) {
   }
   const ns = stageList.map((s) => s.n);
   await sql`delete from stages where course_code = ${code} and not (n = any(${ns}))`;
+}
+
+// -------------------------------------------------------- fun-fact pool
+const funFacts = Object.entries(FUN_FACT_QUESTIONS ?? {});
+for (const [i, [qid, q]] of funFacts.entries()) {
+  await sql`
+    insert into fun_fact_questions (qid, prompt, options, correct_index, explanation, position)
+    values (${qid}, ${q.prompt}, ${q.options}, ${q.correctIndex ?? 0}, ${str(q.explanation)}, ${i})
+    on conflict (qid) do update set
+      prompt = excluded.prompt, options = excluded.options,
+      correct_index = excluded.correct_index, explanation = excluded.explanation,
+      position = excluded.position`;
+  counts.funFacts++;
+}
+const funFactIds = funFacts.map(([qid]) => qid);
+await sql`delete from fun_fact_questions where not (qid = any(${funFactIds}))`;
+
+// ----------------------------------------------------------- settings
+// Everything the game reads at boot that isn't a question. Stored whole, as
+// JSON, because the game destructures these objects and never queries into
+// them -- giving GAME_CONFIG's 37 knobs their own columns would buy nothing.
+const settings = {
+  GAME_CONFIG: GAME_CONFIG ?? {},
+  LIFE_CONFIG: LIFE_CONFIG ?? {},
+  COMPLETE_SCENARIO: COMPLETE_SCENARIO ?? '',
+};
+for (const [key, value] of Object.entries(settings)) {
+  await sql`
+    insert into settings (key, value) values (${key}, ${JSON.stringify(value)})
+    on conflict (key) do update set value = excluded.value`;
+  counts.settings++;
 }
 
 console.log('Imported from game-data.js:');

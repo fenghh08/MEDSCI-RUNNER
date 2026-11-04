@@ -16,12 +16,18 @@ if (!url) {
 const sql = neon(url);
 const schema = await readFile(fileURLToPath(new URL('../db/schema.sql', import.meta.url)), 'utf8');
 
-// neon()'s tagged-template form is one statement at a time, so split on the
-// statement terminator at end of line. The schema deliberately contains no
-// semicolons inside string literals or function bodies, which keeps this safe.
-const statements = schema
+// One statement at a time. Splitting on a line-ending semicolon is enough
+// for this schema, except inside a dollar-quoted body ($$ ... $$), which has
+// its own semicolons -- so those are pulled out first and put back after.
+const blocks = [];
+const masked = schema.replace(/\$\$[\s\S]*?\$\$/g, (block) => {
+  blocks.push(block);
+  return `$$BLOCK${blocks.length - 1}$$`;
+});
+
+const statements = masked
   .split(/;\s*$/m)
-  .map((s) => s.trim())
+  .map((s) => s.replace(/\$\$BLOCK(\d+)\$\$/g, (_, i) => blocks[Number(i)]).trim())
   .filter((s) => s && !s.split('\n').every((line) => line.trim().startsWith('--')));
 
 for (const statement of statements) {

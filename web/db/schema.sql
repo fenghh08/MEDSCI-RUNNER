@@ -91,17 +91,63 @@ create table if not exists stages (
   unique (course_code, n)
 );
 
+-- The small standalone trivia pool used by the Group Race grenade gift. Not
+-- tied to any item, never counted toward stage progress -- but it still has an
+-- answer key, so it gets the same treatment as everything else.
+create table if not exists fun_fact_questions (
+  qid           text primary key,               -- 'ff-honey'
+  prompt        text not null,
+  options       text[] not null,
+  correct_index integer not null,
+  explanation   text,
+  position      integer not null default 0,
+  constraint fun_fact_correct_index_in_range
+    check (correct_index >= 0 and correct_index < array_length(options, 1))
+);
+
+-- Everything in game-data.js that isn't a question: GAME_CONFIG, LIFE_CONFIG
+-- and COMPLETE_SCENARIO. The game needs all of it at boot, so it has to come
+-- from somewhere; keeping it here means /api/game-data has a single source.
+create table if not exists settings (
+  key   text primary key,                       -- 'GAME_CONFIG'
+  value jsonb not null
+);
+
 -- One row per answered question. The player id is the Firebase uid; there is
 -- no users table, because Firebase Auth is the source of truth for identity.
 create table if not exists answer_events (
   id           bigserial primary key,
-  player_uid   text,
-  question_qid text not null references questions(qid) on delete cascade,
-  chosen_index integer not null,
+  player_uid   text,                            -- Firebase uid, when signed in
+  session_id   text,                            -- per-browser id, for the attempt limit
+  question_qid text references questions(qid) on delete cascade,
+  fun_fact_qid text references fun_fact_questions(qid) on delete cascade,
+  chosen_index integer not null,                -- -1 means the timer ran out
   was_correct  boolean not null,
-  room_id      text,                            -- Firestore room, for group races
-  answered_at  timestamptz not null default now()
+  room_id      text,                            -- Group Race room, when in one
+  answered_at  timestamptz not null default now(),
+  -- Exactly one kind of question per row.
+  constraint answer_event_has_one_question
+    check ((question_qid is null) <> (fun_fact_qid is null))
 );
+
+-- Migrations for databases created by an earlier version of this file.
+-- `create table if not exists` is a no-op on an existing table, so columns
+-- added later have to be applied explicitly. All of these are idempotent.
+alter table answer_events add column if not exists session_id   text;
+alter table answer_events add column if not exists fun_fact_qid text
+  references fun_fact_questions(qid) on delete cascade;
+alter table answer_events alter column question_qid drop not null;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'answer_event_has_one_question'
+  ) then
+    -- Older rows predate fun-fact logging, so they already satisfy this.
+    alter table answer_events add constraint answer_event_has_one_question
+      check ((question_qid is null) <> (fun_fact_qid is null));
+  end if;
+end $$;
 
 create index if not exists classes_course_idx        on classes (course_code);
 create index if not exists topics_course_idx         on topics (course_code);
@@ -111,6 +157,9 @@ create index if not exists questions_item_idx        on questions (item_id);
 create index if not exists questions_difficulty_idx  on questions (difficulty);
 create index if not exists answer_events_player_idx  on answer_events (player_uid, answered_at desc);
 create index if not exists answer_events_room_idx    on answer_events (room_id, answered_at desc);
+-- Backs the per-question attempt limit in /api/answer.
+create index if not exists answer_events_attempt_idx
+  on answer_events (session_id, question_qid, answered_at desc);
 
 -- A question with everything the client is allowed to see, and nothing else.
 -- Route handlers select from this rather than from questions directly, so a
@@ -132,3 +181,8 @@ create or replace view public_questions as
     from questions q
     join items  i on i.id = q.item_id
     join topics t on t.id = i.topic_id;
+
+-- Same idea for the trivia pool: prompt and options, no answer.
+create or replace view public_fun_fact_questions as
+  select qid, prompt, options, position
+    from fun_fact_questions;

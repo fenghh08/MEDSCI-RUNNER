@@ -2,7 +2,7 @@
   "name": "medsci-runner-web",
   "version": "0.1.0",
   "private": true,
-  "description": "Website version of Medsci Runner. Questions live in Neon Postgres and are graded server-side, so the answer key never ships to the browser. Firebase handles sign-in and live group-race rooms.",
+  "description": "Website version of Medsci Runner. Serves ../medsci-runner.html itself, with its content loaded from Neon Postgres and answers graded server-side, so the answer key never reaches the browser.",
   "type": "module",
   "scripts": {
     "dev": "next dev",
