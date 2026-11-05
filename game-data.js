@@ -10390,7 +10390,7 @@
                   'explanation': 'Caveolin-mediated and clathrin-mediated endocytosis are named for the coat proteins (caveolin, clathrin) that form the membrane pits used to internalise the particle.',
                   'hashtags': ['Nanomedicine'],
                   'id': 'np-endo-1',
-                  'options': ['Caveolin and clathrin', 'Actin and myosin', 'Collagen and elastin', 'Tubulin and dynein'],
+                  'options': ['Caveolin and clathrin', 'Actin and myosin', 'Collagen and elastin fibres', 'Tubulin and dynein'],
                   'prompt': 'Which two named coat proteins form the pits that mediate two of the main nanoparticle endocytosis routes?',
                 },
                 {
@@ -10456,7 +10456,7 @@
                   'explanation': 'Very large particles (>150 nm) tend to be cleared or fail to extravasate well, while very small particles (<5 nm) may be rapidly filtered out; the ~20-150 nm range is generally the sweet spot for exploiting leaky tumour vasculature.',
                   'hashtags': ['Nanomedicine'],
                   'id': 'np-phys-1',
-                  'options': ['That size range balances escaping rapid clearance while still being small enough to extravasate through leaky tumour vessels', 'It guarantees complete immune invisibility regardless of coating', 'Particles in this range cannot be taken up by any cell type', 'It is the only size range capable of crossing mucus layers'],
+                  'options': ['That size escapes clearance yet still leaves leaky vessels', 'It guarantees immune invisibility whatever coating is applied', 'Particles of this size cannot be taken up by any cell type', 'It is the only size range able to cross a mucus layer'],
                   'prompt': 'A neutral, small (roughly 20-150 nm) nanoparticle is generally favoured for tumour delivery mainly because:',
                 },
                 {
@@ -10464,7 +10464,7 @@
                   'explanation': 'Charged (particularly positively charged) surfaces tend to non-specifically bind serum proteins and cell membranes, which promotes opsonisation and clearance — neutral, coated particles tend to circulate longer.',
                   'hashtags': ['Nanomedicine'],
                   'id': 'np-phys-2',
-                  'options': ['Positive charge favours non-specific interactions with negatively charged serum proteins and cell surfaces, promoting clearance', 'Positive charge makes particles invisible to macrophages', 'Positive charge prevents any interaction with blood vessel walls', 'Positive charge is required for mucus penetration and therefore extends circulation time'],
+                  'options': ['Positive charge drives non-specific binding to serum proteins', 'Positive charge makes the particle invisible to macrophages', 'Positive charge prevents any interaction with vessel walls', 'Positive charge is needed for mucus penetration, extending circulation'],
                   'prompt': 'Why might a positively charged nanoparticle be cleared from circulation faster than a neutral one?',
                 },
               ],
@@ -10522,7 +10522,7 @@
                   'explanation': 'NIR-LED light is absorbed by the gold nanorod core and converted to heat; that heat causes the thermo-responsive polymer coating to change conformation and release the loaded DOX — the switch is optical, not pH alone.',
                   'hashtags': ['Nanomedicine', 'Theranostics'],
                   'id': 'np-triple-1',
-                  'options': ['Near-infrared (NIR) light heating the gold nanorod core', 'A drop in extracellular pH alone, independent of light', 'Mechanical agitation of the particle by blood flow', 'UV light directly degrading the DOX molecule'],
+                  'options': ['Near-infrared (NIR) light heating the gold nanorod core', 'A drop in extracellular pH alone, independent of any light', 'Mechanical agitation of the particle by blood flow', 'UV light directly degrading the DOX molecule'],
                   'prompt': 'In the \'triple hit\' gold nanorod/mesoporous silica/DOX system, what triggers drug release from the thermo-responsive polymer coating?',
                 },
                 {
@@ -10552,7 +10552,7 @@
                   'explanation': 'LSPR describes the free electrons in the gold nanostructure oscillating together when hit by light of the right wavelength — that oscillation\'s energy is released as heat, which is the basis of gold-nanoparticle hyperthermia.',
                   'hashtags': ['Nanomedicine'],
                   'id': 'np-lspr-1',
-                  'options': ['The collective oscillation of free electrons in the particle upon exposure to light, which is dissipated as heat', 'The particle\'s rate of renal clearance from the bloodstream', 'A chemical reaction between gold and doxorubicin', 'The binding of gold nanoparticles to plasma membrane receptors'],
+                  'options': ['Free electrons oscillating under light, dissipating as heat', 'The rate at which the particle is cleared by the kidneys', 'A chemical reaction between the gold and the doxorubicin', 'Binding of the gold particle to plasma membrane receptors directly'],
                   'prompt': 'Localized surface plasmon resonance (LSPR) in a gold nanoparticle refers to:',
                 },
                 {
@@ -10642,7 +10642,7 @@
                   'explanation': 'Ultrasound energy can release cargo either by heating the particle (thermal effect) or by mechanically disrupting/shattering its structure (physical effect) — two separate physical mechanisms, not a chemical or enzymatic one.',
                   'hashtags': ['Nanomedicine', 'Ultrasound'],
                   'id': 'np-us-1',
-                  'options': ['A thermal effect and a physical (mechanical disruption) effect', 'An electrical effect and a magnetic effect', 'An enzymatic effect and a pH effect', 'A chemical effect and a radioactive effect'],
+                  'options': ['A thermal effect and a mechanical disruption effect', 'An electrical effect and a magnetic effect combined', 'An enzymatic effect and a change in the local pH', 'A chemical effect and a radioactive decay effect'],
                   'prompt': 'Ultrasound can release a nanoparticle\'s cargo via two distinct effects. What are they?',
                 },
                 {
@@ -10680,7 +10680,7 @@
                   'explanation': 'The measured ablation depth was roughly three times greater with nanoparticles present (7.4 mm) than without them (2.53 mm), demonstrating that nanoparticles substantially enhance HIFU\'s thermal ablation effect.',
                   'hashtags': ['Nanomedicine', 'Ultrasound'],
                   'id': 'np-hifu-2',
-                  'options': ['Ablation depth was substantially greater with nanoparticles present (7.4 mm) than without (2.53 mm)', 'Ablation depth was identical whether or not nanoparticles were present', 'Nanoparticles reduced ablation depth compared to HIFU alone', 'Ablation only occurred when nanoparticles were absent'],
+                  'options': ['Depth was far greater with nanoparticles (7.4 vs 2.53 mm)', 'Depth was identical whether or not nanoparticles were present', 'Nanoparticles reduced ablation depth compared with HIFU alone', 'Ablation happened only when the nanoparticles were absent'],
                   'prompt': 'In a liver ablation test comparing HIFU with and without nanoparticles present, what was the effect on ablation depth?',
                 },
               ],
@@ -10745,7 +10745,7 @@
                   'explanation': 'Because EVs are non-replicating vesicles rather than living cells, there\'s no possibility of the therapeutic material itself dividing uncontrollably — unlike a transplanted living cell, which in principle could.',
                   'hashtags': ['Extracellular Vesicles'],
                   'id': 'ev-vs-1',
-                  'options': ['EVs cannot self-replicate, removing the risk of the therapy itself forming a tumour', 'EVs are larger than the cells that produce them', 'EVs are exclusively produced by cancer cells', 'EVs require live cell division to function therapeutically'],
+                  'options': ['They cannot self-replicate, so they cannot form a tumour', 'They are larger than the cells that produced them in culture', 'They are produced exclusively by cancerous cells', 'They need live cell division to work therapeutically'],
                   'prompt': 'Which of the following is a key safety advantage of extracellular vesicles (EVs) over whole-cell therapies?',
                 },
                 {
@@ -10783,7 +10783,7 @@
                   'explanation': 'Exosomes are tens to ~150 nanometres, while blebbisomes span 10-20 micrometres — a difference of roughly three orders of magnitude, making blebbisomes far larger than exosomes.',
                   'hashtags': ['Extracellular Vesicles'],
                   'id': 'ev-size-2',
-                  'options': ['A blebbisome (10-20 μm) is on the order of 1000 times larger than an exosome (30-150 nm)', 'They are approximately the same size', 'A blebbisome is smaller than an exosome', 'Blebbisomes and exosomes are simply two names for the same structure'],
+                  'options': ['A blebbisome (10-20 μm) is ~1000x an exosome (30-150 nm)', 'They are approximately the same size as one another', 'A blebbisome is considerably smaller than an exosome is', 'The two words are simply different names for one structure'],
                   'prompt': 'Roughly how does the size of a blebbisome compare to that of an exosome?',
                 },
               ],
@@ -10849,7 +10849,7 @@
                   'explanation': 'The sequence runs from the damaged cell outward: it signals distress, a stem cell picks up and responds to that signal, sends back repair instructions, and the original damaged cell is the one that uses them to heal — not the reverse.',
                   'hashtags': ['Extracellular Vesicles'],
                   'id': 'ev-damage-2',
-                  'options': ['Damaged cell signals → stem cell receives and responds → stem cell sends genetic instructions → damaged cell repairs itself', 'Stem cell signals → damaged cell ignores it → damaged cell degrades further', 'Damaged cell instantly self-destructs without any signaling', 'Damaged cell sends genetic instructions to the stem cell, which then repairs itself instead'],
+                  'options': ['Damaged cell signals → stem cell responds → instructions → repair', 'Stem cell signals → damaged cell ignores it → degrades further still', 'The damaged cell self-destructs at once, with no signalling', 'Damaged cell instructs the stem cell, which repairs itself'],
                   'prompt': 'What is the overall sequence of this damaged-cell repair signaling process?',
                 },
               ],
@@ -10879,7 +10879,7 @@
                   'explanation': 'Reported improvements spanned endurance (a 47.6% increase in running time), cardiac performance (LV mass/ejection fraction shifting toward young-mouse values), and reduced senescent-cell staining/improved mitochondrial function — a broad, multi-system effect, not just one measure, and not literal reversal of chronological age.',
                   'hashtags': ['Extracellular Vesicles', 'Longevity'],
                   'id': 'ev-longevity-2',
-                  'options': ['Running endurance, cardiac performance, and reduced markers of cellular senescence', 'Only tumour growth rate, with no effect on any other system', 'Hearing acuity exclusively, with no other measurable changes', 'A permanent reversal of chronological age'],
+                  'options': ['Running endurance, cardiac performance and less senescence', 'Only tumour growth rate, with no effect on any other system', 'Hearing acuity alone, with no other measurable change at all', 'A permanent reversal of the animals’ chronological age'],
                   'prompt': 'Besides survival, which of the following was also reported to improve in aged mice after young sEV treatment?',
                 },
               ],
@@ -10938,7 +10938,7 @@
                   'explanation': 'Sound propagates as a longitudinal wave — air particles are alternately compressed and rarefied along the same axis the wave travels, unlike a transverse wave where displacement is perpendicular to travel.',
                   'hashtags': ['Auditory System'],
                   'id': 'aud-sound-1',
-                  'options': ['A longitudinal wave of alternating compression and rarefaction', 'A transverse electromagnetic wave', 'A standing wave with no net propagation', 'A wave that only exists inside the cochlea'],
+                  'options': ['A longitudinal wave of compression and rarefaction', 'A transverse electromagnetic wave, much like light', 'A standing wave, with no net propagation at all', 'A wave that exists only inside the cochlear fluid'],
                   'prompt': 'A sound pressure wave travelling through air is best classified as which type of wave?',
                 },
                 {
@@ -10968,7 +10968,7 @@
                   'explanation': 'The pinna’s folds alter the spectrum of incoming sound depending on the angle of arrival, producing spectral notches that give elevation cues and help distinguish front from back — even with only one ear.',
                   'hashtags': ['Auditory System'],
                   'id': 'aud-outer-1',
-                  'options': ['They create direction-dependent spectral notches used as monaural localisation cues', 'They actively amplify sound using muscle contraction', 'They convert sound pressure directly into an electrical signal', 'They filter out all frequencies above 1 kHz'],
+                  'options': ['They create direction-dependent notches in the spectrum', 'They actively amplify sound by contracting small muscles', 'They convert sound pressure directly into electrical signal', 'They filter out every frequency above about 1 kHz'],
                   'prompt': 'Besides funnelling sound into the ear canal, what other function do the folds of the pinna serve?',
                 },
                 {
@@ -11004,7 +11004,7 @@
                   'explanation': 'Without amplification, most sound energy would simply reflect off the air-fluid boundary rather than entering the cochlea — the surface-area ratio, lever action, and eardrum buckling together compensate for this impedance mismatch.',
                   'hashtags': ['Auditory System'],
                   'id': 'aud-mid-1',
-                  'options': ['To overcome the impedance mismatch between air and the cochlea’s fluid, which would otherwise reflect most sound energy away', 'To convert sound directly into an electrical signal before it reaches the hair cells', 'To slow the speed of sound down to a level hair cells can detect', 'To filter out all frequencies except speech frequencies'],
+                  'options': ['To overcome the air-to-fluid impedance mismatch', 'To convert sound into an electrical signal before the cochlea', 'To slow sound to a speed the hair cells are able to detect', 'To filter out every frequency except the speech frequencies'],
                   'prompt': 'Why does the middle ear need to amplify sound at all before it reaches the cochlea?',
                 },
                 {
@@ -11012,7 +11012,7 @@
                   'explanation': 'The ~20:1 surface area ratio between the large tympanic membrane and the much smaller stapes footplate contributes roughly 26 dB of the total ~34 dB gain — by far the largest single contribution.',
                   'hashtags': ['Auditory System'],
                   'id': 'aud-mid-2',
-                  'options': ['The surface area ratio between the tympanic membrane and the stapes footplate (~26 dB)', 'The lever action of the ossicular chain (~2 dB)', 'Buckling motion of the eardrum (~6 dB)', 'The acoustic reflex'],
+                  'options': ['The tympanic membrane to stapes footplate area ratio (~26 dB)', 'The lever action of the ossicular chain of middle ear bones (~2 dB)', 'Buckling motion of the eardrum as the sound wave drives it (~6 dB)', 'The acoustic reflex, contracting the middle ear muscles'],
                   'prompt': 'Which single mechanism contributes the largest share of the middle ear’s total ~34 dB amplification?',
                 },
               ],
@@ -11048,7 +11048,7 @@
                   'explanation': 'The membrane’s gradual widening and loss of stiffness from base to apex is what creates a frequency-to-place map — stiff regions resonate to high frequencies, flexible regions to low frequencies.',
                   'hashtags': ['Auditory System'],
                   'id': 'aud-place-2',
-                  'options': ['It becomes progressively wider and more flexible/less stiff', 'It becomes progressively narrower and stiffer', 'It becomes electrically insulated only at the apex', 'It reverses its direction of vibration at the midpoint'],
+                  'options': ['It becomes progressively wider and more flexible/less stiff', 'It becomes progressively narrower and stiffer', 'It becomes electrically insulated only at the apex', 'It reverses its direction of vibration at the exact midpoint'],
                   'prompt': 'What physical property of the basilar membrane changes from base to apex to create tonotopic organisation?',
                 },
               ],
@@ -11070,7 +11070,7 @@
                   'explanation': 'Once the wavelength is shorter than roughly twice the distance between the ears, more than one phase match could account for the same measured delay — this phase ambiguity makes ITD unreliable at higher frequencies.',
                   'hashtags': ['Auditory System'],
                   'id': 'aud-loc-1',
-                  'options': ['The wavelength becomes short enough that the true time delay is ambiguous with other possible phase matches', 'The brainstem stops processing timing information above 1500 Hz entirely', 'Above 1500 Hz, sound no longer reaches the left ear at all', 'ITD only ever applies to sounds below 20 Hz'],
+                  'options': ['The wavelength shortens until the delay is ambiguous', 'The brainstem stops processing timing above 1500 Hz entirely', 'Above 1500 Hz, sound no longer reaches the far ear', 'ITD only ever applies to sounds below about 20 Hz'],
                   'prompt': 'Why does interaural time difference (ITD) become an unreliable localisation cue for continuous tones above about 1500 Hz?',
                 },
                 {
@@ -11078,7 +11078,7 @@
                   'explanation': 'High-frequency sound is short-wavelength enough to be blocked (shadowed) by the head, creating a measurable intensity difference between ears — low-frequency sound diffracts around the head with little attenuation, so IID is negligible there.',
                   'hashtags': ['Auditory System'],
                   'id': 'aud-loc-2',
-                  'options': ['The head casts a pronounced acoustic shadow for short-wavelength (high-frequency) sound, but not for low-frequency sound', 'Low-frequency sound cannot be heard by either ear', 'The stapedius muscle blocks high-frequency sound in the far ear only', 'IID and ITD both work identically at every frequency'],
+                  'options': ['The head shadows short-wavelength sound, but not long', 'Low-frequency sound cannot be heard by either ear at all', 'The stapedius blocks high-frequency sound in the far ear', 'IID and ITD work in exactly the same way at every frequency'],
                   'prompt': 'Why do interaural intensity differences (IID) become a useful localisation cue mainly at high frequencies?',
                 },
               ],
@@ -11108,7 +11108,7 @@
                   'explanation': 'Depolarisation opens voltage-gated Ca2+ channels; the resulting Ca2+ influx triggers vesicles to release neurotransmitter, which excites the afferent auditory nerve fibre — this is how a mechanical signal becomes a neural one.',
                   'hashtags': ['Auditory System'],
                   'id': 'aud-hair-2',
-                  'options': ['Voltage-gated Ca2+ channels open, triggering neurotransmitter release onto the afferent nerve', 'The stria vascularis stops pumping K+ permanently', 'The endolymph potential drops to 0 mV and stays there', 'The tectorial membrane is destroyed'],
+                  'options': ['Voltage-gated Ca2+ channels open and transmitter is released', 'The stria vascularis stops pumping K+ from that point onward', 'The endolymph potential drops to 0 mV and remains there', 'The tectorial membrane above the hair cell is destroyed'],
                   'prompt': 'What happens immediately after K+ influx depolarises a hair cell?',
                 },
               ],
@@ -11138,7 +11138,7 @@
                   'explanation': 'At rest, Cl- is bound to prestin; depolarisation from vibration causes Cl- to dissociate, and this dissociation is what drives the conformational change shortening the cell.',
                   'hashtags': ['Auditory System'],
                   'id': 'aud-ohc-2',
-                  'options': ['Dissociation of chloride ions from prestin upon vibration-driven depolarisation', 'Binding of extra chloride ions at rest', 'A drop in extracellular K+ concentration', 'Direct mechanical contact with the tectorial membrane only'],
+                  'options': ['Chloride ions dissociating from prestin on depolarisation', 'Extra chloride ions binding to prestin while it is at rest', 'A drop in the extracellular potassium concentration', 'Direct mechanical contact with the tectorial membrane'],
                   'prompt': 'What triggers prestin’s conformational change during outer hair cell electromotility?',
                 },
               ],
@@ -11168,7 +11168,7 @@
                   'explanation': 'Sensorineural loss reflects damage to the sensory (cochlear hair cells) or neural (auditory nerve) components of the pathway, distinguishing it from a purely mechanical/conductive problem earlier in the ear.',
                   'hashtags': ['Auditory System', 'Hearing Loss'],
                   'id': 'aud-loss-2',
-                  'options': ['Within the inner ear (hair cells) or the auditory nerve itself', 'Exclusively in the outer ear canal', 'In the Eustachian tube only', 'In the acoustic reflex muscles only'],
+                  'options': ['In the inner ear hair cells, or the auditory nerve', 'Exclusively within the outer ear canal and the pinna', 'In the Eustachian tube, and nowhere else in the ear', 'In the muscles that drive the acoustic reflex'],
                   'prompt': 'Sensorineural hearing loss is best described as arising from a problem where?',
                 },
               ],
@@ -11204,7 +11204,7 @@
                   'explanation': 'The microphone and speech processor sit externally, worn on/behind the ear; the receiver-stimulator and the intracochlear electrode array are the surgically implanted components that deliver the actual electrical stimulation.',
                   'hashtags': ['Auditory System', 'Cochlear Implants'],
                   'id': 'aud-ci-2',
-                  'options': ['External: microphone and speech processor. Implanted: receiver-stimulator and electrode array', 'External: electrode array. Implanted: microphone', 'External: receiver-stimulator. Implanted: speech processor', 'Both the microphone and the electrode array are implanted'],
+                  'options': ['External: microphone, processor. Implanted: receiver, array', 'External: the electrode array. Implanted: just the microphone', 'External: receiver-stimulator. Implanted: speech processor', 'Both the microphone and the electrode array are implanted'],
                   'prompt': 'Which pairing correctly matches a cochlear implant’s external and implanted components?',
                 },
               ],
@@ -11226,7 +11226,7 @@
                   'explanation': 'Current spread across a wider gap reduces how selectively each electrode can target a distinct group of neurons, effectively reducing the number of independent frequency channels the implant can convey — this is why closing the gap is a major research goal.',
                   'hashtags': ['Auditory System', 'Cochlear Implants'],
                   'id': 'aud-gap-1',
-                  'options': ['Current spreads out crossing the gap, causing neighbouring electrodes to stimulate overlapping neuron populations', 'The gap causes the electrode array to physically dissolve over time', 'The gap prevents the microphone from picking up any sound', 'The gap only affects loudness perception, never pitch'],
+                  'options': ['Current spreads, so neighbouring electrodes overlap', 'The gap makes the electrode array dissolve over time', 'The gap stops the microphone picking up any sound at all', 'The gap affects only loudness perception, never pitch'],
                   'prompt': 'Why does a physical gap between the cochlear implant electrode array and the spiral ganglion neurons limit implant performance?',
                 },
                 {
@@ -11234,7 +11234,7 @@
                   'explanation': 'Following hearing loss, spiral ganglion neurites tend to degenerate rather than regenerate on their own, which widens the functional gap between surviving neuron cell bodies and the implant electrode array.',
                   'hashtags': ['Auditory System', 'Cochlear Implants'],
                   'id': 'aud-gap-2',
-                  'options': ['They tend to degenerate, increasing the effective distance to the implant electrode', 'They regenerate spontaneously to fill any gap', 'They migrate outward to meet the electrode array unaided', 'They are unaffected by hearing loss entirely'],
+                  'options': ['They degenerate, increasing the distance to the electrode', 'They regenerate spontaneously and fill in any neural gap left', 'They migrate outward to meet the electrode array unaided', 'They are entirely unaffected by the loss of hearing'],
                   'prompt': 'What happens to spiral ganglion neurons and their peripheral processes after hearing loss, contributing to the neural gap problem?',
                 },
               ],
@@ -11256,7 +11256,7 @@
                   'explanation': 'BDNF acts as an axon guidance molecule; expressing it locally via the implant array encourages nearby spiral ganglion neurites to grow toward the electrodes, reducing the functional gap current has to cross.',
                   'hashtags': ['Auditory System', 'Gene Therapy'],
                   'id': 'aud-bdnf-1',
-                  'options': ['To promote spiral ganglion neurite regrowth toward the electrode array, closing the neural gap', 'To permanently silence the auditory nerve', 'To dissolve the electrode array once hearing is restored', 'To replace the need for a speech processor entirely'],
+                  'options': ['To regrow spiral ganglion neurites toward the array', 'To silence the auditory nerve permanently and safely', 'To dissolve the electrode array once hearing is restored', 'To remove the need for an external speech processor'],
                   'prompt': 'What is the therapeutic goal of delivering the BDNF gene near cochlear implant electrodes via close-field gene electrotransfer?',
                 },
                 {
@@ -11264,7 +11264,7 @@
                   'explanation': 'eABR recordings showed BDNF-treated cochleae required less current to evoke a response and could recruit a wider range of neural activity than GFP controls — consistent with neurites having regrown closer to the stimulating electrodes.',
                   'hashtags': ['Auditory System', 'Gene Therapy'],
                   'id': 'aud-bdnf-2',
-                  'options': ['It lowered the current stimulus threshold and enhanced the dynamic range of neural recruitment', 'It had no measurable effect on stimulus threshold', 'It increased the current threshold required for a response', 'It eliminated the need for any electrical stimulation at all'],
+                  'options': ['It lowered the stimulus threshold and widened dynamic range', 'It had no measurable effect on the stimulus threshold at all', 'It increased the current threshold needed for any response', 'It removed the need for electrical stimulation altogether'],
                   'prompt': 'In eABR testing, close-field BDNF gene electrotransfer was shown to have what effect compared to GFP-only controls?',
                 },
               ],
@@ -11403,7 +11403,7 @@
                   'explanation': 'Store & act is the final step — the processed, displayed result can also be logged, transmitted, or used to trigger something else, like an insulin pump adjusting a dose.',
                   'hashtags': ['Biosensors'],
                   'id': 'bio-out-2',
-                  'options': ['Logging the result and potentially sending it to a phone/cloud or triggering an alert or linked device', 'Converting the raw analog signal into a digital one', 'Amplifying the initial tiny transducer signal', 'Recognising the target analyte in the first place'],
+                  'options': ['Logging the result and sending it on, or raising an alert', 'Converting the raw analog signal into a digital one', 'Amplifying the tiny signal coming off the transducer', 'Recognising the target analyte in the sample to begin with'],
                   'prompt': 'What best describes the "store & act" stage of a biosensor’s signal pipeline?',
                 },
               ],
@@ -11491,7 +11491,7 @@
                   'explanation': 'A single-point reading only captures the value at that exact moment — anything that changes between tests (a glucose spike overnight, for example) simply goes unrecorded.',
                   'hashtags': ['Biosensors'],
                   'id': 'bio-mode-1',
-                  'options': ['It misses fluctuations that occur between individual tests', 'It is always more expensive than continuous monitoring', 'It cannot ever be used outside a hospital', 'It requires a permanently implanted device'],
+                  'options': ['It misses fluctuations that occur between individual tests', 'It is always more expensive than continuous monitoring would be', 'It cannot ever be used outside a hospital', 'It requires a permanently implanted device'],
                   'prompt': 'What is the main limitation of single-point biosensor measurement compared with continuous monitoring?',
                 },
                 {
@@ -11499,7 +11499,7 @@
                   'explanation': 'Because it samples repeatedly over time rather than once, continuous monitoring can show trends and proactively alert to dangerous highs or lows that a single reading would simply miss.',
                   'hashtags': ['Biosensors'],
                   'id': 'bio-mode-2',
-                  'options': ['It can reveal trends over time and trigger alerts for highs and lows', 'It never needs to be calibrated', 'It always costs less than a single finger-prick test', 'It eliminates the need for any recognition element'],
+                  'options': ['It shows trends over time and can alert to highs and lows', 'It never needs to be calibrated against a reference sample', 'It always costs less than a single finger-prick test', 'It removes the need for a recognition element entirely'],
                   'prompt': 'What is a key clinical advantage of continuous/wearable biosensor monitoring over single-point testing?',
                 },
               ],
@@ -11581,7 +11581,7 @@
                   'explanation': 'The clinical value of a CGM is specifically in showing the trend and fluctuations between moments, including overnight or post-meal spikes that a single finger-prick would simply never capture.',
                   'hashtags': ['Biosensors'],
                   'id': 'bio-cgm-1',
-                  'options': ['A continuous trend over time, including fluctuations and highs/lows between individual tests', 'A more precise single reading at one instant only', 'Information about a completely different analyte, such as sodium', 'Nothing — CGMs and finger-prick tests provide identical information'],
+                  'options': ['A continuous trend, including the swings between tests', 'A more precise single reading at one instant in time', 'Information on a different analyte entirely, such as sodium', 'Nothing — the two provide exactly the same information'],
                   'prompt': 'What information can a CGM provide that a single finger-prick glucose measurement cannot?',
                 },
                 {
@@ -11589,7 +11589,7 @@
                   'explanation': 'By enabling real-time alerts and trend data, CGM use is associated with better glycaemic control and fewer hypoglycaemic events compared with relying on intermittent finger-prick testing alone.',
                   'hashtags': ['Biosensors'],
                   'id': 'bio-cgm-2',
-                  'options': ['Improved glycaemic control and reduced hypoglycaemia', 'No measurable change in glycaemic outcomes', 'Increased frequency of severe hypoglycaemia', 'Elimination of the need for any insulin therapy'],
+                  'options': ['Improved glycaemic control and reduced hypoglycaemia', 'No measurable change in glycaemic outcomes', 'Increased frequency of severe hypoglycaemia', 'Complete elimination of the need for any insulin therapy'],
                   'prompt': 'Which clinical outcome has been associated with switching from single-point testing to CGM use?',
                 },
               ],
@@ -11611,7 +11611,7 @@
                   'explanation': 'Because episodes of atrial fibrillation can come and go, a brief single ECG in clinic can easily miss it — continuous wearable monitoring dramatically increases the odds of catching an intermittent episode.',
                   'hashtags': ['Biosensors', 'Cardiovascular'],
                   'id': 'bio-ecg-1',
-                  'options': ['Because atrial fibrillation can be intermittent, and continuous monitoring is far more likely to capture an episode than a single clinic ECG', 'Because atrial fibrillation is always continuously present, so any ECG will detect it', 'Because wearable sensors can only detect atrial fibrillation and no other arrhythmia', 'Because atrial fibrillation has no connection to stroke risk'],
+                  'options': ['AF is intermittent, so continuous monitoring catches it', 'AF is continuously present, so any single ECG will find it', 'Wearables can detect AF and no other arrhythmia at all', 'AF has no connection to stroke risk worth monitoring for'],
                   'prompt': 'Why are wearable ECG biosensors particularly useful for detecting atrial fibrillation specifically?',
                 },
                 {
@@ -11657,7 +11657,7 @@
                   'explanation': 'Unlike antibodies (which are biologically produced), aptamers are synthetic nucleic acids engineered to fold into a specific binding shape for a chosen target — one of several recognition-element options available to biosensor designers.',
                   'hashtags': ['Biosensors'],
                   'id': 'bio-apt-1',
-                  'options': ['A synthetic DNA or RNA sequence that folds into a shape that binds a specific target', 'A naturally occurring antibody produced by the immune system', 'A metal electrode used purely for electrochemical detection', 'A type of vibrating piezoelectric crystal'],
+                  'options': ['A synthetic DNA or RNA that folds to grip its target', 'A naturally occurring antibody made by the immune system', 'A metal electrode used purely for electrochemical detection', 'A type of vibrating piezoelectric crystal transducer'],
                   'prompt': 'What is an aptamer, in the context of a biosensor’s recognition element?',
                 },
                 {
@@ -11665,7 +11665,7 @@
                   'explanation': 'The idea extends today’s standard vital signs (heart rate, blood pressure, temperature, oxygen saturation) to also include continuously monitored molecular measures like drug levels or inflammatory biomarkers — not a replacement, but an addition.',
                   'hashtags': ['Biosensors', 'Precision Medicine'],
                   'id': 'bio-apt-2',
-                  'options': ['Continuously tracking drug concentrations or biomarkers in real time, alongside standard vital signs', 'Replacing heart rate and blood pressure monitoring entirely with molecular measurements', 'A one-off blood test taken during an annual physical', 'A method that only applies to glucose monitoring'],
+                  'options': ['Tracking drug levels in real time, beside the usual vital signs', 'Replacing heart rate and blood pressure with molecular readouts alone', 'A one-off blood test taken during an annual physical check', 'A method that applies only to monitoring blood glucose'],
                   'prompt': 'What does the concept of "molecular vital signs" describe?',
                 },
               ],
@@ -11698,7 +11698,7 @@
                 {
                   'id': 'ms-tandem-1',
                   'prompt': 'What makes tandem mass spectrometry (MS/MS) more specific than measuring a single precursor mass alone?',
-                  'options': ['A second stage of fragmentation and mass analysis identifies molecules by their characteristic breakdown pattern, not just their raw mass', 'It only ever detects one molecule at a time, eliminating background entirely', 'It uses fluorescent antibodies instead of ionisation', 'It measures the sample’s overall pH rather than individual molecules'],
+                  'options': ['A second fragmentation stage identifies the breakdown pattern', 'It detects one molecule at a time, removing all of the background', 'It uses fluorescent antibodies in place of ionisation', 'It measures the overall sample pH rather than single molecules'],
                   'correctIndex': 0,
                   'explanation': 'MS/MS fragments the selected precursor ion and analyses the resulting fragment ions — the specific fragmentation pattern (e.g. a characteristic neutral loss) is what gives it such high specificity for one target molecule, not merely its mass.',
                   'hashtags': ['Mass Spectrometry'],
@@ -11706,7 +11706,7 @@
                 {
                   'id': 'ms-tandem-2',
                   'prompt': 'A "precursor ion scan for neutral loss of X mass units" is searching for which pattern?',
-                  'options': ['Precursor ions that, upon fragmentation, consistently lose a fragment of exactly that mass', 'Any ion with that exact total molecular weight, regardless of fragmentation', 'Ions that gain that much mass during ionisation', 'Ions that fail to fragment at all'],
+                  'options': ['Precursor ions that all lose a fragment of exactly that mass', 'Any ion of that total molecular weight, however it fragments later', 'Ions that gain that much mass during the ionisation step', 'Ions that fail to fragment at all in the second stage'],
                   'correctIndex': 0,
                   'explanation': 'A neutral-loss scan flags precursor ions whose fragmentation consistently produces a fragment differing by that specific mass — a chemical fingerprint used to specifically detect a class of related compounds.',
                   'hashtags': ['Mass Spectrometry'],
@@ -11792,7 +11792,7 @@
                 {
                   'id': 'ms-pku-2',
                   'prompt': 'Comparing a PKU-affected sample to a healthy control using this assay, what would you expect to see?',
-                  'options': ['A much larger peak at phenylalanine’s characteristic m/z in the affected sample, reflecting elevated phenylalanine', 'An identical trace in both samples, since PKU doesn’t affect phenylalanine levels', 'A peak only in the healthy control, since PKU eliminates phenylalanine entirely', 'A shift in ionisation polarity unique to the affected sample'],
+                  'options': ['A much larger peak at phenylalanine’s characteristic m/z', 'An identical trace, since PKU does not alter phenylalanine', 'A peak only in the control, since PKU removes phenylalanine', 'A shift in ionisation polarity unique to the affected sample'],
                   'correctIndex': 0,
                   'explanation': 'Because PKU causes phenylalanine to accumulate, the affected sample shows a substantially larger signal at the phenylalanine-specific neutral-loss peak compared with a healthy control.',
                   'hashtags': ['Mass Spectrometry'],
@@ -11814,7 +11814,7 @@
                 {
                   'id': 'ms-clin-1',
                   'prompt': 'A laboratory measuring immunosuppressant drug levels in a transplant patient is using mass spectrometry for which application?',
-                  'options': ['Therapeutic drug monitoring', 'Newborn screening', 'Toxicology', 'Biogenic amine analysis'],
+                  'options': ['Therapeutic drug monitoring', 'Newborn screening for IEM', 'Toxicology and overdose work', 'Biogenic amine analysis'],
                   'correctIndex': 0,
                   'explanation': 'Measuring levels of a prescribed therapeutic drug (like an immunosuppressant) to guide dosing is therapeutic drug monitoring — distinct from toxicology, which covers non-therapeutic/illicit substances.',
                   'hashtags': ['Mass Spectrometry'],
@@ -11822,7 +11822,7 @@
                 {
                   'id': 'ms-clin-2',
                   'prompt': 'For a sex steroid panel used to help diagnose PCOS, which technique is described as the gold standard, and why?',
-                  'options': ['LC-MS/MS, because it is highly specific for the exact steroid of interest, unlike immunoassays that can cross-react with structurally similar steroids', 'ELISA, because it is faster and requires no sample preparation', 'PCR, because it directly measures the underlying gene expression', 'Flow cytometry, because it can measure many steroids in a single antibody panel'],
+                  'options': ['LC-MS/MS, because it is specific for the exact steroid', 'ELISA, because it is fast and needs no sample preparation', 'PCR, because it measures the underlying gene expression', 'Flow cytometry, because one panel can measure many steroids'],
                   'correctIndex': 0,
                   'explanation': 'LC-MS/MS measures the specific steroid of interest directly, without the cross-reactivity seen with structurally similar steroids in immunoassay-based methods — this specificity is what makes it the gold standard for steroid panels.',
                   'hashtags': ['Mass Spectrometry'],
@@ -11876,7 +11876,7 @@
                 {
                   'id': 'ms-adv-1',
                   'prompt': 'Compared with immunoassay, mass spectrometry-based diagnostic assays are generally considered to have which combination of trade-offs?',
-                  'options': ['Higher specificity but lower throughput and a need for specialised equipment/skilled operators', 'Higher throughput but much lower specificity', 'No specialised equipment needed, but poor specificity', 'Identical throughput and specificity, differing only in cost'],
+                  'options': ['Higher specificity, but lower throughput and specialised kit', 'Higher throughput, but much lower specificity than immunoassay', 'No specialised equipment needed, but poor specificity', 'Identical throughput and specificity, differing only in cost'],
                   'correctIndex': 0,
                   'explanation': 'MS trades some practical convenience (slower sample prep, lower throughput, need for specialised equipment and trained operators) for much higher specificity for the exact analyte of interest.',
                   'hashtags': ['Mass Spectrometry'],
@@ -11913,7 +11913,7 @@
                 {
                   'id': 'gt-mut-1',
                   'prompt': 'Why does a silent mutation typically have no effect on protein function?',
-                  'options': ['The genetic code is degenerate, so the changed codon still encodes the same amino acid', 'Silent mutations only occur in non-coding DNA', 'Silent mutations always occur in the stop codon', 'Silent mutations delete the entire gene'],
+                  'options': ['The code is degenerate, so the codon means the same thing', 'Silent mutations only ever occur in non-coding stretches of DNA', 'Silent mutations always land in the stop codon itself', 'Silent mutations delete the entire gene they occur in'],
                   'correctIndex': 0,
                   'explanation': 'Because multiple codons can encode the same amino acid (codon degeneracy), a silent point mutation changes the DNA sequence without changing the resulting protein sequence.',
                   'hashtags': ['Gene Therapy'],
@@ -11921,7 +11921,7 @@
                 {
                   'id': 'gt-mut-3',
                   'prompt': 'Gene duplication can, in principle, cause which two very different functional outcomes?',
-                  'options': ['A dosage-effect gain of function, or loss of function via pseudogenisation', 'Only ever a silent, no-consequence outcome', 'Only ever complete loss of the entire chromosome', 'Only ever a beneficial, disease-protective effect'],
+                  'options': ['A dosage gain of function, or loss via pseudogenisation', 'Only ever a silent outcome, with no consequence at all for the cell', 'Only ever the complete loss of the entire chromosome', 'Only ever a beneficial, disease-protective effect'],
                   'correctIndex': 0,
                   'explanation': 'An extra functional copy of a gene can produce a gain-of-function dosage effect, while a duplicated copy that degrades into a non-functional pseudogene contributes nothing — illustrating that duplication’s effect depends on what happens to the extra copy.',
                   'hashtags': ['Gene Therapy'],
@@ -11943,7 +11943,7 @@
                 {
                   'id': 'gt-inherit-1',
                   'prompt': 'Why can X-linked "dominant" and "recessive" inheritance patterns be complicated in females specifically?',
-                  'options': ['X-inactivation and mosaicism mean different cells randomly silence different X chromosomes, varying symptom severity', 'Females only ever have one X chromosome, like males', 'X-linked mutations can never be inherited by females at all', 'Females cannot be carriers of any X-linked mutation'],
+                  'options': ['X-inactivation is random, so cells silence different X copies', 'Females have only a single X chromosome, exactly as males do too', 'X-linked mutations can never be inherited by females at all', 'Females are unable to be carriers of any X-linked mutation'],
                   'correctIndex': 0,
                   'explanation': 'Because one X chromosome is randomly inactivated per cell in females, a carrier’s mix of cells expressing the normal vs mutant allele can vary (skewed X-inactivation), producing a wide range of symptom severity between individuals.',
                   'hashtags': ['Gene Therapy'],
@@ -11987,7 +11987,7 @@
                 {
                   'id': 'gt-aav-1',
                   'prompt': 'In an rAAV vector genome, which wild-type AAV element is retained, while rep and cap are replaced with the therapeutic cargo?',
-                  'options': ['The inverted terminal repeats (ITRs)', 'The p5 promoter only', 'The entire capsid-coding cap gene', 'The helper adenovirus genome'],
+                  'options': ['The inverted terminal repeats (ITRs)', 'The p5 promoter only', 'The entire capsid-coding cap gene region', 'The helper adenovirus genome'],
                   'correctIndex': 0,
                   'explanation': 'The palindromic ITRs at each end are retained because they’re required for the genome to be recognised and packaged; rep and cap are removed and replaced with the promoter/transgene/polyA cassette to make room for the therapeutic payload.',
                   'hashtags': ['Gene Therapy'],
@@ -12025,7 +12025,7 @@
                 {
                   'id': 'gt-sero-1',
                   'prompt': 'Different AAV serotypes show different tissue tropism mainly because:',
-                  'options': ['Their capsid proteins interact differently with cell-surface receptors on different tissue types', 'They each carry a different transgene by default', 'Only one serotype is capable of infecting any cell at all', 'Serotype has no real effect on tropism in practice'],
+                  'options': ['Their capsids bind different cell-surface receptors', 'They each carry a different transgene as standard', 'Only one serotype can infect any human cell at all', 'Serotype has no real effect on tropism in clinical practice'],
                   'correctIndex': 0,
                   'explanation': 'Tropism differences between AAV serotypes arise from differences in their capsid proteins, which determine which cell-surface receptors they can engage — this is why picking the right serotype for the target tissue matters.',
                   'hashtags': ['Gene Therapy'],
@@ -12055,7 +12055,7 @@
                 {
                   'id': 'gt-aavsafe-1',
                   'prompt': 'Why does a recombinant AAV vector remain non-replicating even if a helper virus is present?',
-                  'options': ['Rep and cap genes have been removed from the vector genome itself, so it cannot replicate regardless of helper functions being available', 'Helper viruses always destroy AAV particles on contact', 'AAV capsids physically cannot enter any cell', 'ITRs prevent any gene expression from occurring at all'],
+                  'options': ['Rep and cap have been removed from the vector genome itself', 'Helper viruses always destroy AAV particles the moment they meet', 'AAV capsids are physically unable to enter any host cell', 'The ITRs prevent any gene expression from occurring at all'],
                   'correctIndex': 0,
                   'explanation': 'Even with helper functions supplied, replication still requires rep and cap — since those genes were deliberately removed from the rAAV vector genome (and only survive on separate production plasmids), the vector itself cannot replicate once in a patient.',
                   'hashtags': ['Gene Therapy'],
@@ -12063,7 +12063,7 @@
                 {
                   'id': 'gt-aavsafe-2',
                   'prompt': 'Documented fatalities in AAV gene therapy trials have most notably been associated with:',
-                  'options': ['High-dose systemic AAV delivery, with immune-mediated organ failure (e.g. liver or kidney)', 'Low-dose localised injections only', 'AAV integrating into the genome and causing cancer', 'AAV’s complete inability to express any transgene'],
+                  'options': ['High-dose systemic AAV, with immune-mediated organ failure', 'Low-dose localised injection into one single target tissue', 'AAV integrating into the host genome and then causing cancer', 'AAV proving completely unable to express any transgene'],
                   'correctIndex': 0,
                   'explanation': 'The documented fatality cases involved high systemic doses of AAV, with causes of death including innate or adaptive immune responses leading to organ (liver/kidney) failure — not genomic integration, which is not a defining feature of AAV.',
                   'hashtags': ['Gene Therapy'],
@@ -12071,7 +12071,7 @@
                 {
                   'id': 'gt-aavsafe-3',
                   'prompt': 'Which of the following correctly describes how rAAV genomes typically persist inside a transduced cell?',
-                  'options': ['As non-integrated episomes, often concatemerised into multiple linked copies', 'Fully integrated into the host chromosome at a random site', 'Only transiently, degrading within hours of entry', 'Exclusively within mitochondrial DNA'],
+                  'options': ['As non-integrated episomes, often linked into concatemers', 'Fully integrated into the host chromosome at a random site', 'Only transiently, degrading within hours of entering the cell', 'Exclusively within the mitochondrial DNA of the host cell'],
                   'correctIndex': 0,
                   'explanation': 'AAV vector genomes largely persist as episomes (extrachromosomal), frequently forming concatemers of several linked copies, rather than integrating into the host genome — a key part of its favourable safety profile relative to integrating vectors.',
                   'hashtags': ['Gene Therapy'],
@@ -12099,7 +12099,7 @@
                 {
                   'id': 'gt-aso-1',
                   'prompt': 'Why might an ASO be a better therapeutic choice than AAV gene replacement for a disease caused by a toxic, gain-of-function mutant protein?',
-                  'options': ['ASOs can bind and destroy the toxic mRNA itself, whereas adding a healthy gene copy wouldn’t remove the existing toxic protein', 'ASOs always integrate into the genome, permanently fixing the mutation', 'AAV vectors cannot be produced for any gain-of-function disease', 'ASOs work only in loss-of-function diseases, never gain-of-function ones'],
+                  'options': ['An ASO destroys the toxic mRNA; a gene copy would not', 'ASOs integrate into the genome, fixing the mutation for good', 'AAV vectors cannot be produced for gain-of-function disease', 'ASOs work only in loss-of-function disease, never otherwise'],
                   'correctIndex': 0,
                   'explanation': 'Gene replacement adds a functional copy but does nothing to remove an existing toxic gain-of-function protein — an ASO instead targets and destroys the harmful mRNA directly, addressing the actual source of toxicity.',
                   'hashtags': ['Gene Therapy'],
@@ -12107,7 +12107,7 @@
                 {
                   'id': 'gt-aso-2',
                   'prompt': 'What enzyme is recruited to degrade the target mRNA once a DNA-based ASO binds it?',
-                  'options': ['RNase H, which cuts RNA specifically within RNA-DNA hybrids', 'DNA polymerase, which synthesises a new DNA strand', 'Reverse transcriptase, which converts the mRNA into DNA', 'Cas9, which cuts double-stranded DNA'],
+                  'options': ['RNase H, which cuts RNA specifically within RNA-DNA hybrids', 'DNA polymerase, which synthesises a new DNA strand', 'Reverse transcriptase, which converts the mRNA back into DNA', 'Cas9, which cuts double-stranded DNA'],
                   'correctIndex': 0,
                   'explanation': 'RNase H is an endonuclease that specifically recognises and cuts the RNA strand of an RNA-DNA hybrid — exactly the structure formed when a DNA-based ASO binds its target mRNA.',
                   'hashtags': ['Gene Therapy'],
@@ -12115,7 +12115,7 @@
                 {
                   'id': 'gt-aso-3',
                   'prompt': 'After RNase H degrades the target mRNA in an ASO-bound complex, what happens to the ASO itself?',
-                  'options': ['It is released intact and can go on to bind and trigger degradation of further mRNA copies', 'It is destroyed along with the mRNA every time', 'It becomes permanently bound to the degraded mRNA fragments', 'It is converted into a new protein'],
+                  'options': ['It is released intact and can go on to bind further copies', 'It is destroyed along with the mRNA on every single pass', 'It stays permanently bound to the degraded mRNA fragments', 'It is itself translated into a new protein product by the cell'],
                   'correctIndex': 0,
                   'explanation': 'Because RNase H cuts the RNA strand specifically (not the ASO strand), the ASO survives the reaction and is released to repeat the process on additional copies of the target mRNA — contributing to a catalytic, reusable mechanism.',
                   'hashtags': ['Gene Therapy'],
@@ -12179,7 +12179,7 @@
                 {
                   'id': 'gt-asohist-1',
                   'prompt': 'Fomiversen, the first clinically approved ASO (1998, for CMV retinitis), ultimately failed primarily for what reason?',
-                  'options': ['Commercial reasons — HAART sharply reduced AIDS-related CMV retinitis cases, not a failure of the drug’s biology', 'It caused fatal toxicity in every patient', 'It was found to have no antisense activity at all', 'It was banned due to a manufacturing contamination'],
+                  'options': ['Commercial — HAART cut AIDS-related CMV retinitis cases', 'It caused fatal toxicity in every patient who received it', 'It was found to have no antisense activity whatsoever', 'It was banned after a contamination in manufacturing'],
                   'correctIndex': 0,
                   'explanation': 'Fomiversen worked clinically, but the introduction of highly active antiretroviral therapy (HAART) dramatically reduced the number of AIDS patients developing CMV retinitis — collapsing its target market, a commercial rather than scientific failure.',
                   'hashtags': ['Gene Therapy'],
@@ -12187,7 +12187,7 @@
                 {
                   'id': 'gt-asohist-2',
                   'prompt': 'Most first-generation (1990s) ASO clinical trials failed largely because of which combination of problems?',
-                  'options': ['Poor in vivo target knockdown, poor systemic circulation, and only a few days’ half-life due to incomplete nuclease protection', 'The ASOs were too expensive to manufacture at any scale', 'They were universally rejected due to ethical concerns', 'They worked identically in vivo and in vitro, but regulators still rejected them'],
+                  'options': ['Weak knockdown, poor circulation, and a half-life of days', 'The ASOs were far too expensive to manufacture at any scale', 'They were rejected on ethical grounds almost universally', 'They behaved identically in vivo and in vitro, yet still failed'],
                   'correctIndex': 0,
                   'explanation': 'First-generation ASOs largely under-delivered in vivo compared with cell culture, circulated poorly after systemic dosing, and had short half-lives since exonuclease degradation (the dominant problem) wasn’t yet maximally blocked.',
                   'hashtags': ['Gene Therapy'],
@@ -12227,7 +12227,7 @@
                 {
                   'id': 'gt-adv-2',
                   'prompt': 'The death of Jesse Gelsinger in 1999 occurred in the context of:',
-                  'options': ['A high-dose systemic adenovirus gene therapy trial', 'A low-dose AAV eye injection trial', 'A CRISPR base-editing trial', 'A lentiviral CAR-T cell trial'],
+                  'options': ['A high-dose systemic adenovirus gene therapy trial', 'A low-dose AAV injection into the eye', 'A CRISPR base-editing trial for a metabolic disease', 'A lentiviral CAR-T cell trial for leukaemia'],
                   'correctIndex': 0,
                   'explanation': 'Gelsinger died following a high-dose systemic adenovirus vector infusion, a pivotal event that sharply curtailed enthusiasm for adenoviral gene therapy and reshaped safety practices across the field.',
                   'hashtags': ['Gene Therapy'],
@@ -12235,7 +12235,7 @@
                 {
                   'id': 'gt-adv-3',
                   'prompt': 'Adenovirus vectors are now most widely used for which purpose, given their inherent immunogenicity?',
-                  'options': ['Vaccines and cancer immunotherapy, where triggering an immune response is actually the goal', 'Long-term correction of loss-of-function genetic diseases', 'Silent, non-immunogenic gene replacement in the CNS', 'Permanent gene editing via genomic integration'],
+                  'options': ['Vaccines and cancer immunotherapy, where immunity is the point', 'Long-term correction of loss-of-function genetic disease in adults', 'Silent, non-immunogenic gene replacement within the CNS', 'Permanent gene editing by integration into the host genome'],
                   'correctIndex': 0,
                   'explanation': 'Because AdV strongly stimulates the immune system, that property has been turned into an advantage for vaccines (e.g. COVID-19, Ebola) and cancer immunotherapy, rather than being suppressed as it would need to be for quiet, long-term gene replacement.',
                   'hashtags': ['Gene Therapy'],
@@ -12267,7 +12267,7 @@
                 {
                   'id': 'gt-retro-2',
                   'prompt': 'The gammaretroviral X-SCID gene therapy caused paediatric leukemia because:',
-                  'options': ['Gammaretroviruses tend to integrate near proto-oncogenes, and insertional overexpression drove uncontrolled cell division', 'The vector accidentally delivered a cancer-causing viral gene', 'The transduced stem cells were rejected by the immune system', 'The vector failed to integrate at all, causing no therapeutic effect'],
+                  'options': ['They integrate near proto-oncogenes and overexpress them', 'The vector accidentally carried a cancer-causing viral gene', 'The transduced stem cells were rejected by the immune system', 'The vector never integrated, so there was no therapeutic effect'],
                   'correctIndex': 0,
                   'explanation': 'Gammaretroviruses have a strong tendency to integrate near transcriptionally active regions, including proto-oncogenes — overexpressing a nearby proto-oncogene through this insertional effect drove the uncontrolled proliferation seen in these patients.',
                   'hashtags': ['Gene Therapy'],
@@ -12297,7 +12297,7 @@
                 {
                   'id': 'gt-lenti-1',
                   'prompt': 'Which disease is treated by lentivirally modifying a patient’s own hematopoietic stem cells, targeting a childhood disease of progressive myelin loss?',
-                  'options': ['Cerebral adrenoleukodystrophy', 'Christianson syndrome', 'Hereditary ATTR amyloidosis', 'Duchenne muscular dystrophy'],
+                  'options': ['Cerebral adrenoleukodystrophy', 'Christianson syndrome', 'Hereditary ATTR amyloidosis (hATTR)', 'Duchenne muscular dystrophy'],
                   'correctIndex': 0,
                   'explanation': 'Cerebral adrenoleukodystrophy is a progressive childhood disease of myelin loss treated by transducing the patient’s own hematopoietic stem cells with a lentiviral vector carrying a corrective gene.',
                   'hashtags': ['Gene Therapy'],
@@ -12333,7 +12333,7 @@
                 {
                   'id': 'gt-crispr-1',
                   'prompt': 'In its natural bacterial context, a CRISPR "spacer" sequence represents:',
-                  'options': ['A stored fragment of a past invading virus’s DNA, acting as an immune memory', 'A random, non-functional stretch of junk DNA', 'The bacterium’s own housekeeping gene sequence', 'A sequence exclusively used for bacterial DNA replication'],
+                  'options': ['A stored fragment of a past invader, kept as immune memory', 'A random, non-functional stretch of bacterial junk DNA', 'One of the bacterium’s own essential housekeeping sequences', 'A sequence used exclusively for bacterial DNA replication'],
                   'correctIndex': 0,
                   'explanation': 'Spacers are fragments of DNA captured from past viral infections, giving the bacterium a sequence-specific "memory" it can use to recognise and destroy that virus’s DNA on future encounters.',
                   'hashtags': ['Gene Therapy'],
@@ -12349,7 +12349,7 @@
                 {
                   'id': 'gt-crispr-3',
                   'prompt': 'To repurpose the bacterial CRISPR-Cas9 system for editing a specific human gene, what is the key modification made?',
-                  'options': ['The spacer/guide RNA sequence is swapped for one matching the desired human target sequence', 'Cas9 itself must be replaced with a completely different protein', 'The PAM requirement is removed entirely', 'The bacterial genome is transplanted directly into human cells'],
+                  'options': ['The guide RNA spacer is swapped for the human target', 'Cas9 itself must be replaced with a different protein', 'The PAM requirement is removed from the system entirely', 'The bacterial genome is transplanted into the human cell'],
                   'correctIndex': 0,
                   'explanation': 'The core Cas9 mechanism is unchanged — engineers simply swap the spacer sequence within the guide RNA for one complementary to whatever human genomic target they want to cut.',
                   'hashtags': ['Gene Therapy'],
@@ -12371,7 +12371,7 @@
                 {
                   'id': 'gt-casgevy-1',
                   'prompt': 'Why does Casgevy not require packaging its CRISPR components into a viral vector at all?',
-                  'options': ['It is used ex vivo, so a guide RNA/Cas9 ribonucleoprotein can simply be mixed with cells and delivered by electroporation', 'CRISPR components never require any delivery method whatsoever', 'It uses a bacterial infection instead of any delivery vehicle', 'It is delivered only as a naked DNA plasmid injected directly into the bloodstream'],
+                  'options': ['It is used ex vivo, so the RNP can simply be electroporated in', 'CRISPR components never require a delivery method of any kind at all', 'It uses a bacterial infection in place of a delivery vehicle', 'It is given as naked plasmid DNA injected into the bloodstream'],
                   'correctIndex': 0,
                   'explanation': 'Because the target cells are edited outside the body (ex vivo) and then reinfused, there’s no need for a vector to carry the editing machinery through the bloodstream — the guide RNA/Cas9 ribonucleoprotein complex can be delivered directly via electroporation.',
                   'hashtags': ['Gene Therapy'],
@@ -12379,7 +12379,7 @@
                 {
                   'id': 'gt-casgevy-2',
                   'prompt': 'Casgevy treats severe sickle cell disease by:',
-                  'options': ['Disrupting an enhancer that normally silences fetal haemoglobin, allowing its production to resume', 'Directly correcting the sickle cell mutation in the beta-globin gene', 'Deleting the entire beta-globin gene', 'Inserting a synthetic haemoglobin gene from another species'],
+                  'options': ['Disrupting the enhancer that silences fetal haemoglobin', 'Directly correcting the sickle mutation in beta-globin', 'Deleting the beta-globin gene from the genome entirely', 'Inserting a synthetic haemoglobin gene from another species'],
                   'correctIndex': 0,
                   'explanation': 'Rather than fixing the sickle mutation directly, Casgevy disrupts an enhancer for a transcription factor that normally represses fetal haemoglobin — reactivating fetal haemoglobin production compensates for the defective adult haemoglobin.',
                   'hashtags': ['Gene Therapy'],
@@ -12387,7 +12387,7 @@
                 {
                   'id': 'gt-baseedit-1',
                   'prompt': 'Base editing differs from standard CRISPR-Cas9 cutting in that it:',
-                  'options': ['Uses a nickase Cas9 fused to a deaminase to directly chemically convert one base to another, without a double-strand break', 'Always deletes the entire target gene rather than editing a single base', 'Uses no guide RNA at all', 'Can only be delivered ex vivo, never in vivo'],
+                  'options': ['Fuses a deaminase to a nickase Cas9, so no double-strand break', 'Always deletes the whole target gene rather than editing one base', 'Needs no guide RNA to find its target anywhere in the genome', 'Can only ever be delivered ex vivo, and never in vivo'],
                   'correctIndex': 0,
                   'explanation': 'Base editing swaps the nuclease-driven double-strand break for a safer single-strand nick (nCas9) combined with a deaminase enzyme that directly converts one base to another chemically, rather than relying on the cell’s own DNA repair after a cut.',
                   'hashtags': ['Gene Therapy'],
@@ -12488,7 +12488,7 @@
                 {
                   'id': 'attr-def-3',
                   'prompt': 'Of roughly 30 known amyloidogenic proteins, which two account for almost all amyloidosis patients?',
-                  'options': ['Transthyretin (ATTR) and immunoglobulin light chain (AL)', 'Insulin and glucagon', 'Collagen and elastin', 'Haemoglobin and myoglobin'],
+                  'options': ['Transthyretin (ATTR) and immunoglobulin light chain (AL)', 'Insulin and glucagon, the two main pancreatic hormones', 'Collagen and elastin, the main structural proteins of the ECM', 'Haemoglobin and myoglobin, the body’s two oxygen carriers'],
                   'correctIndex': 0,
                   'explanation': 'Despite ~30 different amyloidogenic proteins being known, ATTR (transthyretin) and AL (light chain, from a plasma cell dyscrasia) together account for the overwhelming majority of real-world amyloidosis patients.',
                   'hashtags': ['ATTR'],
@@ -12510,7 +12510,7 @@
                 {
                   'id': 'attr-ttr-1',
                   'prompt': 'TTR transports which two substances in blood and CSF?',
-                  'options': ['Thyroxine (T4) and vitamin A (retinol)', 'Glucose and insulin', 'Iron and ferritin', 'Cholesterol and triglycerides'],
+                  'options': ['Thyroxine (T4) and vitamin A (retinol)', 'Glucose and the hormone insulin', 'Iron and its main storage protein ferritin', 'Cholesterol and the triglycerides'],
                   'correctIndex': 0,
                   'explanation': 'TTR (previously called pre-albumin) binds and transports thyroxine and, via retinol-binding protein, vitamin A — in both the bloodstream and cerebrospinal fluid.',
                   'hashtags': ['ATTR'],
@@ -12518,7 +12518,7 @@
                 {
                   'id': 'attr-ttr-2',
                   'prompt': 'Why is a loss of TTR-mediated serum thyroxine transport considered manageable?',
-                  'options': ['Thyroxine-binding globulin (TBG) already carries most serum T4 and can adequately compensate', 'The thyroid gland stops producing thyroxine entirely when TTR is lost', 'Thyroxine does not require any carrier protein in serum', 'TTR has no role in thyroxine transport at all'],
+                  'options': ['Thyroxine-binding globulin already carries most serum T4', 'The thyroid stops producing thyroxine entirely once TTR is lost', 'Thyroxine needs no carrier protein in serum in the first place', 'TTR plays no part in thyroxine transport to begin with'],
                   'correctIndex': 0,
                   'explanation': 'Because TBG, not TTR, carries the bulk of serum T4 under normal conditions, losing TTR doesn’t meaningfully compromise serum thyroxine transport — TTR’s contribution matters more specifically in the CSF.',
                   'hashtags': ['ATTR'],
@@ -12554,7 +12554,7 @@
                 {
                   'id': 'attr-chem-1',
                   'prompt': 'What is the correct sequence of steps by which TTR forms amyloid fibrils?',
-                  'options': ['Tetramer → dimers → monomers → misfolded monomers → oligomers/aggregates → fibrils', 'Fibrils → oligomers → monomers → dimers → tetramer', 'Tetramer → fibrils directly, with no intermediate steps', 'Monomers → tetramer → fibrils'],
+                  'options': ['Tetramer → dimers → monomers → misfolded → oligomers → fibrils', 'Fibrils → oligomers → misfolded monomers → dimers → tetramer', 'Tetramer straight to fibrils, with no intermediate steps at all', 'Monomers → tetramer → fibrils, in exactly that order'],
                   'correctIndex': 0,
                   'explanation': 'The stable tetramer must dissociate step-by-step (dimers, then monomers), the monomers must misfold, and only then do they aggregate progressively into oligomers and finally fibrils.',
                   'hashtags': ['ATTR'],
@@ -12638,7 +12638,7 @@
                 {
                   'id': 'attr-gp-2',
                   'prompt': 'The existence of a strong genotype-phenotype correlation in hATTR means:',
-                  'options': ['Knowing which specific TTR mutation a patient carries helps predict their likely age of onset and symptom pattern', 'Every TTR mutation produces an identical clinical picture', 'Genotype has no bearing on clinical presentation at all', 'Only wild-type ATTR shows any genotype-phenotype relationship'],
+                  'options': ['The mutation predicts likely age of onset and symptoms', 'Every TTR mutation produces an identical clinical picture', 'Genotype has no bearing at all on clinical presentation', 'Only wild-type ATTR shows a genotype-phenotype relationship'],
                   'correctIndex': 0,
                   'explanation': 'Because different TTR variants are reproducibly associated with different ages of onset and symptom patterns (neuropathy-dominant vs cardiomyopathy-dominant), genotyping a patient carries real predictive clinical value.',
                   'hashtags': ['ATTR'],
@@ -12660,7 +12660,7 @@
                 {
                   'id': 'attr-clin-1',
                   'prompt': 'Carpal tunnel syndrome is clinically significant in ATTR amyloidosis because:',
-                  'options': ['It is often the very first symptom, sometimes appearing years before other features', 'It only ever appears after the disease has become terminal', 'It is unrelated to ATTR and purely coincidental', 'It occurs only in wild-type, never hereditary, ATTR'],
+                  'options': ['It is often the first symptom, years before anything else', 'It appears only once the disease has already become terminal', 'It is unrelated to ATTR and is purely a coincidental finding', 'It occurs only in wild-type ATTR, and never in hereditary'],
                   'correctIndex': 0,
                   'explanation': 'TTR amyloid compressing the median nerve at the wrist frequently causes carpal tunnel syndrome as the earliest detectable sign of ATTR, well before neuropathy or cardiac symptoms are recognised — making it a potential early diagnostic clue.',
                   'hashtags': ['ATTR'],
@@ -12668,7 +12668,7 @@
                 {
                   'id': 'attr-clin-2',
                   'prompt': 'ATTR cardiomyopathy typically produces heart failure with which pattern of ejection fraction, and why?',
-                  'options': ['Preserved ejection fraction (HFpEF), because muscle strength is retained but the thickened, stiff ventricle cannot fill properly', 'Reduced ejection fraction (HFrEF), because the muscle itself becomes profoundly weak', 'No change in cardiac function at all', 'Ejection fraction above 100%, due to hypercontractility'],
+                  'options': ['Preserved ejection fraction — a stiff ventricle cannot fill', 'Reduced ejection fraction — the muscle becomes profoundly weak', 'No measurable change in cardiac function at any stage', 'Ejection fraction above 100%, driven by hypercontractility'],
                   'correctIndex': 0,
                   'explanation': 'Amyloid deposits between muscle fibres stiffen the ventricular wall without weakening the muscle’s contractile strength — so the heart still ejects a normal fraction of blood, but restricted diastolic filling reduces overall stroke volume, producing HFpEF.',
                   'hashtags': ['ATTR'],
@@ -12712,7 +12712,7 @@
                 {
                   'id': 'attr-ideal-2',
                   'prompt': 'Why does the fact that reduced TTR’s physiological consequences (impaired T4/vitamin A transport) can be safely managed matter for gene silencing therapy?',
-                  'options': ['It means the "on-target" side effects of silencing the therapeutic target itself are manageable, unlike many other genes', 'It means TTR has no physiological function worth discussing', 'It is irrelevant to whether gene silencing is a safe strategy', 'It means silencing TTR causes immediate, severe hypothyroidism'],
+                  'options': ['The on-target effects of silencing it are manageable', 'It means TTR has no physiological function worth discussing', 'It is irrelevant to whether gene silencing is safe here', 'It means silencing TTR causes severe, immediate hypothyroidism'],
                   'correctIndex': 0,
                   'explanation': 'Unlike many genes where silencing would cause serious harm from loss of the gene’s normal function, TTR’s functions can be adequately covered by other mechanisms (TBG, oral vitamin A) — removing a major potential safety barrier to this therapeutic approach.',
                   'hashtags': ['ATTR'],
@@ -12764,7 +12764,7 @@
                 {
                   'id': 'attr-stab-1',
                   'prompt': 'Tafamidis and acoramidis treat ATTR by which mechanism?',
-                  'options': ['Binding the TTR tetramer to kinetically stabilise it against dissociating into monomers', 'Silencing TTR mRNA to reduce protein production', 'Directly dissolving existing amyloid fibrils in tissue', 'Editing the TTR gene to permanently remove the mutation'],
+                  'options': ['Binding the tetramer so it cannot dissociate into monomers', 'Silencing TTR mRNA to reduce how much protein is produced here', 'Dissolving the amyloid fibrils already deposited in tissue', 'Editing the TTR gene to remove the mutation permanently'],
                   'correctIndex': 0,
                   'explanation': 'Unlike gene silencing (which reduces TTR production) or fibril-removal approaches, stabiliser drugs act on the existing tetramer itself, binding it to prevent the dissociation step that’s required before amyloid can form.',
                   'hashtags': ['ATTR'],
@@ -12884,7 +12884,7 @@
                 {
                   'id': 'attr-pati-3',
                   'prompt': 'In the Phase 3 trial, patisiran’s primary endpoint (mNIS+7 neuropathy disability score) showed what result compared with placebo?',
-                  'options': ['It improved in patisiran recipients, while continuing to worsen in the placebo group', 'It worsened equally in both groups', 'It improved equally in both groups, showing no drug effect', 'It was not measured in this trial'],
+                  'options': ['It improved on patisiran, while worsening on placebo', 'It worsened to an equal degree in both of the groups', 'It improved equally in both groups, so showed no effect', 'It was not among the endpoints measured in this trial'],
                   'correctIndex': 0,
                   'explanation': 'The pivotal trial showed neurological disability actually improving with patisiran treatment, in contrast to continued deterioration in the placebo arm — a genuine reversal, not just slowed progression.',
                   'hashtags': ['ATTR'],
@@ -12916,7 +12916,7 @@
                 {
                   'id': 'attr-vutri-2',
                   'prompt': 'Compared with patisiran, vutrisiran’s GalNAc-conjugate delivery gives which practical advantages?',
-                  'options': ['Subcutaneous dosing roughly every 3 months, and avoidance of LNP-excipient-related infusion reactions', 'A completely different, non-RNAi mechanism of action', 'The ability to target a completely different gene', 'Daily oral dosing instead of any injection'],
+                  'options': ['Subcutaneous dosing every 3 months, with no infusion reactions', 'A completely different mechanism of action, which is not RNAi at all', 'The ability to target an entirely different gene product', 'Daily oral dosing, which removes the need for any injection'],
                   'correctIndex': 0,
                   'explanation': 'Removing the LNP carrier both allows a longer-acting, subcutaneous 3-monthly dosing schedule (versus 3-weekly IV infusions) and eliminates the infusion-related inflammatory reactions that can occur with LNP excipients.',
                   'hashtags': ['ATTR'],
@@ -12938,7 +12938,7 @@
                 {
                   'id': 'attr-crispr-1',
                   'prompt': 'Why can a single dose of a CRISPR-Cas9-based ATTR therapy potentially provide durable, long-term TTR reduction, unlike patisiran or vutrisiran?',
-                  'options': ['It permanently disrupts the TTR gene itself via a DNA double-strand break, rather than only silencing existing mRNA', 'It works faster than RNAi drugs but wears off just as quickly', 'It requires daily oral dosing to maintain effect', 'It only silences TTR mRNA in the same way RNAi drugs do, with no real difference'],
+                  'options': ['It disrupts the TTR gene itself, not just the existing mRNA', 'It acts faster than RNAi drugs, but wears off just as quickly', 'It requires daily oral dosing in order to maintain its effect', 'It silences TTR mRNA exactly as the RNAi drugs already do'],
                   'correctIndex': 0,
                   'explanation': 'Because gene editing permanently alters the TTR gene itself in hepatocytes, its effect doesn’t require repeat dosing the way RNAi (which only silences mRNA transiently) does — a fundamentally different, more durable mechanism.',
                   'hashtags': ['ATTR'],
@@ -12981,7 +12981,7 @@
                 {
                   'id': 'bm-def-1',
                   'prompt': 'Which phrase from the Williams (2009) definition shows that a biomaterial is meant to be active rather than inert?',
-                  'options': ['"used to direct, by control of interactions with components of living systems"', '"a substance that has been engineered"', '"in human or veterinary medicine"', '"alone or as part of a complex system"'],
+                  'options': ['"used to direct, by control of interactions with living systems"', '"a substance that has been engineered to take a particular form"', '"in human or veterinary medicine", which names the field of use', '"alone or as part of a complex system", which allows assemblies'],
                   'correctIndex': 0,
                   'explanation': 'The definition turns on directing the course of a procedure by controlling interactions with living systems — that is what makes a biomaterial an active participant rather than a passive filler.',
                   'difficulty': 'easy',
@@ -13013,7 +13013,7 @@
                 {
                   'id': 'bm-class-1',
                   'prompt': 'Which material class is used in the greatest number of modern medical devices, and why?',
-                  'options': ['Metals, because they have the highest elastic modulus', 'Ceramics, because they are corrosion resistant and chemically durable', 'Polymers, because they are versatile, cheap, scalable and good for soft-tissue interactions', 'Bioactive glass, because it bonds directly to bone'],
+                  'options': ['Metals, which have by far the highest elastic modulus', 'Ceramics, which resist corrosion and are chemically durable', 'Polymers, which are versatile, cheap and good for soft tissue', 'Bioactive glass, which bonds directly to the surrounding bone'],
                   'correctIndex': 2,
                   'explanation': 'Polymers are the most used class in modern medical devices: versatile, inexpensive, scalable, easy to process into complex shapes and well suited to soft tissue. Metals win on stiffness and strength, not on breadth of use.',
                   'difficulty': 'medium',
@@ -13115,7 +13115,7 @@
                 {
                   'id': 'bm-te-1',
                   'prompt': 'Which is a genuine limitation of traditional tissue engineering compared with in situ regeneration?',
-                  'options': ['It cannot be used with any biodegradable material', 'It requires a compatible cell source and complex culture conditions, raising cost and donor-site morbidity', 'It always triggers an immune response', 'It cannot produce a functional graft'],
+                  'options': ['It cannot be combined with any biodegradable scaffold at all', 'It needs a compatible cell source and complex culture', 'It always triggers an immune response against the graft', 'It cannot produce a graft that is functional in the patient'],
                   'correctIndex': 1,
                   'explanation': 'Traditional TE needs a compatible cell source and demanding ex vivo culture, which drives cost and donor-site morbidity, and engraftment is often poor. The other three options are overclaims.',
                   'difficulty': 'medium',
@@ -13124,7 +13124,7 @@
                 {
                   'id': 'bm-te-2',
                   'prompt': 'Apligraf and Epicel are both skin products. Which statement is correct?',
-                  'options': ['Epicel is allogeneic and temporary; Apligraf is autologous and permanent', 'Both are autologous, so neither affects the host response', 'Epicel is autologous and gives permanent coverage; Apligraf uses allogeneic cells and is not permanent', 'Both are acellular scaffolds that recruit host keratinocytes'],
+                  'options': ['Epicel is allogeneic and temporary; Apligraf is autologous', 'Both are autologous, so neither adds to the host response', 'Epicel is autologous and permanent; Apligraf is allogeneic', 'Both are acellular scaffolds that recruit host keratinocytes'],
                   'correctIndex': 2,
                   'explanation': 'Epicel is grown from the patient’s own biopsy (autologous) and gives permanent coverage for massive burns. Apligraf is a bilayered construct with allogeneic fibroblasts and keratinocytes: biologically active, but not permanent.',
                   'difficulty': 'hard',
@@ -13147,7 +13147,7 @@
                 {
                   'id': 'bm-hyd-1',
                   'prompt': 'A protein drug is loaded into a hydrogel whose mesh size is smaller than the protein. What determines its release?',
-                  'options': ['Fast diffusion out of the mesh', 'Slow diffusion, limited by mesh friction', 'Degradation, deformation or swelling of the network, since the drug is immobilised', 'Nothing — immobilised drug can never be released'],
+                  'options': ['Fast diffusion straight out through the open mesh', 'Slow diffusion, held back by friction against the mesh', 'Degradation, deformation or swelling of the network', 'Nothing — a drug immobilised this way is never released'],
                   'correctIndex': 2,
                   'explanation': 'With mesh/drug <1 the drug is physically trapped. It is released only when the network itself changes — degradation, deformation or swelling.',
                   'difficulty': 'medium',
@@ -13179,7 +13179,7 @@
                 {
                   'id': 'bm-wh-1',
                   'prompt': 'Which phase of natural wound healing is characterised by fibroblast proliferation, collagen synthesis, angiogenesis and granulation tissue?',
-                  'options': ['Haemostasis (0-1 day)', 'Inflammation (0-4 days)', 'Proliferation (3 days-3 weeks)', 'Remodelling (3 weeks-2 years)'],
+                  'options': ['Haemostasis (0-1 day)', 'Inflammation (0-4 days)', 'Proliferation (3 days-3 weeks)', 'Remodelling (from 3 weeks to 2 years)'],
                   'correctIndex': 2,
                   'explanation': 'The proliferative phase builds granulation tissue: fibroblasts and myofibroblasts migrate in, collagen is laid down, new vessels form and the wound contracts.',
                   'difficulty': 'easy',
@@ -13188,7 +13188,7 @@
                 {
                   'id': 'bm-wh-2',
                   'prompt': 'Why is it wrong to say "TGF-β1 is the pro-fibrotic cytokine of wound healing" without qualification?',
-                  'options': ['TGF-β1 is not released in wound healing at all', 'The same soluble factor can have different effects depending on context', 'TGF-β1 acts only during remodelling', 'TGF-β1 is produced only by implanted biomaterials'],
+                  'options': ['TGF-β1 is not released during wound healing at all', 'The same soluble factor does different things in context', 'TGF-β1 acts only during the remodelling phase of healing', 'TGF-β1 is produced only in response to implanted material'],
                   'correctIndex': 1,
                   'explanation': 'Soluble factors act across all four phases and their effect is context-dependent — the same factor can drive inflammation, angiogenesis, proliferation or ECM remodelling depending on when and where it acts.',
                   'difficulty': 'medium',
@@ -13226,7 +13226,7 @@
                 {
                   'id': 'bm-fbr-2',
                   'prompt': 'Which consequence of an excessive foreign body response explains why an implanted sensor stops working?',
-                  'options': ['The fibrotic capsule blocks diffusion of analytes and nutrients between implant and tissue', 'Neutrophils phagocytose the entire device within 3 days', 'Complement lyses the sensor membrane directly', 'The implant becomes electrically conductive'],
+                  'options': ['The fibrotic capsule blocks diffusion to and from the implant', 'Neutrophils phagocytose the whole device within about three days', 'Complement lyses the sensor membrane where it meets the tissue', 'The implant becomes electrically conductive and shorts itself out'],
                   'correctIndex': 0,
                   'explanation': 'Fibrotic encapsulation walls the device off; the capsule is a diffusion barrier, so analytes, nutrients and drugs no longer exchange freely. The other listed consequences of excessive FBR are material degradation, infection susceptibility, chronic inflammation and pain.',
                   'difficulty': 'medium',
@@ -13249,7 +13249,7 @@
                 {
                   'id': 'bm-fbgc-1',
                   'prompt': 'A bulk polymer implant cannot be engulfed. What do macrophages do instead, and with what consequence?',
-                  'options': ['They undergo apoptosis, so inflammation resolves', 'They fuse into foreign body giant cells and undergo frustrated phagocytosis, raising degradative compounds and inflammation while lowering phagocytic capacity and wound healing', 'They differentiate into fibroblasts and lay down collagen directly', 'They engulf the implant in pieces over several weeks'],
+                  'options': ['They undergo apoptosis at the surface, so inflammation resolves', 'They fuse into giant cells and phagocytose in frustration', 'They differentiate into fibroblasts and lay down collagen directly', 'They engulf the bulk implant piece by piece over several weeks'],
                   'correctIndex': 1,
                   'explanation': 'Bulk material drives macrophage fusion into FBGC. Frustrated phagocytosis means they keep releasing enzymes, acids and free radicals at the interface — inflammation and fibroblast activation rise, phagocytic capacity and healing fall.',
                   'difficulty': 'medium',
@@ -13287,7 +13287,7 @@
                 {
                   'id': 'bm-biocomp-1',
                   'prompt': 'When is an implant biocompatible?',
-                  'options': ['When it provokes no host reaction at all', 'When it triggers an appropriate host response AND still performs its intended task', 'When it is made only of autologous material', 'When the fibrous capsule around it is thinner than 100 µm'],
+                  'options': ['When it provokes no host reaction of any kind at all', 'When the host response is appropriate and it still works', 'When it is built only from the patient’s own autologous material', 'When the fibrous capsule around it stays thinner than 100 µm'],
                   'correctIndex': 1,
                   'explanation': 'Every material produces a reaction when implanted. Biocompatibility is the overlap of an appropriate host response (no cytotoxicity, chronic inflammation, irritation or carcinogenesis) with retained function.',
                   'difficulty': 'medium',
@@ -13296,7 +13296,7 @@
                 {
                   'id': 'bm-biocomp-2',
                   'prompt': 'Changing an implant surface from hydrophobic to hydrophilic has which effect on protein interaction?',
-                  'options': ['Protein anchors and then spreads, unfolding on the surface', 'Protein makes initial contact but does not anchor, so it does not bind', 'Protein is covalently cross-linked to the surface', 'Protein adsorption is unchanged, but complement activation doubles'],
+                  'options': ['Protein anchors and then spreads, unfolding on the surface', 'Protein makes initial contact but does not anchor, so it does not bind', 'Protein is covalently cross-linked to the surface', 'Protein adsorption is unchanged, but complement activation then doubles'],
                   'correctIndex': 1,
                   'explanation': 'On a hydrophobic surface the protein anchors through its hydrophobic patches and then spreads and unfolds. On a hydrophilic surface there is initial contact but no anchoring, so no binding — which is why hydrophilic coatings are used to blunt the FBR.',
                   'difficulty': 'hard',
@@ -13305,7 +13305,7 @@
                 {
                   'id': 'bm-biocomp-3',
                   'prompt': 'In the Headen et al. islet study, which combination reached roughly 90% graft survival at 200 days?',
-                  'options': ['Islet + plain microgel', 'Islet + SA-FasL microgel', 'Islet + plain microgel + 15 days rapamycin', 'Islet + SA-FasL microgel + 15 days rapamycin'],
+                  'options': ['Islet + plain microgel', 'Islet + SA-FasL microgel', 'Islet + plain microgel + 15 days of rapamycin', 'Islet + SA-FasL microgel + 15 days rapamycin'],
                   'correctIndex': 3,
                   'explanation': 'SA-FasL microgels alone reached about 27% at 200 days, as did plain microgels plus rapamycin. Only the combination of SA-FasL microgels with a short 15-day course of rapamycin reached about 90% — the take-home being that you sometimes need to combine multiple approaches.',
                   'difficulty': 'hard',
@@ -13376,7 +13376,7 @@
                 {
                   'id': 'sc-epi-2',
                   'prompt': 'Why does histone acetylation generally activate transcription?',
-                  'options': ['It methylates cytosine in the nearby promoter', 'It neutralises the positive charge of lysine, loosening the histone-DNA interaction', 'It recruits DNMTs to the promoter', 'It converts euchromatin into heterochromatin'],
+                  'options': ['It methylates the cytosines spread across the nearby promoter', 'It neutralises lysine’s charge, loosening the grip on DNA', 'It recruits DNA methyltransferases to the gene’s promoter', 'It converts open euchromatin into closed heterochromatin'],
                   'correctIndex': 1,
                   'explanation': 'HATs add acetyl groups from acetyl-CoA to lysine, neutralising its positive charge. The histone grips the negatively charged DNA less tightly, chromatin opens, and transcription factors can bind.',
                   'difficulty': 'medium',
@@ -13428,7 +13428,7 @@
                 {
                   'id': 'sc-nt-1',
                   'prompt': 'Gurdon (1962) put a tadpole intestinal cell nucleus into an enucleated frog oocyte and obtained genetically identical tadpoles. What did this establish?',
-                  'options': ['Egg cytoplasm contains no reprogramming factors', 'Cells retain their full genetic material even as they divide and differentiate', 'Only blastula-stage nuclei can support development', 'Mammalian embryos can be created by nuclear transfer'],
+                  'options': ['Egg cytoplasm holds no reprogramming factors of its own', 'Cells keep their full genome as they divide and differentiate', 'Only blastula-stage nuclei can support full development to term', 'Mammalian embryos can also be created by nuclear transfer'],
                   'correctIndex': 1,
                   'explanation': 'Gurdon used a differentiated cell nucleus, so the result showed differentiation does not discard genetic information. Briggs and King had shown nuclear transfer was viable with blastula nuclei; Bromhall did the mammalian version; Dolly showed the egg cytoplasm reprograms.',
                   'difficulty': 'medium',
@@ -13437,7 +13437,7 @@
                 {
                   'id': 'sc-nt-2',
                   'prompt': 'Which conclusion followed specifically from Dolly the sheep (1996)?',
-                  'options': ['A nucleus from an early embryonic cell can substitute for a zygote nucleus', 'A mammalian embryo can be made by nuclear transfer but cannot implant', 'A mature differentiated cell can revert to a totipotent state, with factors in the egg cytoplasm doing the reprogramming', 'Embryonic cells can be cultured and maintained as pluripotent cells in vitro'],
+                  'options': ['An early embryonic nucleus can substitute for a zygote nucleus', 'A mammalian embryo can be made this way but cannot implant', 'A mature differentiated cell can be reset by egg cytoplasm', 'Embryonic cells can be kept pluripotent in culture in vitro'],
                   'correctIndex': 2,
                   'explanation': 'Dolly came from a mammary gland cell nucleus and went to term, so a fully differentiated mammalian cell could be reset — and what reset it was in the egg cytoplasm. The other options belong to Spemann 1914, Bromhall 1975 and Evans & Kaufman 1981.',
                   'difficulty': 'medium',
@@ -13469,7 +13469,7 @@
                 {
                   'id': 'sc-esc-2',
                   'prompt': 'Which is a con of using embryonic stem cells rather than iPSCs?',
-                  'options': ['They are not truly pluripotent', 'They cannot be maintained in vitro', 'The inner cell mass of an embryo is required, raising ethical concerns', 'They cannot form teratomas'],
+                  'options': ['They are not truly pluripotent, only multipotent', 'They cannot be maintained as self-renewing cells in vitro', 'Deriving them needs the inner cell mass of an embryo', 'They cannot form teratomas, so pluripotency is unprovable'],
                   'correctIndex': 2,
                   'explanation': 'ESCs need the ICM of a blastocyst, which brings informed-consent, commercialisation and jurisdictional issues, alongside immune rejection and teratoma risk. Teratoma formation is in fact a test of their pluripotency, not something they fail to do.',
                   'difficulty': 'easy',
@@ -13501,7 +13501,7 @@
                 {
                   'id': 'sc-net-2',
                   'prompt': 'How does BMP4 signalling help keep an ESC from differentiating?',
-                  'options': ['It activates JAK/STAT3 directly', 'Via SMAD1,5,8 and SMAD4 it induces Id1, and Id1 with DUSP9 inhibits the ERK differentiation arm', 'It blocks gp130/LIFRβ so LIF cannot signal', 'It drives Ras → Raf → MEK → ERK1/2'],
+                  'options': ['It activates JAK and STAT3 directly, bypassing the SMADs', 'Via SMAD1,5,8 it induces Id1, which suppresses ERK', 'It blocks gp130 and LIFRβ, so LIF can no longer signal', 'It drives Ras → Raf → MEK → ERK1/2 toward self-renewal'],
                   'correctIndex': 1,
                   'explanation': 'BMP4 → BMPRI/II → SMAD1,5,8 + SMAD4 → Id1; Id1 and DUSP9 suppress ERK signalling, which is the arm FGF4 uses to push differentiation. LIF uses JAK/STAT3 and PI3K/AKT separately.',
                   'difficulty': 'hard',
@@ -13539,7 +13539,7 @@
                 {
                   'id': 'sc-ipsc-2',
                   'prompt': 'In the 2006 screen, what did G418 selection of Fbx15-βgeo MEFs achieve?',
-                  'options': ['It killed cells carrying retroviral integrations', 'It selected only cells in which the Fbx15 promoter had become active, i.e. candidate reprogrammed cells', 'It selected cells expressing β-gal but not neomycin resistance', 'It directly selected for teratoma-forming capacity'],
+                  'options': ['It killed off any cell that carried a retroviral integration', 'It kept only cells whose Fbx15 promoter had switched on', 'It kept cells expressing β-gal but not neomycin resistance', 'It selected directly for the ability to form a teratoma'],
                   'correctIndex': 1,
                   'explanation': 'βgeo fuses neomycin resistance to β-gal and sits at the Fbx15 locus, so only cells that had switched on the Fbx15 promoter survived G418 — a readout for the pluripotent-like state. Withdrawing candidate genes one by one then narrowed 24 to four.',
                   'difficulty': 'hard',
@@ -13571,7 +13571,7 @@
                 {
                   'id': 'sc-assay-2',
                   'prompt': 'A teratoma containing cartilage, muscle, adipose tissue, neural tissue and epithelium is used as evidence of what?',
-                  'options': ['Malignant transformation of the cell line', 'Pluripotency, since all three germ layers are represented in vivo', 'Successful chimera formation', 'A normal karyotype'],
+                  'options': ['Malignant transformation somewhere in the cell line', 'Pluripotency — all three germ layers are represented', 'Successful contribution to a chimera after injection', 'A karyotype that stayed normal through reprogramming'],
                   'correctIndex': 1,
                   'explanation': 'Teratoma formation is an in vivo pluripotency assay: the tumour’s mixed histology shows the injected cells could make derivatives of all three germ layers. Teratoma risk is separately a safety concern for therapy.',
                   'difficulty': 'medium',
@@ -13667,7 +13667,7 @@
                 {
                   'id': 'sc-org-1',
                   'prompt': 'You need to model migration and circuitry between two brain regions in vitro. Which model fits?',
-                  'options': ['A neuronal monoculture', 'An unguided cerebral organoid', 'An assembloid, fusing two regionally patterned organoids', 'A matrix-embedded 3D culture'],
+                  'options': ['A neuronal monoculture, screened at high throughput', 'An unguided cerebral organoid, left to self-organise', 'An assembloid, fusing two patterned organoids', 'A matrix-embedded 3D culture, grown inside its own ECM'],
                   'correctIndex': 2,
                   'explanation': 'Assembloids fuse two or more patterned organoids specifically to recover regional interactions, neuronal migration and circuitry — which patterned organoids alone cannot show because their region is fixed in advance. They are technically demanding and low throughput.',
                   'difficulty': 'medium',
@@ -13676,7 +13676,7 @@
                 {
                   'id': 'sc-org-2',
                   'prompt': 'What is the main limitation of unguided cerebral organoids?',
-                  'options': ['They cannot be made from iPSCs', 'They are dominated by dorsal forebrain identity and vary between batches and lines', 'They have no extracellular matrix', 'They require xenotransplantation to survive'],
+                  'options': ['They cannot be generated from induced pluripotent stem cells', 'Their identity is dorsal-forebrain biased and varies by batch', 'They contain no extracellular matrix for the neurons to grow in', 'They only survive after xenotransplantation into a mouse host'],
                   'correctIndex': 1,
                   'explanation': 'Unguided organoids self-organise, which is their appeal, but identity is typically dorsal-forebrain biased and varies batch to batch and line to line — a problem compounded by the general batch/line variability of iPSC models.',
                   'difficulty': 'medium',
@@ -13705,7 +13705,7 @@
                 {
                   'id': 'sc-ad-1',
                   'prompt': 'In the AD organoid study, when did AD-derived organoids show clear p-tau217 and Aβ staining?',
-                  'options': ['Immediately on organoid formation', 'At 4 weeks, but not 8 weeks', 'At 8 weeks, with no significant difference at 4 weeks', 'Only after xenotransplantation into mice'],
+                  'options': ['Immediately on organoid formation, before any culture', 'At 4 weeks, with the difference gone again by 8 weeks', 'At 8 weeks, with no difference at 4 weeks', 'Only after the organoids were xenotransplanted into mice'],
                   'correctIndex': 2,
                   'explanation': 'At 4 weeks there was no significant difference in Aβ or p-tau217 between AD and control organoids; by 8 weeks the AD organoids showed strong staining for both. The pathology emerges over time in culture.',
                   'difficulty': 'medium',
@@ -13714,7 +13714,7 @@
                 {
                   'id': 'sc-ad-2',
                   'prompt': 'The study reports plasma 98.8%, CSF 96.4% and cortex 96.1% coverage, but DAP overlap of only about 25-29%. What is the right reading?',
-                  'options': ['The organoid reproduces the AD proteome almost completely', 'The organoid samples nearly the same proteins as clinical material, but reproduces only a quarter to a third of the proteins that actually differ in disease', 'The proteomics platforms disagreed with each other', 'Coverage this high means orthogonal validation is unnecessary'],
+                  'options': ['The organoid reproduces the AD proteome almost in its entirety', 'It samples the same proteins, but only a quarter of the signal', 'The three proteomics platforms disagreed badly with one another', 'Coverage this high means orthogonal validation is unnecessary'],
                   'correctIndex': 1,
                   'explanation': 'High coverage says the model measures in the same proteome space as plasma, CSF and cortex. The much lower DAP overlap says only part of the disease signal is reproduced — hence the insistence that findings be orthogonally validated in clinical populations.',
                   'difficulty': 'hard',
@@ -13744,7 +13744,7 @@
                 {
                   'id': 'bf-inj-1',
                   'prompt': 'What happens to an injectable shear-thinning hydrogel as it passes through the needle?',
-                  'options': ['It crosslinks covalently for the first time', 'Its chains align under shear so it flows, then the network re-forms afterwards', 'It permanently loses its network structure', 'It swells by absorbing water from the syringe'],
+                  'options': ['It crosslinks covalently for the first time inside the needle', 'Its chains align under shear, then the network re-forms', 'It permanently loses the network structure it had at rest', 'It swells by drawing water out of the surrounding tissue'],
                   'correctIndex': 1,
                   'explanation': 'Shear thinning: entangled at rest → chains align under shear during injection, so it flows → self-healing, the network re-forms at the target site. That reversibility is what makes it injectable rather than implantable.',
                   'difficulty': 'medium',
@@ -13767,7 +13767,7 @@
                 {
                   'id': 'bf-msc-1',
                   'prompt': 'In the "living factory" hydrogel concept, what is the hydrogel’s role?',
-                  'options': ['It is sacrificial — it degrades while the cells secrete matrix to form tissue', 'It retains encapsulated cells that secrete active agents for a therapeutic purpose', 'It carries active agents with no cells at all', 'It provides mechanical load-bearing strength only'],
+                  'options': ['It is sacrificial — it degrades away while the cells secrete matrix to form new tissue', 'It retains encapsulated cells that secrete active agents for a therapeutic purpose', 'It carries active agents with no cells at all', 'It provides mechanical load-bearing strength only'],
                   'correctIndex': 1,
                   'explanation': 'Concept 2 keeps the cells inside the gel and uses their secretions as the therapy. Concept 1 is the sacrificial cell-laden network that becomes tissue; Concept 3 is agent delivery with no cells.',
                   'difficulty': 'medium',
@@ -13808,7 +13808,7 @@
                 {
                   'id': 'bf-tx-2',
                   'prompt': 'What is the fair summary of pig-organ xenotransplantation to date?',
-                  'options': ['It has produced durable grafts and is now standard care', 'It has produced genuine clinical firsts but no durable graft', 'It has never been attempted in humans', 'It works for kidneys but not hearts'],
+                  'options': ['It has produced durable grafts and is now considered standard care', 'It has produced genuine clinical firsts but no durable graft', 'It has never been attempted in humans', 'It works for kidneys but not hearts'],
                   'correctIndex': 1,
                   'explanation': 'First pig heart (2022) and first pig kidney (2024) were real firsts, but recipients survived weeks to months, and the longest pig kidney was removed after a record 271 days following rejection. Firsts, not durability.',
                   'difficulty': 'medium',
@@ -13831,7 +13831,7 @@
                 {
                   'id': 'bf-am-1',
                   'prompt': 'The ASTM F2792-10 definition of additive manufacturing rests on which contrast?',
-                  'options': ['Biological versus synthetic materials', 'Adding material layer upon layer versus subtractive methods such as machining', 'Automated versus manual fabrication', 'Cell-laden versus cell-free constructs'],
+                  'options': ['Biological source material versus synthetic source material', 'Adding material layer upon layer versus machining it away', 'Automated fabrication versus fabrication carried out by hand', 'Cell-laden constructs versus constructs with no cells in them'],
                   'correctIndex': 1,
                   'explanation': 'Additive manufacturing joins materials from 3D model data, usually layer upon layer, as opposed to subtractive manufacturing such as traditional machining. Automation is the emphasis of the 2016 biofabrication definition, not of AM.',
                   'difficulty': 'easy',
@@ -13863,7 +13863,7 @@
                 {
                   'id': 'bf-tech-1',
                   'prompt': 'A candidate bioink leaves the nozzle as discrete droplets and its printed layers merge rather than stack. What does the initial screen say?',
-                  'options': ['It is suitable for extrusion printing of a lattice', 'It fails the two basic screening criteria — fibre formation and layer stacking', 'It is only suitable for volumetric printing', 'It indicates excessive crosslink density'],
+                  'options': ['It is well suited to extrusion printing of a strand lattice', 'It fails both screens — fibre formation and layer stacking', 'It is suitable for volumetric printing but nothing else', 'It shows the crosslink density has been set far too high'],
                   'correctIndex': 1,
                   'explanation': 'The two screening questions are drop versus fibre, and stacking versus merging. Droplets plus merging layers means the ink will not hold a printed structure, so it fails before any flow-index refinement.',
                   'difficulty': 'medium',
@@ -13901,7 +13901,7 @@
                 {
                   'id': 'bf-cart-1',
                   'prompt': 'Measured GAG/DNA across the three cartilage zones was 53, 122 and 152. What does this support?',
-                  'options': ['Cartilage is mechanically uniform through its depth', 'Cartilage is zonal, so a zonal construct rather than a homogeneous one is the design goal', 'Chondrocytes are absent from the superficial zone', 'The tidemark separates cartilage from synovium'],
+                  'options': ['Cartilage is mechanically uniform from surface to tidemark', 'Cartilage is zonal, so the construct should be zonal too', 'Chondrocytes are absent from the superficial zone entirely', 'The tidemark is what separates cartilage from the synovium'],
                   'correctIndex': 1,
                   'explanation': 'GAG/DNA rises with depth, alongside different collagen and chondrocyte distributions per zone. That depth-dependent structure is exactly why a printed cartilage construct is designed zonally.',
                   'difficulty': 'medium',
@@ -13910,7 +13910,7 @@
                 {
                   'id': 'bf-cart-2',
                   'prompt': 'What is the realistic present-day application of bioprinted articular cartilage constructs?',
-                  'options': ['Routine clinical implantation to resurface joints', 'Drug testing — e.g. assessing whether intra-articular tranexamic acid is toxic to cartilage', 'Replacing whole joints in elderly patients', 'Manufacturing allogeneic chondrocytes for injection'],
+                  'options': ['Routine clinical implantation to resurface a damaged joint', 'Drug testing — whether intra-articular TXA harms cartilage', 'Replacing whole joints in patients too frail for surgery', 'Manufacturing allogeneic chondrocytes for direct injection'],
                   'correctIndex': 1,
                   'explanation': '"Where we’re at now" is drug testing, not implantation — the worked example being tranexamic acid tested on a printed construct with live/dead staining against human samples.',
                   'difficulty': 'medium',
@@ -14012,7 +14012,7 @@
                 {
                   'id': 'bf-eq-2',
                   'prompt': 'What is the honest assessment of the first Australian DFD strategy (2018-2022)?',
-                  'options': ['All nine goals were achieved', 'Safe quality care improved and major amputations fell, but hospitalisation, minor amputation and disability rose and resourcing for prevention and research lagged', 'No progress was made on any goal', 'Research funding reached parity with the disease burden'],
+                  'options': ['Every goal was met in full, so no successor was needed', 'Safe care improved, but hospitalisation and minor amputation rose', 'No measurable progress was made against any of the nine goals', 'Research funding reached parity with the disease burden it carries'],
                   'correctIndex': 1,
                   'explanation': 'The report card is mixed: genuine progress on safe quality care via national guidelines and standards, and fewer major lower-limb amputations — against rising hospitalisation, minor amputation and disability rates, and little movement on preventative-care or R&D resources. DFD still gets under 0.2% of national diabetes research funding.',
                   'difficulty': 'hard',
@@ -14051,7 +14051,7 @@
                 {
                   'id': 'ct-ld-2',
                   'prompt': 'Reported response rates for CD19 CAR T therapy are roughly what?',
-                  'options': ['90% in B-cell leukaemias and 50-70% in lymphomas', '50% in leukaemias and 90% in lymphomas', 'About 25% in both', 'Over 95% in solid tumours'],
+                  'options': ['90% in B-cell leukaemias, 50-70% in lymphomas', '50% in B-cell leukaemias, and 90% in lymphomas', 'About 25% in both leukaemias and lymphomas', 'Over 95%, including in most solid tumours'],
                   'correctIndex': 0,
                   'explanation': 'Relapsed/refractory B-cell leukaemias respond at around 90%, lymphomas at 50-70%. Solid tumours remain the open problem — many CARs trialled, none FDA-approved.',
                   'difficulty': 'medium',
@@ -14089,7 +14089,7 @@
                 {
                   'id': 'ct-rec-2',
                   'prompt': 'Which row of the TCR-vs-CAR comparison is correct?',
-                  'options': ['TCR: nanomolar affinity, needs >10³ targets per cell', 'CAR: micromolar affinity, works at 1-50 targets per cell', 'TCR: micromolar affinity, works at 1-50 targets per cell; CAR: nanomolar affinity, needs >10³ targets per cell', 'Both have nanomolar affinity and the same target-density requirement'],
+                  'options': ['TCR: nanomolar affinity, needing over 10³ targets per cell', 'CAR: micromolar affinity, firing at just 1-50 targets per cell', 'TCR: micromolar at 1-50 targets; CAR: nanomolar at >10³', 'Both are nanomolar and need exactly the same target density'],
                   'correctIndex': 2,
                   'explanation': 'The TCR has lower (micromolar) affinity but is exquisitely sensitive, firing at 1-50 targets per cell; the CAR has higher (nanomolar) affinity but needs a much denser target, above 10³ per cell. The TCR also carries 10 ITAMs against the CAR’s 3.',
                   'difficulty': 'hard',
@@ -14153,7 +14153,7 @@
                 {
                   'id': 'ct-gen-2',
                   'prompt': 'What is a TRUCK?',
-                  'options': ['A first-generation CAR with CD3ζ only', 'A fourth-generation armoured CAR — T cells redirected to cytokine-mediated killing', 'A CAR with a truncated EGFR safety switch', 'A TCR-based therapy for synovial sarcoma'],
+                  'options': ['A first-generation CAR, carrying CD3ζ and nothing else', 'A fourth-generation armoured CAR, which secretes cytokine', 'A CAR tagged with truncated EGFR as a safety switch', 'A TCR therapy, of the kind approved for synovial sarcoma today'],
                   'correctIndex': 1,
                   'explanation': 'TRUCK = T cells redirected to cytokine-mediated killing: the fourth-generation armoured design, which adds a second functional receptor releasing cytokines and chemokines on top of the CAR.',
                   'difficulty': 'medium',
@@ -14182,7 +14182,7 @@
                 {
                   'id': 'ct-cos-1',
                   'prompt': 'Which pairing is correct for CAR co-stimulatory domains?',
-                  'options': ['CD28: central memory, oxidative phosphorylation, long persistence', '4-1BB: effector memory, aerobic glycolysis, rapid onset', 'CD28: effector memory, aerobic glycolysis, rapid onset but exhaustion and poor persistence', '4-1BB: no effect on metabolism or memory phenotype'],
+                  'options': ['CD28: central memory, oxidative phosphorylation, persistence', '4-1BB: effector memory, aerobic glycolysis, rapid onset', 'CD28: effector memory, glycolysis, fast but exhausting', '4-1BB: no effect on either metabolism or memory phenotype'],
                   'correctIndex': 2,
                   'explanation': 'CD28 gives effector memory, aerobic glycolysis and fast effector activity, but exhaustion and poor long-term persistence. 4-1BB gives central memory, mitochondrial biogenesis and oxidative phosphorylation, with delayed action and better persistence.',
                   'difficulty': 'hard',
@@ -14191,7 +14191,7 @@
                 {
                   'id': 'ct-cos-2',
                   'prompt': 'A tumour has high antigen density and the aim is durable in vivo persistence. Which co-stimulatory domain fits?',
-                  'options': ['CD28, because it acts fastest', '4-1BB, because it gives central memory and increased persistence and is sufficient at high antigen burden', 'Neither — co-stimulation is irrelevant to persistence', 'Both are equivalent at high antigen density'],
+                  'options': ['CD28, because it brings on effector activity fastest', '4-1BB, because it gives central memory and persistence', 'Neither — co-stimulation does not affect in vivo persistence', 'Both are equivalent once the antigen density is high enough'],
                   'correctIndex': 1,
                   'explanation': '4-1BB is sufficient for tumours with high antigen burden/density and gives the persistence CD28 lacks. CD28 is the choice when antigen burden is low or the binding domain has low affinity, where its rapid, strong signalling helps.',
                   'difficulty': 'hard',
@@ -14214,7 +14214,7 @@
                 {
                   'id': 'ct-mfg-1',
                   'prompt': 'In CAR T manufacturing, what happens immediately before the cells are infused?',
-                  'options': ['T cells are activated with anti-CD3/CD28 and IL-2', 'The CAR DNA is introduced by vector', 'The patient receives myeloablative chemotherapy (Flu/Cy)', 'T cells are isolated by apheresis'],
+                  'options': ['T cells are activated with anti-CD3/CD28 antibodies plus IL-2', 'The CAR DNA is introduced by vector', 'The patient receives myeloablative chemotherapy (Flu/Cy)', 'T cells are isolated by apheresis'],
                   'correctIndex': 2,
                   'explanation': 'Apheresis → isolation → activation (anti-CD3/CD28 + IL-2) → vector transduction → expansion → infusion after myeloablative Flu/Cy. The lymphodepleting conditioning makes room for the infused cells to expand.',
                   'difficulty': 'medium',
@@ -14223,7 +14223,7 @@
                 {
                   'id': 'ct-mfg-2',
                   'prompt': 'Which is a non-viral vector option for delivering a CAR?',
-                  'options': ['Gammaretrovirus', 'Lentivirus', 'Sleeping Beauty transposon', 'Alpharetrovirus'],
+                  'options': ['Gammaretrovirus, which integrates near transcription starts', 'Lentivirus, which integrates across the whole genome', 'Sleeping Beauty, a transposon mobilised by a transposase', 'Alpharetrovirus, which has the flattest integration profile'],
                   'correctIndex': 2,
                   'explanation': 'Sleeping Beauty, piggyBac and Tol2 are non-viral transposon systems. Alpha-, gamma- and lentiviruses are all retroviral. mRNA is the other non-viral route.',
                   'difficulty': 'medium',
@@ -14246,7 +14246,7 @@
                 {
                   'id': 'ct-kill-1',
                   'prompt': 'Which is the correct order of CAR T cell killing?',
-                  'options': ['Perforin/granzyme release → synapse formation → FasL → TNF', 'Immune synapse formation → cytotoxic granule release (perforin, granzyme B) → TNF/TNFR apoptosis → FasL-FADD-caspase killing', 'FasL-FADD-caspase killing → synapse formation → TNF → perforin', 'TNF/TNFR apoptosis → FasL → synapse formation → granzyme B'],
+                  'options': ['Granule release → synapse → FasL killing → TNF/TNFR apoptosis', 'Synapse → perforin and granzyme B → TNF/TNFR → FasL killing', 'FasL killing → synapse → TNF/TNFR apoptosis → granule release', 'TNF/TNFR apoptosis → FasL killing → synapse → granule release'],
                   'correctIndex': 1,
                   'explanation': 'The synapse forms first (Lck clusters, LFA-1), then cytotoxic granules release perforin and granzyme B, then TNF-ligand/TNFR apoptosis, then FasL-FasR-FADD-caspase killing.',
                   'difficulty': 'medium',
@@ -14275,7 +14275,7 @@
                 {
                   'id': 'ct-bar-1',
                   'prompt': 'Which design answers the barrier of antigen escape?',
-                  'options': ['Using a 4-1BB endodomain', 'Multiple antigen targeting, e.g. CD19/CD22 or CD19/BCMA', 'Using an scFv from a humanised antibody', 'An iCasp9 suicide switch'],
+                  'options': ['A 4-1BB endodomain, giving a central memory phenotype', 'Multiple antigen targeting, such as CD19/CD22 or CD19/BCMA', 'An scFv taken from a humanised rather than a murine antibody', 'An iCasp9 suicide switch, dimerised by the drug AP1903'],
                   'correctIndex': 1,
                   'explanation': 'Antigen escape (CD19 splice variants, exon deletion) is countered by targeting more than one antigen. 4-1BB answers exhaustion/persistence; a humanised scFv answers anti-CAR immunity; iCasp9 is a safety switch.',
                   'difficulty': 'medium',
@@ -14284,7 +14284,7 @@
                 {
                   'id': 'ct-bar-2',
                   'prompt': 'Which of these is NOT a strategy for overcoming CAR T exhaustion via PD-1?',
-                  'options': ['PD-1 silencing by shRNA or PD-1 knockout', 'Secreting an anti-PD-1 or anti-PD-L1 antibody', 'Expressing a dominant-negative PD-1 receptor', 'Adding a truncated EGFR so the cells can be cleared with cetuximab'],
+                  'options': ['PD-1 silencing by shRNA, or knocking PD-1 out altogether', 'Secreting an anti-PD-1 or an anti-PD-L1 blocking antibody', 'Expressing a dominant-negative PD-1 receptor on the surface', 'Adding truncated EGFR so cetuximab can clear the cells'],
                   'correctIndex': 3,
                   'explanation': 'tEGFR (cleared with cetuximab) and CD20 (rituximab) are safety/elimination switches, not anti-exhaustion strategies. The PD-1 approaches are silencing/knockout, secreted blocking antibody, a dominant-negative receptor, and a switch receptor converting negative into positive signalling.',
                   'difficulty': 'hard',
@@ -14316,7 +14316,7 @@
                 {
                   'id': 'ct-sw-2',
                   'prompt': 'You want a CAR that only fires when the cell sees two different tumour antigens. Which design?',
-                  'options': ['A TRUCK', 'An AND-gate using SynNotch and a transcription factor', 'An iCAR', 'An adapter-controlled CAR using FITC'],
+                  'options': ['A TRUCK, which secretes an anti-tumour cytokine', 'An AND-gate, built from SynNotch and a transcription factor', 'An iCAR, which carries an inhibitory receptor domain', 'An adapter-controlled CAR, titrated with a FITC-labelled linker'],
                   'correctIndex': 1,
                   'explanation': 'The AND-gate uses SynNotch: binding the first antigen releases a transcription factor that then drives expression of the CAR against the second antigen, so both are required. A TRUCK secretes cytokine; an iCAR switches off on its antigen; adapter control makes a single CAR titratable.',
                   'difficulty': 'hard',
@@ -14345,7 +14345,7 @@
                 {
                   'id': 'ct-tox-1',
                   'prompt': 'A patient develops fever and myalgia four days after CAR T infusion, with rising ferritin and liver enzymes. What is the first-line targeted therapy?',
-                  'options': ['Tocilizumab, an anti-IL-6 receptor antibody', 'Rituximab, an anti-CD20 antibody', 'AP1903, to trigger iCasp9', 'Cetuximab, an anti-EGFR antibody'],
+                  'options': ['Tocilizumab, an anti-IL-6 receptor antibody', 'Rituximab, an antibody directed against CD20', 'AP1903, to trigger iCasp9', 'Cetuximab, an anti-EGFR antibody'],
                   'correctIndex': 0,
                   'explanation': 'This is CRS, within the first week. Tocilizumab (anti-IL-6R) is the targeted treatment, with corticosteroids, trial-stage siltuximab (anti-IL-6) and the IL-1R antagonist anakinra as further options. Rituximab and cetuximab are elimination switches for tagged CAR T cells, not CRS treatments.',
                   'difficulty': 'medium',
@@ -14354,7 +14354,7 @@
                 {
                   'id': 'ct-tox-2',
                   'prompt': 'What is the mechanism of ICANS?',
-                  'options': ['Direct CAR T killing of neurons expressing CD19', 'Disruption of the blood-brain barrier with increased cytokines in the CSF', 'Complement-mediated demyelination', 'Perforin release into the subarachnoid space'],
+                  'options': ['CAR T cells killing neurons that express CD19 directly', 'Blood-brain barrier disruption, with cytokines in the CSF', 'Complement-mediated demyelination of central white matter', 'Perforin released by CAR T cells into the subarachnoid space'],
                   'correctIndex': 1,
                   'explanation': 'ICANS follows BBB disruption and raised CSF cytokines. It accompanies CRS in most cases but can present alone, is graded with CARTOX-10 (cognitive function and intracranial pressure), and in severe cases involves intracranial haemorrhage and cerebral oedema.',
                   'difficulty': 'medium',
@@ -14377,7 +14377,7 @@
                 {
                   'id': 'ct-beyond-1',
                   'prompt': 'Why target CD19 in systemic lupus erythematosus?',
-                  'options': ['CD19 is expressed on the inflamed kidney epithelium', 'To deplete pathogenic B cells — reported effects were rising C3/C4 and falling dsDNA and proteinuria', 'CD19 CAR T cells convert into Tregs in autoimmune disease', 'CD19 is the autoantigen recognised in lupus'],
+                  'options': ['CD19 is expressed on the inflamed kidney epithelium in lupus', 'To deplete the pathogenic B cells driving the disease', 'CD19 CAR T cells convert into Tregs in autoimmune disease', 'CD19 is itself the autoantigen that is recognised in lupus'],
                   'correctIndex': 1,
                   'explanation': 'CD19 CAR T therapy in lupus depletes pathogenic B cells; reported effects were an increase in C3/C4 with a decrease in dsDNA and proteinuria, with later extension to MS and RA. Autoantigen-expressing CARs (DSG3, MUSK) are the different strategy of targeting autoreactive cells directly.',
                   'difficulty': 'medium',
@@ -14386,7 +14386,7 @@
                 {
                   'id': 'ct-beyond-2',
                   'prompt': 'What is the main risk of using polyclonal Tregs, which giving them a CAR helps to address?',
-                  'options': ['They cannot secrete TGF-β or IL-10', 'They may convert to a pro-inflammatory Th17 type; a CAR confers antigen specificity, increasing stability and potency', 'They lack CD25 and so cannot absorb IL-2', 'They are rejected because they are always allogeneic'],
+                  'options': ['They cannot secrete the suppressive cytokines TGF-β or IL-10', 'They may convert to a pro-inflammatory Th17 type', 'They lack CD25, so they cannot mop up IL-2 around them', 'They are rejected, because a Treg product is always allogeneic'],
                   'correctIndex': 1,
                   'explanation': 'Polyclonal Tregs can convert to Th17, which is the opposite of what is wanted. A CAR gives them antigen specificity and so greater stability and potency — built either as polyclonal Tregs expressing a CAR, or T cells engineered with FoxP3 plus a CAR.',
                   'difficulty': 'hard',
@@ -14395,7 +14395,7 @@
                 {
                   'id': 'ct-beyond-3',
                   'prompt': 'Which is an advantage of CAR-NK cells over CAR T cells?',
-                  'options': ['They are HLA-restricted, so targeting is more precise', 'They are naturally cytotoxic, cause less GvHD and less toxicity, and can be made off-the-shelf', 'They persist indefinitely without exhaustion', 'They do not require a chimeric receptor at all'],
+                  'options': ['They are HLA-restricted, which makes their targeting precise', 'They are naturally cytotoxic, cause less GvHD, and are off-the-shelf', 'They persist indefinitely in vivo without ever becoming exhausted at all', 'They need no chimeric receptor to recognise a tumour antigen'],
                   'correctIndex': 1,
                   'explanation': 'CAR-NK cells are naturally cytotoxic, carry a lower GvHD and toxicity risk, release a different cytokine profile, and are suited to off-the-shelf manufacture — an allogeneic product rather than a bespoke autologous one.',
                   'difficulty': 'medium',
@@ -14424,7 +14424,7 @@
                 {
                   'id': 'ct-ivm-1',
                   'prompt': 'What does intravital microscopy add that flow cytometry, histology and transcriptomics cannot provide?',
-                  'options': ['Higher-resolution cell phenotyping', 'Gene expression at single-cell level', 'The dynamic process over time — following the same cell as it traffics, engages and kills', 'Absolute quantification of infiltrating cell numbers'],
+                  'options': ['Cell phenotyping at a much higher resolution', 'Gene expression measured at single-cell level', 'What the cell is doing, followed over time', 'Absolute counts of the cells infiltrating a tumour'],
                   'correctIndex': 2,
                   'explanation': 'All three conventional methods are endpoint snapshots: who the cell is, where it is, what genes it expresses. IVM shows what the cell is doing, and following the same cell over days links early behaviour to later outcome.',
                   'difficulty': 'medium',
@@ -14433,7 +14433,7 @@
                 {
                   'id': 'ct-ivm-2',
                   'prompt': 'IVM shows CAR T cells reaching and contacting tumour cells, but with minimal killing and progressive disease. Which engineering response does this observation point to?',
-                  'options': ['Chemokine receptor engineering to improve homing', 'ECM or stroma-targeting approaches', 'Multi-target CARs for antigen heterogeneity', 'Armoured CAR T cells to counter the immunosuppressive TME'],
+                  'options': ['Chemokine receptor engineering, to improve homing to the tumour', 'ECM or stroma-targeting approaches', 'Multi-target CARs for antigen heterogeneity', 'Armoured CAR T cells to counter the immunosuppressive TME'],
                   'correctIndex': 3,
                   'explanation': 'Infiltration and engagement both succeeded, so homing, stromal exclusion and antigen heterogeneity are not the limiting step. Recognition without killing points to functional suppression in the TME, whose answer is an armoured design.',
                   'difficulty': 'hard',
@@ -14442,7 +14442,7 @@
                 {
                   'id': 'ct-ivm-3',
                   'prompt': 'A CAR T cell makes repeated brief contacts with tumour cells. What can you conclude?',
-                  'options': ['It is ineffective, since brief contact means no killing', 'It is exhausted, since functional cells make sustained contacts', 'Nothing yet — brief contact can mean serial killing or moving on without killing, so function must be assessed directly', 'It must be a 4-1BB CAR, since CD28 CARs make sustained contacts'],
+                  'options': ['It is ineffective, since such a brief contact cannot possibly kill', 'It is exhausted, since functional cells hold contact', 'Nothing yet — brief contact can still mean serial killing', 'It carries 4-1BB, since only CD28 CARs hold contact'],
                   'correctIndex': 2,
                   'explanation': 'Contact duration is measurable but not self-interpreting: brief contact can be kill-detach-kill (serial killing) or simply moving on; sustained contact can be continued killing or prolonged ineffective engagement. Brief ≠ ineffective, sustained ≠ exhausted — functional outcomes such as tumour-cell death and persistence have to be measured.',
                   'difficulty': 'hard',
@@ -14465,7 +14465,7 @@
                 {
                   'id': 'ct-w11-1',
                   'prompt': 'Roughly what proportion of tumour antigens are intracellular, and what does that mean for therapy choice?',
-                  'options': ['Under 25% — so CARs cover most antigens', 'More than 75% — so a TCR is needed for most antigens, despite HLA restriction', 'About half, so TCR and CAR are equally applicable', 'None — all tumour antigens are surface expressed'],
+                  'options': ['Under 25%, so a CAR can reach most tumour antigens', 'More than 75%, so most need a TCR despite HLA restriction', 'About half, so TCR and CAR therapy are equally applicable', 'None — every tumour antigen is expressed on the cell surface'],
                   'correctIndex': 1,
                   'explanation': 'More than 75% of tumour antigens are intracellular, so they must be processed and presented on HLA and read by a TCR. That is why TCR therapy stays relevant despite being HLA-restricted and technically harder.',
                   'difficulty': 'medium',
@@ -14474,7 +14474,7 @@
                 {
                   'id': 'ct-w11-2',
                   'prompt': 'A dendritic cell presents one intracellular tumour antigen to both CD4 and CD8 T cells. What is this called?',
-                  'options': ['VDJ recombination', 'Cross-presentation', 'Antigen escape', 'Allorecognition'],
+                  'options': ['V(D)J recombination', 'Cross-presentation', 'Antigen escape', 'Allorecognition'],
                   'correctIndex': 1,
                   'explanation': 'Cross-presentation: a DC can route the same intracellular antigen onto class II for CD4 and class I for CD8, which is how a single intracellular antigen primes both arms of the response.',
                   'difficulty': 'hard',
