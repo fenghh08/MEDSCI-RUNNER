@@ -3948,6 +3948,24 @@
     mcqTimerWasRunning = false;
   }
   function presentQuestion(q, topic){
+    // Shuffle the option order per serve. nextQuestion() already does this
+    // for Runner / Group Race / Custom run, but Study & Practice, Review and
+    // study-guide item practice call us with the RAW authored question --
+    // without this they always show options in the order they were written,
+    // so the correct answer sits wherever the author happened to put it.
+    // optionOrder doubles as the "already shuffled" marker, so a question
+    // that came through nextQuestion() is never shuffled a second time (that
+    // would also invalidate the optionOrder mapping answerMCQ() relies on to
+    // record stats against the AUTHORED option).
+    if(q && q.options && !q.optionOrder){
+      const order = shuffle(q.options.map((_,i)=>i));
+      q = {
+        ...q,
+        options: order.map(i=>q.options[i]),
+        correctIndex: order.indexOf(q.correctIndex),
+        optionOrder: order, // shown position -> authored index
+      };
+    }
     pendingQuestion = q;
     pendingTopic = topic;
     mcqAnswered = false;
