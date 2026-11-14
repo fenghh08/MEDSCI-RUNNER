@@ -474,6 +474,16 @@
                 background:var(--panel); border:1px solid var(--panel-line); border-radius:12px; padding:6px 9px;
                 font-size:12px; line-height:1.55; max-height:46%; overflow:auto; }
   #battleBoard.active{ display:block; }
+  /* The host's analysis screen: big type, because it is meant to be projected. */
+  #battleHostPanel{ position:absolute; left:0; right:0; top:64px; bottom:0; z-index:44; display:none; overflow:auto;
+                    background:var(--panel); padding:16px 22px; font-size:15px; line-height:1.5; }
+  #battleHostPanel.active{ display:block; }
+  #battleHostPanel h3{ margin:14px 0 6px; font-size:17px; }
+  #battleHostPanel .hp-big{ font-size:34px; font-weight:800; }
+  #battleHostPanel .hp-q{ margin:8px 0; padding:8px 10px; border:1px solid var(--panel-line); border-radius:10px; }
+  #battleHostPanel .hp-bar{ height:8px; background:var(--panel-line); border-radius:4px; overflow:hidden; margin-top:5px; }
+  #battleHostPanel .hp-bar i{ display:block; height:100%; background:var(--good, #3ee6b8); }
+  #battleHostPanel table{ width:100%; border-collapse:collapse; } #battleHostPanel td{ padding:3px 8px 3px 0; }
   #battleBoard .bb-row{ display:flex; gap:8px; align-items:center; white-space:nowrap; }
   #battleBoard .bb-row.out{ opacity:.45; text-decoration:line-through; }
   #battleBoard .bb-row.me{ font-weight:700; }
@@ -482,6 +492,7 @@
   .battle-net{ display:flex; flex-direction:column; gap:9px; align-items:center; }
   .battle-net input[type=text]{ font-family:var(--mono); font-size:13px; background:var(--bg-1); color:var(--hud-ink);
                 border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px; width:100%; max-width:260px; }
+  .bmode.on{ border-color:var(--membrane); box-shadow:inset 0 0 0 2px var(--membrane); }
   .battle-chk{ font-size:12px; color:var(--hud-dim); display:flex; gap:6px; align-items:center; }
   #battleNetMsg{ min-height:16px; font-size:12px; color:var(--danger); }
   #battleLobbyCode{ font-size:44px; font-weight:800; letter-spacing:.18em; text-align:center; margin:6px 0; }
@@ -490,6 +501,8 @@
   #battlePauseBtn{ position:absolute; top:10px; right:12px; z-index:46; display:none; width:38px; height:38px;
                    border-radius:50%; border:1px solid var(--panel-line); background:var(--panel);
                    color:var(--text); font-size:15px; cursor:pointer; }
+  #battleViewBtn{ position:absolute; top:10px; right:58px; z-index:46; display:none; width:38px; height:38px;
+                  border-radius:50%; border:1px solid var(--panel-line); background:var(--panel); font-size:15px; cursor:pointer; }
   #battlePause{ position:absolute; inset:0; z-index:70; display:none; align-items:center; justify-content:center;
                 background:var(--backdrop-soft, rgba(0,0,0,.45)); }
   #battlePause.active{ display:flex; }
@@ -956,29 +969,33 @@
       </div>
       <div id="battleSetupView" style="display:none;">
         <h2>⚔️ Cell Battle</h2>
-        <p class="desc">Walk the map with WASD, get close to your rival and press Space to attack.
-           Every attack is a question: right lands a hit, wrong lets them hit back.
-           Step out of the red ring to dodge, and grab green orbs to heal.</p>
-        <div class="p-sub">Pick your question pool</div>
-        <div class="cancer-grid" id="battleCourseGrid"></div>
-        <div class="p-sub" style="margin-top:14px;">Pick a map</div>
-        <div class="cancer-grid" id="battleMapGrid"></div>
+        <p class="desc">Walk the map, get close to a rival and attack. Every attack is a question:
+           right lands a hit, wrong costs you. Green orbs heal.</p>
+        <div class="p-sub">How do you want to play?</div>
+        <div class="btn-row" id="battleModeRow">
+          <button class="secondary bmode" data-bmode="solo">🤖 Solo vs a bot</button>
+          <button class="secondary bmode" data-bmode="host">🏠 Host a room</button>
+          <button class="secondary bmode" data-bmode="join">🔑 Join a room</button>
+        </div>
+        <p class="desc" id="battleModeHint" style="margin-top:8px;"></p>
+        <div id="bsName" class="battle-net">
+          <div class="p-sub">Your name</div>
+          <input type="text" id="battleNameInput" maxlength="16" placeholder="Shown to everyone in the room">
+        </div>
+        <div id="bsJoin" class="battle-net">
+          <div class="p-sub">Room code from the host</div>
+          <input type="text" id="battleCodeInput" maxlength="5" placeholder="e.g. 7K2QF" style="max-width:150px;text-transform:uppercase;text-align:center;letter-spacing:.15em;">
+        </div>
+        <div id="bsPool"><div class="p-sub">Question pool</div><div class="cancer-grid" id="battleCourseGrid"></div></div>
+        <div id="bsMap"><div class="p-sub" style="margin-top:14px;">Map</div><div class="cancer-grid" id="battleMapGrid"></div></div>
+        <div id="bsHost" class="battle-net" style="margin-top:10px;">
+          <label class="battle-chk"><input type="checkbox" id="battleWatchChk"> I'm the lecturer: I'll watch and see the results, not play</label>
+        </div>
+        <div id="battleNetMsg"></div>
         <div class="btn-row" style="margin-top:14px;">
           <button class="secondary" id="battleBackBtn">← Back</button>
-          <button class="primary" id="battleStartBtn" disabled>⚔️ Play solo vs a bot</button>
-        </div>
-        <div class="p-sub" style="margin-top:18px;">Play with others</div>
-        <div class="battle-net">
-          <input type="text" id="battleNameInput" maxlength="16" placeholder="Your name">
-          <div class="btn-row">
-            <button class="secondary" id="battleHostBtn">🏠 Host a room</button>
-            <label class="battle-chk"><input type="checkbox" id="battleWatchChk"> I'm only watching (lecturer)</label>
-          </div>
-          <div class="btn-row">
-            <input type="text" id="battleCodeInput" maxlength="5" placeholder="Room code" style="max-width:130px;text-transform:uppercase;">
-            <button class="secondary" id="battleJoinBtn">Join a room</button>
-          </div>
-          <div id="battleNetMsg"></div>
+          <button class="primary" id="battleGoBtn">Start</button>
+          <button id="battleStartBtn" style="display:none" disabled></button>
         </div>
       </div>
       <div id="battleLobbyView" style="display:none;">
@@ -987,6 +1004,11 @@
         <div id="battleLobbyCode"></div>
         <div id="battleLobbyInfo" class="p-sub"></div>
         <div id="battleLobbyList"></div>
+        <div id="battleLenRow" class="battle-net" style="display:none;margin-top:12px;">
+          <label class="battle-chk">Match length
+            <select id="battleLenSel"><option value="180">3 minutes</option><option value="240" selected>4 minutes</option><option value="360">6 minutes</option><option value="600">10 minutes</option></select>
+          </label>
+        </div>
         <div class="btn-row" style="margin-top:14px;">
           <button class="secondary" id="battleLobbyLeaveBtn">← Leave</button>
           <button class="primary" id="battleLobbyStartBtn" style="display:none;">⚔️ Start the match</button>
@@ -1466,16 +1488,19 @@
       <div id="battleClockWrap"><div id="battleClock"></div></div>
     </div>
     <button id="battlePauseBtn" title="Pause (Esc)">⏸</button>
+    <button id="battleViewBtn" title="Change view (V)">🎥</button>
     <div id="battlePause">
       <div class="bp-card">
         <h2>Paused</h2>
         <div class="btn-row" style="flex-direction:column;gap:10px;">
           <button class="primary" id="battleResumeBtn">▶ Resume</button>
           <button class="secondary" id="battleLeaveBtn">🚪 Leave the match</button>
+          <button class="secondary" id="battleEndAllBtn" style="display:none;">🏁 End the match for everyone</button>
         </div>
       </div>
     </div>
     <div id="battleBoard"></div>
+    <div id="battleHostPanel"></div>
     <div id="battleLog"></div>
     <button id="battleAttackBtn">⚔️ Attack</button>
     <div id="battleStreak"></div>
@@ -6675,7 +6700,8 @@
     if(!mpJoinNameInput.value.trim() && !confirm("You haven't entered a name — proceed as \"Player\"?")){ mpJoinNameInput.focus(); return; }
     mpJoinConfirmBtn.disabled = true;
     try{
-      const name = mpJoinNameInput.value.trim() || 'Player';
+      const name = mpJoinNameInput.value.trim();
+      if(!name){ mpJoinError.textContent = 'Enter your name first.'; mpJoinError.style.display = 'block'; mpJoinNameInput.focus(); return; }
       mpJoinError.style.display = 'none';
       const snap = await get(ref(fbdb, `rooms/${code}`));
       const room = snap.val();
@@ -7570,6 +7596,7 @@
     cancerPickView.style.display = 'none';
     battleSetupView.style.display = 'block';
     renderBattleCourses();
+    battleSetMode(battleMode);
   }
   function closeBattleSetup(){
     battleSetupView.style.display = 'none';
@@ -7652,6 +7679,8 @@
     seedArenaMotes();
     battleLog(battle.net ? (battle.net.spectator ? 'You are watching. WASD moves the camera.' : 'Everyone for themselves. WASD to walk, Space to attack whoever is nearest.')
                          : `A ${battle.foe.name} squares up. WASD to walk, Space to attack. Green orbs heal.`);
+    battle.view = (battle.net && battle.net.spectator) ? 'top' : 'third';
+    document.getElementById('battleViewBtn').style.display = 'block';
     if(battle.net){ battlePauseBtn.textContent = '🚪'; document.getElementById('battleBoard').classList.add('active'); if(battle.net.spectator) battleAttackBtn.style.display = 'none'; }
     else battlePauseBtn.textContent = '⏸';
     SoundFX.stageComplete();
@@ -7670,6 +7699,7 @@
     battleLastWasNet = !!(battle && battle.net);
     if(battleNet) battleNetLeave();
     document.getElementById('battleBoard').classList.remove('active');
+    document.getElementById('battleHostPanel').classList.remove('active');
     { const gl = document.getElementById('battleGl'); if(gl) gl.style.display = 'none'; canvas.classList.remove('gl-on'); }
     if(battleRaf) cancelAnimationFrame(battleRaf);
     battleRaf = null; battle = null;
@@ -7677,6 +7707,7 @@
     battleLogEl.classList.remove('active');
     battleAttackBtn.style.display = 'none';
     battlePauseBtn.style.display = 'none';
+    document.getElementById('battleViewBtn').style.display = 'none';
     battlePauseEl.classList.remove('active');
     battleBanner.classList.remove('active');
     battleStreakEl.classList.remove('active');
@@ -7858,6 +7889,14 @@
     sessionLog.push({ mode:'battle', theme: battleCourse, stage: null, topic: q.__topicKey, itemId: q.itemId,
       prompt: q.prompt, options: q.options, correctIndex: q.correctIndex,
       chosenIndex: (chosenIndex==null || chosenIndex<0) ? q.options.length : chosenIndex, correct });
+    if(battle.net){
+      // One tally per question for the whole room, so the host can see what the class found hard.
+      const key = String(q.id).replace(/[.#$\[\]\/]/g, '_');
+      runTransaction(ref(fbdb, `rooms/${battle.net.code}/qstats/${key}`), cur=>{
+        cur = cur || { n: 0, c: 0, p: String(q.prompt).slice(0, 160), a: String(q.options[q.correctIndex] ?? '').slice(0, 120) };
+        cur.n++; if(correct) cur.c++; return cur;
+      }).catch(()=>{});
+    }
     recordSrsAnswer(q.itemId, q.id, correct);
     recordQuestionStat(q.itemId, q.id, correct, authored, first);
   }
@@ -7998,6 +8037,7 @@
       endBattle();
       overTitle.textContent = won ? '⚔️ Victory' : '⚔️ Defeated';
       overText.textContent = summary;
+      overText.innerHTML += battleLearnHtml();
       if(typeof mpSetOverButtons==='function') mpSetOverButtons(false);
       showScreen('over');
       screenState = 'over';
@@ -8065,6 +8105,10 @@
   }
   function battleSlot(who){
     const pos3 = who.isYou ? { x: battle.wx, z: battle.wz } : (who.net ? { x: who.nx, z: who.nz } : { x: battle.fx, z: battle.fz });
+    if(battle.gl && b3 && who.isYou && battle.view === 'first'){
+      // First person: you are the camera, so your own effects start from the bottom of the screen.
+      return { x: W/2, y: H*0.94, r: 30*SCALE, s: 1, behind: false };
+    }
     if(battle.gl && b3){
       // In the 3D view the camera decides where things are on screen.
       const q = b3.project(pos3.x, b3.fighterRadius + 6, pos3.z, W, H);
@@ -8605,7 +8649,7 @@
 
   function drawHpBar(f){
     const slot = battleSlot(f);
-    const k = Math.max(0.55, slot.s || 1);        // shrink with distance, but stay legible
+    const k = Math.min(1.5, Math.max(0.55, slot.s || 1));   // shrink with distance but stay legible; never balloon up close
     const w = 150*SCALE*k, h = 9*SCALE*k;
     // Yours sits under you; the rival's floats above it, so neither covers the road ahead.
     const x = slot.x - w/2;
@@ -8796,7 +8840,7 @@
     if(!battle3dPromise){
       // Bump the number whenever battle3d.js changes: it is served with a long
       // cache lifetime, and a stale copy is how a fixed bug stays on screen.
-      battle3dPromise = import('./battle3d.js?v=4')
+      battle3dPromise = import('./battle3d.js?v=5')
         .then(m=> m.createBattle3D({ glCanvas: battleGlCanvas, drawCell: drawCellSprite, roadHalf: ROAD_HALF }))
         .then(x=>{ b3 = x; return x; })
         .catch(err=>{ console.warn('[battle] 3D view unavailable, using the 2D view:', err); return null; });
@@ -8815,8 +8859,8 @@
     if(b.net){ for(const o of Object.values(b.net.others)) add(o, o.nx, o.nz, o === b.foe && b.phase==='live', '#ffa24d', o.placed && !(o.dead && o.fall >= 1)); }
     else add(b.foe, b.fx, b.fz, !!b.foeTelegraph, '#ffa24d', true);
     add(b.you, b.wx, b.wz, b.phase==='live' && now >= b.attackReadyAt, b.you.look.color || '#ff5d8f',
-        !(b.net && (b.net.spectator || (b.you.dead && b.you.fall >= 1))));
-    b3.render({ camX: b.camX, camZ: b.camZ + 60, time: now, shake: b.shake, push: b.push, fighters: list, pickups: b.pickups,
+        b.view !== 'first' && !(b.net && (b.net.spectator || (b.you.dead && b.you.fall >= 1))));
+    b3.render({ view: b.view === 'stats' ? 'top' : b.view, camX: b.camX, camZ: b.camZ + 60, time: now, shake: b.shake, push: b.push, fighters: list, pickups: b.pickups,
       danger: b.foeTelegraph ? { x: b.foeTelegraph.x, z: b.foeTelegraph.z, r: DODGE_RADIUS,
                                  t: Math.min(1, (now - b.foeTelegraph.at) / FOE_TELEGRAPH_MS) } : null });
     for(const f of bars) if(!battleSlot(f).behind) drawHpBar(f);
@@ -8887,6 +8931,7 @@
 
   async function battleHostRoom(){
     battleNetSay('');
+    if(!battleNameInput.value.trim()){ battleNetSay('Enter your name first.'); battleNameInput.focus(); return; }
     if(!battleCourse){ battleNetSay('Pick a question pool first.'); return; }
     if(!(await battleNetReady())) return;
     const watching = document.getElementById('battleWatchChk').checked;
@@ -8901,6 +8946,7 @@
 
   async function battleJoinRoom(){
     battleNetSay('');
+    if(!battleNameInput.value.trim()){ battleNetSay('Enter your name first.'); battleNameInput.focus(); return; }
     const code = document.getElementById('battleCodeInput').value.trim().toUpperCase();
     if(code.length < 5){ battleNetSay('Enter the 5-character room code.'); return; }
     if(!(await battleNetReady())) return;
@@ -8955,13 +9001,16 @@
       : '<span>Waiting for players…</span>';
     const btn = document.getElementById('battleLobbyStartBtn');
     btn.style.display = battleNet.isHost ? 'inline-block' : 'none';
+    document.getElementById('battleLenRow').style.display = battleNet.isHost ? '' : 'none';
     btn.disabled = players.length < 2;
     btn.textContent = players.length < 2 ? 'Need at least 2 players' : `⚔️ Start the match (${players.length})`;
   }
 
   function battleNetStart(){
     if(!battleNet || !battleNet.isHost) return;
-    fbUpdate(battleNet.ref, { status:'active', seed: Math.floor(Math.random()*1e9), startAt: serverNow() + 1200 }).catch(()=>{});
+    // The host sets how long the match runs. Sudden death is the last 90 seconds.
+    const endSec = Number(document.getElementById('battleLenSel').value) || BATTLE_TIME_UP;
+    fbUpdate(battleNet.ref, { status:'active', seed: Math.floor(Math.random()*1e9), startAt: serverNow() + 1200, endSec }).catch(()=>{});
   }
 
   function battleNetLeave(){
@@ -9045,6 +9094,9 @@
 
   function netStep(b, dt, now){
     const net = b.net, sn = serverNow();
+    // The room's own end time: chosen by the host in the lobby, and cut short if they end it early.
+    net.endSec = (net.room && net.room.endSec) || BATTLE_TIME_UP;
+    net.suddenSec = Math.max(0, net.endSec - 90);
     const others = Object.values(net.others);
 
     // You (or, once you are out or only watching, the camera).
@@ -9082,7 +9134,7 @@
 
     // One shared clock, from the server's start time.
     b.clock = Math.max(0, (sn - net.startAt) / 1000);
-    if(!b.sudden && b.clock >= BATTLE_SUDDEN_AT){
+    if(!b.sudden && b.clock >= net.suddenSec){
       b.sudden = true;
       battleLog('SUDDEN DEATH — no more healing, every hit does double.');
       showBattleStreak(0, '⚡ SUDDEN DEATH');
@@ -9130,7 +9182,7 @@
     if(!net.ended && !net.claiming && !(net.room && net.room.result) && sn > net.startAt + 5000){
       const all = Object.entries(players);
       const alive = all.filter(([, p])=> p.alive !== false);
-      if(all.length >= 2 && (alive.length <= 1 || b.clock >= BATTLE_TIME_UP)){
+      if(all.length >= 2 && (alive.length <= 1 || b.clock >= net.endSec)){
         net.claiming = true;
         let winner = '';
         if(alive.length === 1) winner = alive[0][0];
@@ -9174,7 +9226,7 @@
     else if(!net.targetPid) battleTurnEl.textContent = '🏃 Find someone to fight  ·  WASD to move';
     else battleTurnEl.textContent = battleDist() > BATTLE_RANGE
       ? `🏃 Get closer to ${b.foe.name}` : `⚔️ ${b.foe.name} in range — Space or tap Attack`;
-    const tl = Math.max(0, (b.sudden ? BATTLE_TIME_UP : BATTLE_SUDDEN_AT) - b.clock);
+    const tl = Math.max(0, (b.sudden ? (net.endSec || BATTLE_TIME_UP) : (net.suddenSec ?? BATTLE_SUDDEN_AT)) - b.clock);
     battleTurnSub.textContent = `${net.spectator ? '' : `You ${Math.ceil(Math.max(0,b.you.hp))} HP  ·  `}Room ${net.code}  ·  `
       + `${b.sudden ? '⚡ ends in' : 'sudden death in'} ${Math.floor(tl/60)}:${String(Math.floor(tl%60)).padStart(2,'0')}`;
     battleAttackBtn.classList.toggle('ready', b.phase==='live' && left<=0 && !!net.targetPid);
@@ -9185,7 +9237,10 @@
       battleBoardEl.innerHTML = rows.map(r=>
         `<div class="bb-row${r.alive?'':' out'}${r.me?' me':''}"><span>${escapeHtml(r.name)}</span>`
         + `<span class="bb-hp"><i style="width:${Math.max(0, Math.min(100, r.hp))}%"></i></span>`
-        + `<span>${r.correct}✓ ${r.wrong}✗</span></div>`).join('');
+        + `<span>${r.correct}✓ ${r.wrong}✗</span></div>`).join('') + (net.spectator ? battleHardestHtml(net.room) : '');
+      const panel = document.getElementById('battleHostPanel');
+      panel.classList.toggle('active', b.view === 'stats');
+      if(b.view === 'stats') panel.innerHTML = battleHostPanelHtml(b, rows, tl);
     }
   }
 
@@ -9207,7 +9262,7 @@
       endBattle();
       overTitle.textContent = net.spectator ? '⚔️ Match over' : (iWon ? '⚔️ Victory' : `⚔️ You placed ${myPlace} of ${rows.length}`);
       overText.innerHTML = `${winner ? escapeHtml(winner.name) + ' won the room.' : 'It ended in a draw.'}<br><br>${table}`
-        + (net.spectator ? '' : '<br><br>"View summary" lists your questions.');
+        + (net.spectator ? battleRoomAnalysisHtml(room) : battleLearnHtml());
       if(typeof mpSetOverButtons==='function') mpSetOverButtons(false);
       showScreen('over'); screenState = 'over'; syncHudVisibility();
     }, 2600);
@@ -9218,9 +9273,117 @@
   document.getElementById('battleLobbyStartBtn')?.addEventListener('click', battleNetStart);
   document.getElementById('battleLobbyLeaveBtn')?.addEventListener('click', ()=>{ battleNetLeave(); openBattleSetup(); });
 
+
+  /* ---------------------------------------------------------- setup modes
+     The setup screen asks one question first -- solo, host or join -- and
+     then shows only the fields that choice needs. A joiner never sees the
+     course or map pickers, because the host has already chosen them. */
+  let battleMode = 'solo';
+  function battleSetMode(mode){
+    battleMode = mode;
+    const show = (id, on)=>{ const el = document.getElementById(id); if(el) el.style.display = on ? '' : 'none'; };
+    show('bsName', mode !== 'solo'); show('bsJoin', mode === 'join');
+    show('bsPool', mode !== 'join'); show('bsMap', mode !== 'join'); show('bsHost', mode === 'host');
+    document.querySelectorAll('#battleModeRow .bmode').forEach(b=> b.classList.toggle('on', b.dataset.bmode === mode));
+    document.getElementById('battleModeHint').textContent = {
+      solo: 'Just you against a bot. Pick a question pool and a map.',
+      host: 'You pick the questions and the map, then share a code. Up to 12 players.',
+      join: 'Type your name and the code your host is showing.' }[mode];
+    document.getElementById('battleGoBtn').textContent = { solo: '⚔️ Start', host: '🏠 Create the room', join: '🔑 Join the room' }[mode];
+    battleNetSay('');
+  }
+  document.querySelectorAll('#battleModeRow .bmode').forEach(b=> b.addEventListener('click', ()=>{ SoundFX.click(); battleSetMode(b.dataset.bmode); }));
+  document.getElementById('battleGoBtn')?.addEventListener('click', ()=>{
+    if(battleMode === 'host') return battleHostRoom();
+    if(battleMode === 'join') return battleJoinRoom();
+    if(!battleCourse){ battleNetSay('Pick a question pool first.'); return; }
+    startBattle();
+  });
+
+  /* ------------------------------------------------------------- learning
+     The fight is the hook; this is the point. Every result screen, including
+     the one you get by leaving early, says which topics went badly and sends
+     you to the full list with answers and explanations. */
+  function battleLearnHtml(){
+    if(!sessionLog.length) return '';
+    const by = {};
+    for(const r of sessionLog){ const v = (by[r.topic] ??= { c: 0, n: 0 }); v.n++; if(r.correct) v.c++; }
+    const rows = Object.entries(by).sort((a, c)=> (a[1].c/a[1].n) - (c[1].c/c[1].n))
+      .map(([k, v])=> `${escapeHtml((TOPICS[k] || {}).label || k)} ${v.c}/${v.n}`).join(' · ');
+    const missed = sessionLog.filter(r=> !r.correct).length;
+    return `<br><br><b>What to review</b><br>${rows}<br>`
+      + (missed ? `${missed} question${missed > 1 ? 's' : ''} missed. "View summary" has the answers and explanations.`
+                : 'Nothing missed. "View summary" lists every question.');
+  }
+  function battleRoomQuestions(room){
+    return Object.values((room && room.qstats) || {}).filter(q=> q && q.n > 0)
+      .sort((a, c)=> (a.c/a.n) - (c.c/c.n) || c.n - a.n);
+  }
+  /** For the watching host, at the end: how the class did, hardest questions first. */
+  function battleRoomAnalysisHtml(room){
+    const qs = battleRoomQuestions(room);
+    if(!qs.length) return '<br><br>No questions were answered.';
+    const n = qs.reduce((t, q)=> t + q.n, 0), c = qs.reduce((t, q)=> t + q.c, 0);
+    return `<br><br><b>Question analysis</b> — ${c}/${n} correct across the room (${Math.round(100*c/n)}%)<br>`
+      + qs.slice(0, 10).map(q=> `<div style="text-align:left;margin-top:8px;"><b>${q.c}/${q.n} correct</b> — ${escapeHtml(q.p)}`
+        + `<br><span style="opacity:.75">Answer: ${escapeHtml(q.a || '')}</span></div>`).join('');
+  }
+  /** For the watching host, live: the questions going worst so far. */
+  function battleHardestHtml(room){
+    const qs = battleRoomQuestions(room).filter(q=> q.c < q.n).slice(0, 3);
+    if(!qs.length) return '';
+    return '<div style="margin-top:6px;border-top:1px solid var(--panel-line);padding-top:4px;white-space:normal;"><b>Hardest so far</b>'
+      + qs.map(q=> `<div>${q.c}/${q.n} · ${escapeHtml(q.p.slice(0, 60))}…</div>`).join('') + '</div>';
+  }
+  /** The host's live analysis screen: how the class is doing, question by question, hardest first. */
+  function battleHostPanelHtml(b, rows, secondsLeft){
+    const qs = battleRoomQuestions(b.net.room);
+    const n = qs.reduce((t, q)=> t + q.n, 0), c = qs.reduce((t, q)=> t + q.c, 0);
+    const clock = `${Math.floor(secondsLeft/60)}:${String(Math.floor(secondsLeft%60)).padStart(2,'0')}`;
+    return `<div>Room <b>${b.net.code}</b> · ${rows.filter(r=>r.alive).length} of ${rows.length} still in · ${b.sudden ? 'ends in' : 'sudden death in'} ${clock}</div>`
+      + `<div class="hp-big">${n ? Math.round(100*c/n) + '%' : '—'} <span style="font-size:15px;font-weight:400;">correct across the room (${c}/${n} answers)</span></div>`
+      + '<h3>Players</h3><table>' + rows.map(r=>{ const a = r.correct + r.wrong;
+          return `<tr style="${r.alive ? '' : 'opacity:.5'}"><td>${escapeHtml(r.name)}</td><td>${r.alive ? Math.round(r.hp) + ' HP' : 'out'}</td>`
+               + `<td>${r.correct}✓ ${r.wrong}✗</td><td>${a ? Math.round(100*r.correct/a) + '%' : '—'}</td></tr>`; }).join('') + '</table>'
+      + '<h3>Questions, hardest first</h3>'
+      + (qs.length ? qs.map(q=> `<div class="hp-q"><b>${q.c}/${q.n} correct</b> · ${escapeHtml(q.p)}`
+          + `<div style="opacity:.75">Answer: ${escapeHtml(q.a || '')}</div><div class="hp-bar"><i style="width:${Math.round(100*q.c/q.n)}%"></i></div></div>`).join('')
+        : '<div>No questions answered yet.</div>');
+  }
+  function battleLeaveToSummary(){
+    if(!battle) return;
+    const you = battle.you, asked = you.correct + you.wrong;
+    endBattle();
+    if(!asked){ quitToMenu(); return; }          // nothing answered, nothing to review
+    quizMode = 'battle';
+    overTitle.textContent = '⚔️ You left the match';
+    overText.innerHTML = `${you.correct}/${asked} attacks landed (${Math.round(100*you.correct/asked)}%).` + battleLearnHtml();
+    if(typeof mpSetOverButtons==='function') mpSetOverButtons(false);
+    showScreen('over'); screenState = 'over'; syncHudVisibility();
+  }
+  /** Players switch between behind-the-cell and first person; a watching host between the whole map and a free camera. */
+  function battleCycleView(){
+    if(!battle) return;
+    const order = (battle.net && battle.net.spectator) ? ['top', 'third', 'stats'] : ['third', 'first'];
+    battle.view = order[(order.indexOf(battle.view) + 1) % order.length];
+    battleLog({ top: 'View: the whole map.', third: 'View: free camera, WASD to move.', first: 'View: first person.', stats: 'View: live question analysis.' }[battle.view]);
+  }
+  document.getElementById('battleViewBtn')?.addEventListener('click', battleCycleView);
+  // The host can call time: the match ends now and whoever has the most life wins.
+  document.getElementById('battleEndAllBtn')?.addEventListener('click', ()=>{
+    if(!battle || !battle.net || !battleNet || !battleNet.isHost) return;
+    fbUpdate(battleNet.ref, { endSec: Math.max(1, Math.floor(battle.clock)) }).catch(()=>{});
+    battlePauseEl.classList.remove('active');
+  });
+
   function battleSetPaused(on){
     // A room cannot be paused for everyone, so in a room this is just the leave menu.
-    if(battle && battle.net){ battlePauseEl.classList.toggle('active', on); return; }
+    if(battle && battle.net){
+      battlePauseEl.classList.toggle('active', on);
+      document.getElementById('battleEndAllBtn').style.display = (battleNet && battleNet.isHost) ? '' : 'none';
+      return;
+    }
+    document.getElementById('battleEndAllBtn').style.display = 'none';
     if(!battle || battle.phase==='over' || battle.paused===on) return;
     if(on && screenState!=='battle') return;        // not while a question is open
     battle.paused = on;
@@ -9238,7 +9401,7 @@
   }
   battlePauseBtn?.addEventListener('click', ()=> battleSetPaused(true));
   document.getElementById('battleResumeBtn')?.addEventListener('click', ()=> battleSetPaused(false));
-  document.getElementById('battleLeaveBtn')?.addEventListener('click', ()=>{ endBattle(); quitToMenu(); });
+  document.getElementById('battleLeaveBtn')?.addEventListener('click', battleLeaveToSummary);
   document.addEventListener('keydown', (e)=>{
     if(e.key==='Escape' && battle && screenState==='battle'){ battleSetPaused(!battlePauseEl.classList.contains('active')); e.stopPropagation(); }
   }, true);
@@ -9252,6 +9415,7 @@
     const k = e.key.toLowerCase();
     if(BATTLE_KEYS[k]){ battleHeld[BATTLE_KEYS[k]] = true; e.preventDefault(); }
     if(k===' ' || k==='enter'){ battleTryAttack(); e.preventDefault(); }
+    if(k==='v') battleCycleView();
   });
   document.addEventListener('keyup', (e)=>{
     const k = e.key.toLowerCase();

@@ -108,7 +108,7 @@ export async function createBattle3D(env) {
   let sun = null, world = null, root = null, clouds = [], orbs = [], danger = null;
   const fighters = new Map();
   const v = new THREE.Vector3(), camPos = new THREE.Vector3(0, 560, -700), camLook = new THREE.Vector3();
-  let lastW = 0, lastH = 0;
+  let lastW = 0, lastH = 0, mapDef = null, fogFar = 5000;
 
   const lambert = (color, extra) => new THREE.MeshLambertMaterial(Object.assign({ color: hex(color) }, extra || {}));
   function box(w, h, d, mat, x, y, z, shadow = true) {
@@ -283,6 +283,7 @@ export async function createBattle3D(env) {
   function build(mapKey, def, buildings, props, pickups) {
     disposeWorld();
     const theme = THEMES[mapKey] || THEMES.hospital;
+    mapDef = def; fogFar = theme.fog[2];
     scene = new THREE.Scene();
     scene.background = new THREE.Color(theme.sky);
     scene.fog = new THREE.Fog(theme.fog[0], theme.fog[1], theme.fog[2]);
@@ -386,8 +387,22 @@ export async function createBattle3D(env) {
     }
     // Third-person: above and behind, looking a little ahead of the cell.
     const tall = camera.aspect < 1 ? 1.35 : 1;      // pull back on a portrait phone
-    camPos.set(-st.camX, 560 * tall, st.camZ - 700 * tall);
-    camLook.set(-st.camX, 40, st.camZ + 170);
+    camera.up.set(0, 1, 0);
+    scene.fog.far = fogFar;
+    if (st.view === 'first') {
+      // Through the cell's eyes: at its height, looking the way it walks.
+      camPos.set(-st.camX, 74, st.camZ - 4);
+      camLook.set(-st.camX, 66, st.camZ + 420);
+    } else if (st.view === 'top') {
+      // The whole map from above, for someone watching rather than playing.
+      const h = Math.max(mapDef.halfD, mapDef.halfW / camera.aspect) * 2.35;
+      camPos.set(0, h, -1); camLook.set(0, 0, 0);
+      camera.up.set(0, 0, 1);
+      scene.fog.far = 99999;
+    } else {
+      camPos.set(-st.camX, 560 * tall, st.camZ - 700 * tall);
+      camLook.set(-st.camX, 40, st.camZ + 170);
+    }
     camera.position.copy(camPos);
     if (st.shake) camera.position.add(v.set((Math.random() - 0.5) * st.shake * 4, (Math.random() - 0.5) * st.shake * 3, 0));
     if (st.push) camera.position.lerp(camLook, st.push * 0.035);
