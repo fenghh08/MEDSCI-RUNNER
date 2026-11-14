@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "admin-scratch",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd web && node scripts/dev-scratch.mjs --endpoint ep-hidden-surf-a739o28c --port 4090"],
+      "port": 4090
+    }
+  ]
+}
