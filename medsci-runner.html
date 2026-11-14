@@ -5482,6 +5482,15 @@
           if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y;
         }
         if(bestN < S*S*0.03) return;                 // did not find a character: keep the drawn cell
+        // Trim the outermost pixel: it is the art blended into the icon's navy glow, and
+        // on a bright map it shows as a dark fringe that makes the cell look pasted on.
+        const edge = [];
+        for(let q=0;q<S*S;q++){
+          if(label[q] !== best) continue;
+          const x = q % S;
+          if((x > 0 && bg[q-1]) || (x < S-1 && bg[q+1]) || (q >= S && bg[q-S]) || (q < S*(S-1) && bg[q+S])) edge.push(q);
+        }
+        for(const q of edge) a[q*4+3] = 0;
         g.putImageData(d, 0, 0);
         const out = document.createElement('canvas'); out.width = x1 - x0 + 1; out.height = y1 - y0 + 1;
         out.getContext('2d').drawImage(c, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
@@ -5509,7 +5518,6 @@
     if(morrisArt){
       const art = morrisFor(custom.color), h = r*2.75, w = h * art.width / art.height;
       context.save();
-      context.shadowColor = custom.color || CUSTOMIZE_DEFAULT.color; context.shadowBlur = r*0.6;
       // A small squash-and-stretch on the same wobble the old cell used, so it still feels alive.
       const sq = 1 + Math.sin(wob)*0.03;
       context.translate(cx, cy + r*0.12); context.scale(1/sq, sq);
