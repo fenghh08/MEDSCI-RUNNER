@@ -5405,8 +5405,96 @@
   // option thumbnails, so what you pick is exactly what you'll see racing.
   // `wob` is optional (defaults to a static pose) so preview thumbnails
   // don't need to fake an animation loop.
+  /* ---------------------------------------------------------------------
+     Morris, the character from the app icon, as the cell everywhere a cell
+     is drawn: the runner, the customise preview, Group Race, Cell Battle.
+
+     The art is not redrawn. The team's own icon (icons/app-icon-512.png) is
+     read once at start-up and the character is lifted off its tile: the navy
+     background is flood-filled away from the edges, and of what is left only
+     the largest piece is kept, which drops the stars and the speed lines.
+
+     If the image cannot be read -- a file:// copy cannot read pixels back --
+     the original drawn cell below is used instead, so nothing breaks.
+     --------------------------------------------------------------------- */
+  let morrisArt = null;                 // the cut-out, on its own canvas
+  const morrisTints = new Map();        // colour -> tinted copy
+  (function loadMorris(){
+    const img = new Image();
+    img.onload = ()=>{
+      try {
+        const S = 512, c = document.createElement('canvas'); c.width = c.height = S;
+        const g = c.getContext('2d', { willReadFrequently: true });
+        g.drawImage(img, 0, 0, S, S);
+        const d = g.getImageData(0, 0, S, S), a = d.data;
+        const isBg = (i)=> a[i+3] < 20 || (a[i+2] >= a[i] - 8 && a[i] < 120 && a[i+1] < 110);
+        const bg = new Uint8Array(S*S), stack = [];
+        for(let k=0;k<S;k++){ stack.push(k, k + (S-1)*S, k*S, k*S + S-1); }
+        while(stack.length){
+          const q = stack.pop();
+          if(bg[q] || !isBg(q*4)) continue;
+          bg[q] = 1;
+          const x = q % S;
+          if(x > 0) stack.push(q-1); if(x < S-1) stack.push(q+1);
+          if(q >= S) stack.push(q-S); if(q < S*(S-1)) stack.push(q+S);
+        }
+        const label = new Int32Array(S*S); let best = 0, bestN = 0, id = 0;
+        for(let q0=0;q0<S*S;q0++){
+          if(bg[q0] || label[q0]) continue;
+          id++; let n = 0; stack.push(q0); label[q0] = id;
+          while(stack.length){
+            const q = stack.pop(); n++;
+            const x = q % S;
+            for(const nb of [x > 0 ? q-1 : -1, x < S-1 ? q+1 : -1, q-S, q+S]){
+              if(nb < 0 || nb >= S*S || bg[nb] || label[nb]) continue;
+              label[nb] = id; stack.push(nb);
+            }
+          }
+          if(n > bestN){ bestN = n; best = id; }
+        }
+        let x0 = S, y0 = S, x1 = 0, y1 = 0;
+        for(let q=0;q<S*S;q++){
+          if(label[q] !== best){ a[q*4+3] = 0; continue; }
+          const x = q % S, y = (q / S) | 0;
+          if(x < x0) x0 = x; if(x > x1) x1 = x; if(y < y0) y0 = y; if(y > y1) y1 = y;
+        }
+        if(bestN < S*S*0.03) return;                 // did not find a character: keep the drawn cell
+        g.putImageData(d, 0, 0);
+        const out = document.createElement('canvas'); out.width = x1 - x0 + 1; out.height = y1 - y0 + 1;
+        out.getContext('2d').drawImage(c, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+        morrisArt = out;
+      } catch(e){ /* pixels not readable here: the drawn cell stays */ }
+    };
+    img.src = 'icons/app-icon-512.png';
+  })();
+  /** The character in a player's colour. The default colour is the art as drawn. */
+  function morrisFor(color){
+    if(!color || color === CUSTOMIZE_DEFAULT.color) return morrisArt;
+    let c = morrisTints.get(color);
+    if(!c){
+      c = document.createElement('canvas'); c.width = morrisArt.width; c.height = morrisArt.height;
+      const g = c.getContext('2d');
+      g.drawImage(morrisArt, 0, 0);
+      g.globalCompositeOperation = 'hue'; g.fillStyle = color; g.fillRect(0, 0, c.width, c.height);
+      g.globalCompositeOperation = 'destination-in'; g.drawImage(morrisArt, 0, 0);
+      morrisTints.set(color, c);
+    }
+    return c;
+  }
   function drawCellSprite(context, cx, cy, r, custom, wob){
     wob = wob || 0;
+    if(morrisArt){
+      const art = morrisFor(custom.color), h = r*2.75, w = h * art.width / art.height;
+      context.save();
+      context.shadowColor = custom.color || CUSTOMIZE_DEFAULT.color; context.shadowBlur = r*0.6;
+      // A small squash-and-stretch on the same wobble the old cell used, so it still feels alive.
+      const sq = 1 + Math.sin(wob)*0.03;
+      context.translate(cx, cy + r*0.12); context.scale(1/sq, sq);
+      context.drawImage(art, -w/2, -h/2, w, h);
+      context.restore();
+      drawCellAccessory(context, cx, cy - r*0.2, r*0.8, custom.accessory);
+      return;
+    }
     const color = custom.color || CUSTOMIZE_DEFAULT.color;
     context.save(); context.shadowColor = color; context.shadowBlur = r*0.85; context.fillStyle = color;
     context.beginPath(); context.arc(cx,cy,r,0,Math.PI*2); context.fill(); context.restore();
