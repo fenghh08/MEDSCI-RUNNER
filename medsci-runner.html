@@ -7528,7 +7528,18 @@
       foe: newFighter(BOT_NAMES[n], BOT_LOOKS[n], false),
       phase: 'live', score: 0, log: [],
       attackReadyAt: performance.now() + 900,
-      foeCooldown: 3200, foeTelegraph: null, px: 0,
+      foeCooldown: 3200, foeTelegraph: null,
+      wx: 0, wz: -250, fx: 0, fz: 250, camX: 0, camZ: -310,
+      props: Array.from({length: 34}, ()=>{
+        let x, z;
+        do { x = (Math.random()*2-1)*(WORLD.halfW-80); z = (Math.random()*2-1)*(WORLD.halfD-80); }
+        while(Math.hypot(x, z) < 420);       // keep the middle clear for the opening
+        return { x, z, r: 45 + Math.random()*75, tall: 0.8 + Math.random()*0.9,
+                 color: ['#ff8fb1','#c58bff','#7fd1ff','#ffc46b','#8ee6a8'][Math.floor(Math.random()*5)] };
+      }),
+      pickups: Array.from({length: 6}, ()=>({
+        x: (Math.random()*2-1)*(WORLD.halfW-150), z: (Math.random()*2-1)*(WORLD.halfD-150),
+        taken: false, backAt: 0 })),
       foeLane: 1, foeZ: 0, foeLaneAt: 0,
       shake: 0, shakeUntil: 0, fx: null, deadline: 0, lastT: performance.now(),
       pending: null, attack: null, shock: null, push: 0, flash: 0,
@@ -7543,7 +7554,7 @@
     battleAttackBtn.style.display = 'block';
     player.lane = 1; player.targetLane = 1; player.x = laneX(1);
     seedArenaMotes();
-    battleLog(`A ${battle.foe.name} squares up. Move to dodge, attack when ready.`);
+    battleLog(`A ${battle.foe.name} squares up. WASD to move, Space to attack. Green orbs heal.`);
     SoundFX.stageComplete();
     battleRaf = requestAnimationFrame(battleLoop);
   }
@@ -7586,7 +7597,10 @@
      Now a full commit moves ~0.34W against 0.13W, so getting out of the way
      is a decision rather than a dice roll -- and standing still is reliably
      punished, which is what makes the running mean anything. */
-  const DODGE_RADIUS       = 0.13;
+  const DODGE_RADIUS       = 150;    // world units: you run 430/s, so 1.5s clears it ~4x over
+  const BATTLE_MOVE        = 430;    // world units per second
+  const BATTLE_RANGE       = 560;    // how close you must be to attack
+  const BATTLE_PICKUP_HEAL = 20;
 
   function battleIsLive(){
     return battle && battle.phase==='live' && screenState==='battle'
@@ -7596,6 +7610,10 @@
   function battleTryAttack(){
     if(!battleIsLive()) return;
     if(performance.now() < battle.attackReadyAt) return;
+    if(battleDist() > BATTLE_RANGE){
+      battleFloat(battle.you, 'too far', '#9aa4b2');
+      return;
+    }
     const q = battle.pool[battle.poolAt++ % battle.pool.length];
     battle.deadline = performance.now() + BATTLE.turnSeconds*1000;
     quizMode = 'battle';
@@ -7610,27 +7628,22 @@
   function battleFoeThink(dt, now){
     const b = battle;
     if(b.phase!=='live' || b.foe.dead || b.you.dead) return;
-
     if(!b.foeTelegraph){
       b.foeCooldown -= dt*1000;
       if(b.foeCooldown <= 0){
-        // Aim where you are NOW. Move before it lands and it misses.
-        b.foeTelegraph = { at: now, x: battleSlot(b.you).x };
+        // Aim at the patch of ground you are standing on NOW.
+        b.foeTelegraph = { at: now, x: b.wx, z: b.wz };
         battleLog(`${b.foe.name} is winding up — move!`);
         SoundFX.grenadeWhistle();
       }
       return;
     }
-
     if(now - b.foeTelegraph.at >= FOE_TELEGRAPH_MS){
-      const aimX = b.foeTelegraph.x;
+      const t = b.foeTelegraph;
       b.foeTelegraph = null;
       b.foeCooldown = 2600 + Math.random()*2200;
-      const me = battleSlot(b.you);
-      const dodged = Math.abs(me.x - aimX) > W*DODGE_RADIUS;
-      if(dodged){
+      if(Math.hypot(b.wx - t.x, b.wz - t.z) > DODGE_RADIUS){
         battleLog('You dodge it.');
-        b.you.lunge = 1;
         battleFloat(b.you, 'dodged', '#3ee6b8');
         SoundFX.shieldBlock();
       } else {
@@ -7859,15 +7872,22 @@
     }
     const left = battle.attackReadyAt - performance.now();
     if(battle.phase==='question'){
-      battleTurnEl.textContent = '⚔️ Answer to land the hit';
-      battleClockWrap.style.visibility = 'visible';
+      // Hidden entirely while answering: it sits above the question card and
+      // was clipping the prompt. The card has its own timer, and the verdict
+      // restates the damage, so nothing is lost.
+      battleBar.classList.remove('active');
+      battleAttackBtn.style.display = 'none';
+      return;
     } else if(left > 0){
       battleTurnEl.textContent = `Recharging… ${(left/1000).toFixed(1)}s`;
       battleClockWrap.style.visibility = 'hidden';
     } else {
-      battleTurnEl.textContent = '⚔️ Ready — press Space or tap Attack';
+      battleTurnEl.textContent = battleDist() > BATTLE_RANGE
+        ? '🏃 Get closer to attack  ·  WASD to move'
+        : '⚔️ In range — press Space or tap Attack';
       battleClockWrap.style.visibility = 'hidden';
     }
+    battleBar.classList.add('active');
     battleTurnSub.textContent = `You ${Math.ceil(battle.you.hp)} HP  ·  ${battle.foe.name} ${Math.ceil(battle.foe.hp)} HP`;
     battleAttackBtn.classList.toggle('ready', battle.phase==='live' && left<=0);
     battleAttackBtn.style.display = (battle.phase==='over') ? 'none' : 'block';
@@ -7879,19 +7899,30 @@
      rival runs ahead of you at a real depth, so it is drawn smaller and
      higher by the same projection every other entity uses. That is what makes
      it read as a chase rather than two sprites facing off. */
-  function battleSlot(who){
-    const hz = arenaY(), span = H - hz;
-    if(who.isYou){
-      // Near corner, full size. Steering slides you across the front of the
-      // arena rather than between three fixed lanes -- it is a stage, not a
-      // tube -- so the lane target is scaled down into a gentler drift.
-      const drift = (player.x - W/2) * 0.85;
-      return { x: W/2 + drift, y: hz + span*0.74, r: 32*SCALE, s: 1 };
-    }
-    // Far side, smaller, and it shifts across as it moves.
-    const k = 0.58 + battle.foeZ*0.04;
-    return { x: W/2 + (battle.foeLane-1)*W*0.17, y: hz + span*0.20, r: 32*SCALE*k, s: k };
+  /* The duel now happens on a MAP, not a stage. Everything has a position in
+     world units (x across, z away from the camera), the camera follows you,
+     and this one function turns a world position into a screen position with
+     a mild perspective -- far things are smaller and higher. Fighters, props,
+     pickups, the danger marker and the grid all go through it, which is what
+     keeps them agreeing about where the ground is. */
+  const WORLD = { halfW: 1300, halfD: 1000 };
+  const BATTLE_FOCAL = 700;
+  function battleZoom(){ return Math.max(0.45, Math.min(W, (H-topInset)*1.5) / 900); }
+  function battleBaseY(){ return topInset + (H-topInset)*0.68; }
+  function battleHorizonY(){ return battleBaseY() - BATTLE_FOCAL*battleZoom()*0.55; }
+  function battleProject(wx, wz){
+    const d = Math.max(-BATTLE_FOCAL*0.6, wz - battle.camZ);   // + is away from the camera
+    const sc = BATTLE_FOCAL / (BATTLE_FOCAL + d);
+    const z = battleZoom();
+    return { x: W/2 + (wx - battle.camX)*sc*z, y: battleBaseY() - d*sc*z*0.55, s: sc };
   }
+  function battleSlot(who){
+    const pos = who.isYou ? { x: battle.wx, z: battle.wz } : { x: battle.fx, z: battle.fz };
+    const pr = battleProject(pos.x, pos.z);
+    const r = 34 * battleZoom() * pr.s;
+    return { x: pr.x, y: pr.y - r, r, s: pr.s };
+  }
+  function battleDist(){ return Math.hypot(battle.wx - battle.fx, battle.wz - battle.fz); }
 
 
   /* ---------------------------------------------------------------------
@@ -7926,90 +7957,132 @@
   }
 
   function drawArena(b){
-    const pal = canvasPalette();
-    const hz = arenaY();
     const light = currentTheme !== 'dark';
+    const hz = battleHorizonY();
     const membrane = resolveCanvasColor('var(--membrane)');
 
-    // ---- sky / far backdrop ------------------------------------------
+    // ---- sky, with cells drifting across it ---------------------------
     const sky = ctx.createLinearGradient(0, topInset, 0, hz);
     if(light){ sky.addColorStop(0, '#ffe7f0'); sky.addColorStop(1, '#ffd0e2'); }
     else { sky.addColorStop(0, '#12040b'); sky.addColorStop(1, '#43102a'); }
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, W, hz+1);
-
-    // Distant cells drifting across the backdrop, parallaxed by depth.
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, hz+1);
     if(!arenaMotes) seedArenaMotes();
     ctx.save();
     for(const m of arenaMotes){
-      m.x += m.drift * 0.004;
+      m.x += m.drift*0.004;
       if(m.x < -0.2) m.x = 1.2; else if(m.x > 1.2) m.x = -0.2;
-      const px = m.x * W;
-      const py = topInset + m.y * (hz - topInset);
-      const r = m.r * m.depth * SCALE;
-      ctx.globalAlpha = (light ? 0.16 : 0.22) * m.depth;
+      // Parallax: the backdrop slides a little against the camera.
+      const px = ((m.x*W - b.camX*0.05*m.depth) % (W*1.4) + W*1.4) % (W*1.4) - W*0.2;
+      const py = topInset + m.y*(hz - topInset);
+      const r = m.r*m.depth*battleZoom();
+      ctx.globalAlpha = (light ? 0.16 : 0.22)*m.depth;
       ctx.fillStyle = m.hue > 0.6 ? membrane : (light ? '#d6106a' : '#ff5d8f');
       ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2); ctx.fill();
-      ctx.globalAlpha = (light ? 0.10 : 0.14) * m.depth;
-      ctx.beginPath(); ctx.arc(px - r*0.3, py - r*0.3, r*0.45, 0, Math.PI*2); ctx.fill();
     }
     ctx.restore();
 
-    // ---- ground ------------------------------------------------------
+    // ---- ground --------------------------------------------------------
     const ground = ctx.createLinearGradient(0, hz, 0, H);
-    if(light){ ground.addColorStop(0, '#f6c3d4'); ground.addColorStop(1, '#fff1f5'); }
+    if(light){ ground.addColorStop(0, '#f3b9cd'); ground.addColorStop(1, '#fff1f5'); }
     else { ground.addColorStop(0, '#3a0d1c'); ground.addColorStop(1, '#1c0710'); }
-    ctx.fillStyle = ground;
-    ctx.fillRect(0, hz, W, H - hz);
+    ctx.fillStyle = ground; ctx.fillRect(0, hz, W, H-hz);
 
-    // Perspective grid. Rows are spaced by the same 1/(1+z) projection the
-    // fighters use, so a fighter standing "at z" lands on the right row.
-    // Rows bunch up towards the horizon (t = u^2) and scroll towards the
-    // viewer, which is what sells the depth and the motion at once.
+    // A grid fixed to the WORLD, so walking visibly moves you across it.
+    const STEP = 160, FAR = 2600, NEAR = -380;
     ctx.save();
-    ctx.strokeStyle = light ? 'rgba(214,16,106,.55)' : 'rgba(255,93,143,.45)';
-    const span = H - hz;
-    const ROWS = 11;
-    const scroll = (roadScroll * 0.0016) % 1;
-    for(let i=0;i<=ROWS;i++){
-      const u = (i + scroll) / ROWS;
-      if(u > 1) continue;
-      const yy = hz + span * (u*u);
-      ctx.globalAlpha = 0.10 + 0.5*(u*u);
-      ctx.lineWidth = 1 + 1.6*(u*u);
-      ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(W, yy); ctx.stroke();
+    ctx.strokeStyle = light ? 'rgba(214,16,106,.5)' : 'rgba(255,93,143,.42)';
+    const z0 = Math.ceil((b.camZ + NEAR)/STEP)*STEP;
+    for(let wz=z0; wz <= b.camZ + FAR; wz += STEP){
+      if(Math.abs(wz) > WORLD.halfD) continue;
+      const a = battleProject(-WORLD.halfW, wz), c = battleProject(WORLD.halfW, wz);
+      ctx.globalAlpha = 0.10 + 0.45*a.s;
+      ctx.lineWidth = 0.8 + 1.4*a.s;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(c.x, c.y); ctx.stroke();
     }
-    // Rails fanning out of the vanishing point.
-    for(let i=-7;i<=7;i++){
-      if(i===0) continue;
-      ctx.globalAlpha = 0.16;
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.moveTo(W/2 + i*(W*0.012), hz);
-      ctx.lineTo(W/2 + i*(W*0.17), H);
-      ctx.stroke();
+    const x0 = Math.ceil(-WORLD.halfW/STEP)*STEP;
+    for(let wx=x0; wx <= WORLD.halfW; wx += STEP){
+      const zn = Math.max(-WORLD.halfD, b.camZ + NEAR), zf = Math.min(WORLD.halfD, b.camZ + FAR);
+      if(zf <= zn) continue;
+      const a = battleProject(wx, zn), c = battleProject(wx, zf);
+      ctx.globalAlpha = 0.22; ctx.lineWidth = 1.1;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(c.x, c.y); ctx.stroke();
     }
+    // The edge of the map: a membrane wall you cannot cross.
+    ctx.globalAlpha = 0.9; ctx.lineWidth = 4;
+    ctx.strokeStyle = membrane;
+    const zn = Math.max(-WORLD.halfD, b.camZ + NEAR);
+    const corners = [[-WORLD.halfW, zn], [-WORLD.halfW, WORLD.halfD], [WORLD.halfW, WORLD.halfD], [WORLD.halfW, zn]]
+      .map(([x,z])=> battleProject(x, z));
+    ctx.beginPath(); ctx.moveTo(corners[0].x, corners[0].y);
+    for(const c of corners.slice(1)) ctx.lineTo(c.x, c.y);
+    ctx.stroke();
     ctx.restore();
 
-    // ---- fog at the horizon, so the ground fades rather than stops ----
-    const fog = ctx.createLinearGradient(0, hz - 26*SCALE, 0, hz + 54*SCALE);
+    // ---- fog at the horizon -------------------------------------------
+    const fog = ctx.createLinearGradient(0, hz - 20, 0, hz + 70);
     fog.addColorStop(0, light ? 'rgba(255,225,236,0)' : 'rgba(67,16,42,0)');
-    fog.addColorStop(0.5, light ? 'rgba(255,225,236,.85)' : 'rgba(67,16,42,.85)');
+    fog.addColorStop(0.4, light ? 'rgba(255,225,236,.9)' : 'rgba(67,16,42,.9)');
     fog.addColorStop(1, light ? 'rgba(246,195,212,0)' : 'rgba(58,13,28,0)');
-    ctx.fillStyle = fog;
-    ctx.fillRect(0, hz - 26*SCALE, W, 80*SCALE);
+    ctx.fillStyle = fog; ctx.fillRect(0, hz - 20, W, 90);
 
-    // ---- a lit platform under each fighter ---------------------------
-    drawArenaPlatform(battleSlot(b.foe), b.foe, !!b.foeTelegraph);
-    drawArenaPlatform(battleSlot(b.you), b.you,
-      b.phase==='live' && performance.now() >= b.attackReadyAt);
+    // ---- everything standing on the ground, far to near ---------------
+    const things = [];
+    for(const pr of b.props) things.push({ z: pr.z, draw: ()=> drawBattleProp(pr) });
+    for(const pk of b.pickups) if(!pk.taken) things.push({ z: pk.z, draw: ()=> drawBattlePickup(pk) });
+    things.push({ z: b.fz, draw: ()=>{ drawArenaPlatform(battleSlot(b.foe), b.foe, !!b.foeTelegraph); drawFighter(b.foe); drawHpBar(b.foe); } });
+    things.push({ z: b.wz, draw: ()=>{ drawArenaPlatform(battleSlot(b.you), b.you, b.phase==='live' && performance.now() >= b.attackReadyAt); drawFighter(b.you); drawHpBar(b.you); } });
+    things.sort((a, c)=> c.z - a.z);
+    drawDanger(b);
+    for(const t of things){
+      if(t.z - b.camZ < -BATTLE_FOCAL*0.55) continue;      // behind the camera
+      t.draw();
+    }
 
-    // ---- vignette -----------------------------------------------------
-    const vig = ctx.createRadialGradient(W/2, H*0.55, Math.min(W,H)*0.28, W/2, H*0.55, Math.max(W,H)*0.78);
+    // ---- vignette ------------------------------------------------------
+    const vig = ctx.createRadialGradient(W/2, H*0.55, Math.min(W,H)*0.3, W/2, H*0.55, Math.max(W,H)*0.8);
     vig.addColorStop(0, 'rgba(0,0,0,0)');
     vig.addColorStop(1, light ? 'rgba(120,40,70,.16)' : 'rgba(0,0,0,.45)');
-    ctx.fillStyle = vig;
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
+  }
+
+  /** Scenery: giant organelles standing around the map, for scale and bearings. */
+  function drawBattleProp(pr){
+    const q = battleProject(pr.x, pr.z);
+    const r = pr.r * battleZoom() * q.s;
+    if(q.x < -r*2 || q.x > W + r*2) return;
+    // Anything standing between the camera and you goes see-through, so
+    // scenery can never hide your own cell or the strike coming at it.
+    const inFront = pr.z < battle.wz + 30;
+    const fade = inFront ? 0.22 : 1;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,.16)';
+    ctx.beginPath(); ctx.ellipse(q.x, q.y, r*1.05, r*0.3, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.92*fade;
+    ctx.fillStyle = pr.color;
+    ctx.beginPath(); ctx.ellipse(q.x, q.y - r*pr.tall, r, r*pr.tall, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.35*fade; ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.ellipse(q.x - r*0.3, q.y - r*pr.tall*1.35, r*0.3, r*pr.tall*0.28, -0.4, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.5*fade; ctx.fillStyle = darkenColor(pr.color, 0.3);
+    ctx.beginPath(); ctx.ellipse(q.x + r*0.15, q.y - r*pr.tall*0.8, r*0.34, r*pr.tall*0.3, 0, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  /** A life pickup. Walk over it. */
+  function drawBattlePickup(pk){
+    const q = battleProject(pk.x, pk.z);
+    const r = 20 * battleZoom() * q.s;
+    const bob = Math.sin(performance.now()/300 + pk.x)*4*q.s;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,.18)';
+    ctx.beginPath(); ctx.ellipse(q.x, q.y, r, r*0.3, 0, 0, Math.PI*2); ctx.fill();
+    ctx.shadowColor = '#3ee6b8'; ctx.shadowBlur = 18;
+    ctx.fillStyle = '#3ee6b8';
+    ctx.beginPath(); ctx.arc(q.x, q.y - r*1.6 + bob, r, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(q.x - r*0.55, q.y - r*1.6 + bob - r*0.16, r*1.1, r*0.32);
+    ctx.fillRect(q.x - r*0.16, q.y - r*1.6 + bob - r*0.55, r*0.32, r*1.1);
+    ctx.restore();
   }
 
   /** The disc a fighter stands on. Lights up on their turn. */
@@ -8045,27 +8118,50 @@
     // The road keeps rolling and you keep steering, even while it is the
     // rival's turn -- standing still would make the whole thing feel like a
     // menu with sound effects.
-    roadScroll += dt * GAME_CONFIG.baseSpeed * 0.55;
-    // Free lateral movement across the arena floor, not three fixed lanes --
-    // dodging a marked landing spot needs finer control than a lane snap.
-    const span = W*0.40;
-    if(battle.phase==='live'){
-      if(battleHeld.left)  battle.px -= dt*2.6;
-      if(battleHeld.right) battle.px += dt*2.6;
-      battle.px = Math.max(-1, Math.min(1, battle.px));
-    }
-    player.x += ((W/2 + battle.px*span) - player.x) * Math.min(1, dt*12);
-    player.wob += dt*8;
+    // WASD across the whole map. Diagonals are normalised so they are not faster.
+    if(b.phase==='live'){
+      let mx = (battleHeld.right?1:0) - (battleHeld.left?1:0) + battleHeld.px;
+      let mz = (battleHeld.up?1:0) - (battleHeld.down?1:0) + battleHeld.pz;
+      const mag = Math.hypot(mx, mz);
+      if(mag > 0.05){
+        const k = Math.min(1, mag) / mag;
+        b.wx += mx*k*BATTLE_MOVE*dt;
+        b.wz += mz*k*BATTLE_MOVE*dt;
+        player.wob += dt*10;
+      }
+      b.wx = Math.max(-WORLD.halfW+40, Math.min(WORLD.halfW-40, b.wx));
+      b.wz = Math.max(-WORLD.halfD+40, Math.min(WORLD.halfD-40, b.wz));
 
-    // The rival drifts in depth and changes lane now and then, so it reads as
-    // something running away from you rather than a decal on the road.
-    b.foeZ = Math.sin(now/900)*0.6;   // gentle scale breathing, not road depth
-    b.foeLaneAt += dt;
-    if(b.foeLaneAt > 2.6){
-      b.foeLaneAt = 0;
-      b.foeLane = Math.max(0, Math.min(2, b.foeLane + (Math.random()<0.5 ? -1 : 1)));
+      // The rival keeps its distance: closes in when you run, backs off when
+      // you crowd it, and circles in between.
+      const dx = b.wx - b.fx, dz = b.wz - b.fz, dist = Math.hypot(dx, dz) || 1;
+      if(!b.foe.dead && !b.foeTelegraph){
+        const want = dist > 470 ? 1 : (dist < 300 ? -0.7 : 0);
+        const strafe = Math.sin(now/1300) * 0.6;
+        b.fx += ((dx/dist)*want + (-dz/dist)*strafe) * 210*dt;
+        b.fz += ((dz/dist)*want + ( dx/dist)*strafe) * 210*dt;
+        b.fx = Math.max(-WORLD.halfW+60, Math.min(WORLD.halfW-60, b.fx));
+        b.fz = Math.max(-WORLD.halfD+60, Math.min(WORLD.halfD-60, b.fz));
+      }
+
+      // Life pickups: walk over one to heal. They come back somewhere else.
+      for(const pk of b.pickups){
+        if(pk.taken){
+          if(now > pk.backAt){ pk.taken = false; pk.x = (Math.random()*2-1)*(WORLD.halfW-150); pk.z = (Math.random()*2-1)*(WORLD.halfD-150); }
+          continue;
+        }
+        if(Math.hypot(pk.x - b.wx, pk.z - b.wz) < 70 && b.you.hp < b.you.maxHp){
+          pk.taken = true; pk.backAt = now + 9000;
+          b.you.hp = Math.min(b.you.maxHp, b.you.hp + BATTLE_PICKUP_HEAL);
+          battleFloat(b.you, `+${BATTLE_PICKUP_HEAL}`, '#3ee6b8');
+          battleLog(`You absorb a nutrient: +${BATTLE_PICKUP_HEAL} HP.`);
+          SoundFX.pickup();
+        }
+      }
     }
-    b.foeLaneX = b.foeLane;
+    // The camera trails you, so the map scrolls instead of you sliding off it.
+    b.camX += (b.wx - b.camX) * Math.min(1, dt*5);
+    b.camZ += ((b.wz - 60) - b.camZ) * Math.min(1, dt*5);
 
     // The attack's own clock: wind up, travel, land, settle.
     if(b.attack){
@@ -8180,10 +8276,6 @@
     }
     if(b.shake>0) ctx.translate((Math.random()-0.5)*b.shake*SCALE, (Math.random()-0.5)*b.shake*SCALE);
     drawArena(b);
-    // Far to near, so the nearer fighter overlaps the further one.
-    drawFighter(b.foe); drawHpBar(b.foe);
-    drawFighter(b.you); drawHpBar(b.you);
-    drawDanger(b);
     drawAttack(b);
     if(b.fx && b.fx.kind==='hit'){
       const t = (performance.now()-b.fx.at)/520;
@@ -8220,22 +8312,16 @@
   function drawDanger(b){
     if(!b.foeTelegraph) return;
     const t = Math.min(1, (performance.now() - b.foeTelegraph.at) / FOE_TELEGRAPH_MS);
-    const y = battleSlot(b.you).y + battleSlot(b.you).r*0.5;
-    const rx = W*DODGE_RADIUS, ry = rx*0.34;
+    const q = battleProject(b.foeTelegraph.x, b.foeTelegraph.z);
+    const rx = DODGE_RADIUS * battleZoom() * q.s, ry = rx*0.55;
     ctx.save();
-    ctx.globalAlpha = 0.20 + 0.25*Math.sin(t*Math.PI*6);
+    ctx.globalAlpha = 0.20 + 0.22*Math.abs(Math.sin(t*Math.PI*5));
     ctx.fillStyle = '#ff3b5c';
-    ctx.beginPath(); ctx.ellipse(b.foeTelegraph.x, y, rx, ry, 0, 0, Math.PI*2); ctx.fill();
-    ctx.globalAlpha = 0.9;
-    ctx.strokeStyle = '#ff3b5c';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.ellipse(b.foeTelegraph.x, y, rx, ry, 0, 0, Math.PI*2); ctx.stroke();
-    // The closing ring: the time you have left, as a shape.
-    ctx.globalAlpha = 0.95;
+    ctx.beginPath(); ctx.ellipse(q.x, q.y, rx, ry, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.9; ctx.strokeStyle = '#ff3b5c'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.ellipse(q.x, q.y, rx, ry, 0, 0, Math.PI*2); ctx.stroke();
     ctx.lineWidth = 3.5;
-    ctx.beginPath();
-    ctx.ellipse(b.foeTelegraph.x, y, rx*(1-t), ry*(1-t), 0, 0, Math.PI*2);
-    ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(q.x, q.y, rx*(1-t), ry*(1-t), 0, 0, Math.PI*2); ctx.stroke();
     ctx.restore();
   }
 
@@ -8300,26 +8386,33 @@
   }
 
   // ---------------------------------------------------------------- wiring
-  const battleHeld = { left:false, right:false };
+  const battleHeld = { left:false, right:false, up:false, down:false, px:0, pz:0 };
+  const BATTLE_KEYS = { arrowleft:'left', a:'left', arrowright:'right', d:'right',
+                        arrowup:'up', w:'up', arrowdown:'down', s:'down' };
   document.addEventListener('keydown', (e)=>{
     if(!battle || screenState!=='battle') return;
     const k = e.key.toLowerCase();
-    if(k==='arrowleft' || k==='a'){ battleHeld.left = true; e.preventDefault(); }
-    if(k==='arrowright'|| k==='d'){ battleHeld.right = true; e.preventDefault(); }
+    if(BATTLE_KEYS[k]){ battleHeld[BATTLE_KEYS[k]] = true; e.preventDefault(); }
     if(k===' ' || k==='enter'){ battleTryAttack(); e.preventDefault(); }
   });
   document.addEventListener('keyup', (e)=>{
     const k = e.key.toLowerCase();
-    if(k==='arrowleft' || k==='a') battleHeld.left = false;
-    if(k==='arrowright'|| k==='d') battleHeld.right = false;
+    if(BATTLE_KEYS[k]) battleHeld[BATTLE_KEYS[k]] = false;
   });
   battleAttackBtn?.addEventListener('click', battleTryAttack);
-  // On a phone: drag anywhere on the arena to move.
-  stageEl.addEventListener('pointermove', (e)=>{
-    if(!battle || screenState!=='battle' || e.buttons===0) return;
-    const r = stageEl.getBoundingClientRect();
-    battle.px = Math.max(-1, Math.min(1, ((e.clientX - r.left)/r.width - 0.5) * 2.4));
-  });
+  // Touch / mouse: hold anywhere on the map and your cell walks toward it.
+  const battlePointer = (e)=>{
+    if(!battle || screenState!=='battle' || e.buttons===0 || e.target===battleAttackBtn){ battleHeld.px = battleHeld.pz = 0; return; }
+    const r = canvas.getBoundingClientRect();
+    const me = battleSlot(battle.you);
+    const sx = (e.clientX - r.left) * (W / r.width), sy = (e.clientY - r.top) * (H / r.height);
+    const dx = sx - me.x, dy = sy - me.y;
+    battleHeld.px = Math.max(-1, Math.min(1, dx / (W*0.12)));
+    battleHeld.pz = Math.max(-1, Math.min(1, -dy / (H*0.10)));
+  };
+  stageEl.addEventListener('pointerdown', battlePointer);
+  stageEl.addEventListener('pointermove', battlePointer);
+  ['pointerup','pointercancel','pointerleave'].forEach(ev=> stageEl.addEventListener(ev, ()=>{ battleHeld.px = battleHeld.pz = 0; }));
 
   // Same idea as the rest of __runnerDebug: only with ?debug=1, and read-only
   // apart from setPos, which is what makes the dodge window testable.
@@ -8329,12 +8422,12 @@
     Object.assign(window.__runnerDebug, {
       battleState: ()=> battle && ({
         phase: battle.phase, youHp: battle.you.hp, foeHp: battle.foe.hp,
-        px: battle.px, youX: battleSlot(battle.you).x,
-        telegraphAt: battle.foeTelegraph ? battle.foeTelegraph.x : null,
-        ready: performance.now() >= battle.attackReadyAt,
-        dodgeRadiusPx: W*DODGE_RADIUS,
+        wx: battle.wx, wz: battle.wz, fx: battle.fx, fz: battle.fz, dist: battleDist(),
+        telegraph: battle.foeTelegraph ? { x: battle.foeTelegraph.x, z: battle.foeTelegraph.z } : null,
+        ready: performance.now() >= battle.attackReadyAt, inRange: battleDist() <= BATTLE_RANGE,
+        pickups: battle.pickups.filter(k=>!k.taken).map(k=>({x:k.x, z:k.z})),
       }),
-      battleSetPos: (v)=>{ if(battle) battle.px = Math.max(-1, Math.min(1, v)); },
+      battleSetPos: (x, z)=>{ if(battle){ battle.wx = x; battle.wz = z; } },
       battleAttack: ()=> battleTryAttack(),
     });
   }, 0);
