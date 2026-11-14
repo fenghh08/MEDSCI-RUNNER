@@ -179,15 +179,24 @@
     done();
 
     if (result.error) {
-      // Never silently mark something right. -1 matches no option, so the game
-      // shows the player's pick as wrong and highlights nothing as correct.
-      q.correctIndex = -1;
+      // Never silently mark something right -- but never mark it WRONG either.
+      // This used to set correctIndex = -1, which matches no option, so the
+      // game scored it as a miss: -40 life, streak reset, and a wrong answer
+      // written into spaced repetition and the question's miss-rate stats. A
+      // dropped request is not evidence about what the player knows.
+      //
+      // __ungraded tells the game to skip scoring entirely. __graded is also
+      // cleared so the next time this question is served it asks the server
+      // again instead of reusing a verdict that never arrived.
+      q.__ungraded = true;
+      q.__graded = false;
       q.explanation =
         result.error === 'rate-limited'
-          ? 'Too many attempts at this question just now — come back to it in a minute.'
-          : "Couldn't reach the server to check this answer.";
+          ? "Too many attempts at this question just now — come back to it in a minute. This one won't count."
+          : "Couldn't reach the server to check this answer, so it won't count.";
       return;
     }
+    q.__ungraded = false;
 
     var authored = result.correctIndex;
     q.correctIndex = q.optionOrder ? q.optionOrder.indexOf(authored) : authored;

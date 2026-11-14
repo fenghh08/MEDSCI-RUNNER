@@ -4421,6 +4421,24 @@
     clearMcqTimer();
     const q = pendingQuestion;
     await gradeAnswer(q, chosenIndex);
+    // The website build grades on the server. When that cannot be reached,
+    // the question does not count: no life lost, no score, no streak reset, no
+    // stage progress, and nothing written to spaced repetition or the
+    // analytics. Penalising someone for a network blip is unfair, and
+    // recording a wrong answer they may well have got right would quietly
+    // corrupt both their own review schedule and that question's miss rate.
+    // Offline this never fires -- the answer is already on the device.
+    if(q.__ungraded){
+      mcqOptions.querySelectorAll('.mcq-option').forEach((b,i)=>{
+        b.classList.add('disabled');
+        if(i===chosenIndex) b.classList.add('picked');
+      });
+      mcqVerdict.textContent = "Couldn't check this one — it won't count";
+      mcqVerdict.className = 'mcq-verdict';
+      mcqExplain.textContent = q.explanation || '';
+      mcqFeedback.style.display = 'block';
+      return;
+    }
     const correct = chosenIndex === q.correctIndex;
     const btns = mcqOptions.querySelectorAll('.mcq-option');
     btns.forEach((b,i)=>{
