@@ -466,6 +466,23 @@
   #battleLog{ position:absolute; left:10px; bottom:10px; z-index:40; display:none;
               max-width:min(62vw,380px); font-size:12px; line-height:1.5; color:var(--hud-dim); }
   #battleLog.active{ display:block; }
+  #battleBoard{ position:absolute; top:74px; left:10px; z-index:41; display:none; min-width:170px; max-width:46vw;
+                background:var(--panel); border:1px solid var(--panel-line); border-radius:12px; padding:6px 9px;
+                font-size:12px; line-height:1.55; max-height:46%; overflow:auto; }
+  #battleBoard.active{ display:block; }
+  #battleBoard .bb-row{ display:flex; gap:8px; align-items:center; white-space:nowrap; }
+  #battleBoard .bb-row.out{ opacity:.45; text-decoration:line-through; }
+  #battleBoard .bb-row.me{ font-weight:700; }
+  #battleBoard .bb-hp{ flex:1; height:5px; min-width:40px; background:var(--panel-line); border-radius:3px; overflow:hidden; }
+  #battleBoard .bb-hp i{ display:block; height:100%; background:var(--membrane); }
+  .battle-net{ display:flex; flex-direction:column; gap:9px; align-items:center; }
+  .battle-net input[type=text]{ font-family:var(--mono); font-size:13px; background:var(--bg-1); color:var(--hud-ink);
+                border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px; width:100%; max-width:260px; }
+  .battle-chk{ font-size:12px; color:var(--hud-dim); display:flex; gap:6px; align-items:center; }
+  #battleNetMsg{ min-height:16px; font-size:12px; color:var(--danger); }
+  #battleLobbyCode{ font-size:44px; font-weight:800; letter-spacing:.18em; text-align:center; margin:6px 0; }
+  #battleLobbyList{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:8px; }
+  #battleLobbyList span{ border:1px solid var(--panel-line); border-radius:999px; padding:5px 12px; font-size:13px; }
   #battlePauseBtn{ position:absolute; top:10px; right:12px; z-index:46; display:none; width:38px; height:38px;
                    border-radius:50%; border:1px solid var(--panel-line); background:var(--panel);
                    color:var(--text); font-size:15px; cursor:pointer; }
@@ -943,7 +960,31 @@
         <div class="cancer-grid" id="battleMapGrid"></div>
         <div class="btn-row" style="margin-top:14px;">
           <button class="secondary" id="battleBackBtn">← Back</button>
-          <button class="primary" id="battleStartBtn" disabled>⚔️ Start the duel</button>
+          <button class="primary" id="battleStartBtn" disabled>⚔️ Play solo vs a bot</button>
+        </div>
+        <div class="p-sub" style="margin-top:18px;">Play with others</div>
+        <div class="battle-net">
+          <input type="text" id="battleNameInput" maxlength="16" placeholder="Your name">
+          <div class="btn-row">
+            <button class="secondary" id="battleHostBtn">🏠 Host a room</button>
+            <label class="battle-chk"><input type="checkbox" id="battleWatchChk"> I'm only watching (lecturer)</label>
+          </div>
+          <div class="btn-row">
+            <input type="text" id="battleCodeInput" maxlength="5" placeholder="Room code" style="max-width:130px;text-transform:uppercase;">
+            <button class="secondary" id="battleJoinBtn">Join a room</button>
+          </div>
+          <div id="battleNetMsg"></div>
+        </div>
+      </div>
+      <div id="battleLobbyView" style="display:none;">
+        <h2>⚔️ Battle room</h2>
+        <p class="desc">Share this code. Everyone joins from Cell Battle → Join a room.</p>
+        <div id="battleLobbyCode"></div>
+        <div id="battleLobbyInfo" class="p-sub"></div>
+        <div id="battleLobbyList"></div>
+        <div class="btn-row" style="margin-top:14px;">
+          <button class="secondary" id="battleLobbyLeaveBtn">← Leave</button>
+          <button class="primary" id="battleLobbyStartBtn" style="display:none;">⚔️ Start the match</button>
         </div>
       </div>
       <div id="customizeView" style="display:none;">
@@ -1429,6 +1470,7 @@
         </div>
       </div>
     </div>
+    <div id="battleBoard"></div>
     <div id="battleLog"></div>
     <button id="battleAttackBtn">⚔️ Attack</button>
     <div id="battleStreak"></div>
@@ -3439,6 +3481,7 @@
   againBtn.addEventListener('click', ()=>{
     // "Play again" after a duel used to start a Runner run, because this
     // button only ever knew about runs.
+    if(quizMode==='battle' && battleLastWasNet){ quitToMenu(); openBattleSetup(); return; }   // a room rematch starts from the lobby
     if(quizMode==='battle' && typeof startBattle==='function' && battleCourse){ startBattle(); return; }
     if(mp.active && mp.finished){
       mpTeardown();
@@ -3456,7 +3499,7 @@
     briefView.style.display = 'none';
     practiceSetupView.style.display = 'none';
     customizeView.style.display = 'none';
-    { const bs = document.getElementById('battleSetupView'); if(bs) bs.style.display = 'none'; }
+    { const bs = document.getElementById('battleSetupView'); if(bs) bs.style.display = 'none'; const bl = document.getElementById('battleLobbyView'); if(bl) bl.style.display = 'none'; }
     mpSetupView.style.display = 'none';
     mpHostSetupView.style.display = 'none';
     mpJoinEntryView.style.display = 'none';
@@ -6632,6 +6675,7 @@
       const snap = await get(ref(fbdb, `rooms/${code}`));
       const room = snap.val();
       if(!room){ mpJoinError.textContent = "That room code doesn't exist."; mpJoinError.style.display='block'; return; }
+      if(room.kind==='battle'){ mpJoinError.textContent = 'That code is for a Cell Battle room — join it from Cell Battle.'; mpJoinError.style.display='block'; return; }
       // A race that's under way can still be joined -- you start from
       // Stage I while the others are ahead, same as a real latecomer. Once
       // the end-of-race window is running there's no race left to join.
@@ -7558,9 +7602,10 @@
   }
 
   // -------------------------------------------------------------- lifecycle
-  function startBattle(){
+  function startBattle(netOpts){
     const pool = shuffle(battleQuestionPool(battleCourse));
     if(!pool.length) return;
+    battleRand = netOpts ? mulberry32(netOpts.seed) : Math.random;
     const n = Math.floor(Math.random()*BOT_NAMES.length);
     const mapDef = applyBattleMap(battleMap);
     battle = {
@@ -7577,14 +7622,16 @@
         let spot;
         do { spot = battleFreeSpot(90); }
         while(battleOnRoad(spot.x, spot.z, 50));   // not in the road
-        return { x: spot.x, z: spot.z, r: 38 + Math.random()*26,
-                 color: ['#5fae6b','#74c17f','#4c9a63','#f29bb7'][Math.floor(Math.random()*4)] };
+        return { x: spot.x, z: spot.z, r: 38 + battleRand()*26,
+                 color: ['#5fae6b','#74c17f','#4c9a63','#f29bb7'][Math.floor(battleRand()*4)] };
       }),
       pickups: Array.from({length: 4}, ()=>({ ...battleFreeSpot(150), taken: false, backAt: 0 })),
       foeLane: 1, foeZ: 0, foeLaneAt: 0,
       shake: 0, shakeUntil: 0, hitFx: null, deadline: 0, lastT: performance.now(),
-      pending: null, attack: null, shock: null, push: 0, flash: 0,
+      pending: null, attack: null, shock: null, push: 0, flash: 0, net: null,
     };
+    battleRand = Math.random;
+    if(netOpts) netAttach(battle, netOpts);
     sessionLog = [];
     showScreen('battle');           // clears the result screen when this is a rematch
     battleSetupView.style.display = 'none';
@@ -7598,12 +7645,18 @@
     battleAttackBtn.style.display = 'block';
     player.lane = 1; player.targetLane = 1; player.x = laneX(1);
     seedArenaMotes();
-    battleLog(`A ${battle.foe.name} squares up. WASD to walk, Space to attack. Green orbs heal.`);
+    battleLog(battle.net ? (battle.net.spectator ? 'You are watching. WASD moves the camera.' : 'Everyone for themselves. WASD to walk, Space to attack whoever is nearest.')
+                         : `A ${battle.foe.name} squares up. WASD to walk, Space to attack. Green orbs heal.`);
+    if(battle.net){ battlePauseBtn.textContent = '🚪'; document.getElementById('battleBoard').classList.add('active'); if(battle.net.spectator) battleAttackBtn.style.display = 'none'; }
+    else battlePauseBtn.textContent = '⏸';
     SoundFX.stageComplete();
     battleRaf = requestAnimationFrame(battleLoop);
   }
 
   function endBattle(){
+    battleLastWasNet = !!(battle && battle.net);
+    if(battleNet) battleNetLeave();
+    document.getElementById('battleBoard').classList.remove('active');
     if(battleRaf) cancelAnimationFrame(battleRaf);
     battleRaf = null; battle = null;
     battleBar.classList.remove('active');
@@ -7664,9 +7717,10 @@
     if(!battleIsLive() || battle.paused) return;
     if(performance.now() < battle.attackReadyAt) return;
     if(battleDist() > BATTLE_RANGE){
-      battleFloat(battle.you, 'too far', '#9aa4b2');
+      battleFloat(battle.you, battle.net && !battle.net.targetPid ? 'no one near' : 'too far', '#9aa4b2');
       return;
     }
+    if(battle.net) battle.net.lockPid = battle.net.targetPid;   // whoever was nearest when you committed
     const q = battle.pool[battle.poolAt++ % battle.pool.length];
     battle.deadline = performance.now() + BATTLE.turnSeconds*1000;
     quizMode = 'battle';
@@ -7710,6 +7764,11 @@
   /** After your attack resolves, hand control straight back. */
   function battleAfterResolve(){
     if(!battle) return;
+    if(battle.net){
+      if(battle.phase==='question') battle.phase = 'live';
+      battle.attackReadyAt = performance.now() + ATTACK_COOLDOWN_MS;
+      return;
+    }
     if(battle.you.hp<=0 || battle.foe.hp<=0) return battleFinish();
     battle.phase = 'live';
     battle.attackReadyAt = performance.now() + ATTACK_COOLDOWN_MS;
@@ -7757,7 +7816,8 @@
       if(you.hp < you.maxHp*BATTLE.lowHpFraction) dmg = Math.round(dmg*BATTLE.comebackMultiplier);
       mcqVerdict.textContent = crit ? `Critical hit — ${dmg} damage!` : `Hit — ${dmg} damage`;
       mcqVerdict.className = 'mcq-verdict verdict-good';
-      battleQueueAttack(you, foe, dmg, crit, 'You strike');
+      battleQueueAttack(you, foe, dmg, crit, battle.net ? `You hit ${foe.name}` : 'You strike');
+      if(battle.net) netSendHit(dmg, crit);
       if(you.hp < foe.hp && you.hp < you.maxHp){
         you.hp = Math.min(you.maxHp, you.hp + BATTLE.selfHealWhenLowest);
         battleFloat(you, `+${BATTLE.selfHealWhenLowest}`, '#3ee6b8');
@@ -7770,9 +7830,11 @@
         mcqVerdict.className = 'mcq-verdict verdict-bad';
         battleQueueAttack(null, you, BATTLE.timeoutSelfDamage, false, 'The clock runs out');
       } else {
-        mcqVerdict.textContent = `Missed — ${foe.name} counters for ${BATTLE.counterDamage}`;
+        mcqVerdict.textContent = battle.net ? `Missed — your attack backfires for ${BATTLE.counterDamage}`
+                                            : `Missed — ${foe.name} counters for ${BATTLE.counterDamage}`;
         mcqVerdict.className = 'mcq-verdict verdict-bad';
-        battleQueueAttack(foe, you, BATTLE.counterDamage, false, `${foe.name} counters`);
+        if(battle.net) battleQueueAttack(null, you, BATTLE.counterDamage, false, 'Your attack backfires');
+        else battleQueueAttack(foe, you, BATTLE.counterDamage, false, `${foe.name} counters`);
       }
     }
 
@@ -7835,7 +7897,11 @@
   function battleImpact(a){
     const { from, to, crit, text } = a;
     const dmg = battle.sudden ? a.dmg*2 : a.dmg;
-    to.hp = Math.max(0, to.hp - dmg);
+    // In a room, another player's life is theirs to change: they apply this
+    // hit when it reaches them and report the result. Subtracting it here as
+    // well counted it twice and showed living players as knocked out.
+    if(to.net) to.lastLocalHit = performance.now();
+    else to.hp = Math.max(0, to.hp - dmg);
     to.ghostHoldUntil = performance.now() + BATTLE.ghostHoldMs;
     to.flash = 1;
     to.knock = to.isYou ? -1 : 1;
@@ -7860,7 +7926,7 @@
     SoundFX.explosion();
     battle.hitFx = { kind:'hit', at: performance.now(), target: to };
 
-    if(to.hp<=0 && !to.dead){
+    if(!to.net && to.hp<=0 && !to.dead){
       to.dead = true;
       to.koAt = performance.now();
       battle.shake = 16;
@@ -7892,7 +7958,7 @@
   }
 
   function battleFinish(){
-    if(!battle || battle.phase==='over') return;
+    if(!battle || battle.phase==='over' || battle.net) return;   // a room ends through netFinish
     battle.phase = 'over';
     const won = battle.you.hp > 0 && (battle.foe.hp <= 0 || (battle.timeUp && battle.you.hp > battle.foe.hp));
     if(won) battle.score += BATTLE.scorePerKo;
@@ -7928,6 +7994,7 @@
   // ----------------------------------------------------------------- chrome
   function updateBattleBar(){
     if(!battle) return;
+    if(battle.net) return netUpdateBar(battle);
     if(battle.phase==='over'){
       battleTurnEl.textContent = battle.foe.hp<=0 ? 'Knocked out!' : 'You are down';
       battleTurnSub.textContent = '';
@@ -7983,12 +8050,15 @@
     return { x: W/2 + (wx - battle.camX)*sc*z, y: battleBaseY() - d*sc*z*0.55, s: sc };
   }
   function battleSlot(who){
-    const pos = who.isYou ? { x: battle.wx, z: battle.wz } : { x: battle.fx, z: battle.fz };
+    const pos = who.isYou ? { x: battle.wx, z: battle.wz } : (who.net ? { x: who.nx, z: who.nz } : { x: battle.fx, z: battle.fz });
     const pr = battleProject(pos.x, pos.z);
     const r = 34 * battleZoom() * pr.s;
     return { x: pr.x, y: pr.y - r, r, s: pr.s };
   }
-  function battleDist(){ return Math.hypot(battle.wx - battle.fx, battle.wz - battle.fz); }
+  function battleDist(){
+    if(battle.net){ const o = battle.foe; return o && o.net && !o.dead ? Math.hypot(battle.wx - o.nx, battle.wz - o.nz) : Infinity; }
+    return Math.hypot(battle.wx - battle.fx, battle.wz - battle.fz);
+  }
 
 
   /* ---------------------------------------------------------------------
@@ -8108,9 +8178,10 @@
     if(m === n) return [x, bd.z - pad];
     return [x, bd.z + bd.d + pad];
   }
+  let battleRand = Math.random;   // swapped for a seeded generator in a room, so every player gets the same map
   function battleFreeSpot(margin){
     for(let i=0;i<60;i++){
-      const x = (Math.random()*2-1)*(WORLD.halfW-margin), z = (Math.random()*2-1)*(WORLD.halfD-margin);
+      const x = (battleRand()*2-1)*(WORLD.halfW-margin), z = (battleRand()*2-1)*(WORLD.halfD-margin);
       if(!battleBlocked(x, z, 70)) return { x, z };
     }
     return { x: 0, z: 0 };
@@ -8277,8 +8348,15 @@
     for(const pr of b.props) things.push({ z: pr.z, draw: ()=> drawBattleProp(pr) });
     for(const bd of BATTLE_BUILDINGS) things.push({ z: bd.z, draw: ()=> drawBattleBuilding(bd) });
     for(const pk of b.pickups) if(!pk.taken) things.push({ z: pk.z, draw: ()=> drawBattlePickup(pk) });
-    things.push({ z: b.fz, draw: ()=>{ drawArenaPlatform(battleSlot(b.foe), b.foe, !!b.foeTelegraph); drawFighter(b.foe); drawHpBar(b.foe); } });
-    things.push({ z: b.wz, draw: ()=>{ drawArenaPlatform(battleSlot(b.you), b.you, b.phase==='live' && performance.now() >= b.attackReadyAt); drawFighter(b.you); drawHpBar(b.you); } });
+    if(b.net){
+      for(const o of Object.values(b.net.others)){
+        if(!o.placed || (o.dead && o.fall >= 1)) continue;
+        things.push({ z: o.nz, draw: ()=>{ drawArenaPlatform(battleSlot(o), o, o === b.foe && b.phase==='live'); drawFighter(o); drawHpBar(o); } });
+      }
+    } else {
+      things.push({ z: b.fz, draw: ()=>{ drawArenaPlatform(battleSlot(b.foe), b.foe, !!b.foeTelegraph); drawFighter(b.foe); drawHpBar(b.foe); } });
+    }
+    if(!(b.net && (b.net.spectator || (b.you.dead && b.you.fall >= 1)))) things.push({ z: b.wz, draw: ()=>{ drawArenaPlatform(battleSlot(b.you), b.you, b.phase==='live' && performance.now() >= b.attackReadyAt); drawFighter(b.you); drawHpBar(b.you); } });
     things.sort((a, c)=> c.z - a.z);
     drawDanger(b);
     for(const t of things){
@@ -8366,7 +8444,8 @@
     // rival's turn -- standing still would make the whole thing feel like a
     // menu with sound effects.
     // WASD across the whole map. Diagonals are normalised so they are not faster.
-    if(b.phase==='live'){
+    if(b.net){ netStep(b, dt, now); }
+    else if(b.phase==='live'){
       let mx = (battleHeld.right?1:0) - (battleHeld.left?1:0) + battleHeld.px;
       let mz = (battleHeld.up?1:0) - (battleHeld.down?1:0) + battleHeld.pz;
       const mag = Math.hypot(mx, mz);
@@ -8456,7 +8535,9 @@
       }
       if(age >= ATTACK_WINDUP_MS + ATTACK_TRAVEL_MS + ATTACK_SETTLE_MS) b.attack = null;
     }
-    if(b.phase==='live') battleFoeThink(dt, now);
+    if(b.phase==='live' && !b.net) battleFoeThink(dt, now);
+    // Solo: a knockout from the rival's strike ends the match too, not only one from your own attack.
+    if(!b.net && b.phase==='live' && !b.attack && !b.pending && (b.you.hp<=0 || b.foe.hp<=0)){ battleFinish(); return; }
     if(b.push > 0) b.push = Math.max(0, b.push - dt*2.6);
     if(b.flash > 0) b.flash = Math.max(0, b.flash - dt*1.9);
 
@@ -8677,7 +8758,387 @@
     battleRaf = requestAnimationFrame(battleLoop);
   }
 
+
+  /* ======================================================================
+     CELL BATTLE — rooms.
+
+     Up to twelve players on one map, everyone for themselves, plus a host
+     who can choose to watch instead of play (a lecturer running it for a
+     class). Built on the same Firebase project as Group Race, under
+     rooms/<CODE> with kind:'battle' so the two can never join each other.
+
+     Who decides what:
+       - Each player is the authority on their OWN cell: position, life,
+         alive. They write it a few times a second; everyone else draws it.
+       - An attack is a record pushed to hits/. The player it names applies
+         the damage to themselves when they see it. Nobody can lower another
+         player's life directly.
+       - Orbs and the final result are claimed by transaction, so two
+         players cannot both take the same orb or declare different winners.
+       - The map is generated from a seed in the room, so all screens match.
+     This trusts the clients, the same as Group Race does. It is fine for a
+     classroom and it is not cheat-proof.
+     ====================================================================== */
+  const BATTLE_MAX_PLAYERS = 12;
+  let battleNet = null;            // { code, pid, name, isHost, watching, room, ref, started }
+  let battleLastWasNet = false;
+  function mulberry32(a){
+    return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  }
+  const battleNetMsgEl = document.getElementById('battleNetMsg');
+  const battleNameInput = document.getElementById('battleNameInput');
+  const battleLobbyView = document.getElementById('battleLobbyView');
+  const battleBoardEl = document.getElementById('battleBoard');
+  try { battleNameInput.value = localStorage.getItem('battleName') || ''; } catch(e){}
+  function battleNetSay(text){ battleNetMsgEl.textContent = text || ''; }
+  async function battleNetReady(){
+    if(!firebaseReady) await firebaseInitPromise.catch(()=>{});
+    if(!firebaseReady){ battleNetSay('Rooms need an internet connection, and the game server could not be reached.'); return false; }
+    return true;
+  }
+  function battleNetName(){
+    const v = battleNameInput.value.trim();
+    try { localStorage.setItem('battleName', v); } catch(e){}
+    return v || 'Player';
+  }
+
+  async function battleHostRoom(){
+    battleNetSay('');
+    if(!battleCourse){ battleNetSay('Pick a question pool first.'); return; }
+    if(!(await battleNetReady())) return;
+    const watching = document.getElementById('battleWatchChk').checked;
+    const code = randCode(), pid = randId(), name = battleNetName();
+    const room = { kind:'battle', status:'lobby', hostId: pid, hostName: name, hostWatching: watching,
+                   course: battleCourse, map: battleMap, createdAt: serverNow() };
+    if(!watching) room.players = { [pid]: { name, look: playerCustomization, joinedAt: serverNow(), alive: true } };
+    try { await set(ref(fbdb, `rooms/${code}`), room); }
+    catch(e){ battleNetSay("Couldn't create the room."); return; }
+    battleNetEnter({ code, pid, name, isHost: true, watching });
+  }
+
+  async function battleJoinRoom(){
+    battleNetSay('');
+    const code = document.getElementById('battleCodeInput').value.trim().toUpperCase();
+    if(code.length < 5){ battleNetSay('Enter the 5-character room code.'); return; }
+    if(!(await battleNetReady())) return;
+    let room;
+    try { room = (await get(ref(fbdb, `rooms/${code}`))).val(); }
+    catch(e){ battleNetSay("Couldn't reach the room."); return; }
+    if(!room || room.kind!=='battle'){ battleNetSay('No Cell Battle room with that code.'); return; }
+    if(room.status!=='lobby'){ battleNetSay('That match has already started.'); return; }
+    if(Object.keys(room.players||{}).length >= BATTLE_MAX_PLAYERS){ battleNetSay('That room is full.'); return; }
+    const pid = randId(), name = battleNetName();
+    try { await fbUpdate(ref(fbdb, `rooms/${code}/players/${pid}`), { name, look: playerCustomization, joinedAt: serverNow(), alive: true }); }
+    catch(e){ battleNetSay("Couldn't join the room."); return; }
+    battleNetEnter({ code, pid, name, isHost: false, watching: false });
+  }
+
+  function battleNetEnter(conn){
+    battleNet = Object.assign(conn, { room: null, started: false, ref: ref(fbdb, `rooms/${conn.code}`) });
+    // If this tab dies, the others see the cell drop out instead of freezing in place.
+    if(!conn.watching){ try { onDisconnect(ref(fbdb, `rooms/${conn.code}/players/${conn.pid}`)).update({ alive: false, gone: true }); } catch(e){} }
+    onValue(battleNet.ref, snap=> battleNetOnRoom(snap.val()));
+    battleSetupView.style.display = 'none';
+    battleLobbyView.style.display = 'block';
+  }
+
+  function battleNetOnRoom(room){
+    if(!battleNet) return;
+    if(!room){
+      const inMatch = !!(battle && battle.net);
+      if(inMatch){ endBattle(); quitToMenu(); } else battleNetLeave();
+      openBattleSetup(); battleNetSay('The host closed the room.');
+      return;
+    }
+    battleNet.room = room;
+    if(room.status==='lobby'){ renderBattleLobby(room); return; }
+    if(room.status==='active' && !battleNet.started){
+      battleNet.started = true;
+      battleCourse = room.course; battleMap = room.map;
+      battleLobbyView.style.display = 'none';
+      quizMode = 'battle';
+      startBattle({ seed: room.seed, startAt: room.startAt });
+    }
+    if(battle && battle.net) netOnRoster(battle, room);
+  }
+
+  function renderBattleLobby(room){
+    const players = Object.values(room.players||{}).filter(p=>!p.gone);
+    document.getElementById('battleLobbyCode').textContent = battleNet.code;
+    document.getElementById('battleLobbyInfo').textContent =
+      `${room.course} · ${(BATTLE_MAPS[room.map]||{}).label || room.map} · host: ${room.hostName}${room.hostWatching ? ' (watching)' : ''}`;
+    document.getElementById('battleLobbyList').innerHTML = players.length
+      ? players.map(p=>`<span>${escapeHtml(p.name||'Player')}</span>`).join('')
+      : '<span>Waiting for players…</span>';
+    const btn = document.getElementById('battleLobbyStartBtn');
+    btn.style.display = battleNet.isHost ? 'inline-block' : 'none';
+    btn.disabled = players.length < 2;
+    btn.textContent = players.length < 2 ? 'Need at least 2 players' : `⚔️ Start the match (${players.length})`;
+  }
+
+  function battleNetStart(){
+    if(!battleNet || !battleNet.isHost) return;
+    fbUpdate(battleNet.ref, { status:'active', seed: Math.floor(Math.random()*1e9), startAt: serverNow() + 1200 }).catch(()=>{});
+  }
+
+  function battleNetLeave(){
+    if(!battleNet) return;
+    const c = battleNet; battleNet = null;
+    try { off(c.ref); } catch(e){}
+    if(!c.watching) fbUpdate(ref(fbdb, `rooms/${c.code}/players/${c.pid}`), { alive: false, gone: true }).catch(()=>{});
+    if(c.isHost && c.room && c.room.status==='lobby') remove(c.ref).catch(()=>{});   // an unstarted room dies with its host
+    battleLobbyView.style.display = 'none';
+  }
+
+  // ------------------------------------------------------------ in a match
+  function netAttach(b, opts){
+    const c = battleNet, room = c.room || {};
+    b.net = { code: c.code, pid: c.pid, spectator: !!c.watching, startAt: opts.startAt, room,
+              others: {}, seenHits: {}, inbox: [], lastWrite: 0, lastBoard: 0,
+              targetPid: null, lockPid: null, ended: false, claiming: false };
+    b.you.name = c.name;
+    b.dummy = b.foe; b.dummy.name = '—';
+    for(const k of Object.keys(room.hits||{})) b.net.seenHits[k] = 1;
+    const pids = Object.keys(room.players||{}).sort();
+    const sp = (BATTLE_MAPS[battleMap] || BATTLE_MAPS.hospital).spawn.you;
+    if(c.watching){ b.phase = 'watch'; b.wx = sp[0]; b.wz = sp[1] + 150; }
+    else {
+      // Everyone starts on a ring around the junction, facing in.
+      const a = (Math.max(0, pids.indexOf(c.pid)) / Math.max(1, pids.length)) * Math.PI*2;
+      [b.wx, b.wz] = battleCollide(sp[0] + Math.cos(a)*330, sp[1] + 150 + Math.sin(a)*330);
+    }
+    b.camX = b.wx; b.camZ = b.wz - 60;
+    netOnRoster(b, room);
+  }
+
+  function netOnRoster(b, room){
+    const net = b.net; net.room = room;
+    for(const [pid, p] of Object.entries(room.players||{})){
+      if(pid === net.pid) continue;
+      let o = net.others[pid];
+      if(!o){
+        o = net.others[pid] = newFighter(p.name || 'Player', p.look || CUSTOMIZE_DEFAULT, false);
+        o.net = true; o.pid = pid; o.placed = false; o.nx = o.tx = 0; o.nz = o.tz = 0; o.score = 0;
+      }
+      if(Number.isFinite(p.x) && Number.isFinite(p.z)){
+        o.tx = p.x; o.tz = p.z;
+        if(!o.placed){ o.nx = p.x; o.nz = p.z; o.placed = true; }
+      }
+      if(Number.isFinite(p.hp)){
+        if(o.placed && p.hp < o.hp - 0.5){
+          o.ghostHoldUntil = performance.now() + BATTLE.ghostHoldMs; o.flash = 1;
+          if(!(o.lastLocalHit && performance.now() - o.lastLocalHit < 4000)) battleFloat(o, `-${Math.round(o.hp - p.hp)}`, '#ff3b5c');
+        }
+        o.hp = p.hp;
+      }
+      if(p.alive === false && !o.dead){
+        o.dead = true; o.fall = 0; o.hp = 0;
+        battleLog(p.gone ? `${o.name} left.` : `${o.name} is knocked out.`);
+      }
+      o.score = p.score || 0; o.correct = p.correct || 0; o.wrong = p.wrong || 0;
+    }
+    for(const [k, h] of Object.entries(room.hits||{})){
+      if(net.seenHits[k]) continue;
+      net.seenHits[k] = 1;
+      if(h.to === net.pid && !net.spectator && !b.you.dead) net.inbox.push(h);
+    }
+    if(room.result && !net.ended){ net.ended = true; netFinish(b, room); }
+  }
+
+  function netSendHit(dmg, crit){
+    const net = battle.net;
+    if(!net.lockPid) return;
+    fbPush(ref(fbdb, `rooms/${net.code}/hits`), { from: net.pid, to: net.lockPid, dmg, crit: !!crit, at: serverNow() }).catch(()=>{});
+  }
+
+  function netWriteSelf(b){
+    const net = b.net;
+    if(net.spectator) return;
+    fbUpdate(ref(fbdb, `rooms/${net.code}/players/${net.pid}`), {
+      x: Math.round(b.wx), z: Math.round(b.wz), hp: Math.max(0, Math.round(b.you.hp)),
+      alive: b.you.hp > 0, score: b.score, correct: b.you.correct, wrong: b.you.wrong,
+    }).catch(()=>{});
+  }
+
+  function netStep(b, dt, now){
+    const net = b.net, sn = serverNow();
+    const others = Object.values(net.others);
+
+    // You (or, once you are out or only watching, the camera).
+    if(b.phase==='live' || b.phase==='down' || b.phase==='watch'){
+      const mx = (battleHeld.right?1:0) - (battleHeld.left?1:0) + battleHeld.px;
+      const mz = (battleHeld.up?1:0) - (battleHeld.down?1:0) + battleHeld.pz;
+      const mag = Math.hypot(mx, mz);
+      if(mag > 0.05){
+        const k = Math.min(1, mag) / mag, sp = BATTLE_MOVE * (b.phase==='live' ? 1 : 1.7);
+        b.wx += mx*k*sp*dt; b.wz += mz*k*sp*dt;
+        player.wob += dt*10;
+      }
+      b.wx = Math.max(-WORLD.halfW+40, Math.min(WORLD.halfW-40, b.wx));
+      b.wz = Math.max(-WORLD.halfD+40, Math.min(WORLD.halfD-40, b.wz));
+      if(b.phase==='live') [b.wx, b.wz] = battleCollide(b.wx, b.wz);
+    }
+
+    // Everyone else eases toward the last position they reported.
+    for(const o of others){
+      o.nx += (o.tx - o.nx) * Math.min(1, dt*9);
+      o.nz += (o.tz - o.nz) * Math.min(1, dt*9);
+    }
+
+    // Your target is whoever is nearest. It stays fixed while you answer.
+    if(b.phase==='live'){
+      let best = null, bd = Infinity;
+      for(const o of others){
+        if(!o.placed || o.dead) continue;
+        const d = Math.hypot(o.nx - b.wx, o.nz - b.wz);
+        if(d < bd){ bd = d; best = o; }
+      }
+      b.foe = best || b.dummy;
+      net.targetPid = best ? best.pid : null;
+    }
+
+    // One shared clock, from the server's start time.
+    b.clock = Math.max(0, (sn - net.startAt) / 1000);
+    if(!b.sudden && b.clock >= BATTLE_SUDDEN_AT){
+      b.sudden = true;
+      battleLog('SUDDEN DEATH — no more healing, every hit does double.');
+      showBattleStreak(0, '⚡ SUDDEN DEATH');
+    }
+
+    // Orbs are shared: taking one is a transaction, so only one player gets it.
+    const orbs = (net.room && net.room.orbs) || {};
+    b.pickups.forEach((pk, i)=>{
+      pk.taken = b.sudden || !!(orbs[i] && sn - orbs[i] < BATTLE_PICKUP_BACK_MS);
+      if(pk.taken || pk.claiming || b.phase!=='live' || b.you.hp >= b.you.maxHp) return;
+      if(Math.hypot(pk.x - b.wx, pk.z - b.wz) > 70) return;
+      pk.claiming = true;
+      runTransaction(ref(fbdb, `rooms/${net.code}/orbs/${i}`),
+        cur => (cur && serverNow() - cur < BATTLE_PICKUP_BACK_MS) ? undefined : serverNow())
+        .then(res=>{
+          pk.claiming = false;
+          if(!res.committed || battle !== b || b.you.hp <= 0) return;
+          b.you.hp = Math.min(b.you.maxHp, b.you.hp + BATTLE_PICKUP_HEAL);
+          b.healed += BATTLE_PICKUP_HEAL;
+          battleFloat(b.you, `+${BATTLE_PICKUP_HEAL}`, '#3ee6b8');
+          battleLog(`You absorb a nutrient: +${BATTLE_PICKUP_HEAL} HP.`);
+          SoundFX.pickup();
+        }).catch(()=>{ pk.claiming = false; });
+    });
+
+    // Hits other players landed on you, one at a time.
+    if(b.phase==='live' && !b.attack && !b.pending && net.inbox.length){
+      const h = net.inbox.shift(), from = net.others[h.from];
+      battleQueueAttack(from || null, b.you, h.dmg, !!h.crit, `${from ? from.name : 'Someone'} hits you`);
+      battlePlayPending();
+    }
+
+    // Knocked out: you stay and watch.
+    if(b.phase==='live' && !b.attack && !b.pending && b.you.hp <= 0){
+      b.phase = 'down'; b.you.dead = true;
+      battleLog('You are out. WASD moves the camera while you watch.');
+      netWriteSelf(b); net.lastWrite = now;
+    }
+
+    // Report your own state a few times a second; slower in a bigger room.
+    if(now - net.lastWrite > 110 + 14*others.length){ net.lastWrite = now; netWriteSelf(b); }
+
+    // The match ends when one cell is left, or the clock runs out.
+    const players = (net.room && net.room.players) || {};
+    if(!net.ended && !net.claiming && !(net.room && net.room.result) && sn > net.startAt + 5000){
+      const all = Object.entries(players);
+      const alive = all.filter(([, p])=> p.alive !== false);
+      if(all.length >= 2 && (alive.length <= 1 || b.clock >= BATTLE_TIME_UP)){
+        net.claiming = true;
+        let winner = '';
+        if(alive.length === 1) winner = alive[0][0];
+        else if(alive.length > 1){
+          alive.sort((a, c)=> (c[1].hp||0) - (a[1].hp||0));
+          if((alive[0][1].hp||0) > (alive[1][1].hp||0)) winner = alive[0][0];
+        }
+        runTransaction(ref(fbdb, `rooms/${net.code}/result`), cur => cur ? undefined : { winner, at: serverNow() })
+          .then(()=> fbUpdate(ref(fbdb, `rooms/${net.code}`), { status:'finished' }).catch(()=>{}))
+          .catch(()=>{}).finally(()=> setTimeout(()=>{ net.claiming = false; }, 2000));
+      }
+    }
+  }
+
+  function netStandings(b, room){
+    const net = b.net, win = room && room.result ? room.result.winner : null;
+    const rows = Object.entries((room && room.players) || {}).map(([pid, p])=>({
+      pid, name: p.name || 'Player', alive: p.alive !== false, hp: p.alive === false ? 0 : (Number.isFinite(p.hp) ? p.hp : BATTLE.startHp),
+      score: p.score || 0, correct: p.correct || 0, wrong: p.wrong || 0, me: pid === net.pid }));
+    // Your own row is live, not a few hundred milliseconds stale.
+    for(const r of rows) if(r.me){ r.hp = Math.max(0, Math.round(b.you.hp)); r.alive = b.you.hp > 0; r.score = b.score; r.correct = b.you.correct; r.wrong = b.you.wrong; }
+    rows.sort((a, c)=> ((c.pid===win) - (a.pid===win)) || (c.alive - a.alive) || (c.hp - a.hp) || (c.score - a.score));
+    return rows;
+  }
+
+  function netUpdateBar(b){
+    const net = b.net;
+    if(b.phase==='question' && mcqModal.classList.contains('active')){
+      battleBar.classList.remove('active'); battleAttackBtn.style.display = 'none'; battleBoardEl.classList.remove('active');
+      return;
+    }
+    battleBar.classList.add('active'); battleBoardEl.classList.add('active');
+    battleClockWrap.style.visibility = 'hidden';
+    const rows = netStandings(b, net.room);
+    const aliveN = rows.filter(r=>r.alive).length;
+    const left = b.attackReadyAt - performance.now();
+    if(b.phase==='over') battleTurnEl.textContent = 'Match over';
+    else if(b.phase==='watch') battleTurnEl.textContent = `👀 Watching live · ${aliveN} still in`;
+    else if(b.phase==='down') battleTurnEl.textContent = `You are out · ${aliveN} still in`;
+    else if(left > 0) battleTurnEl.textContent = `Recharging… ${(left/1000).toFixed(1)}s`;
+    else if(!net.targetPid) battleTurnEl.textContent = '🏃 Find someone to fight  ·  WASD to move';
+    else battleTurnEl.textContent = battleDist() > BATTLE_RANGE
+      ? `🏃 Get closer to ${b.foe.name}` : `⚔️ ${b.foe.name} in range — Space or tap Attack`;
+    const tl = Math.max(0, (b.sudden ? BATTLE_TIME_UP : BATTLE_SUDDEN_AT) - b.clock);
+    battleTurnSub.textContent = `${net.spectator ? '' : `You ${Math.ceil(Math.max(0,b.you.hp))} HP  ·  `}Room ${net.code}  ·  `
+      + `${b.sudden ? '⚡ ends in' : 'sudden death in'} ${Math.floor(tl/60)}:${String(Math.floor(tl%60)).padStart(2,'0')}`;
+    battleAttackBtn.classList.toggle('ready', b.phase==='live' && left<=0 && !!net.targetPid);
+    battleAttackBtn.style.display = b.phase==='live' ? 'block' : 'none';
+    const now = performance.now();
+    if(now - net.lastBoard > 350){
+      net.lastBoard = now;
+      battleBoardEl.innerHTML = rows.map(r=>
+        `<div class="bb-row${r.alive?'':' out'}${r.me?' me':''}"><span>${escapeHtml(r.name)}</span>`
+        + `<span class="bb-hp"><i style="width:${Math.max(0, Math.min(100, r.hp))}%"></i></span>`
+        + `<span>${r.correct}✓ ${r.wrong}✗</span></div>`).join('');
+    }
+  }
+
+  function netFinish(b, room){
+    const net = b.net, win = room.result.winner;
+    b.phase = 'over';
+    const rows = netStandings(b, room);
+    const winner = rows.find(r=> r.pid === win);
+    const iWon = !net.spectator && win === net.pid;
+    mcqModal.classList.remove('active');
+    screenState = 'battle'; syncHudVisibility();
+    battleBannerText.textContent = iWon ? 'VICTORY' : (winner ? `${winner.name.toUpperCase()} WINS` : 'DRAW');
+    battleBannerText.style.color = iWon ? '#3ee6b8' : '#ffd54d';
+    battleBanner.classList.add('active');
+    if(iWon){ SoundFX.win(); if(typeof podiumConfettiBurst==='function') podiumConfettiBurst(); } else SoundFX.stageComplete();
+    const myPlace = rows.findIndex(r=> r.me) + 1;
+    const table = rows.map((r, i)=> `${i+1}. ${escapeHtml(r.name)}${r.me ? ' (you)' : ''} — ${r.alive ? Math.round(r.hp) + ' HP' : 'out'}, ${r.correct}✓ ${r.wrong}✗`).join('<br>');
+    setTimeout(()=>{
+      endBattle();
+      overTitle.textContent = net.spectator ? '⚔️ Match over' : (iWon ? '⚔️ Victory' : `⚔️ You placed ${myPlace} of ${rows.length}`);
+      overText.innerHTML = `${winner ? escapeHtml(winner.name) + ' won the room.' : 'It ended in a draw.'}<br><br>${table}`
+        + (net.spectator ? '' : '<br><br>"View summary" lists your questions.');
+      if(typeof mpSetOverButtons==='function') mpSetOverButtons(false);
+      showScreen('over'); screenState = 'over'; syncHudVisibility();
+    }, 2600);
+  }
+
+  document.getElementById('battleHostBtn')?.addEventListener('click', battleHostRoom);
+  document.getElementById('battleJoinBtn')?.addEventListener('click', battleJoinRoom);
+  document.getElementById('battleLobbyStartBtn')?.addEventListener('click', battleNetStart);
+  document.getElementById('battleLobbyLeaveBtn')?.addEventListener('click', ()=>{ battleNetLeave(); openBattleSetup(); });
+
   function battleSetPaused(on){
+    // A room cannot be paused for everyone, so in a room this is just the leave menu.
+    if(battle && battle.net){ battlePauseEl.classList.toggle('active', on); return; }
     if(!battle || battle.phase==='over' || battle.paused===on) return;
     if(on && screenState!=='battle') return;        // not while a question is open
     battle.paused = on;
@@ -8697,7 +9158,7 @@
   document.getElementById('battleResumeBtn')?.addEventListener('click', ()=> battleSetPaused(false));
   document.getElementById('battleLeaveBtn')?.addEventListener('click', ()=>{ endBattle(); quitToMenu(); });
   document.addEventListener('keydown', (e)=>{
-    if(e.key==='Escape' && battle && screenState==='battle'){ battleSetPaused(!battle.paused); e.stopPropagation(); }
+    if(e.key==='Escape' && battle && screenState==='battle'){ battleSetPaused(!battlePauseEl.classList.contains('active')); e.stopPropagation(); }
   }, true);
 
   // ---------------------------------------------------------------- wiring
@@ -8737,6 +9198,7 @@
     Object.assign(window.__runnerDebug, {
       battleState: ()=> battle && ({
         phase: battle.phase, youHp: battle.you.hp, foeHp: battle.foe.hp,
+        net: battle.net ? { code: battle.net.code, spectator: battle.net.spectator, target: battle.net.targetPid, others: Object.values(battle.net.others).map(o=>({ name:o.name, x:Math.round(o.nx), z:Math.round(o.nz), hp:o.hp, dead:o.dead, placed:o.placed })) } : null,
         map: battleMap, clock: battle.clock, sudden: battle.sudden, buildings: BATTLE_BUILDINGS.length,
         wx: battle.wx, wz: battle.wz, fx: battle.fx, fz: battle.fz, dist: battleDist(),
         telegraph: battle.foeTelegraph ? { x: battle.foeTelegraph.x, z: battle.foeTelegraph.z } : null,
@@ -8745,6 +9207,7 @@
       }),
       battleSetPos: (x, z)=>{ if(battle){ battle.wx = x; battle.wz = z; } },
       battleAttack: ()=> battleTryAttack(),
+      battleRoom: ()=> battleNet && ({ code: battleNet.code, pid: battleNet.pid, status: battleNet.room && battleNet.room.status, players: Object.keys((battleNet.room && battleNet.room.players) || {}).length }),
       battleSetClock: (v)=>{ if(battle) battle.clock = v; },
       battleSetMap: (k)=>{ battleMap = k; },
     });
