@@ -454,6 +454,16 @@
   .mcq-option.wrong{ border-color:var(--danger); background:rgba(255,59,92,.14); }
   .mcq-option.wrong::after{ content:'✗'; position:absolute; right:12px; top:50%; transform:translateY(-50%);
     color:var(--danger); font-weight:700; font-size:16px; }
+  /* ---- metabolism atlas overlay ---- */
+  #atlasModal{ position:fixed; inset:0; z-index:960; display:none; flex-direction:column;
+               background:var(--bg-0); }
+  #atlasModal.active{ display:flex; }
+  #atlasBar{ display:flex; align-items:center; gap:10px; padding:8px 12px;
+             background:var(--panel); border-bottom:1px solid var(--panel-line); flex-wrap:wrap; }
+  #atlasTitle{ font-weight:700; }
+  #atlasHint{ color:var(--hud-dim); font-size:12px; }
+  #atlasFrame{ flex:1; width:100%; border:0; background:#fff; }
+  @media (max-width:560px){ #atlasHint{ display:none; } }
   .mcq-option.disabled{ cursor:default; }
   /* Pressed, verdict not back yet. Only the website build ever sets these --
      offline the answer is already on the device and the verdict is instant --
@@ -854,6 +864,10 @@
           <button class="pick-card" id="reviewModeCard">
             <span class="cc-icon">📅</span><span class="cc-name">Review</span>
             <span class="cc-blurb" id="reviewModeBlurb">Spaced repetition, questions you've already studied.</span>
+          </button>
+          <button class="pick-card" id="atlasModeCard">
+            <span class="cc-icon">🗺️</span><span class="cc-name">Metabolism atlas</span>
+            <span class="cc-blurb">Every pathway on one map, with the fed and fasting states.</span>
           </button>
         </div>
       </div>
@@ -1321,6 +1335,19 @@
     </div>
 
     <!-- MANUAL -->
+    <!-- The metabolism atlas, in an overlay rather than a navigation, so a run
+         in progress survives opening it. The file is self-contained and local;
+         nothing here reaches the network. -->
+    <div id="atlasModal" aria-hidden="true">
+      <div id="atlasBar">
+        <span id="atlasTitle">🗺️ Metabolism atlas</span>
+        <span id="atlasHint">Drag to pan · ⌘/ctrl-scroll to zoom · press 0 to fit</span>
+        <span style="flex:1"></span>
+        <button class="secondary" id="atlasNewTabBtn">↗ Open in a tab</button>
+        <button class="secondary" id="atlasCloseBtn">✕ Close</button>
+      </div>
+      <iframe id="atlasFrame" title="Human metabolic pathways" src="about:blank"></iframe>
+    </div>
     <div id="manualModal">
       <div class="panel-card" style="max-width:520px;">
         <button class="panel-close" id="manualClose">✕</button>
@@ -4319,6 +4346,55 @@
       card.querySelector('.saq-wrong-btn').addEventListener('click', ()=> grade(false));
     });
   }
+  /* ---------- metabolism atlas ----------
+     A standalone, self-contained map of human metabolic pathways, shipped
+     alongside the game at atlas/index.html. It is shown in an overlay rather
+     than navigated to, so opening it mid-run does not end the run.
+
+     The iframe src is set on first open and left there afterwards -- 264 KB
+     should not be loaded by everyone who never presses the button, and should
+     not be reloaded (losing your pan/zoom) by everyone who presses it twice.
+
+     atlas/index.html is GENERATED. Edit its Python sources and run
+     scripts/sync-atlas.sh; see the comment at the top of that script. */
+  const ATLAS_URL = 'atlas/index.html';
+  const atlasModal = document.getElementById('atlasModal');
+  const atlasFrame = document.getElementById('atlasFrame');
+  let atlasLoaded = false;
+
+  function openAtlas(hash){
+    if(!atlasModal) return;
+    const want = ATLAS_URL + (hash ? ('#' + hash) : '');
+    if(!atlasLoaded){ atlasFrame.src = want; atlasLoaded = true; }
+    else if(hash){
+      // Already loaded: move within it rather than reloading the whole file.
+      try { atlasFrame.contentWindow.location.hash = hash; }
+      catch(e){ atlasFrame.src = want; }
+    }
+    atlasModal.classList.add('active');
+    atlasModal.setAttribute('aria-hidden', 'false');
+    SoundFX.click();
+  }
+
+  function closeAtlas(){
+    if(!atlasModal) return;
+    atlasModal.classList.remove('active');
+    atlasModal.setAttribute('aria-hidden', 'true');
+  }
+
+  document.getElementById('atlasModeCard')?.addEventListener('click', ()=> openAtlas());
+  document.getElementById('atlasCloseBtn')?.addEventListener('click', closeAtlas);
+  document.getElementById('atlasNewTabBtn')?.addEventListener('click', ()=>{
+    window.open(ATLAS_URL, '_blank', 'noopener');
+  });
+  // Escape closes it, but only when it is the thing on top.
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && atlasModal && atlasModal.classList.contains('active')){
+      e.stopPropagation();
+      closeAtlas();
+    }
+  }, true);
+
   // ---------- grading seam ----------
   // Every mode asks these two, and nothing else, whether an answer was right.
   //

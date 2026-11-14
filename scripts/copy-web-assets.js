@@ -20,5 +20,8 @@ fs.copyFileSync(path.join(root, 'feedback.html'), path.join(wwwDir, 'feedback.ht
 fs.copyFileSync(path.join(root, 'feedback-questions.js'), path.join(wwwDir, 'feedback-questions.js'));
 fs.cpSync(path.join(root, 'icons'), path.join(wwwDir, 'icons'), { recursive: true });
 fs.cpSync(path.join(root, 'images'), path.join(wwwDir, 'images'), { recursive: true });
+// The metabolism atlas: one self-contained HTML file, no network, so it works
+// in the app exactly as it does in a browser. Generated -- see scripts/sync-atlas.sh.
+fs.cpSync(path.join(root, 'atlas'), path.join(wwwDir, 'atlas'), { recursive: true });
 
-console.log('www/ rebuilt from medsci-runner.html, game-data.js, feedback.html, icons/, images/ (developer-tool.html excluded)');
+console.log('www/ rebuilt from medsci-runner.html, game-data.js, feedback.html, icons/, images/, atlas/ (developer-tool.html excluded)');
