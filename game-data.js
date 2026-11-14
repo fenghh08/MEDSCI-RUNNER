@@ -533,6 +533,27 @@
    GAME_CONFIG — every tunable number lives here in one place.
    ====================================================================== */
   const GAME_CONFIG = {
+    battle: {
+      'maxHp': 150,
+      'startHp': 100,
+      'botSkill': 0.6,
+      'hitsToKo': 3,
+      'botThinkMs': 1400,
+      'scorePerKo': 300,
+      'ghostHoldMs': 350,
+      'scorePerHit': 50,
+      'streakEvery': 3,
+      'turnSeconds': 20,
+      'counterDamage': 14,
+      'lowHpFraction': 0.25,
+      'critMultiplier': 1.5,
+      'ghostDrainPerSec': 70,
+      'critUnderFraction': 0.4,
+      'streakBonusDamage': 15,
+      'timeoutSelfDamage': 8,
+      'comebackMultiplier': 1.25,
+      'selfHealWhenLowest': 8,
+    },
     bombIcon: '💣',            // swap for 'icons/bomb.png' (or any path/URL -- see the ICONS comment
                                // in medsci-runner.html) to use your own image instead of the emoji
     maxSpeed: 1000,            // speed never exceeds this
