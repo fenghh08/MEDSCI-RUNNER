@@ -3,11 +3,15 @@
    (Classic scripts run before module scripts, so these globals exist by the
    time the game boots.)
 
-   The game is unchanged apart from two call sites that now await one of these
-   two functions. Each one asks the server to grade a single answer, writes the
-   result onto the question object, and returns — after which the game's own
-   code runs exactly as it always has, reading q.correctIndex and
-   q.explanation the way it would have read them from game-data.js. */
+   The game is unchanged apart from the bodies of its two grading-seam
+   functions, gradeAnswer() and gradeFunFact(), which now call these. Each one
+   asks the server to grade a single answer, writes the result onto the
+   question object, and returns — after which the game's own code runs exactly
+   as it always has, reading q.correctIndex and q.explanation the way it would
+   have read them from game-data.js.
+
+   Because the seam is what gets patched rather than a slice of answerMCQ(),
+   any mode that calls gradeAnswer() is graded on the server for free. */
 (function () {
   'use strict';
 

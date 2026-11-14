@@ -4305,11 +4305,30 @@
       card.querySelector('.saq-wrong-btn').addEventListener('click', ()=> grade(false));
     });
   }
-  function answerMCQ(chosenIndex, isTimeout){
+  // ---------- grading seam ----------
+  // Every mode asks these two, and nothing else, whether an answer was right.
+  //
+  // Offline -- this file opened directly, GitHub Pages, the phone app -- the
+  // question already carries its own correctIndex, so there is nothing to do
+  // and the caller reads q.correctIndex on the next line exactly as it always
+  // has.
+  //
+  // On the website build the answer key is not in the browser at all. web/ is
+  // serving this very file with these two function BODIES swapped for a call
+  // to /api/answer (see web/lib/game-page.ts). That is why they are separate
+  // one-job functions rather than inline code: the patch has a small, stable
+  // anchor that does not move every time answerMCQ or the grenade mini-game
+  // changes. Keep them that way -- web/scripts/check-anchors.mjs fails the
+  // build if either stops being found exactly once.
+  async function gradeAnswer(q, chosenIndex){ /* offline: q already carries correctIndex */ }
+  async function gradeFunFact(q, chosenIndex){ return !!q && chosenIndex === q.correctIndex; }
+
+  async function answerMCQ(chosenIndex, isTimeout){
     if(mcqAnswered) return;
     mcqAnswered = true;
     clearMcqTimer();
     const q = pendingQuestion;
+    await gradeAnswer(q, chosenIndex);
     const correct = chosenIndex === q.correctIndex;
     const btns = mcqOptions.querySelectorAll('.mcq-option');
     btns.forEach((b,i)=>{
@@ -4582,7 +4601,7 @@
         const b = document.createElement('button');
         b.className = 'mcq-option'; b.type = 'button';
         b.innerHTML = `<span class="opt-key">${String.fromCharCode(65+i)}</span>${escapeHtml(op)}`;
-        b.addEventListener('click', ()=> resolveGrenade(i===q.correctIndex));
+        b.addEventListener('click', async ()=> resolveGrenade(await gradeFunFact(q, i)));
         grenadeShieldOptions.appendChild(b);
       });
     }

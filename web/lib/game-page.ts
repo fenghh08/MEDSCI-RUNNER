@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { buildRunnerData } from '@/lib/game-data';
+import { DATA_SLOT, PATCHES } from '@/lib/game-patches.mjs';
 
 /**
  * Serves ../medsci-runner.html as the website's game — the real file, not a
@@ -11,45 +12,29 @@ import { buildRunnerData } from '@/lib/game-data';
  *
  *   1. the <script src="game-data.js"> tag, replaced by the same object
  *      inlined, minus every correctIndex and explanation;
- *   2. answerMCQ(), which now asks the server whether the answer was right
- *      before running the code that was already there;
- *   3. the grenade mini-game's click handler, same reason.
+ *   2. the body of gradeAnswer(), which now asks the server whether the
+ *      answer was right before the caller reads q.correctIndex;
+ *   3. the body of gradeFunFact(), same reason.
+ *
+ * 2 and 3 are one-line functions in medsci-runner.html that exist only to be
+ * patched here — the "grading seam". Earlier versions reached into the first
+ * five lines of answerMCQ() and into the grenade mini-game's click handler
+ * instead, which meant any edit anywhere near either took the live site down
+ * with an anchor mismatch. The seam gives the patch somewhere small and
+ * stable to land, and any new mode gets server grading just by calling the
+ * same two functions.
  *
  * The file on disk is never modified. If any anchor below stops matching
  * exactly once — because the game changed — this throws instead of serving a
  * half-patched page, since the failure mode of guessing is shipping the
- * answer key to the browser.
+ * answer key to the browser. web/scripts/check-anchors.mjs runs the same
+ * check from the command line, so a broken anchor shows up before deploy.
  */
 
 const GAME_HTML = path.join(process.cwd(), '..', 'medsci-runner.html');
 
-type Patch = { name: string; find: string; replace: string };
-
-const DATA_SLOT = '<script src="game-data.js"></script>';
-
-const PATCHES: Patch[] = [
-  {
-    name: 'answerMCQ: grade on the server before scoring',
-    find: `  function answerMCQ(chosenIndex, isTimeout){
-    if(mcqAnswered) return;
-    mcqAnswered = true;
-    clearMcqTimer();
-    const q = pendingQuestion;
-    const correct = chosenIndex === q.correctIndex;`,
-    replace: `  async function answerMCQ(chosenIndex, isTimeout){
-    if(mcqAnswered) return;
-    mcqAnswered = true;
-    clearMcqTimer();
-    const q = pendingQuestion;
-    await window.__RUNNER_GRADE(q, chosenIndex);
-    const correct = chosenIndex === q.correctIndex;`,
-  },
-  {
-    name: 'grenade mini-game: grade on the server',
-    find: `        b.addEventListener('click', ()=> resolveGrenade(i===q.correctIndex));`,
-    replace: `        b.addEventListener('click', async ()=> resolveGrenade(await window.__RUNNER_GRADE_FUNFACT(q, i)));`,
-  },
-];
+// The anchors themselves live in lib/game-patches.mjs, shared with
+// scripts/check-anchors.mjs so the check and the deploy agree.
 
 /** Safe to drop inside a <script> block: no `</script>`, no U+2028/2029. */
 function inlineJson(value: unknown): string {
