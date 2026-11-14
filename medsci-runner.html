@@ -466,6 +466,16 @@
   #battleLog{ position:absolute; left:10px; bottom:10px; z-index:40; display:none;
               max-width:min(62vw,380px); font-size:12px; line-height:1.5; color:var(--hud-dim); }
   #battleLog.active{ display:block; }
+  #battleAttackBtn{ position:absolute; right:14px; bottom:14px; z-index:45; display:none;
+                    padding:13px 22px; font-size:16px; font-weight:700; border-radius:999px;
+                    border:2px solid var(--panel-line); background:var(--panel); color:var(--hud-dim);
+                    cursor:default; transition:transform .12s ease, box-shadow .2s ease; }
+  #battleAttackBtn.ready{ border-color:var(--membrane); color:var(--text); cursor:pointer;
+                          box-shadow:0 0 0 4px rgba(255,93,143,.18); animation:battleReady 1.5s ease-in-out infinite; }
+  #battleAttackBtn.ready:active{ transform:scale(.94); }
+  @keyframes battleReady{ 0%,100%{ box-shadow:0 0 0 4px rgba(255,93,143,.18); }
+                          50%{ box-shadow:0 0 0 10px rgba(255,93,143,.05); } }
+  @media (prefers-reduced-motion: reduce){ #battleAttackBtn.ready{ animation:none; } }
   #battleLog div{ opacity:.55; }
   #battleLog div:last-child{ opacity:1; color:var(--text); }
   #battleBanner{ position:absolute; inset:0; z-index:60; display:none;
@@ -1400,6 +1410,7 @@
       <div id="battleClockWrap"><div id="battleClock"></div></div>
     </div>
     <div id="battleLog"></div>
+    <button id="battleAttackBtn">⚔️ Attack</button>
     <div id="battleStreak"></div>
     <div id="battleBanner"><div id="battleBannerText"></div></div>
     <div id="atlasModal" aria-hidden="true">
@@ -7444,6 +7455,7 @@
   const battleSetupView = document.getElementById('battleSetupView');
   const battleCourseGrid = document.getElementById('battleCourseGrid');
   const battleStartBtn = document.getElementById('battleStartBtn');
+  const battleAttackBtn = document.getElementById('battleAttackBtn');
 
   let battle = null;
   let battleCourse = null;
@@ -7454,7 +7466,7 @@
       hp: BATTLE.startHp, maxHp: BATTLE.startHp,
       ghostHp: BATTLE.startHp, ghostHoldUntil: 0,
       streak: 0, correct: 0, wrong: 0,
-      flash: 0, knock: 0, lunge: 0, dead: false, fall: 0 };
+      flash: 0, knock: 0, lunge: 0, windup: 0, dead: false, fall: 0, koAt: 0 };
   }
 
   /** Every question in a course, flattened: a duel has no stages or topics. */
@@ -7514,9 +7526,12 @@
       pool, poolAt: 0,
       you: newFighter('You', playerCustomization, true),
       foe: newFighter(BOT_NAMES[n], BOT_LOOKS[n], false),
-      turn: 'you', phase: 'idle', score: 0, log: [],
+      phase: 'live', score: 0, log: [],
+      attackReadyAt: performance.now() + 900,
+      foeCooldown: 3200, foeTelegraph: null, px: 0,
       foeLane: 1, foeZ: 0, foeLaneAt: 0,
       shake: 0, shakeUntil: 0, fx: null, deadline: 0, lastT: performance.now(),
+      pending: null, attack: null, shock: null, push: 0, flash: 0,
     };
     battleSetupView.style.display = 'none';
     cancerPickView.style.display = 'block';
@@ -7525,12 +7540,12 @@
     syncHudVisibility();
     battleBar.classList.add('active');
     battleLogEl.classList.add('active');
+    battleAttackBtn.style.display = 'block';
     player.lane = 1; player.targetLane = 1; player.x = laneX(1);
     seedArenaMotes();
-    battleLog(`A ${battle.foe.name} is running ahead of you.`);
+    battleLog(`A ${battle.foe.name} squares up. Move to dodge, attack when ready.`);
     SoundFX.stageComplete();
     battleRaf = requestAnimationFrame(battleLoop);
-    setTimeout(battleBeginTurn, 700);
   }
 
   function endBattle(){
@@ -7538,6 +7553,7 @@
     battleRaf = null; battle = null;
     battleBar.classList.remove('active');
     battleLogEl.classList.remove('active');
+    battleAttackBtn.style.display = 'none';
     battleBanner.classList.remove('active');
     battleStreakEl.classList.remove('active');
     mcqModal.classList.remove('active');
@@ -7550,40 +7566,87 @@
     showScreen('landing');
   }
 
-  // ------------------------------------------------------------------ turns
-  function battleBeginTurn(){
-    if(!battle || battle.phase==='over') return;
-    const mine = battle.turn==='you';
-    battle.phase = mine ? 'question' : 'resolving';
+  // ------------------------------------------------------------- live duel
+  /* Not turn-based. You run the arena continuously and choose when to
+     attack; a question only appears because you asked for one. That is what
+     makes the running matter -- the rival telegraphs its strike and marks the
+     ground where it will land, so moving is how you survive it, and standing
+     still waiting your turn is no longer a thing you can do.
+
+     The world pauses while a question is open. Reading a stem is not a test
+     of reflexes, and being hit by something you could not see would be the
+     worst of both designs. */
+
+  const ATTACK_COOLDOWN_MS = 2600;   // between your attacks
+  const FOE_TELEGRAPH_MS   = 1500;   // warning before the rival's strike lands
+  /* Share of the arena width that still counts as a hit. This has to be
+     comfortably smaller than how far you can actually travel in the warning
+     window, or "dodging" is a coin flip: at the first numbers a sprint from
+     the centre to the edge moved 0.187W against a 0.17W hitbox, a 10% margin.
+     Now a full commit moves ~0.34W against 0.13W, so getting out of the way
+     is a decision rather than a dice roll -- and standing still is reliably
+     punished, which is what makes the running mean anything. */
+  const DODGE_RADIUS       = 0.13;
+
+  function battleIsLive(){
+    return battle && battle.phase==='live' && screenState==='battle'
+           && !battle.attack && !battle.pending;
+  }
+
+  function battleTryAttack(){
+    if(!battleIsLive()) return;
+    if(performance.now() < battle.attackReadyAt) return;
+    const q = battle.pool[battle.poolAt++ % battle.pool.length];
+    battle.deadline = performance.now() + BATTLE.turnSeconds*1000;
+    quizMode = 'battle';
+    pendingTopic = q.__topicKey;
+    screenState = 'mcq';
+    battle.phase = 'question';
     updateBattleBar();
-    if(mine){
-      const q = battle.pool[battle.poolAt++ % battle.pool.length];
-      battle.deadline = performance.now() + BATTLE.turnSeconds*1000;
-      quizMode = 'battle';
-      screenState = 'mcq';
-      pendingTopic = q.__topicKey;
-      presentQuestion(q, q.__topicKey, { onAnswer: battleAnswer });
-    } else {
-      setTimeout(()=>{
-        if(!battle || battle.phase==='over') return;
-        if(Math.random() < BATTLE.botSkill){
-          battleLandHit(battle.foe, battle.you, BATTLE_HIT, false, `${battle.foe.name} strikes`);
-        } else {
-          battleLog(`${battle.foe.name} fumbles its attack.`);
-          battleFloat(battle.foe, 'miss', '#9aa4b2');
-        }
-        setTimeout(battleAfterResolve, 900);
-      }, BATTLE.botThinkMs);
+    presentQuestion(q, q.__topicKey, { onAnswer: battleAnswer });
+  }
+
+  /** The rival picks a moment, marks the ground, then strikes it. */
+  function battleFoeThink(dt, now){
+    const b = battle;
+    if(b.phase!=='live' || b.foe.dead || b.you.dead) return;
+
+    if(!b.foeTelegraph){
+      b.foeCooldown -= dt*1000;
+      if(b.foeCooldown <= 0){
+        // Aim where you are NOW. Move before it lands and it misses.
+        b.foeTelegraph = { at: now, x: battleSlot(b.you).x };
+        battleLog(`${b.foe.name} is winding up — move!`);
+        SoundFX.grenadeWhistle();
+      }
+      return;
+    }
+
+    if(now - b.foeTelegraph.at >= FOE_TELEGRAPH_MS){
+      const aimX = b.foeTelegraph.x;
+      b.foeTelegraph = null;
+      b.foeCooldown = 2600 + Math.random()*2200;
+      const me = battleSlot(b.you);
+      const dodged = Math.abs(me.x - aimX) > W*DODGE_RADIUS;
+      if(dodged){
+        battleLog('You dodge it.');
+        b.you.lunge = 1;
+        battleFloat(b.you, 'dodged', '#3ee6b8');
+        SoundFX.shieldBlock();
+      } else {
+        battleQueueAttack(b.foe, b.you, BATTLE_HIT, false, `${b.foe.name} strikes`);
+        battlePlayPending();
+      }
     }
   }
 
+  /** After your attack resolves, hand control straight back. */
   function battleAfterResolve(){
     if(!battle) return;
     if(battle.you.hp<=0 || battle.foe.hp<=0) return battleFinish();
-    battle.turn = battle.turn==='you' ? 'foe' : 'you';
-    battle.phase = 'idle';
+    battle.phase = 'live';
+    battle.attackReadyAt = performance.now() + ATTACK_COOLDOWN_MS;
     updateBattleBar();
-    setTimeout(battleBeginTurn, 500);
   }
 
   /** Stands in for answerMCQ: same card, duel rules. */
@@ -7627,7 +7690,7 @@
       if(you.hp < you.maxHp*BATTLE.lowHpFraction) dmg = Math.round(dmg*BATTLE.comebackMultiplier);
       mcqVerdict.textContent = crit ? `Critical hit — ${dmg} damage!` : `Hit — ${dmg} damage`;
       mcqVerdict.className = 'mcq-verdict verdict-good';
-      battleLandHit(you, foe, dmg, crit, 'You strike');
+      battleQueueAttack(you, foe, dmg, crit, 'You strike');
       if(you.hp < foe.hp && you.hp < you.maxHp){
         you.hp = Math.min(you.maxHp, you.hp + BATTLE.selfHealWhenLowest);
         battleFloat(you, `+${BATTLE.selfHealWhenLowest}`, '#3ee6b8');
@@ -7638,11 +7701,11 @@
       if(isTimeout){
         mcqVerdict.textContent = `Time's up — you take ${BATTLE.timeoutSelfDamage}`;
         mcqVerdict.className = 'mcq-verdict verdict-bad';
-        battleLandHit(null, you, BATTLE.timeoutSelfDamage, false, 'The clock runs out');
+        battleQueueAttack(null, you, BATTLE.timeoutSelfDamage, false, 'The clock runs out');
       } else {
         mcqVerdict.textContent = `Missed — ${foe.name} counters for ${BATTLE.counterDamage}`;
         mcqVerdict.className = 'mcq-verdict verdict-bad';
-        battleLandHit(foe, you, BATTLE.counterDamage, false, `${foe.name} counters`);
+        battleQueueAttack(foe, you, BATTLE.counterDamage, false, `${foe.name} counters`);
       }
     }
 
@@ -7659,23 +7722,63 @@
     screenState = 'battle';
     syncHudVisibility();
     if(!battleRaf) battleRaf = requestAnimationFrame(battleLoop);
-    battleAfterResolve();
+    if(battlePlayPending()) battleWaitForAttack(battleAfterResolve);
+    else battleAfterResolve();
+  }
+
+  /** Calls back once no attack is animating. */
+  function battleWaitForAttack(done){
+    const poll = ()=>{
+      if(!battle) return;
+      if(battle.attack) return setTimeout(poll, 60);
+      setTimeout(done, 120);
+    };
+    setTimeout(poll, 60);
   }
 
   // ----------------------------------------------------------------- damage
-  function battleLandHit(from, to, dmg, crit, text){
+  /* An attack is QUEUED when the answer resolves and PLAYED once the question
+     card is out of the way. Applying the damage the instant the option was
+     clicked meant the whole thing -- wind-up, projectile, impact, bar drain --
+     happened behind a full-screen card, so the player saw a number change and
+     nothing else. Now the card shows the verdict, Continue dismisses it, and
+     the attack gets the screen to itself. */
+  function battleQueueAttack(from, to, dmg, crit, text){
+    battle.pending = { from, to, dmg, crit, text };
+  }
+
+  /** Starts the animation. Damage is applied at impact, not here. */
+  function battlePlayPending(){
+    if(!battle || !battle.pending) return false;
+    const a = battle.pending;
+    battle.pending = null;
+    battle.attack = Object.assign({ at: performance.now(), landed: false }, a);
+    if(a.from) a.from.windup = 1;
+    SoundFX.grenadeWhistle();
+    return true;
+  }
+
+  const ATTACK_WINDUP_MS = 260;
+  const ATTACK_TRAVEL_MS = 340;
+  const ATTACK_SETTLE_MS = 620;   // after impact, before the turn moves on
+
+  function battleImpact(a){
+    const { from, to, dmg, crit, text } = a;
     to.hp = Math.max(0, to.hp - dmg);
     to.ghostHoldUntil = performance.now() + BATTLE.ghostHoldMs;
     to.flash = 1;
     to.knock = to.isYou ? -1 : 1;
-    if(from) from.lunge = 1;
 
-    battle.shake = Math.min(12, dmg*0.35);
-    battle.shakeUntil = performance.now() + 260;
+    // The camera leans into the hit, and the frame itself moves.
+    battle.shake = Math.min(14, dmg*0.4);
+    battle.shakeUntil = performance.now() + 300;
+    battle.push = 1;
+    battle.flash = crit ? 0.55 : 0.28;
+    battle.shock = { at: performance.now(), target: to, crit };
     stageEl.classList.remove('battle-shake');
     void stageEl.offsetWidth;
     stageEl.classList.add('battle-shake');
-    setTimeout(()=> stageEl.classList.remove('battle-shake'), 300);
+    setTimeout(()=> stageEl.classList.remove('battle-shake'), 320);
 
     battleFloat(to, `-${dmg}`, crit ? '#ffd54d' : '#ff3b5c', crit);
     if(from && from.isYou){
@@ -7683,12 +7786,15 @@
       battleFloat(from, `+${BATTLE.scorePerHit} pts`, '#3ee6b8');
     }
     battleLog(`${text} for ${dmg}.`);
-    SoundFX.correct();
-    setTimeout(()=> SoundFX.explosion(), 90);
+    SoundFX.explosion();
     battle.fx = { kind:'hit', at: performance.now(), target: to };
 
     if(to.hp<=0 && !to.dead){
       to.dead = true;
+      to.koAt = performance.now();
+      battle.shake = 16;
+      battle.shakeUntil = performance.now() + 520;
+      battle.flash = 0.7;
       SoundFX.lose();
       battleLog(`${to.isYou ? 'You are' : to.name + ' is'} knocked out.`);
     }
@@ -7751,11 +7857,20 @@
       battleClockWrap.style.visibility = 'hidden';
       return;
     }
-    const mine = battle.turn==='you';
-    battleTurnEl.textContent = mine ? '⚔️ Your turn — answer to attack'
-                                    : `${battle.foe.name} is attacking…`;
+    const left = battle.attackReadyAt - performance.now();
+    if(battle.phase==='question'){
+      battleTurnEl.textContent = '⚔️ Answer to land the hit';
+      battleClockWrap.style.visibility = 'visible';
+    } else if(left > 0){
+      battleTurnEl.textContent = `Recharging… ${(left/1000).toFixed(1)}s`;
+      battleClockWrap.style.visibility = 'hidden';
+    } else {
+      battleTurnEl.textContent = '⚔️ Ready — press Space or tap Attack';
+      battleClockWrap.style.visibility = 'hidden';
+    }
     battleTurnSub.textContent = `You ${Math.ceil(battle.you.hp)} HP  ·  ${battle.foe.name} ${Math.ceil(battle.foe.hp)} HP`;
-    battleClockWrap.style.visibility = (mine && battle.phase==='question') ? 'visible' : 'hidden';
+    battleAttackBtn.classList.toggle('ready', battle.phase==='live' && left<=0);
+    battleAttackBtn.style.display = (battle.phase==='over') ? 'none' : 'block';
   }
 
   // ----------------------------------------------------------------- render
@@ -7770,7 +7885,7 @@
       // Near corner, full size. Steering slides you across the front of the
       // arena rather than between three fixed lanes -- it is a stage, not a
       // tube -- so the lane target is scaled down into a gentler drift.
-      const drift = (player.x - W/2) * 0.55;
+      const drift = (player.x - W/2) * 0.85;
       return { x: W/2 + drift, y: hz + span*0.74, r: 32*SCALE, s: 1 };
     }
     // Far side, smaller, and it shifts across as it moves.
@@ -7885,8 +8000,9 @@
     ctx.fillRect(0, hz - 26*SCALE, W, 80*SCALE);
 
     // ---- a lit platform under each fighter ---------------------------
-    drawArenaPlatform(battleSlot(b.foe), b.foe, b.turn === 'foe');
-    drawArenaPlatform(battleSlot(b.you), b.you, b.turn === 'you');
+    drawArenaPlatform(battleSlot(b.foe), b.foe, !!b.foeTelegraph);
+    drawArenaPlatform(battleSlot(b.you), b.you,
+      b.phase==='live' && performance.now() >= b.attackReadyAt);
 
     // ---- vignette -----------------------------------------------------
     const vig = ctx.createRadialGradient(W/2, H*0.55, Math.min(W,H)*0.28, W/2, H*0.55, Math.max(W,H)*0.78);
@@ -7930,7 +8046,15 @@
     // rival's turn -- standing still would make the whole thing feel like a
     // menu with sound effects.
     roadScroll += dt * GAME_CONFIG.baseSpeed * 0.55;
-    player.x += (laneX(player.targetLane) - player.x) * Math.min(1, dt*10);
+    // Free lateral movement across the arena floor, not three fixed lanes --
+    // dodging a marked landing spot needs finer control than a lane snap.
+    const span = W*0.40;
+    if(battle.phase==='live'){
+      if(battleHeld.left)  battle.px -= dt*2.6;
+      if(battleHeld.right) battle.px += dt*2.6;
+      battle.px = Math.max(-1, Math.min(1, battle.px));
+    }
+    player.x += ((W/2 + battle.px*span) - player.x) * Math.min(1, dt*12);
     player.wob += dt*8;
 
     // The rival drifts in depth and changes lane now and then, so it reads as
@@ -7943,7 +8067,21 @@
     }
     b.foeLaneX = b.foeLane;
 
+    // The attack's own clock: wind up, travel, land, settle.
+    if(b.attack){
+      const age = now - b.attack.at;
+      if(!b.attack.landed && age >= ATTACK_WINDUP_MS + ATTACK_TRAVEL_MS){
+        b.attack.landed = true;
+        battleImpact(b.attack);
+      }
+      if(age >= ATTACK_WINDUP_MS + ATTACK_TRAVEL_MS + ATTACK_SETTLE_MS) b.attack = null;
+    }
+    if(b.phase==='live') battleFoeThink(dt, now);
+    if(b.push > 0) b.push = Math.max(0, b.push - dt*2.6);
+    if(b.flash > 0) b.flash = Math.max(0, b.flash - dt*1.9);
+
     for(const f of [b.you, b.foe]){
+      if(f.windup>0) f.windup = Math.max(0, f.windup - dt*3.4);
       if(f.flash>0) f.flash = Math.max(0, f.flash - dt*4);
       if(f.knock!==0) f.knock *= Math.max(0, 1 - dt*7);
       if(f.lunge>0) f.lunge = Math.max(0, f.lunge - dt*5);
@@ -7990,8 +8128,14 @@
     const slot = battleSlot(f);
     const now = performance.now();
     const wob = Math.sin(now/260 + (f.isYou?0:2))*2;
+    // Wind-up pulls AWAY from the opponent, then the lunge throws forward --
+    // a strike with no anticipation reads as a teleport.
+    const dir = f.isYou ? -1 : 1;
     const x = slot.x + f.knock*10*SCALE;
-    const y = slot.y + f.lunge*(f.isYou?-1:1)*18*SCALE + (f.dead ? f.fall*f.fall*180*SCALE : 0);
+    const y = slot.y
+            - f.windup*dir*10*SCALE
+            + f.lunge*dir*18*SCALE
+            + (f.dead ? f.fall*f.fall*180*SCALE : 0);
     ctx.save();
     if(f.dead){
       ctx.globalAlpha = Math.max(0, 1-f.fall);
@@ -7999,6 +8143,20 @@
     }
     drawCellSprite(ctx, x, y, slot.r, f.look, wob);
     ctx.restore();
+
+    // Rim light on the fighter whose turn it is, so the arena reads as lit
+    // rather than flat and you can tell at a glance who is acting.
+    const acting = battle && !f.dead && (f.isYou
+      ? (battle.phase==='live' && performance.now() >= battle.attackReadyAt)
+      : !!battle.foeTelegraph);
+    if(acting){
+      ctx.save();
+      ctx.globalAlpha = 0.38 + Math.sin(performance.now()/420)*0.12;
+      ctx.strokeStyle = f.isYou ? (f.look.color || '#ff5d8f') : '#ffa24d';
+      ctx.lineWidth = 2.4*(slot.s||1);
+      ctx.beginPath(); ctx.arc(x, y, slot.r*1.12, -0.9, 2.2); ctx.stroke();
+      ctx.restore();
+    }
     if(f.flash>0){
       ctx.save();
       ctx.globalAlpha = f.flash*0.75;
@@ -8012,22 +8170,123 @@
     const b = battle;
     const pal = canvasPalette();
     ctx.save();
+    // The camera leans in on a hit: a small push toward the struck fighter,
+    // on top of the shake. Subtle, but it is what makes a hit feel like it
+    // had weight rather than like a number changing.
+    if(b.push > 0){
+      const t = battleSlot((b.attack && b.attack.to) || b.you);
+      const k = 1 + b.push*0.045;
+      ctx.translate(t.x, t.y); ctx.scale(k, k); ctx.translate(-t.x, -t.y);
+    }
     if(b.shake>0) ctx.translate((Math.random()-0.5)*b.shake*SCALE, (Math.random()-0.5)*b.shake*SCALE);
     drawArena(b);
     // Far to near, so the nearer fighter overlaps the further one.
     drawFighter(b.foe); drawHpBar(b.foe);
     drawFighter(b.you); drawHpBar(b.you);
+    drawDanger(b);
+    drawAttack(b);
     if(b.fx && b.fx.kind==='hit'){
       const t = (performance.now()-b.fx.at)/520;
       if(t>=1) b.fx = null;
       else { const s = battleSlot(b.fx.target); drawExplosion(s.x, s.y, t, false); }
     }
+    drawShockwave(b);
     drawFloaters();
     ctx.restore();
+
+    // A full-frame flash on impact, strongest on a critical and a KO.
+    if(b.flash > 0.01){
+      ctx.save();
+      ctx.globalAlpha = b.flash * 0.55;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
     if(b.phase==='question' && b.deadline){
       const left = Math.max(0, b.deadline - performance.now());
       battleClock.style.width = `${(left/(BATTLE.turnSeconds*1000))*100}%`;
     }
+  }
+
+
+  /* The attack in flight. It arcs between the two platforms rather than
+     travelling in a straight line, so it reads as thrown across a space with
+     depth, and it leaves a short trail so the eye can follow it. */
+
+  /* Where the rival's strike will land, and how long you have. The ring
+     closes as the timer runs out, so the warning is readable at a glance
+     without reading a number. Standing in it when it closes is a hit;
+     stepping out of it is not. */
+  function drawDanger(b){
+    if(!b.foeTelegraph) return;
+    const t = Math.min(1, (performance.now() - b.foeTelegraph.at) / FOE_TELEGRAPH_MS);
+    const y = battleSlot(b.you).y + battleSlot(b.you).r*0.5;
+    const rx = W*DODGE_RADIUS, ry = rx*0.34;
+    ctx.save();
+    ctx.globalAlpha = 0.20 + 0.25*Math.sin(t*Math.PI*6);
+    ctx.fillStyle = '#ff3b5c';
+    ctx.beginPath(); ctx.ellipse(b.foeTelegraph.x, y, rx, ry, 0, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = '#ff3b5c';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.ellipse(b.foeTelegraph.x, y, rx, ry, 0, 0, Math.PI*2); ctx.stroke();
+    // The closing ring: the time you have left, as a shape.
+    ctx.globalAlpha = 0.95;
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.ellipse(b.foeTelegraph.x, y, rx*(1-t), ry*(1-t), 0, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawAttack(b){
+    const a = b.attack;
+    if(!a || a.landed) return;
+    const age = performance.now() - a.at;
+    if(age < ATTACK_WINDUP_MS) return;           // still winding up
+    const t = Math.min(1, (age - ATTACK_WINDUP_MS) / ATTACK_TRAVEL_MS);
+
+    const src = battleSlot(a.from || a.to);
+    const dst = battleSlot(a.to);
+    // Control point lifted above the midpoint: a lobbed arc.
+    const cx = (src.x + dst.x)/2, cy = Math.min(src.y, dst.y) - 90*SCALE;
+    const at = u => ({
+      x: (1-u)*(1-u)*src.x + 2*(1-u)*u*cx + u*u*dst.x,
+      y: (1-u)*(1-u)*src.y + 2*(1-u)*u*cy + u*u*dst.y,
+    });
+
+    const tint = a.crit ? '#ffd54d' : (a.from && a.from.isYou
+      ? (a.from.look.color || resolveCanvasColor('var(--membrane)')) : '#ffa24d');
+
+    ctx.save();
+    for(let i=6;i>=0;i--){
+      const u = Math.max(0, t - i*0.045);
+      const pnt = at(u);
+      const r = (a.crit ? 11 : 8) * SCALE * (1 - i*0.1);
+      ctx.globalAlpha = (1 - i/7) * 0.85;
+      ctx.fillStyle = tint;
+      ctx.shadowColor = tint; ctx.shadowBlur = 16*SCALE;
+      ctx.beginPath(); ctx.arc(pnt.x, pnt.y, r, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /** An expanding ring on impact -- the thing that sells the force. */
+  function drawShockwave(b){
+    if(!b.shock) return;
+    const age = performance.now() - b.shock.at;
+    const dur = b.shock.crit ? 520 : 400;
+    if(age > dur){ b.shock = null; return; }
+    const t = age/dur;
+    const slot = battleSlot(b.shock.target);
+    const r = (20 + 150*t) * SCALE;
+    ctx.save();
+    ctx.globalAlpha = (1-t) * 0.75;
+    ctx.strokeStyle = b.shock.crit ? '#ffd54d' : '#ffffff';
+    ctx.lineWidth = Math.max(1, 5*(1-t)*SCALE);
+    // Flattened, because it is expanding across a ground plane seen at an angle.
+    ctx.beginPath(); ctx.ellipse(slot.x, slot.y + slot.r*0.5, r, r*0.42, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.restore();
   }
 
   function battleLoop(t){
@@ -8041,6 +8300,45 @@
   }
 
   // ---------------------------------------------------------------- wiring
+  const battleHeld = { left:false, right:false };
+  document.addEventListener('keydown', (e)=>{
+    if(!battle || screenState!=='battle') return;
+    const k = e.key.toLowerCase();
+    if(k==='arrowleft' || k==='a'){ battleHeld.left = true; e.preventDefault(); }
+    if(k==='arrowright'|| k==='d'){ battleHeld.right = true; e.preventDefault(); }
+    if(k===' ' || k==='enter'){ battleTryAttack(); e.preventDefault(); }
+  });
+  document.addEventListener('keyup', (e)=>{
+    const k = e.key.toLowerCase();
+    if(k==='arrowleft' || k==='a') battleHeld.left = false;
+    if(k==='arrowright'|| k==='d') battleHeld.right = false;
+  });
+  battleAttackBtn?.addEventListener('click', battleTryAttack);
+  // On a phone: drag anywhere on the arena to move.
+  stageEl.addEventListener('pointermove', (e)=>{
+    if(!battle || screenState!=='battle' || e.buttons===0) return;
+    const r = stageEl.getBoundingClientRect();
+    battle.px = Math.max(-1, Math.min(1, ((e.clientX - r.left)/r.width - 0.5) * 2.4));
+  });
+
+  // Same idea as the rest of __runnerDebug: only with ?debug=1, and read-only
+  // apart from setPos, which is what makes the dodge window testable.
+  // Deferred: __runnerDebug is built during init, which runs after this block.
+  if(new URLSearchParams(location.search).has('debug')) setTimeout(()=>{
+    window.__runnerDebug = window.__runnerDebug || {};
+    Object.assign(window.__runnerDebug, {
+      battleState: ()=> battle && ({
+        phase: battle.phase, youHp: battle.you.hp, foeHp: battle.foe.hp,
+        px: battle.px, youX: battleSlot(battle.you).x,
+        telegraphAt: battle.foeTelegraph ? battle.foeTelegraph.x : null,
+        ready: performance.now() >= battle.attackReadyAt,
+        dodgeRadiusPx: W*DODGE_RADIUS,
+      }),
+      battleSetPos: (v)=>{ if(battle) battle.px = Math.max(-1, Math.min(1, v)); },
+      battleAttack: ()=> battleTryAttack(),
+    });
+  }, 0);
+
   document.getElementById('battleModeCard')?.addEventListener('click', ()=>{ SoundFX.click(); openBattleSetup(); });
   document.getElementById('battleBackBtn')?.addEventListener('click', closeBattleSetup);
   battleStartBtn?.addEventListener('click', ()=>{ if(battleCourse) startBattle(); });
