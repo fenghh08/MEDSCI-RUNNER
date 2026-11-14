@@ -7986,29 +7986,55 @@
     presentQuestion(q, q.__topicKey, { onAnswer: battleAnswer });
   }
 
-  /** The rival picks a moment, marks the ground, then strikes it. */
+  /** The rival picks a moment, marks the ground, then strikes it.
+      It is meant to be beaten by moving well, not by standing still or by
+      holding one key down, so:
+        - it aims where you are HEADING, by a varying amount, so a straight
+          run lands you in the blast as often as standing still does;
+        - the warning gets shorter and the gaps between strikes smaller as
+          the match goes on, and again once it is badly hurt;
+        - it sometimes follows a strike with a second one straight away, to
+          catch the place you dodged to. */
+  function battleFoePressure(b){
+    const time = Math.min(1, b.clock / 110);                       // 0 at the start, 1 from ~1:50
+    const hurt = b.foe.hp < b.foe.maxHp*0.4 ? 0.35 : 0;
+    return Math.min(1, time*0.75 + hurt + (b.sudden ? 0.3 : 0));
+  }
+  function battleFoeAim(b, now, ms, follow){
+    const lead = (follow ? 0.75 : 0.25 + Math.random()*0.75) * (ms/1000);
+    let x = b.wx + (b.pvx || 0)*lead, z = b.wz + (b.pvz || 0)*lead;
+    x = Math.max(-WORLD.halfW+40, Math.min(WORLD.halfW-40, x));
+    z = Math.max(-WORLD.halfD+40, Math.min(WORLD.halfD-40, z));
+    b.foeTelegraph = { at: now, ms, x, z, t: 0 };
+    battleLog(follow ? `${b.foe.name} strikes again — keep moving!` : `${b.foe.name} is winding up — move!`);
+    SoundFX.telegraph();
+  }
   function battleFoeThink(dt, now){
     const b = battle;
     if(b.phase!=='live' || b.foe.dead || b.you.dead) return;
+    const pressure = battleFoePressure(b);
     if(!b.foeTelegraph){
       b.foeCooldown -= dt*1000;
-      if(b.foeCooldown <= 0){
-        // Aim at the patch of ground you are standing on NOW.
-        b.foeTelegraph = { at: now, x: b.wx, z: b.wz };
-        battleLog(`${b.foe.name} is winding up — move!`);
-        SoundFX.telegraph();
-      }
+      if(b.foeCooldown <= 0) battleFoeAim(b, now, FOE_TELEGRAPH_MS - 550*pressure, false);
       return;
     }
-    if(now - b.foeTelegraph.at >= FOE_TELEGRAPH_MS){
-      const t = b.foeTelegraph;
+    // Counted in play time, not wall-clock time: a warning that was running
+    // when you opened a question waits for you instead of landing the moment
+    // the card closes.
+    const tg = b.foeTelegraph;
+    tg.t += dt*1000;
+    if(tg.t >= tg.ms){
       b.foeTelegraph = null;
-      b.foeCooldown = 2600 + Math.random()*2200;
-      if(Math.hypot(b.wx - t.x, b.wz - t.z) > DODGE_RADIUS){
+      b.foeCooldown = (2400 - 1100*pressure) + Math.random()*(1900 - 900*pressure);
+      if(Math.hypot(b.wx - tg.x, b.wz - tg.z) > DODGE_RADIUS){
         battleLog('You dodge it.');
         b.dodges++;
         battleFloat(b.you, 'dodged', '#3ee6b8');
         SoundFX.dodge();
+        if(!tg.follow && Math.random() < 0.2 + 0.4*pressure){
+          battleFoeAim(b, now, Math.max(800, tg.ms - 250), true);
+          b.foeTelegraph.follow = true;
+        }
       } else {
         battleQueueAttack(b.foe, b.you, BATTLE_HIT, false, `${b.foe.name} strikes`);
         battlePlayPending();
@@ -8770,6 +8796,12 @@
       b.wx = Math.max(-WORLD.halfW+40, Math.min(WORLD.halfW-40, b.wx));
       b.wz = Math.max(-WORLD.halfD+40, Math.min(WORLD.halfD-40, b.wz));
       [b.wx, b.wz] = battleCollide(b.wx, b.wz);
+      if(dt > 0 && b.lastWx !== undefined){
+        const k = Math.min(1, dt*8);
+        b.pvx = (b.pvx || 0) + ((b.wx - b.lastWx)/dt - (b.pvx || 0))*k;
+        b.pvz = (b.pvz || 0) + ((b.wz - b.lastWz)/dt - (b.pvz || 0))*k;
+      }
+      b.lastWx = b.wx; b.lastWz = b.wz;
 
       // The rival. When it is hurt and there is an orb on the map it goes and
       // takes it -- it used to ignore them, which made it a punching bag.
@@ -8777,23 +8809,33 @@
       // when you crowd it, circles in between.
       const dx = b.wx - b.fx, dz = b.wz - b.fz, dist = Math.hypot(dx, dz) || 1;
       if(!b.foe.dead && !b.foeTelegraph){
+        // Orbs: it heals when it is hurt, and when YOU are hurt it goes for
+        // the orb you would want, if it can get there first.
         let goal = null;
-        if(b.foe.hp < b.foe.maxHp*0.7){
+        const foeHurt = b.foe.hp < b.foe.maxHp*0.85, youHurt = b.you.hp < b.you.maxHp*0.6;
+        if(foeHurt || youHurt){
           let best = Infinity;
           for(const pk of b.pickups){
             if(pk.taken) continue;
-            const dd = Math.hypot(pk.x - b.fx, pk.z - b.fz);
-            if(dd < best){ best = dd; goal = pk; }
+            const mine = Math.hypot(pk.x - b.fx, pk.z - b.fz), yours = Math.hypot(pk.x - b.wx, pk.z - b.wz);
+            const reachable = mine/300 < yours/BATTLE_MOVE + 0.6;      // it is slower than you, so it only races orbs it can win
+            const score = foeHurt ? mine : (reachable ? yours : Infinity);
+            if(score < best){ best = score; goal = pk; }
           }
         }
+        const speed = 240 + 70*battleFoePressure(b);
         if(goal){
           const gx = goal.x - b.fx, gz = goal.z - b.fz, gd = Math.hypot(gx, gz) || 1;
-          b.fx += (gx/gd)*250*dt; b.fz += (gz/gd)*250*dt;
+          b.fx += (gx/gd)*300*dt; b.fz += (gz/gd)*300*dt;
         } else {
-          const want = dist > 470 ? 1 : (dist < 300 ? -0.7 : 0);
-          const strafe = Math.sin(now/1300) * 0.6;
-          b.fx += ((dx/dist)*want + (-dz/dist)*strafe) * 210*dt;
-          b.fz += ((dz/dist)*want + ( dx/dist)*strafe) * 210*dt;
+          // Stay in striking distance, and circle unpredictably rather than on a fixed sweep.
+          if(!b.foeStrafeUntil || now > b.foeStrafeUntil){
+            b.foeStrafe = (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random()*0.5);
+            b.foeStrafeUntil = now + 700 + Math.random()*1300;
+          }
+          const want = dist > 440 ? 1 : (dist < 280 ? -0.8 : 0);
+          b.fx += ((dx/dist)*want + (-dz/dist)*b.foeStrafe) * speed*dt;
+          b.fz += ((dz/dist)*want + ( dx/dist)*b.foeStrafe) * speed*dt;
         }
         b.fx = Math.max(-WORLD.halfW+60, Math.min(WORLD.halfW-60, b.fx));
         b.fz = Math.max(-WORLD.halfD+60, Math.min(WORLD.halfD-60, b.fz));
@@ -8988,7 +9030,7 @@
      stepping out of it is not. */
   function drawDanger(b){
     if(!b.foeTelegraph) return;
-    const t = Math.min(1, (performance.now() - b.foeTelegraph.at) / FOE_TELEGRAPH_MS);
+    const t = Math.min(1, b.foeTelegraph.t / b.foeTelegraph.ms);
     const q = battleProject(b.foeTelegraph.x, b.foeTelegraph.z);
     const rx = DODGE_RADIUS * battleZoom() * q.s, ry = rx*0.55;
     ctx.save();
@@ -9084,7 +9126,7 @@
         b.view !== 'first' && !(b.net && (b.net.spectator || (b.you.dead && b.you.fall >= 1))));
     b3.render({ view: b.view === 'stats' ? 'top' : b.view, px: b.wx, pz: b.wz, yaw: b.yaw || 0, camX: b.camX, camZ: b.camZ + 60, time: now, shake: b.shake, push: b.push, fighters: list, pickups: b.pickups,
       danger: b.foeTelegraph ? { x: b.foeTelegraph.x, z: b.foeTelegraph.z, r: DODGE_RADIUS,
-                                 t: Math.min(1, (now - b.foeTelegraph.at) / FOE_TELEGRAPH_MS) } : null });
+                                 t: Math.min(1, b.foeTelegraph.t / b.foeTelegraph.ms) } : null });
     for(const f of bars) if(!battleSlot(f).behind) drawHpBar(f);
   }
 
@@ -9630,7 +9672,6 @@
       // Everything timed against the wall clock moves forward by the pause.
       const d = now - battle.pausedAt;
       battle.attackReadyAt += d;
-      if(battle.foeTelegraph) battle.foeTelegraph.at += d;
       if(battle.attack) battle.attack.at += d;
       for(const pk of battle.pickups) pk.backAt += d;
     }
