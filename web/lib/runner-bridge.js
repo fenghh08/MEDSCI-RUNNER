@@ -51,7 +51,8 @@
 
   function warm() {
     var now = Date.now();
-    if (now - lastWarm < 20000) return;   // the connection stays up; don't spam it
+    if (now - lastWarm < 8000) return;    // enough to stop a burst, short enough
+                                          // that opening a question always warms
     lastWarm = now;
     try {
       fetch(WARM_ENDPOINT, { cache: 'no-store', keepalive: true }).catch(function () {});
@@ -73,7 +74,14 @@
      and it gives up entirely after twenty minutes with no interaction, so a
      tab left open overnight does not hold the compute up and burn the monthly
      allowance. */
-  var HEARTBEAT_MS = 240000;        // 4 minutes, inside the 5-minute timeout
+  // 45s, not the 4 minutes a compute-suspend timeout would suggest. Two
+  // different things go cold here and only the shorter interval covers both:
+  // Neon suspends an idle COMPUTE after five minutes, but the HTTPS CONNECTION
+  // to it is dropped much sooner, and re-establishing that is itself the ~3s
+  // cost -- measured as tls:3.05s against dns:27ms and tcp:32ms. A four-minute
+  // heartbeat kept the compute up and still left every answer after a pause
+  // paying for a new handshake.
+  var HEARTBEAT_MS = 45000;
   var IDLE_GIVE_UP_MS = 1200000;    // 20 minutes without a click or a keypress
   var lastInteraction = Date.now();
 

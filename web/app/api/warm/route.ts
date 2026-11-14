@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
+import { noteActivity } from '@/lib/keepalive';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,7 @@ export const dynamic = 'force-dynamic';
  * trip. Nothing is returned that matters — this exists for its side effect.
  */
 export async function GET() {
+  noteActivity();
   const started = Date.now();
   try {
     await sql`select 1 as warm`;

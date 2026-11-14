@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
+import { noteActivity } from '@/lib/keepalive';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +37,7 @@ type Body = {
 const text = (v: unknown) => (typeof v === 'string' && v ? v : null);
 
 export async function POST(request: NextRequest) {
+  noteActivity();
   let body: Body;
   try {
     body = (await request.json()) as Body;
