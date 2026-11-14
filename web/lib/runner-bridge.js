@@ -63,6 +63,31 @@
     if (!document.hidden) warm();          // coming back to a tab that went idle
   });
 
+  /* Neon's free plan suspends an idle compute after five minutes and will not
+     let the interval be changed (the API answers 412 on that account), so the
+     only way to stop a session being interrupted by a three-second wake is to
+     keep the compute awake while someone is actually playing.
+
+     A ping just under the five-minute mark does that. It is deliberately
+     cheap and deliberately conditional: nothing fires while the tab is hidden,
+     and it gives up entirely after twenty minutes with no interaction, so a
+     tab left open overnight does not hold the compute up and burn the monthly
+     allowance. */
+  var HEARTBEAT_MS = 240000;        // 4 minutes, inside the 5-minute timeout
+  var IDLE_GIVE_UP_MS = 1200000;    // 20 minutes without a click or a keypress
+  var lastInteraction = Date.now();
+
+  ['pointerdown', 'keydown'].forEach(function (evt) {
+    document.addEventListener(evt, function () { lastInteraction = Date.now(); },
+      { passive: true, capture: true });
+  });
+
+  setInterval(function () {
+    if (document.hidden) return;
+    if (Date.now() - lastInteraction > IDLE_GIVE_UP_MS) return;
+    warm();
+  }, HEARTBEAT_MS);
+
   /* Warm again the moment a question card opens. This is the one that matters:
      it buys the whole reading time. */
   function watchForQuestions() {
