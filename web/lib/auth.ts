@@ -77,6 +77,20 @@ function bearer(request: NextRequest): string {
   return match[1];
 }
 
+// ------------------------------------------------------- local development
+// `next dev` only, and only when ADMIN_DEV_USER is set: every request is
+// treated as that admin, with no token. It exists so the admin app can be
+// worked on and tested against a scratch database without a service account.
+// A production build ignores the variable entirely -- NODE_ENV is 'production'
+// under `next build`/`next start` and on Vercel -- so it cannot be switched on
+// by a stray setting on a deployed site.
+function devUser(): AuthedUser | null {
+  if (process.env.NODE_ENV === 'production') return null;
+  const email = process.env.ADMIN_DEV_USER?.trim().toLowerCase();
+  if (!email) return null;
+  return { uid: 'dev:' + email, email, displayName: 'Local developer', role: 'admin', courses: [] };
+}
+
 // ----------------------------------------------------------------- the gate
 
 /**
@@ -85,6 +99,8 @@ function bearer(request: NextRequest): string {
  * the game signs everyone in for cross-device sync.
  */
 export async function requireUser(request: NextRequest): Promise<AuthedUser> {
+  const dev = devUser();
+  if (dev) return dev;
   const verify = await getVerifier();
 
   let decoded: { uid: string; email?: string; name?: string };
