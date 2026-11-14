@@ -149,6 +149,20 @@ begin
   end if;
 end $$;
 
+-- Fields that game-data.js has always carried but the first version of this
+-- schema had no home for. Without them the database is a lossy mirror: an
+-- export would silently erase contributor credit on 774 questions and 188
+-- items. `notes` is the player-contributed counterpart to the curated
+-- `fun_facts`; `related_course` is the legacy free-text citation kept for the
+-- handful of rows that use it instead of course_code + class_key.
+alter table items     add column if not exists notes             text[] not null default '{}';
+alter table items     add column if not exists related_course    text;
+alter table items     add column if not exists contributor_name  text;
+alter table items     add column if not exists contributor_email text;
+alter table questions add column if not exists related_course    text;
+alter table questions add column if not exists contributor_name  text;
+alter table questions add column if not exists contributor_email text;
+
 create index if not exists classes_course_idx        on classes (course_code);
 create index if not exists topics_course_idx         on topics (course_code);
 create index if not exists items_topic_idx           on items (topic_id);
