@@ -235,6 +235,71 @@ begin
   end if;
 end $$;
 
+-- ============================================================================
+-- The admin content app.
+--
+-- content_revisions is the audit trail: every write made through /api/admin
+-- records what the row looked like before and after, and who did it, in the
+-- same transaction as the write itself. That is what gives lecturers a
+-- history, a diff and an undo -- none of which merging a file could offer.
+-- ============================================================================
+create table if not exists content_revisions (
+  id          bigserial primary key,
+  entity      text not null,              -- 'question' | 'item' | 'topic' | 'class' | 'user'
+  entity_key  text not null,              -- qid, item id, topic id, ...
+  course_code text,                       -- for scoping what a lecturer may see
+  action      text not null check (action in ('create', 'update', 'delete', 'revert')),
+  before      jsonb,
+  after       jsonb,
+  actor_uid   text references users(uid) on update cascade on delete set null,
+  at          timestamptz not null default now()
+);
+create index if not exists content_revisions_entity_idx on content_revisions (entity, entity_key, at desc);
+create index if not exists content_revisions_course_idx on content_revisions (course_code, at desc);
+
+-- Player suggestions and question reports. These used to be pushed to the
+-- Firebase RTDB `contributions` queue and merged into a file by hand; now a
+-- lecturer reads them here and edits the live content directly.
+create table if not exists suggestions (
+  id            bigserial primary key,
+  kind          text not null check (kind in ('fun-fact', 'note', 'flag-question', 'flag-item', 'other')),
+  course_code   text,
+  question_qid  text,
+  item_key      text,
+  body          text not null,
+  detail        jsonb not null default '{}',
+  from_uid      text references users(uid) on update cascade on delete set null,
+  from_name     text,
+  status        text not null default 'open' check (status in ('open', 'applied', 'dismissed')),
+  created_at    timestamptz not null default now(),
+  resolved_by   text references users(uid) on update cascade on delete set null,
+  resolved_at   timestamptz
+);
+create index if not exists suggestions_status_idx on suggestions (status, created_at desc);
+
+-- Video and 3D media. A row is reusable: one animation can back several
+-- questions. Postgres holds the URL and metadata only -- the bytes live in
+-- blob storage, on YouTube/Vimeo, or (for molecular structures) at RCSB.
+create table if not exists media (
+  id            uuid primary key default gen_random_uuid(),
+  kind          text not null check (kind in ('video', 'model', 'image')),
+  source        text not null check (source in ('upload', 'external', 'pdb')),
+  url           text not null,              -- blob URL, embed URL, or the PDB id
+  mime          text,
+  bytes         bigint,
+  title         text not null,
+  attribution   text,
+  poster_url    text,
+  duration_sec  integer,
+  uploaded_by   text references users(uid) on update cascade on delete set null,
+  created_at    timestamptz not null default now()
+);
+alter table questions add column if not exists media_id uuid references media(id) on delete set null;
+-- A model that takes six seconds to load inside a 45-second timed question is
+-- a bad question, so media questions can be kept to the untimed modes.
+alter table questions add column if not exists allow_in_timed boolean not null default true;
+alter table items     add column if not exists media_id uuid references media(id) on delete set null;
+
 create index if not exists users_role_idx         on users (role);
 create index if not exists user_courses_course_idx on user_courses (course_code);
 

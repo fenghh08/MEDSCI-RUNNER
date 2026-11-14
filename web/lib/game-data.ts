@@ -17,6 +17,19 @@ import { buildRunnerData as build } from '@/lib/runner-data.mjs';
  */
 export type RunnerData = Record<string, unknown>;
 
+// Rebuilding the payload is eight queries over ~1,200 questions. Forty students
+// opening the page together should not each pay for that, so the result is
+// kept in memory and reused until content changes. Every admin write bumps the
+// `content_version` setting in the same statement as the write itself, so one
+// cheap read is enough to know whether the copy held here is still current --
+// and an edit shows up on the very next page load, not after a timeout.
+let cached: { version: string; data: RunnerData } | null = null;
+
 export async function buildRunnerData(): Promise<RunnerData> {
-  return build(sql, { includeAnswers: false, includeContributors: false });
+  const rows = (await sql`select value from settings where key = 'content_version'`) as { value: unknown }[];
+  const version = JSON.stringify(rows[0]?.value ?? 0);
+  if (cached && cached.version === version) return cached.data;
+  const data = await build(sql, { includeAnswers: false, includeContributors: false });
+  cached = { version, data };
+  return data;
 }

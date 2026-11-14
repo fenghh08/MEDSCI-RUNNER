@@ -17,7 +17,9 @@
     "db:migrate-access": "node scripts/migrate-access.mjs",
     "db:export": "node scripts/export-game-data.mjs",
     "db:verify": "node scripts/verify-round-trip.mjs",
-    "check:anchors": "node scripts/check-anchors.mjs"
+    "check:anchors": "node scripts/check-anchors.mjs",
+    "test:validate": "node scripts/test-validate.mjs",
+    "test:store": "node scripts/test-store.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",
