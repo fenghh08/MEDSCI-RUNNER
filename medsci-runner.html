@@ -454,6 +454,44 @@
   .mcq-option.wrong{ border-color:var(--danger); background:rgba(255,59,92,.14); }
   .mcq-option.wrong::after{ content:'✗'; position:absolute; right:12px; top:50%; transform:translateY(-50%);
     color:var(--danger); font-weight:700; font-size:16px; }
+  /* ---- cell battle ---- */
+  .pick-card.battle-picked{ border-color:var(--membrane); box-shadow:inset 0 0 0 2px var(--membrane); }
+  #battleBar{ position:absolute; top:0; left:0; right:0; z-index:40; display:none;
+              padding:8px 12px; background:var(--panel); border-bottom:1px solid var(--panel-line); }
+  #battleBar.active{ display:block; }
+  #battleTurn{ font-weight:700; text-align:center; }
+  #battleTurnSub{ text-align:center; color:var(--hud-dim); font-size:12px; margin-top:2px; }
+  #battleClockWrap{ height:4px; background:var(--panel-line); border-radius:2px; margin-top:7px; overflow:hidden; }
+  #battleClock{ height:100%; width:100%; background:var(--membrane); transition:width .1s linear; }
+  #battleLog{ position:absolute; left:10px; bottom:10px; z-index:40; display:none;
+              max-width:min(62vw,380px); font-size:12px; line-height:1.5; color:var(--hud-dim); }
+  #battleLog.active{ display:block; }
+  #battleLog div{ opacity:.55; }
+  #battleLog div:last-child{ opacity:1; color:var(--text); }
+  #battleBanner{ position:absolute; inset:0; z-index:60; display:none;
+                 align-items:center; justify-content:center; pointer-events:none; }
+  #battleBanner.active{ display:flex; }
+  #battleBannerText{ font-size:clamp(28px,8vw,64px); font-weight:800; letter-spacing:.06em;
+                     text-shadow:0 4px 24px rgba(0,0,0,.45); animation:battlePop .32s ease-out; }
+  @keyframes battlePop{ from{ transform:scale(.6); opacity:0; } to{ transform:scale(1); opacity:1; } }
+  @keyframes battleShake{
+    0%,100%{ transform:translate(0,0); } 20%{ transform:translate(-5px,3px); }
+    40%{ transform:translate(4px,-3px); } 60%{ transform:translate(-3px,-2px); }
+    80%{ transform:translate(3px,2px); } }
+  #stageEl.battle-shake{ animation:battleShake .26s ease-out; }
+  #battleStreak{ position:absolute; left:0; right:0; top:38%; z-index:55; display:none;
+                 text-align:center; font-size:clamp(20px,5vw,34px); font-weight:800; color:#ffd54d;
+                 text-shadow:0 2px 14px rgba(0,0,0,.5); animation:battleSweep .9s ease-out; }
+  #battleStreak.active{ display:block; }
+  @keyframes battleSweep{ 0%{ transform:translateX(-30%); opacity:0; }
+                          25%{ transform:translateX(0); opacity:1; }
+                          75%{ transform:translateX(0); opacity:1; }
+                          100%{ transform:translateX(30%); opacity:0; } }
+  @media (prefers-reduced-motion: reduce){
+    #stageEl.battle-shake{ animation:none; }
+    #battleBannerText, #battleStreak{ animation:none; }
+  }
+
   /* ---- metabolism atlas overlay ---- */
   #atlasModal{ position:fixed; inset:0; z-index:960; display:none; flex-direction:column;
                background:var(--bg-0); }
@@ -866,10 +904,26 @@
             <span class="cc-icon">📅</span><span class="cc-name">Review</span>
             <span class="cc-blurb" id="reviewModeBlurb">Spaced repetition, questions you've already studied.</span>
           </button>
+          <button class="pick-card" id="battleModeCard">
+            <span class="cc-icon">⚔️</span><span class="cc-name">Cell Battle</span>
+            <span class="cc-blurb">Duel a rival cell — every attack is a question.</span>
+          </button>
           <button class="pick-card" id="atlasModeCard">
             <span class="cc-icon">🗺️</span><span class="cc-name">Metabolism atlas</span>
             <span class="cc-blurb">Every pathway on one map, with the fed and fasting states.</span>
           </button>
+        </div>
+      </div>
+      <div id="battleSetupView" style="display:none;">
+        <h2>⚔️ Cell Battle</h2>
+        <p class="desc">Your cell against a rival. On your turn you attack by answering —
+           get it right and you land a hit, get it wrong and they hit back.
+           Three good hits knock a cell out.</p>
+        <div class="p-sub">Pick your question pool</div>
+        <div class="cancer-grid" id="battleCourseGrid"></div>
+        <div class="btn-row" style="margin-top:14px;">
+          <button class="secondary" id="battleBackBtn">← Back</button>
+          <button id="battleStartBtn" disabled>⚔️ Start the duel</button>
         </div>
       </div>
       <div id="customizeView" style="display:none;">
@@ -1340,6 +1394,14 @@
     <!-- The metabolism atlas, in an overlay rather than a navigation, so a run
          in progress survives opening it. The file is self-contained and local;
          nothing here reaches the network. -->
+    <div id="battleBar">
+      <div id="battleTurn">Your turn</div>
+      <div id="battleTurnSub"></div>
+      <div id="battleClockWrap"><div id="battleClock"></div></div>
+    </div>
+    <div id="battleLog"></div>
+    <div id="battleStreak"></div>
+    <div id="battleBanner"><div id="battleBannerText"></div></div>
     <div id="atlasModal" aria-hidden="true">
       <div id="atlasBar">
         <span id="atlasTitle">🗺️ Metabolism atlas</span>
@@ -3837,7 +3899,7 @@
     // put to avoid), and would otherwise fight a stray key/button press.
     const tutorialControllable = tutorialActive && tutorialStep===0;
     const trialControllable = trial.active && !trial.qOpen;
-    if(screenState!=='running' && !tutorialControllable && !trialControllable) return;
+    if(screenState!=='running' && screenState!=='battle' && !tutorialControllable && !trialControllable) return;
     const next = player.targetLane + dir;
     if(next>=0 && next<LANES) player.targetLane = next;
     if(tutorialControllable) tutorialUserTookControl = true;
@@ -3987,7 +4049,7 @@
       if(mcqSecondsLeft <= 10) mcqTimerBar.style.background = 'var(--danger)';
       if(mcqSecondsLeft <= 0){
         clearMcqTimer();
-        if(!mcqAnswered) answerMCQ(-1, true);
+        if(!mcqAnswered) currentAnswerHandler()(-1, true);
       }
     }, 1000);
   }
@@ -4007,7 +4069,16 @@
     if(mcqTimerWasRunning && !mcqAnswered) runMcqTimer();
     mcqTimerWasRunning = false;
   }
-  function presentQuestion(q, topic){
+  // Which function a click on an option calls. Runner, Practice and Review all
+  // want answerMCQ; Cell Battle wants its own, because none of answerMCQ's
+  // glucose/stage/gift bookkeeping applies to a duel. Set per served question
+  // by presentQuestion's `opts.onAnswer`, and reset to answerMCQ otherwise, so
+  // one mode can never leave its handler behind for the next.
+  let mcqAnswerHandler = null;
+  function currentAnswerHandler(){ return mcqAnswerHandler || answerMCQ; }
+
+  function presentQuestion(q, topic, opts){
+    mcqAnswerHandler = (opts && opts.onAnswer) || null;
     // Shuffle the option order per serve. nextQuestion() already does this
     // for Runner / Group Race / Custom run, but Study & Practice, Review and
     // study-guide item practice call us with the RAW authored question --
@@ -4041,7 +4112,7 @@
       const b = document.createElement('button');
       b.className = 'mcq-option';
       b.innerHTML = `<span class="opt-key">${i+1}</span>${opt}`;
-      b.addEventListener('click', ()=> answerMCQ(i));
+      b.addEventListener('click', ()=> currentAnswerHandler()(i));
       mcqOptions.appendChild(b);
     });
     mcqFeedback.style.display = 'none';
@@ -4867,6 +4938,9 @@
 
 
   mcqContinueBtn.addEventListener('click', ()=>{
+    // A duel has its own turn order and none of the run bookkeeping below
+    // applies to it, so it takes the click first.
+    if(quizMode==='battle' && typeof battleContinue==='function'){ battleContinue(); return; }
     if(mpRaceAlreadyOver()){ abandonIntoResult(); return; }
     mcqModal.classList.remove('active');
     if(quizMode==='practice'){
@@ -5326,12 +5400,31 @@
     // it reads instantly while lane-hopping instead of needing to be read.
     drawIconOnCanvas(meta.icon, x, y, 32*SCALE);
   }
+  // Floaters are the "+2 Life" / "-33" numbers that rise off a hit. Runner
+  // pushes plain ones; Cell Battle pushes bigger ones with a punch-in scale
+  // and a dark outline, because a damage number has to read over a brightly
+  // lit cell. Every extra field is optional and the defaults are what this
+  // drew before, so nothing else changes.
   function drawFloaters(){
     ctx.textAlign='center';
     for(const f of floaters){
-      ctx.globalAlpha = Math.max(0,f.life);
-      ctx.fillStyle = resolveCanvasColor(f.color); ctx.font = 'bold 14px monospace';
-      ctx.fillText(f.text, f.x, f.y);
+      const t = 1 - Math.max(0, Math.min(1, f.life));   // 0 at birth, 1 at death
+      const size = f.size || 14;
+      const scale = f.scale ? (f.scale + (1 - f.scale) * Math.min(1, t * 4)) : 1;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, f.life);
+      ctx.translate(f.x, f.y);
+      if(scale !== 1) ctx.scale(scale, scale);
+      ctx.font = `bold ${size}px monospace`;
+      if(f.outline){
+        ctx.lineWidth = Math.max(2, size * 0.18);
+        ctx.strokeStyle = 'rgba(0,0,0,.55)';
+        ctx.lineJoin = 'round';
+        ctx.strokeText(f.text, 0, 0);
+      }
+      ctx.fillStyle = resolveCanvasColor(f.color);
+      ctx.fillText(f.text, 0, 0);
+      ctx.restore();
       ctx.globalAlpha = 1;
     }
   }
@@ -7298,6 +7391,659 @@
     updateGiftHUD();
     mpSetOverButtons('solo');
   }
+
+  /* ======================================================================
+     CELL BATTLE — a turn-based duel where attacking means answering.
+
+     Your customised cell against a rival. On your turn you are served a
+     question: get it right and you land a hit, get it wrong and the rival
+     counters. Three clean hits knock a cell out.
+
+     This slice is deliberately local: the rival is a bot, there is no room
+     and no Firebase. That is not a placeholder for its own sake -- it means
+     the whole FEEL of the mode (the hit, the shake, the bar draining, the
+     KO) can be built and tuned from a file:// copy, and it already works on
+     the website build because it grades through the same gradeAnswer() seam
+     as everything else. Multiplayer is a room around this, not a rewrite.
+
+     Reused rather than rebuilt: drawCellSprite for both fighters,
+     drawExplosion for the impact, drawFloaters for the damage numbers,
+     canvasPalette so both themes work, podiumConfettiBurst for the win, and
+     the whole question card via presentQuestion(). The one thing it does NOT
+     reuse is the three-lane road -- the arena derives its own geometry from
+     W/H/SCALE, because laneX/projectLane encode a runner track.
+
+     Every number is in GAME_CONFIG.battle, so balancing is a data change.
+     ====================================================================== */
+  const BATTLE = Object.assign({
+    startHp: 100, hitsToKo: 3, counterDamage: 14, timeoutSelfDamage: 8,
+    turnSeconds: 20, streakEvery: 3, streakBonusDamage: 15,
+    critUnderFraction: 0.4, critMultiplier: 1.5,
+    lowHpFraction: 0.25, comebackMultiplier: 1.25, selfHealWhenLowest: 8,
+    ghostHoldMs: 350, ghostDrainPerSec: 70,
+    botSkill: 0.6, botThinkMs: 1400, scorePerHit: 50, scorePerKo: 300,
+  }, GAME_CONFIG.battle || {});
+  const BATTLE_HIT = Math.max(1, Math.round(BATTLE.startHp / BATTLE.hitsToKo));
+
+  const BOT_NAMES = ['Rival Cell', 'Mutant Clone', 'Rogue Phagocyte'];
+  const BOT_LOOKS = [
+    { color: CUSTOMIZE_COLORS[1], face: CUSTOMIZE_FACES[1], accessory: CUSTOMIZE_ACCESSORIES[2] },
+    { color: CUSTOMIZE_COLORS[3], face: CUSTOMIZE_FACES[2], accessory: CUSTOMIZE_ACCESSORIES[1] },
+    { color: CUSTOMIZE_COLORS[4], face: CUSTOMIZE_FACES[3], accessory: CUSTOMIZE_ACCESSORIES[3] },
+  ];
+
+  const battleBar = document.getElementById('battleBar');
+  const battleTurnEl = document.getElementById('battleTurn');
+  const battleTurnSub = document.getElementById('battleTurnSub');
+  const battleClock = document.getElementById('battleClock');
+  const battleClockWrap = document.getElementById('battleClockWrap');
+  const battleLogEl = document.getElementById('battleLog');
+  const battleBanner = document.getElementById('battleBanner');
+  const battleBannerText = document.getElementById('battleBannerText');
+  const battleStreakEl = document.getElementById('battleStreak');
+  const battleSetupView = document.getElementById('battleSetupView');
+  const battleCourseGrid = document.getElementById('battleCourseGrid');
+  const battleStartBtn = document.getElementById('battleStartBtn');
+
+  let battle = null;
+  let battleCourse = null;
+  let battleRaf = null;
+
+  function newFighter(name, look, isYou){
+    return { name, look, isYou,
+      hp: BATTLE.startHp, maxHp: BATTLE.startHp,
+      ghostHp: BATTLE.startHp, ghostHoldUntil: 0,
+      streak: 0, correct: 0, wrong: 0,
+      flash: 0, knock: 0, lunge: 0, dead: false, fall: 0 };
+  }
+
+  /** Every question in a course, flattened: a duel has no stages or topics. */
+  function battleQuestionPool(code){
+    const out = [];
+    const theme = THEMES[code];
+    if(!theme) return out;
+    Object.entries(theme.topics||{}).forEach(([topicKey,topic])=>{
+      Object.entries(topic.items||{}).forEach(([itemId,item])=>{
+        (item.questions||[]).forEach(q=>{
+          if(q && q.prompt && Array.isArray(q.options) && q.options.length>=2){
+            // __topicKey, not the topic object: presentQuestion looks the
+            // topic up in the flattened TOPICS map to draw its icon and label.
+            out.push(Object.assign({}, q, { itemId, __topicKey: topicKey }));
+          }
+        });
+      });
+    });
+    return out;
+  }
+
+  // ------------------------------------------------------------- setup view
+  function openBattleSetup(){
+    showScreen('landing');
+    cancerPickView.style.display = 'none';
+    battleSetupView.style.display = 'block';
+    renderBattleCourses();
+  }
+  function closeBattleSetup(){
+    battleSetupView.style.display = 'none';
+    cancerPickView.style.display = 'block';
+  }
+  function renderBattleCourses(){
+    battleCourseGrid.innerHTML = '';
+    Object.keys(THEMES).forEach(code=>{
+      const meta = THEMES[code];
+      if(!battleQuestionPool(code).length) return;
+      const b = document.createElement('button');
+      b.className = 'pick-card' + (battleCourse===code ? ' battle-picked' : '');
+      b.innerHTML = `<span class="cc-icon">${iconHTML(meta.icon,26)}</span>`
+                  + `<span class="cc-name">${escapeHtml(code)}</span>`
+                  + `<span class="cc-blurb">${escapeHtml(meta.label||'')}</span>`;
+      b.addEventListener('click', ()=>{
+        battleCourse = code; battleStartBtn.disabled = false;
+        renderBattleCourses(); SoundFX.click();
+      });
+      battleCourseGrid.appendChild(b);
+    });
+  }
+
+  // -------------------------------------------------------------- lifecycle
+  function startBattle(){
+    const pool = shuffle(battleQuestionPool(battleCourse));
+    if(!pool.length) return;
+    const n = Math.floor(Math.random()*BOT_NAMES.length);
+    battle = {
+      pool, poolAt: 0,
+      you: newFighter('You', playerCustomization, true),
+      foe: newFighter(BOT_NAMES[n], BOT_LOOKS[n], false),
+      turn: 'you', phase: 'idle', score: 0, log: [],
+      foeLane: 1, foeZ: 0, foeLaneAt: 0,
+      shake: 0, shakeUntil: 0, fx: null, deadline: 0, lastT: performance.now(),
+    };
+    battleSetupView.style.display = 'none';
+    cancerPickView.style.display = 'block';
+    landingScreen.classList.remove('active');
+    screenState = 'battle';
+    syncHudVisibility();
+    battleBar.classList.add('active');
+    battleLogEl.classList.add('active');
+    player.lane = 1; player.targetLane = 1; player.x = laneX(1);
+    seedArenaMotes();
+    battleLog(`A ${battle.foe.name} is running ahead of you.`);
+    SoundFX.stageComplete();
+    battleRaf = requestAnimationFrame(battleLoop);
+    setTimeout(battleBeginTurn, 700);
+  }
+
+  function endBattle(){
+    if(battleRaf) cancelAnimationFrame(battleRaf);
+    battleRaf = null; battle = null;
+    battleBar.classList.remove('active');
+    battleLogEl.classList.remove('active');
+    battleBanner.classList.remove('active');
+    battleStreakEl.classList.remove('active');
+    mcqModal.classList.remove('active');
+  }
+
+  function quitBattle(){
+    endBattle();
+    screenState = 'menu';
+    syncHudVisibility();
+    showScreen('landing');
+  }
+
+  // ------------------------------------------------------------------ turns
+  function battleBeginTurn(){
+    if(!battle || battle.phase==='over') return;
+    const mine = battle.turn==='you';
+    battle.phase = mine ? 'question' : 'resolving';
+    updateBattleBar();
+    if(mine){
+      const q = battle.pool[battle.poolAt++ % battle.pool.length];
+      battle.deadline = performance.now() + BATTLE.turnSeconds*1000;
+      quizMode = 'battle';
+      screenState = 'mcq';
+      pendingTopic = q.__topicKey;
+      presentQuestion(q, q.__topicKey, { onAnswer: battleAnswer });
+    } else {
+      setTimeout(()=>{
+        if(!battle || battle.phase==='over') return;
+        if(Math.random() < BATTLE.botSkill){
+          battleLandHit(battle.foe, battle.you, BATTLE_HIT, false, `${battle.foe.name} strikes`);
+        } else {
+          battleLog(`${battle.foe.name} fumbles its attack.`);
+          battleFloat(battle.foe, 'miss', '#9aa4b2');
+        }
+        setTimeout(battleAfterResolve, 900);
+      }, BATTLE.botThinkMs);
+    }
+  }
+
+  function battleAfterResolve(){
+    if(!battle) return;
+    if(battle.you.hp<=0 || battle.foe.hp<=0) return battleFinish();
+    battle.turn = battle.turn==='you' ? 'foe' : 'you';
+    battle.phase = 'idle';
+    updateBattleBar();
+    setTimeout(battleBeginTurn, 500);
+  }
+
+  /** Stands in for answerMCQ: same card, duel rules. */
+  async function battleAnswer(chosenIndex, isTimeout){
+    if(mcqAnswered) return;
+    mcqAnswered = true;
+    clearMcqTimer();
+    const q = pendingQuestion;
+    const started = battle ? battle.deadline - BATTLE.turnSeconds*1000 : 0;
+    await gradeAnswer(q, chosenIndex);
+    if(!battle) return;
+
+    const btns = mcqOptions.querySelectorAll('.mcq-option');
+
+    // Ungraded costs nothing and nobody attacks -- same rule as everywhere.
+    if(q.__ungraded){
+      btns.forEach((b,i)=>{ b.classList.add('disabled'); if(i===chosenIndex) b.classList.add('picked'); });
+      mcqVerdict.textContent = "Couldn't check this one — it won't count";
+      mcqVerdict.className = 'mcq-verdict';
+      mcqExplain.textContent = q.explanation || '';
+      mcqFeedback.style.display = 'block';
+      return;
+    }
+
+    const correct = chosenIndex === q.correctIndex;
+    btns.forEach((b,i)=>{
+      b.classList.add('disabled');
+      if(i===q.correctIndex) b.classList.add('correct');
+      else if(i===chosenIndex) b.classList.add('wrong');
+    });
+    mcqExplain.textContent = q.explanation || '';
+    mcqFeedback.style.display = 'block';
+
+    const you = battle.you, foe = battle.foe;
+    if(correct){
+      you.correct++; you.streak++;
+      let dmg = BATTLE_HIT;
+      const crit = (performance.now()-started) < BATTLE.turnSeconds*1000*BATTLE.critUnderFraction;
+      if(crit) dmg = Math.round(dmg*BATTLE.critMultiplier);
+      if(you.streak % BATTLE.streakEvery === 0) dmg += BATTLE.streakBonusDamage;
+      if(you.hp < you.maxHp*BATTLE.lowHpFraction) dmg = Math.round(dmg*BATTLE.comebackMultiplier);
+      mcqVerdict.textContent = crit ? `Critical hit — ${dmg} damage!` : `Hit — ${dmg} damage`;
+      mcqVerdict.className = 'mcq-verdict verdict-good';
+      battleLandHit(you, foe, dmg, crit, 'You strike');
+      if(you.hp < foe.hp && you.hp < you.maxHp){
+        you.hp = Math.min(you.maxHp, you.hp + BATTLE.selfHealWhenLowest);
+        battleFloat(you, `+${BATTLE.selfHealWhenLowest}`, '#3ee6b8');
+      }
+      if(you.streak % BATTLE.streakEvery === 0) showBattleStreak(you.streak);
+    } else {
+      you.wrong++; you.streak = 0;
+      if(isTimeout){
+        mcqVerdict.textContent = `Time's up — you take ${BATTLE.timeoutSelfDamage}`;
+        mcqVerdict.className = 'mcq-verdict verdict-bad';
+        battleLandHit(null, you, BATTLE.timeoutSelfDamage, false, 'The clock runs out');
+      } else {
+        mcqVerdict.textContent = `Missed — ${foe.name} counters for ${BATTLE.counterDamage}`;
+        mcqVerdict.className = 'mcq-verdict verdict-bad';
+        battleLandHit(foe, you, BATTLE.counterDamage, false, `${foe.name} counters`);
+      }
+    }
+
+    const authored = (isTimeout || chosenIndex==null || chosenIndex<0) ? -1
+      : (q.optionOrder ? q.optionOrder[chosenIndex] : chosenIndex);
+    const first = !loadSrsState()[srsKeyFor(q.itemId, q.id)];
+    recordSrsAnswer(q.itemId, q.id, correct);
+    recordQuestionStat(q.itemId, q.id, correct, authored, first);
+  }
+
+  /** The question card's Continue, while a duel is on. */
+  function battleContinue(){
+    mcqModal.classList.remove('active');
+    screenState = 'battle';
+    syncHudVisibility();
+    if(!battleRaf) battleRaf = requestAnimationFrame(battleLoop);
+    battleAfterResolve();
+  }
+
+  // ----------------------------------------------------------------- damage
+  function battleLandHit(from, to, dmg, crit, text){
+    to.hp = Math.max(0, to.hp - dmg);
+    to.ghostHoldUntil = performance.now() + BATTLE.ghostHoldMs;
+    to.flash = 1;
+    to.knock = to.isYou ? -1 : 1;
+    if(from) from.lunge = 1;
+
+    battle.shake = Math.min(12, dmg*0.35);
+    battle.shakeUntil = performance.now() + 260;
+    stageEl.classList.remove('battle-shake');
+    void stageEl.offsetWidth;
+    stageEl.classList.add('battle-shake');
+    setTimeout(()=> stageEl.classList.remove('battle-shake'), 300);
+
+    battleFloat(to, `-${dmg}`, crit ? '#ffd54d' : '#ff3b5c', crit);
+    if(from && from.isYou){
+      battle.score += BATTLE.scorePerHit;
+      battleFloat(from, `+${BATTLE.scorePerHit} pts`, '#3ee6b8');
+    }
+    battleLog(`${text} for ${dmg}.`);
+    SoundFX.correct();
+    setTimeout(()=> SoundFX.explosion(), 90);
+    battle.fx = { kind:'hit', at: performance.now(), target: to };
+
+    if(to.hp<=0 && !to.dead){
+      to.dead = true;
+      SoundFX.lose();
+      battleLog(`${to.isYou ? 'You are' : to.name + ' is'} knocked out.`);
+    }
+  }
+
+  function battleFloat(who, text, color, big){
+    const slot = battleSlot(who);
+    floaters.push({ x: slot.x, y: slot.y - slot.r - 14*SCALE, text: tx(text),
+      color, life: 1, size: (big?34:26)*SCALE, scale: 1.45, outline: true });
+  }
+
+  function battleLog(line){
+    if(!battle) return;
+    battle.log = battle.log.concat(line).slice(-4);
+    battleLogEl.innerHTML = battle.log.map(l=>`<div>${escapeHtml(l)}</div>`).join('');
+  }
+
+  function showBattleStreak(n){
+    battleStreakEl.textContent = `🔥 ${n} IN A ROW`;
+    battleStreakEl.classList.remove('active');
+    void battleStreakEl.offsetWidth;
+    battleStreakEl.classList.add('active');
+    setTimeout(()=> battleStreakEl.classList.remove('active'), 900);
+  }
+
+  function battleFinish(){
+    if(!battle || battle.phase==='over') return;
+    battle.phase = 'over';
+    const won = battle.foe.hp<=0 && battle.you.hp>0;
+    if(won) battle.score += BATTLE.scorePerKo;
+    const you = battle.you, foeName = battle.foe.name;
+    mcqModal.classList.remove('active');
+    screenState = 'battle';
+    syncHudVisibility();
+    battleBannerText.textContent = won ? 'VICTORY' : 'DEFEATED';
+    battleBannerText.style.color = won ? '#3ee6b8' : '#ff3b5c';
+    battleBanner.classList.add('active');
+    if(won){ SoundFX.win(); if(typeof podiumConfettiBurst==='function') podiumConfettiBurst(); }
+    else SoundFX.lose();
+    updateBattleBar();
+    const summary = `${won ? 'You won the duel' : `${foeName} won the duel`} — `
+      + `${you.correct} right, ${you.wrong} wrong, ${battle.score} pts.`;
+    setTimeout(()=>{
+      endBattle();
+      overTitle.textContent = won ? '⚔️ Victory' : '⚔️ Defeated';
+      overText.textContent = summary;
+      if(typeof mpSetOverButtons==='function') mpSetOverButtons(false);
+      showScreen('over');
+      screenState = 'over';
+      syncHudVisibility();
+    }, 2200);
+  }
+
+  // ----------------------------------------------------------------- chrome
+  function updateBattleBar(){
+    if(!battle) return;
+    if(battle.phase==='over'){
+      battleTurnEl.textContent = battle.foe.hp<=0 ? 'Knocked out!' : 'You are down';
+      battleTurnSub.textContent = '';
+      battleClockWrap.style.visibility = 'hidden';
+      return;
+    }
+    const mine = battle.turn==='you';
+    battleTurnEl.textContent = mine ? '⚔️ Your turn — answer to attack'
+                                    : `${battle.foe.name} is attacking…`;
+    battleTurnSub.textContent = `You ${Math.ceil(battle.you.hp)} HP  ·  ${battle.foe.name} ${Math.ceil(battle.foe.hp)} HP`;
+    battleClockWrap.style.visibility = (mine && battle.phase==='question') ? 'visible' : 'hidden';
+  }
+
+  // ----------------------------------------------------------------- render
+  /* The duel happens ON the track, not on a flat backdrop. You keep running
+     the whole time -- the road scrolls, you can still change lane -- and the
+     rival runs ahead of you at a real depth, so it is drawn smaller and
+     higher by the same projection every other entity uses. That is what makes
+     it read as a chase rather than two sprites facing off. */
+  function battleSlot(who){
+    const hz = arenaY(), span = H - hz;
+    if(who.isYou){
+      // Near corner, full size. Steering slides you across the front of the
+      // arena rather than between three fixed lanes -- it is a stage, not a
+      // tube -- so the lane target is scaled down into a gentler drift.
+      const drift = (player.x - W/2) * 0.55;
+      return { x: W/2 + drift, y: hz + span*0.74, r: 32*SCALE, s: 1 };
+    }
+    // Far side, smaller, and it shifts across as it moves.
+    const k = 0.58 + battle.foeZ*0.04;
+    return { x: W/2 + (battle.foeLane-1)*W*0.17, y: hz + span*0.20, r: 32*SCALE*k, s: k };
+  }
+
+
+  /* ---------------------------------------------------------------------
+     The arena.
+
+     A stadium, not a corridor: a ground plane running back to a horizon,
+     a lit platform under each fighter, and a backdrop with depth. The road
+     from Runner mode is a three-lane tube, which is right for running and
+     wrong for a duel -- so this is its own thing, built from the same
+     projection maths (projectZ) so near and far agree with where the
+     fighters actually are.
+
+     It keeps moving. The grid scrolls toward the viewer the whole time,
+     including on the rival's turn, so the match never feels like a menu.
+     --------------------------------------------------------------------- */
+  const ARENA_HORIZON = 0.34;         // fraction of the usable height
+  let arenaMotes = null;              // drifting cells in the backdrop
+
+  function arenaY(){ return topInset + (H - topInset) * ARENA_HORIZON; }
+
+  function seedArenaMotes(){
+    arenaMotes = [];
+    for(let i=0;i<26;i++){
+      arenaMotes.push({
+        x: Math.random(), y: Math.random(),
+        r: 6 + Math.random()*26,
+        depth: 0.25 + Math.random()*0.75,   // parallax factor
+        drift: (Math.random()-0.5)*0.02,
+        hue: Math.random(),
+      });
+    }
+  }
+
+  function drawArena(b){
+    const pal = canvasPalette();
+    const hz = arenaY();
+    const light = currentTheme !== 'dark';
+    const membrane = resolveCanvasColor('var(--membrane)');
+
+    // ---- sky / far backdrop ------------------------------------------
+    const sky = ctx.createLinearGradient(0, topInset, 0, hz);
+    if(light){ sky.addColorStop(0, '#ffe7f0'); sky.addColorStop(1, '#ffd0e2'); }
+    else { sky.addColorStop(0, '#12040b'); sky.addColorStop(1, '#43102a'); }
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, hz+1);
+
+    // Distant cells drifting across the backdrop, parallaxed by depth.
+    if(!arenaMotes) seedArenaMotes();
+    ctx.save();
+    for(const m of arenaMotes){
+      m.x += m.drift * 0.004;
+      if(m.x < -0.2) m.x = 1.2; else if(m.x > 1.2) m.x = -0.2;
+      const px = m.x * W;
+      const py = topInset + m.y * (hz - topInset);
+      const r = m.r * m.depth * SCALE;
+      ctx.globalAlpha = (light ? 0.16 : 0.22) * m.depth;
+      ctx.fillStyle = m.hue > 0.6 ? membrane : (light ? '#d6106a' : '#ff5d8f');
+      ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = (light ? 0.10 : 0.14) * m.depth;
+      ctx.beginPath(); ctx.arc(px - r*0.3, py - r*0.3, r*0.45, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+
+    // ---- ground ------------------------------------------------------
+    const ground = ctx.createLinearGradient(0, hz, 0, H);
+    if(light){ ground.addColorStop(0, '#f6c3d4'); ground.addColorStop(1, '#fff1f5'); }
+    else { ground.addColorStop(0, '#3a0d1c'); ground.addColorStop(1, '#1c0710'); }
+    ctx.fillStyle = ground;
+    ctx.fillRect(0, hz, W, H - hz);
+
+    // Perspective grid. Rows are spaced by the same 1/(1+z) projection the
+    // fighters use, so a fighter standing "at z" lands on the right row.
+    // Rows bunch up towards the horizon (t = u^2) and scroll towards the
+    // viewer, which is what sells the depth and the motion at once.
+    ctx.save();
+    ctx.strokeStyle = light ? 'rgba(214,16,106,.55)' : 'rgba(255,93,143,.45)';
+    const span = H - hz;
+    const ROWS = 11;
+    const scroll = (roadScroll * 0.0016) % 1;
+    for(let i=0;i<=ROWS;i++){
+      const u = (i + scroll) / ROWS;
+      if(u > 1) continue;
+      const yy = hz + span * (u*u);
+      ctx.globalAlpha = 0.10 + 0.5*(u*u);
+      ctx.lineWidth = 1 + 1.6*(u*u);
+      ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(W, yy); ctx.stroke();
+    }
+    // Rails fanning out of the vanishing point.
+    for(let i=-7;i<=7;i++){
+      if(i===0) continue;
+      ctx.globalAlpha = 0.16;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(W/2 + i*(W*0.012), hz);
+      ctx.lineTo(W/2 + i*(W*0.17), H);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // ---- fog at the horizon, so the ground fades rather than stops ----
+    const fog = ctx.createLinearGradient(0, hz - 26*SCALE, 0, hz + 54*SCALE);
+    fog.addColorStop(0, light ? 'rgba(255,225,236,0)' : 'rgba(67,16,42,0)');
+    fog.addColorStop(0.5, light ? 'rgba(255,225,236,.85)' : 'rgba(67,16,42,.85)');
+    fog.addColorStop(1, light ? 'rgba(246,195,212,0)' : 'rgba(58,13,28,0)');
+    ctx.fillStyle = fog;
+    ctx.fillRect(0, hz - 26*SCALE, W, 80*SCALE);
+
+    // ---- a lit platform under each fighter ---------------------------
+    drawArenaPlatform(battleSlot(b.foe), b.foe, b.turn === 'foe');
+    drawArenaPlatform(battleSlot(b.you), b.you, b.turn === 'you');
+
+    // ---- vignette -----------------------------------------------------
+    const vig = ctx.createRadialGradient(W/2, H*0.55, Math.min(W,H)*0.28, W/2, H*0.55, Math.max(W,H)*0.78);
+    vig.addColorStop(0, 'rgba(0,0,0,0)');
+    vig.addColorStop(1, light ? 'rgba(120,40,70,.16)' : 'rgba(0,0,0,.45)');
+    ctx.fillStyle = vig;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  /** The disc a fighter stands on. Lights up on their turn. */
+  function drawArenaPlatform(slot, f, isActive){
+    const rx = slot.r * 2.1, ry = slot.r * 0.72;
+    const y = slot.y + slot.r * 0.96;
+    const tint = f.isYou ? (f.look.color || resolveCanvasColor('var(--membrane)')) : '#ffa24d';
+
+    ctx.save();
+    // Glow under the active fighter, so whose turn it is reads from the floor.
+    if(isActive){
+      const g = ctx.createRadialGradient(slot.x, y, 0, slot.x, y, rx*1.5);
+      g.addColorStop(0, tint + '55');
+      g.addColorStop(1, tint + '00');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.ellipse(slot.x, y, rx*1.5, ry*1.5, 0, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(0,0,0,.18)';
+    ctx.beginPath(); ctx.ellipse(slot.x, y + ry*0.16, rx, ry, 0, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = tint;
+    ctx.globalAlpha = isActive ? 0.95 : 0.45;
+    ctx.lineWidth = Math.max(1.5, 2.4*(slot.s||1));
+    ctx.beginPath(); ctx.ellipse(slot.x, y, rx, ry, 0, 0, Math.PI*2); ctx.stroke();
+    ctx.globalAlpha = isActive ? 0.22 : 0.10;
+    ctx.fillStyle = tint;
+    ctx.beginPath(); ctx.ellipse(slot.x, y, rx, ry, 0, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  function battleStep(dt, now){
+    const b = battle;
+
+    // The road keeps rolling and you keep steering, even while it is the
+    // rival's turn -- standing still would make the whole thing feel like a
+    // menu with sound effects.
+    roadScroll += dt * GAME_CONFIG.baseSpeed * 0.55;
+    player.x += (laneX(player.targetLane) - player.x) * Math.min(1, dt*10);
+    player.wob += dt*8;
+
+    // The rival drifts in depth and changes lane now and then, so it reads as
+    // something running away from you rather than a decal on the road.
+    b.foeZ = Math.sin(now/900)*0.6;   // gentle scale breathing, not road depth
+    b.foeLaneAt += dt;
+    if(b.foeLaneAt > 2.6){
+      b.foeLaneAt = 0;
+      b.foeLane = Math.max(0, Math.min(2, b.foeLane + (Math.random()<0.5 ? -1 : 1)));
+    }
+    b.foeLaneX = b.foeLane;
+
+    for(const f of [b.you, b.foe]){
+      if(f.flash>0) f.flash = Math.max(0, f.flash - dt*4);
+      if(f.knock!==0) f.knock *= Math.max(0, 1 - dt*7);
+      if(f.lunge>0) f.lunge = Math.max(0, f.lunge - dt*5);
+      if(f.dead) f.fall = Math.min(1, f.fall + dt*1.1);
+      if(now > f.ghostHoldUntil && f.ghostHp > f.hp){
+        f.ghostHp = Math.max(f.hp, f.ghostHp - BATTLE.ghostDrainPerSec*dt);
+      }
+      if(f.ghostHp < f.hp) f.ghostHp = f.hp;
+    }
+    if(b.shakeUntil < now) b.shake = 0;
+    for(const f of floaters){ f.y -= dt*40; f.life -= dt*0.9; }
+    while(floaters.length && floaters[0].life<=0) floaters.shift();
+  }
+
+  function drawHpBar(f){
+    const slot = battleSlot(f);
+    const k = Math.max(0.55, slot.s || 1);        // shrink with distance, but stay legible
+    const w = 150*SCALE*k, h = 9*SCALE*k;
+    // Yours sits under you; the rival's floats above it, so neither covers the road ahead.
+    const x = slot.x - w/2;
+    const y = f.isYou ? (slot.y + slot.r + 16*SCALE) : (slot.y - slot.r - 26*SCALE*k);
+    ctx.fillStyle = 'rgba(128,136,150,.28)';
+    roundRect(ctx, x, y, w, h, h/2); ctx.fill();
+    const gw = w * Math.max(0, f.ghostHp/f.maxHp);
+    if(gw>0){ ctx.fillStyle = 'rgba(255,99,120,.55)'; roundRect(ctx, x, y, gw, h, h/2); ctx.fill(); }
+    const hw = w * Math.max(0, f.hp/f.maxHp);
+    if(hw>0){
+      ctx.fillStyle = (f.hp/f.maxHp < BATTLE.lowHpFraction) ? '#ff3b5c'
+                     : (f.isYou ? (f.look.color || '#3ee6b8') : '#ffa24d');
+      roundRect(ctx, x, y, hw, h, h/2); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = 1;
+    for(let v=BATTLE_HIT; v<f.maxHp; v+=BATTLE_HIT){
+      const tickX = x + w*(v/f.maxHp);
+      ctx.beginPath(); ctx.moveTo(tickX, y); ctx.lineTo(tickX, y+h); ctx.stroke();
+    }
+    ctx.fillStyle = resolveCanvasColor('var(--text)');
+    ctx.font = `bold ${12*SCALE*k}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(`${f.name}  ${Math.ceil(f.hp)}`, slot.x, y + h + 14*SCALE*k);
+  }
+
+  function drawFighter(f){
+    const slot = battleSlot(f);
+    const now = performance.now();
+    const wob = Math.sin(now/260 + (f.isYou?0:2))*2;
+    const x = slot.x + f.knock*10*SCALE;
+    const y = slot.y + f.lunge*(f.isYou?-1:1)*18*SCALE + (f.dead ? f.fall*f.fall*180*SCALE : 0);
+    ctx.save();
+    if(f.dead){
+      ctx.globalAlpha = Math.max(0, 1-f.fall);
+      ctx.translate(x,y); ctx.rotate(f.fall*1.4); ctx.translate(-x,-y);
+    }
+    drawCellSprite(ctx, x, y, slot.r, f.look, wob);
+    ctx.restore();
+    if(f.flash>0){
+      ctx.save();
+      ctx.globalAlpha = f.flash*0.75;
+      ctx.fillStyle = f.flash>0.6 ? '#ffffff' : '#ff3b5c';
+      ctx.beginPath(); ctx.arc(x, y, slot.r*1.05, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function drawBattle(){
+    const b = battle;
+    const pal = canvasPalette();
+    ctx.save();
+    if(b.shake>0) ctx.translate((Math.random()-0.5)*b.shake*SCALE, (Math.random()-0.5)*b.shake*SCALE);
+    drawArena(b);
+    // Far to near, so the nearer fighter overlaps the further one.
+    drawFighter(b.foe); drawHpBar(b.foe);
+    drawFighter(b.you); drawHpBar(b.you);
+    if(b.fx && b.fx.kind==='hit'){
+      const t = (performance.now()-b.fx.at)/520;
+      if(t>=1) b.fx = null;
+      else { const s = battleSlot(b.fx.target); drawExplosion(s.x, s.y, t, false); }
+    }
+    drawFloaters();
+    ctx.restore();
+    if(b.phase==='question' && b.deadline){
+      const left = Math.max(0, b.deadline - performance.now());
+      battleClock.style.width = `${(left/(BATTLE.turnSeconds*1000))*100}%`;
+    }
+  }
+
+  function battleLoop(t){
+    if(!battle || (screenState!=='battle' && screenState!=='mcq')){ battleRaf = null; return; }
+    const dt = Math.min(0.033, (t-battle.lastT)/1000);
+    battle.lastT = t;
+    battleStep(dt, t);
+    if(screenState==='battle') drawBattle();
+    updateBattleBar();
+    battleRaf = requestAnimationFrame(battleLoop);
+  }
+
+  // ---------------------------------------------------------------- wiring
+  document.getElementById('battleModeCard')?.addEventListener('click', ()=>{ SoundFX.click(); openBattleSetup(); });
+  document.getElementById('battleBackBtn')?.addEventListener('click', closeBattleSetup);
+  battleStartBtn?.addEventListener('click', ()=>{ if(battleCourse) startBattle(); });
 
   // ---------- init ----------
   const GAME_VERSION = '2026-09-24-vertical-track'; // bump this string whenever you send friends a new copy of the file
