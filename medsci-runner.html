@@ -257,6 +257,7 @@
   .br-q .br-bar{ margin-top:6px; }
   .br-note{ font-size:12.5px; color:var(--hud-dim); margin-top:8px; }
   #feedbackFromOverBtn{ border:none; background:none; box-shadow:none; color:var(--hud-dim); font-size:12.5px; text-decoration:underline; text-underline-offset:3px; padding:8px; }
+  #soundVolume{ width:74px; accent-color:var(--membrane); vertical-align:middle; cursor:pointer; }
   .screen h2{ font-family:var(--display); font-style:italic; font-weight:400; font-size:30px; margin:0 0 6px; }
   .screen p.desc{ color:var(--hud-dim); max-width:480px; line-height:1.55; font-size:13px; margin:0 auto 16px; text-align:center; }
 
@@ -831,6 +832,7 @@
       <div id="hudRightCol">
         <div id="hudRight">
           <button class="icon-btn" id="soundToggleBtn" title="Mute sound effects">🔊</button>
+          <input type="range" id="soundVolume" min="0" max="100" step="5" value="80" title="Sound volume" aria-label="Sound volume">
           <button class="icon-btn" id="pauseBtn" title="Pause (P)">⏸</button>
           <button class="icon-btn" id="guideBtn" title="Study guide">📚</button>
         </div>
@@ -1855,38 +1857,119 @@
     if(audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
     return audioCtx;
   }
-  // One tone: a sine/square/etc. oscillator with a short attack/decay
-  // envelope so it doesn't click at the start or end. Everything below is
-  // built out of one or more calls to this.
+  /* ------------------------------------------------------------- sound
+     Everything is synthesised: no audio files, so it works offline and adds
+     nothing to load. Three building blocks --
+
+       tone()   an oscillator with a click-free envelope
+       noise()  filtered white noise: every impact, whoosh and clang
+       duck()   dips everything else for a moment so a big hit punches through
+
+     -- all routed through one master bus (volume, then a compressor) so
+     layered cues cannot clip and one slider controls the lot. */
+  let masterGain = null, noiseBuffer = null;
+  let soundVolume = (function(){
+    try { const v = parseFloat(localStorage.getItem('soundVolume')); return isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.8; }
+    catch(e){ return 0.8; }
+  })();
+  function audioOut(ctx){
+    if(!masterGain){
+      masterGain = ctx.createGain(); masterGain.gain.value = soundVolume;
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -14; comp.ratio.value = 6; comp.attack.value = 0.003; comp.release.value = 0.18;
+      masterGain.connect(comp); comp.connect(ctx.destination);
+    }
+    return masterGain;
+  }
   function tone(freq, startAt, duration, {type='sine', gain=0.18, sweepTo=null}={}){
     if(soundMuted) return;
     const ctx = getAudioCtx();
     if(!ctx) return;
+    const t0 = ctx.currentTime + startAt;
     const osc = ctx.createOscillator();
     const g = ctx.createGain();
     osc.type = type;
-    osc.frequency.setValueAtTime(freq, ctx.currentTime + startAt);
-    if(sweepTo) osc.frequency.linearRampToValueAtTime(sweepTo, ctx.currentTime + startAt + duration);
-    g.gain.setValueAtTime(0, ctx.currentTime + startAt);
-    g.gain.linearRampToValueAtTime(gain, ctx.currentTime + startAt + 0.008);
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + startAt + duration);
-    osc.connect(g); g.connect(ctx.destination);
-    osc.start(ctx.currentTime + startAt);
-    osc.stop(ctx.currentTime + startAt + duration + 0.02);
+    osc.frequency.setValueAtTime(freq, t0);
+    if(sweepTo) osc.frequency.exponentialRampToValueAtTime(Math.max(1, sweepTo), t0 + duration);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(gain, t0 + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+    osc.connect(g); g.connect(audioOut(ctx));
+    osc.start(t0);
+    osc.stop(t0 + duration + 0.02);
   }
+  function noise(startAt, duration, {filter='lowpass', freq=1200, sweepTo=null, gain=0.2, q=0.8}={}){
+    if(soundMuted) return;
+    const ctx = getAudioCtx();
+    if(!ctx) return;
+    if(!noiseBuffer){
+      noiseBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const d = noiseBuffer.getChannelData(0);
+      for(let i=0;i<d.length;i++) d[i] = Math.random()*2 - 1;
+    }
+    const t0 = ctx.currentTime + startAt;
+    const src = ctx.createBufferSource(); src.buffer = noiseBuffer; src.loop = true;
+    const f = ctx.createBiquadFilter(); f.type = filter; f.Q.value = q;
+    f.frequency.setValueAtTime(freq, t0);
+    if(sweepTo) f.frequency.exponentialRampToValueAtTime(Math.max(20, sweepTo), t0 + duration);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(gain, t0 + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+    src.connect(f); f.connect(g); g.connect(audioOut(ctx));
+    src.start(t0, Math.random()*0.5);
+    src.stop(t0 + duration + 0.02);
+  }
+  function duck(depth=0.5, seconds=0.16){
+    if(soundMuted || !masterGain || !audioCtx) return;
+    const t = audioCtx.currentTime, g = masterGain.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(soundVolume, t + 0.03);
+    g.linearRampToValueAtTime(soundVolume*depth, t + 0.05);
+    g.linearRampToValueAtTime(soundVolume, t + 0.05 + seconds);
+  }
+  // A few percent of random pitch on cues that repeat, so the thirtieth
+  // correct answer does not sound like the first played back.
+  const jit = (amount=0.03)=> 1 + (Math.random()*2 - 1)*amount;
+  const PENTATONIC = [0, 2, 4, 7, 9];
   const SoundFX = {
-    correct(){ tone(660,0,0.11,{type:'sine',gain:0.16}); tone(880,0.09,0.16,{type:'sine',gain:0.18}); },
-    wrong(){ tone(220,0,0.22,{type:'sawtooth',gain:0.14,sweepTo:140}); },
-    pickup(){ tone(1100,0,0.07,{type:'sine',gain:0.11}); },
-    damage(){ tone(120,0,0.18,{type:'square',gain:0.16,sweepTo:60}); },
-    explosion(){ tone(90,0,0.4,{type:'sawtooth',gain:0.22,sweepTo:25}); tone(160,0.05,0.25,{type:'square',gain:0.12,sweepTo:40}); },
-    shieldBlock(){ tone(880,0,0.12,{type:'triangle',gain:0.16}); tone(1320,0.1,0.22,{type:'triangle',gain:0.16}); },
-    grenadeWhistle(){ tone(1400,0,0.9,{type:'sine',gain:0.08,sweepTo:500}); },
-    stageComplete(){ [523,659,784,1047].forEach((f,i)=> tone(f, i*0.09, 0.16, {type:'triangle',gain:0.15})); },
-    win(){ [523,659,784,1047,1319].forEach((f,i)=> tone(f, i*0.1, 0.22, {type:'triangle',gain:0.16})); },
-    lose(){ [392,330,262].forEach((f,i)=> tone(f, i*0.15, 0.28, {type:'sine',gain:0.14})); },
-    click(){ tone(440,0,0.05,{type:'sine',gain:0.06}); },
+    correct(){ const v = jit(); tone(660*v,0,0.11,{gain:0.15}); tone(990*v,0.08,0.2,{type:'triangle',gain:0.16}); noise(0.08,0.09,{filter:'highpass',freq:6000,gain:0.03}); },
+    // Each correct answer in a row steps up a pentatonic scale, so a streak is something you hear climb.
+    streak(n){
+      const i = Math.max(0, Math.min(n-1, 12));
+      const f = 523.25 * Math.pow(2, (PENTATONIC[i % 5] + 12*Math.floor(i/5)) / 12);
+      tone(f,0,0.1,{gain:0.15}); tone(f*1.5,0.07,0.2,{type:'triangle',gain:0.15});
+      if(n >= 3){ tone(f*2,0.14,0.26,{type:'triangle',gain:0.12}); noise(0.07,0.16,{filter:'highpass',freq:7000,gain:0.04}); }
+    },
+    wrong(){ tone(220,0,0.24,{type:'sawtooth',gain:0.12,sweepTo:130}); noise(0,0.14,{freq:500,sweepTo:120,gain:0.14}); },
+    pickup(){ const v = jit(0.05); tone(1100*v,0,0.06,{gain:0.1}); tone(1650*v,0.05,0.09,{gain:0.09}); },
+    heal(){ const v = jit(); tone(520*v,0,0.22,{gain:0.13,sweepTo:1040*v}); tone(1560*v,0.14,0.2,{type:'triangle',gain:0.08}); noise(0.1,0.2,{filter:'highpass',freq:5000,gain:0.03}); },
+    damage(){ const v = jit(0.06); noise(0,0.17,{freq:900,sweepTo:180,gain:0.26}); tone(115*v,0,0.2,{gain:0.2,sweepTo:52}); },
+    explosion(){ noise(0,0.6,{freq:2400,sweepTo:110,gain:0.38}); tone(72,0,0.5,{gain:0.3,sweepTo:28}); tone(1800,0,0.02,{type:'square',gain:0.08}); duck(0.45,0.2); },
+    shieldBlock(){ noise(0,0.13,{filter:'bandpass',freq:3200,q:9,gain:0.22}); tone(880,0,0.12,{type:'triangle',gain:0.14}); tone(1320,0.08,0.24,{type:'triangle',gain:0.14}); },
+    grenadeWhistle(){ tone(1400,0,0.9,{gain:0.07,sweepTo:500}); noise(0,0.9,{filter:'bandpass',freq:2600,sweepTo:900,q:4,gain:0.035}); },
+    stageComplete(){ [523,659,784,1047].forEach((f,i)=> tone(f, i*0.09, 0.18, {type:'triangle',gain:0.15})); noise(0.27,0.3,{filter:'highpass',freq:6500,gain:0.04}); },
+    win(){ [523,659,784,1047,1319].forEach((f,i)=>{ tone(f, i*0.1, 0.24, {type:'triangle',gain:0.15}); tone(f/2, i*0.1, 0.2, {gain:0.08}); });
+           tone(1568,0.5,0.6,{type:'triangle',gain:0.13}); noise(0.5,0.5,{filter:'highpass',freq:6000,gain:0.05}); },
+    lose(){ [392,330,262,196].forEach((f,i)=> tone(f, i*0.16, 0.32, {gain:0.14})); noise(0.48,0.4,{freq:400,sweepTo:90,gain:0.12}); },
+    click(){ tone(440*jit(0.04),0,0.05,{gain:0.06}); },
+    // ---- Cell Battle
+    battleStart(){ [392,523,659,784].forEach((f,i)=> tone(f, i*0.11, 0.2, {type:'square',gain:0.07})); tone(1047,0.44,0.4,{type:'triangle',gain:0.15});
+                   [0,0.11,0.22,0.44].forEach(t=> noise(t,0.07,{filter:'highpass',freq:3500,gain:0.07})); },
+    windUp(){ noise(0,0.42,{filter:'bandpass',freq:320,sweepTo:2600,q:2.5,gain:0.13}); tone(140,0,0.4,{type:'sawtooth',gain:0.05,sweepTo:420}); },
+    impact(){ const v = jit(0.06); noise(0,0.28,{freq:1900,sweepTo:140,gain:0.36}); tone(150*v,0,0.26,{gain:0.3,sweepTo:46}); tone(1900,0,0.016,{type:'square',gain:0.09}); duck(0.5,0.16); },
+    crit(){ this.impact(); tone(1760,0.02,0.2,{type:'triangle',gain:0.13}); tone(2637,0.07,0.3,{type:'triangle',gain:0.1}); noise(0.02,0.22,{filter:'bandpass',freq:5200,q:6,gain:0.08}); },
+    telegraph(){ tone(740,0,0.13,{type:'square',gain:0.06}); tone(622,0.16,0.13,{type:'square',gain:0.06}); tone(740,0.32,0.13,{type:'square',gain:0.06}); },
+    dodge(){ noise(0,0.22,{filter:'highpass',freq:900,sweepTo:5200,gain:0.12}); tone(880*jit(),0.06,0.12,{type:'triangle',gain:0.09}); },
+    ko(){ this.explosion(); [784,587,440,294].forEach((f,i)=> tone(f, 0.12 + i*0.09, 0.2, {type:'triangle',gain:0.12})); },
+    sudden(){ tone(110,0,0.9,{type:'sawtooth',gain:0.1}); tone(116.5,0,0.9,{type:'sawtooth',gain:0.1}); noise(0,0.9,{freq:300,sweepTo:1800,gain:0.1}); },
+    tick(){ tone(1000,0,0.03,{type:'square',gain:0.05}); },
   };
+  function setSoundVolume(v){
+    soundVolume = Math.min(1, Math.max(0, v));
+    try { localStorage.setItem('soundVolume', String(soundVolume)); } catch(e){ /* not persisted, still applied */ }
+    if(masterGain && audioCtx){ masterGain.gain.cancelScheduledValues(audioCtx.currentTime); masterGain.gain.setValueAtTime(soundVolume, audioCtx.currentTime); }
+  }
   function setSoundMuted(muted){
     soundMuted = muted;
     try { localStorage.setItem('soundMuted', muted ? 'yes' : 'no'); } catch(e){ /* fine — just won't persist across a reload in browsers that block file:// storage */ }
@@ -1898,6 +1981,12 @@
     setSoundMuted(!soundMuted);
   });
   setSoundMuted(soundMuted); // sync the icon to whatever was loaded/defaulted above
+  { const vol = document.getElementById('soundVolume');
+    if(vol){
+      vol.value = String(Math.round(soundVolume*100));
+      vol.addEventListener('input', ()=> setSoundVolume(Number(vol.value)/100));
+      vol.addEventListener('change', ()=>{ if(soundMuted) setSoundMuted(false); SoundFX.pickup(); });   // a sample at the new level
+    } }
 
 /* ======================================================================
    FIREBASE — used only for Group Race mode (real-time sync between
@@ -4693,7 +4782,7 @@
         mcqVerdict.textContent = 'Correct';
       }
       mcqVerdict.className = 'mcq-verdict verdict-good';
-      SoundFX.correct();
+      if(streak > 1) SoundFX.streak(streak); else SoundFX.correct();
     } else {
       streak = 0;
       if(quizMode==='runner'){
@@ -7798,6 +7887,7 @@
     seedArenaMotes();
     battleLog(battle.net ? (battle.net.spectator ? 'You are watching. WASD moves the camera.' : 'Everyone for themselves. WASD to walk, Space to attack whoever is nearest.')
                          : `A ${battle.foe.name} squares up. WASD to walk, Space to attack. Green orbs heal.`);
+    SoundFX.battleStart();
     battle.view = (battle.net && battle.net.spectator) ? 'top' : 'close';
     battle.yaw = 0;
     document.getElementById('battleViewBtn').style.display = 'block';
@@ -7906,7 +7996,7 @@
         // Aim at the patch of ground you are standing on NOW.
         b.foeTelegraph = { at: now, x: b.wx, z: b.wz };
         battleLog(`${b.foe.name} is winding up — move!`);
-        SoundFX.grenadeWhistle();
+        SoundFX.telegraph();
       }
       return;
     }
@@ -7918,7 +8008,7 @@
         battleLog('You dodge it.');
         b.dodges++;
         battleFloat(b.you, 'dodged', '#3ee6b8');
-        SoundFX.shieldBlock();
+        SoundFX.dodge();
       } else {
         battleQueueAttack(b.foe, b.you, BATTLE_HIT, false, `${b.foe.name} strikes`);
         battlePlayPending();
@@ -7974,6 +8064,7 @@
     const you = battle.you, foe = battle.foe;
     if(correct){
       you.correct++; you.streak++;
+      SoundFX.streak(you.streak);
       let dmg = BATTLE_HIT;
       const crit = (performance.now()-started) < BATTLE.turnSeconds*1000*BATTLE.critUnderFraction;
       if(crit) dmg = Math.round(dmg*BATTLE.critMultiplier);
@@ -7990,6 +8081,7 @@
       if(you.streak % BATTLE.streakEvery === 0) showBattleStreak(you.streak);
     } else {
       you.wrong++; you.streak = 0;
+      SoundFX.wrong();
       if(isTimeout){
         mcqVerdict.textContent = `Time's up — you take ${BATTLE.timeoutSelfDamage}`;
         mcqVerdict.className = 'mcq-verdict verdict-bad';
@@ -8059,7 +8151,7 @@
     battle.pending = null;
     battle.attack = Object.assign({ at: performance.now(), landed: false }, a);
     if(a.from) a.from.windup = 1;
-    SoundFX.grenadeWhistle();
+    SoundFX.windUp();
     return true;
   }
 
@@ -8096,12 +8188,14 @@
       battleFloat(from, `+${BATTLE.scorePerHit} pts`, '#3ee6b8');
     }
     battleLog(`${text} for ${dmg}.`);
-    SoundFX.explosion();
+    if(to.isYou) SoundFX.damage();
+    if(crit) SoundFX.crit(); else SoundFX.impact();
     battle.hitFx = { kind:'hit', at: performance.now(), target: to };
 
     if(!to.net && to.hp<=0 && !to.dead){
       to.dead = true;
       to.koAt = performance.now();
+      SoundFX.ko();
       battle.shake = 16;
       battle.shakeUntil = performance.now() + 520;
       battle.flash = 0.7;
@@ -8719,7 +8813,7 @@
           who.hp = Math.min(who.maxHp, who.hp + BATTLE_PICKUP_HEAL);
           battleFloat(who, `+${BATTLE_PICKUP_HEAL}`, '#3ee6b8');
           battleLog(who.isYou ? `You absorb a nutrient: +${BATTLE_PICKUP_HEAL} HP.` : `${who.name} grabs a nutrient: +${BATTLE_PICKUP_HEAL} HP.`);
-          if(who.isYou){ b.healed += BATTLE_PICKUP_HEAL; SoundFX.pickup(); }
+          if(who.isYou){ b.healed += BATTLE_PICKUP_HEAL; SoundFX.heal(); }
           break;
         }
       }
@@ -8730,7 +8824,7 @@
         b.sudden = true;
         for(const pk of b.pickups) pk.taken = true;
         battleLog('SUDDEN DEATH — no more healing, every hit does double.');
-        showBattleStreak(0, '⚡ SUDDEN DEATH');
+        showBattleStreak(0, '⚡ SUDDEN DEATH'); SoundFX.sudden();
       }
       if(b.clock >= BATTLE_TIME_UP && !b.attack && !b.pending){ b.timeUp = true; battleFinish(); return; }
     }
@@ -9285,7 +9379,7 @@
           b.healed += BATTLE_PICKUP_HEAL;
           battleFloat(b.you, `+${BATTLE_PICKUP_HEAL}`, '#3ee6b8');
           battleLog(`You absorb a nutrient: +${BATTLE_PICKUP_HEAL} HP.`);
-          SoundFX.pickup();
+          SoundFX.heal();
         }).catch(()=>{ pk.claiming = false; });
     });
 
