@@ -34,6 +34,77 @@
     }
   })();
 
+  /* ---------------------------------------------------------------- warming
+     Neon suspends an idle compute, and the wake happens inside the TLS
+     handshake: measured at ~3.0s to first byte, against 6-10ms once the
+     connection is up. That is the whole of the "why did answering freeze for
+     three seconds" problem -- it is not the query, and it is not the game.
+
+     The player spends several seconds reading a question before they commit,
+     so we spend those seconds opening the connection. By the time they click,
+     /api/answer is one warm round trip.
+
+     Fire-and-forget on purpose: a failed warm-up must never be visible, and
+     the real request will surface anything genuinely wrong. */
+  var WARM_ENDPOINT = '/api/warm';
+  var lastWarm = 0;
+
+  function warm() {
+    var now = Date.now();
+    if (now - lastWarm < 20000) return;   // the connection stays up; don't spam it
+    lastWarm = now;
+    try {
+      fetch(WARM_ENDPOINT, { cache: 'no-store', keepalive: true }).catch(function () {});
+    } catch (e) { /* nothing to do, and nothing to report */ }
+  }
+
+  warm();                                  // as the page boots
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) warm();          // coming back to a tab that went idle
+  });
+
+  /* Warm again the moment a question card opens. This is the one that matters:
+     it buys the whole reading time. */
+  function watchForQuestions() {
+    var modal = document.getElementById('mcqModal');
+    if (!modal) return;
+    new MutationObserver(function () {
+      if (modal.classList.contains('active')) warm();
+    }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', watchForQuestions);
+  } else {
+    watchForQuestions();
+  }
+
+  /* ------------------------------------------------------- instant feedback
+     The game's answerMCQ() awaits grading before it touches the DOM, so even a
+     fast round trip reads as a dead click. Acknowledge the press synchronously
+     -- before any await -- so the card reacts the instant it is pressed, and
+     let the game paint right/wrong when the verdict lands. */
+  function acknowledge(chosenIndex) {
+    try {
+      var box = document.getElementById('mcqOptions');
+      if (!box) return function () {};
+      var btns = box.querySelectorAll('.mcq-option');
+      btns.forEach(function (b) { b.classList.add('disabled'); });
+      var picked = btns[chosenIndex];
+      if (picked) picked.classList.add('picked');
+      // Only show "checking" if the wait is long enough to notice. Below this
+      // the verdict arrives first and nothing flickers.
+      var slow = setTimeout(function () {
+        if (picked) picked.classList.add('checking');
+      }, 180);
+      return function () {
+        clearTimeout(slow);
+        if (picked) picked.classList.remove('picked', 'checking');
+      };
+    } catch (e) {
+      return function () {};
+    }
+  }
+
   function playerUid() {
     try {
       return (window.__runnerPlayer && window.__runnerPlayer.uid) || null;
@@ -74,11 +145,13 @@
     // skipped the server entirely and marked every answer wrong.
     if (q.__graded) return;
     q.__graded = true;
+    var done = acknowledge(chosenIndex);
     var result = await grade({
       qid: q.id,
       chosenIndex: chosenIndex,
       optionOrder: q.optionOrder || null,
     });
+    done();
 
     if (result.error) {
       // Never silently mark something right. -1 matches no option, so the game

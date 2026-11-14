@@ -58,58 +58,113 @@ export async function POST(request: NextRequest) {
   const playerUid = text(body.playerUid);
   const roomId = text(body.roomId);
 
-  // ---- look up the key -------------------------------------------------
+  // ---- one round trip ---------------------------------------------------
+  // Look up the key, count recent attempts, and record this one, in a single
+  // statement. This used to be three awaited queries; the Neon HTTP driver
+  // makes a fresh request per query, so from Sydney that was three round trips
+  // on every click and the question card sat frozen for all of them.
+  //
+  // The option-order mapping has to happen before the insert knows whether the
+  // answer was right, so it happens here in SQL: `authored` is the chosen
+  // position translated through optionOrder, and the statement checks it
+  // against the real option count rather than trusting the client.
+  const order = Array.isArray(body.optionOrder) ? (body.optionOrder as unknown[]) : null;
+  const orderOk = order?.every((n) => typeof n === 'number' && Number.isInteger(n) && n >= 0) ?? true;
+  if (!orderOk) {
+    return NextResponse.json({ error: 'optionOrder is not a valid permutation' }, { status: 400 });
+  }
+  const orderInts = (order ?? []) as number[];
+
   const rows = (qid
-    ? await sql`select correct_index, explanation, array_length(options, 1) as option_count
-                  from questions where qid = ${qid}`
-    : await sql`select correct_index, explanation, array_length(options, 1) as option_count
-                  from fun_fact_questions where qid = ${funFactId}`) as {
+    ? await sql`
+        with q as (
+          select correct_index, explanation, array_length(options, 1) as option_count
+            from questions where qid = ${qid}
+        ),
+        choice as (
+          select q.*,
+                 case
+                   when ${chosenIndex} < 0 then -1
+                   when ${orderInts.length} = 0 then ${chosenIndex}
+                   when ${orderInts.length} <> q.option_count then null
+                   else (${orderInts}::int[])[${chosenIndex} + 1]
+                 end as authored
+            from q
+        ),
+        graded as (
+          select *, (authored is not null and authored >= 0 and authored = correct_index) as correct
+            from choice
+        ),
+        att as (
+          select count(*)::int as n from answer_events
+           where session_id = ${sessionId}
+             and question_qid = ${qid}
+             and answered_at > now() - ${ATTEMPT_WINDOW}::interval
+        ),
+        ins as (
+          insert into answer_events (player_uid, session_id, question_qid,
+                                     chosen_index, was_correct, room_id)
+          select ${playerUid}, ${sessionId}, ${qid}, ${chosenIndex}, g.correct, ${roomId}
+            from graded g, att
+           where (${sessionId}::text is null or att.n < ${MAX_ATTEMPTS_PER_QUESTION})
+             and (g.authored is not null or ${chosenIndex} < 0)
+             and (g.authored is null or g.authored < g.option_count)
+          returning 1
+        )
+        select g.correct_index, g.explanation, g.option_count, g.authored, g.correct,
+               att.n as attempts, (select count(*)::int from ins) as recorded
+          from graded g, att`
+    : await sql`
+        with q as (
+          select correct_index, explanation, array_length(options, 1) as option_count
+            from fun_fact_questions where qid = ${funFactId}
+        ),
+        choice as (
+          select q.*,
+                 case
+                   when ${chosenIndex} < 0 then -1
+                   when ${orderInts.length} = 0 then ${chosenIndex}
+                   when ${orderInts.length} <> q.option_count then null
+                   else (${orderInts}::int[])[${chosenIndex} + 1]
+                 end as authored
+            from q
+        ),
+        graded as (
+          select *, (authored is not null and authored >= 0 and authored = correct_index) as correct
+            from choice
+        ),
+        ins as (
+          insert into answer_events (player_uid, session_id, fun_fact_qid,
+                                     chosen_index, was_correct, room_id)
+          select ${playerUid}, ${sessionId}, ${funFactId}, ${chosenIndex}, g.correct, ${roomId}
+            from graded g
+           where g.authored is null or g.authored < g.option_count
+          returning 1
+        )
+        -- The grenade's trivia pool is exempt from the attempt limit: it is a
+        -- pass/fail gate on being hit, and rate-limiting it would punish the
+        -- player under attack.
+        select g.correct_index, g.explanation, g.option_count, g.authored, g.correct,
+               0 as attempts, (select count(*)::int from ins) as recorded
+          from graded g`) as {
       correct_index: number; explanation: string | null; option_count: number;
+      authored: number | null; correct: boolean; attempts: number; recorded: number;
     }[];
 
   const question = rows[0];
   if (!question) return NextResponse.json({ error: 'no such question' }, { status: 404 });
 
-  // ---- map the shuffle back to authored order --------------------------
-  let authoredChoice = chosenIndex;
-  if (chosenIndex >= 0 && Array.isArray(body.optionOrder)) {
-    const order = body.optionOrder as unknown[];
-    if (order.length !== question.option_count) {
-      return NextResponse.json({ error: 'optionOrder does not match this question' }, { status: 400 });
-    }
-    const mapped = order[chosenIndex];
-    if (typeof mapped !== 'number' || !Number.isInteger(mapped) || mapped < 0 || mapped >= question.option_count) {
-      return NextResponse.json({ error: 'optionOrder is not a valid permutation' }, { status: 400 });
-    }
-    authoredChoice = mapped;
+  if (question.authored === null) {
+    return NextResponse.json({ error: 'optionOrder does not match this question' }, { status: 400 });
   }
-  if (authoredChoice >= question.option_count) {
+  if (question.authored >= question.option_count) {
     return NextResponse.json({ error: 'chosenIndex is out of range' }, { status: 400 });
   }
-
-  // ---- attempt limit ---------------------------------------------------
-  // Only for real questions: the grenade's fun-fact pool is a pass/fail gate
-  // on a hit, and rate-limiting it would punish the player being attacked.
-  if (qid && sessionId) {
-    const [{ attempts }] = (await sql`
-      select count(*)::int as attempts
-        from answer_events
-       where session_id = ${sessionId}
-         and question_qid = ${qid}
-         and answered_at > now() - ${ATTEMPT_WINDOW}::interval`) as { attempts: number }[];
-    if (attempts >= MAX_ATTEMPTS_PER_QUESTION) {
-      return NextResponse.json({ error: 'too many attempts at this question' }, { status: 429 });
-    }
+  if (!question.recorded && qid && sessionId) {
+    return NextResponse.json({ error: 'too many attempts at this question' }, { status: 429 });
   }
 
-  // A timeout is recorded, and is never correct.
-  const correct = chosenIndex >= 0 && authoredChoice === question.correct_index;
-
-  await sql`
-    insert into answer_events (player_uid, session_id, question_qid, fun_fact_qid,
-                               chosen_index, was_correct, room_id)
-    values (${playerUid}, ${sessionId}, ${qid}, ${funFactId},
-            ${chosenIndex}, ${correct}, ${roomId})`;
+  const correct = question.correct;
 
   return NextResponse.json({
     qid: qid ?? funFactId,

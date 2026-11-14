@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
  */
 
 const ROOT = path.resolve(process.cwd(), '..');
-const ALLOWED_DIRS = new Set(['icons', 'images']);
+const ALLOWED_DIRS = new Set(['icons', 'images', 'atlas']);
 const ALLOWED_FILES = new Set(['feedback.html', 'feedback-questions.js']);
 
 const TYPES: Record<string, string> = {
