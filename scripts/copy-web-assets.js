@@ -23,5 +23,8 @@ fs.cpSync(path.join(root, 'images'), path.join(wwwDir, 'images'), { recursive: t
 // The metabolism atlas: one self-contained HTML file, no network, so it works
 // in the app exactly as it does in a browser. Generated -- see scripts/sync-atlas.sh.
 fs.cpSync(path.join(root, 'atlas'), path.join(wwwDir, 'atlas'), { recursive: true });
+// The 3D battle view and the library it needs. Without these the app still works; battles just stay 2D.
+fs.copyFileSync(path.join(root, 'battle3d.js'), path.join(wwwDir, 'battle3d.js'));
+fs.cpSync(path.join(root, 'vendor'), path.join(wwwDir, 'vendor'), { recursive: true });
 
 console.log('www/ rebuilt from medsci-runner.html, game-data.js, feedback.html, icons/, images/, atlas/ (developer-tool.html excluded)');
