@@ -235,6 +235,28 @@
   #mcqReportWrap{ margin-top:10px; padding:10px 12px; border:1px solid var(--panel-line); border-radius:10px; text-align:left; }
   #mcqReportWrap .btn-row{ justify-content:flex-start; }
   #mcqReportWrap button.secondary{ font-size:11.5px; padding:6px 12px; }
+  /* Cell Battle result: numbers as tiles, topics as bars, so it reads at a glance. */
+  #overBattle{ display:none; width:100%; max-width:560px; margin:0 auto 18px; }
+  #overBattle.on{ display:block; }
+  .br-tiles{ display:grid; grid-template-columns:repeat(auto-fit,minmax(92px,1fr)); gap:8px; }
+  .br-tile{ background:var(--panel); border:1px solid var(--panel-line); border-radius:14px; padding:11px 6px 9px; text-align:center; }
+  .br-tile b{ display:block; font-size:22px; font-weight:800; color:var(--hud-ink); font-variant-numeric:tabular-nums; line-height:1.15; }
+  .br-tile span{ font-size:11px; color:var(--hud-dim); }
+  .br-card{ background:var(--panel); border:1px solid var(--panel-line); border-radius:14px; padding:13px 15px; margin-top:10px; text-align:left; font-size:13px; }
+  .br-card h3{ margin:0 0 8px; font-size:11.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--hud-dim); font-weight:700; }
+  .br-row{ display:grid; grid-template-columns:minmax(0,1fr) 96px 34px; gap:10px; align-items:center; padding:4px 0; }
+  .br-row > span:last-child{ text-align:right; font-variant-numeric:tabular-nums; color:var(--hud-dim); }
+  .br-stand{ display:grid; grid-template-columns:22px minmax(0,1fr) auto auto; gap:10px; align-items:center; padding:5px 0; font-variant-numeric:tabular-nums; }
+  .br-stand.me{ font-weight:700; }
+  .br-stand.out{ opacity:.55; }
+  .br-bar{ height:8px; border-radius:4px; background:var(--panel-line); overflow:hidden; }
+  .br-bar i{ display:block; height:100%; background:var(--good); border-radius:4px; }
+  .br-bar.low i{ background:var(--danger); }
+  .br-q{ padding:8px 0; border-top:1px solid var(--panel-line); }
+  .br-q:first-of-type{ border-top:none; padding-top:0; }
+  .br-q .br-bar{ margin-top:6px; }
+  .br-note{ font-size:12.5px; color:var(--hud-dim); margin-top:8px; }
+  #feedbackFromOverBtn{ border:none; background:none; box-shadow:none; color:var(--hud-dim); font-size:12.5px; text-decoration:underline; text-underline-offset:3px; padding:8px; }
   .screen h2{ font-family:var(--display); font-style:italic; font-weight:400; font-size:30px; margin:0 0 6px; }
   .screen p.desc{ color:var(--hud-dim); max-width:480px; line-height:1.55; font-size:13px; margin:0 auto 16px; text-align:center; }
 
@@ -1268,6 +1290,7 @@
     <div class="screen" id="overScreen">
       <h2 id="overTitle">—</h2>
       <p class="desc" id="overText"></p>
+      <div id="overBattle"></div>
       <div id="overCountdown" style="display:none;"></div>
       <div id="overLiveBoard" style="display:none;width:100%;max-width:380px;margin:0 auto 16px;text-align:left;"></div>
       <div class="btn-row">
@@ -1275,7 +1298,7 @@
         <button class="secondary" id="againBtn">Play again</button>
         <button class="secondary" id="quitFromOverBtn">🏠 Quit to menu</button>
       </div>
-      <button class="secondary" id="feedbackFromOverBtn" style="margin-top:10px;">💬 Rate the game · help our project</button>
+      <button class="secondary" id="feedbackFromOverBtn" style="margin-top:6px;">💬 Rate the game · help our project</button>
     </div>
 
     <!-- GROUP RACE: host-only (non-racing host) view -->
@@ -2775,7 +2798,7 @@
     [landingScreen, pauseScreen, overScreen, spectatorEl].forEach(s=>s && s.classList.remove('active'));
     if(name==='landing'){ landingScreen.classList.add('active'); refreshReviewModeCardBlurb(); }
     if(name==='paused') pauseScreen.classList.add('active');
-    if(name==='over') overScreen.classList.add('active');
+    if(name==='over') overScreen.classList.add('active'); else setOverBattle('');
     if(name==='spectator' && spectatorEl) spectatorEl.classList.add('active');
   }
 
@@ -7767,7 +7790,8 @@
     seedArenaMotes();
     battleLog(battle.net ? (battle.net.spectator ? 'You are watching. WASD moves the camera.' : 'Everyone for themselves. WASD to walk, Space to attack whoever is nearest.')
                          : `A ${battle.foe.name} squares up. WASD to walk, Space to attack. Green orbs heal.`);
-    battle.view = (battle.net && battle.net.spectator) ? 'top' : 'third';
+    battle.view = (battle.net && battle.net.spectator) ? 'top' : 'close';
+    battle.yaw = 0;
     document.getElementById('battleViewBtn').style.display = 'block';
     if(battle.net){ battlePauseBtn.textContent = '🚪'; document.getElementById('battleBoard').classList.add('active'); if(battle.net.spectator) battleAttackBtn.style.display = 'none'; }
     else battlePauseBtn.textContent = '⏸';
@@ -8117,15 +8141,15 @@
     const mins = Math.floor(battle.clock/60), secs = String(Math.floor(battle.clock%60)).padStart(2,'0');
     const how = battle.timeUp ? (won ? 'You won on life when time ran out' : `${foeName} won on life when time ran out`)
                               : (won ? `You knocked out ${foeName}` : `${foeName} knocked you out`);
-    const summary = `${how}. ${you.correct}/${asked} attacks landed`
-      + `${asked ? ` (${Math.round(100*you.correct/asked)}%)` : ''}, ${battle.dodges} dodged, `
-      + `${battle.healed} HP healed, ${mins}:${secs} played, ${battle.score} pts. `
-      + `"View summary" lists every question.`;
+    const summary = `${how}.`;
+    const tiles = battleTilesHtml([
+      [`${you.correct}/${asked}`, asked ? `attacks landed (${Math.round(100*you.correct/asked)}%)` : 'attacks landed'],
+      [battle.dodges, 'dodged'], [battle.healed, 'HP healed'], [`${mins}:${secs}`, 'played'], [battle.score, 'points']]);
     setTimeout(()=>{
       endBattle();
       overTitle.textContent = won ? '⚔️ Victory' : '⚔️ Defeated';
       overText.textContent = summary;
-      overText.innerHTML += battleLearnHtml();
+      setOverBattle(tiles + battleLearnHtml());
       if(typeof mpSetOverButtons==='function') mpSetOverButtons(false);
       showScreen('over');
       screenState = 'over';
@@ -8615,8 +8639,15 @@
     ctx.restore();
   }
 
+  /** In the over-the-shoulder view, W means "the way the camera is facing", not "up the map". */
+  function battleMoveVec(mx, mz){
+    if(!battle || battle.view !== 'close') return [mx, mz];
+    const s = Math.sin(battle.yaw), c = Math.cos(battle.yaw);
+    return [mx*c + mz*s, mz*c - mx*s];
+  }
   function battleStep(dt, now){
     const b = battle;
+    if(b.view === 'close') b.yaw += ((battleHeld.rr ? 1 : 0) - (battleHeld.rl ? 1 : 0)) * dt * 2.2;
 
     // The road keeps rolling and you keep steering, even while it is the
     // rival's turn -- standing still would make the whole thing feel like a
@@ -8629,8 +8660,9 @@
       const mag = Math.hypot(mx, mz);
       if(mag > 0.05){
         const k = Math.min(1, mag) / mag;
-        b.wx += mx*k*BATTLE_MOVE*dt;
-        b.wz += mz*k*BATTLE_MOVE*dt;
+        const [rx, rz] = battleMoveVec(mx, mz);
+        b.wx += rx*k*BATTLE_MOVE*dt;
+        b.wz += rz*k*BATTLE_MOVE*dt;
         player.wob += dt*10;
       }
       b.wx = Math.max(-WORLD.halfW+40, Math.min(WORLD.halfW-40, b.wx));
@@ -8928,7 +8960,7 @@
     if(!battle3dPromise){
       // Bump the number whenever battle3d.js changes: it is served with a long
       // cache lifetime, and a stale copy is how a fixed bug stays on screen.
-      battle3dPromise = import('./battle3d.js?v=5')
+      battle3dPromise = import('./battle3d.js?v=8')
         .then(m=> m.createBattle3D({ glCanvas: battleGlCanvas, drawCell: drawCellSprite, roadHalf: ROAD_HALF }))
         .then(x=>{ b3 = x; return x; })
         .catch(err=>{ console.warn('[battle] 3D view unavailable, using the 2D view:', err); return null; });
@@ -8948,7 +8980,7 @@
     else add(b.foe, b.fx, b.fz, !!b.foeTelegraph, '#ffa24d', true);
     add(b.you, b.wx, b.wz, b.phase==='live' && now >= b.attackReadyAt, b.you.look.color || '#ff5d8f',
         b.view !== 'first' && !(b.net && (b.net.spectator || (b.you.dead && b.you.fall >= 1))));
-    b3.render({ view: b.view === 'stats' ? 'top' : b.view, camX: b.camX, camZ: b.camZ + 60, time: now, shake: b.shake, push: b.push, fighters: list, pickups: b.pickups,
+    b3.render({ view: b.view === 'stats' ? 'top' : b.view, px: b.wx, pz: b.wz, yaw: b.yaw || 0, camX: b.camX, camZ: b.camZ + 60, time: now, shake: b.shake, push: b.push, fighters: list, pickups: b.pickups,
       danger: b.foeTelegraph ? { x: b.foeTelegraph.x, z: b.foeTelegraph.z, r: DODGE_RADIUS,
                                  t: Math.min(1, (now - b.foeTelegraph.at) / FOE_TELEGRAPH_MS) } : null });
     for(const f of bars) if(!battleSlot(f).behind) drawHpBar(f);
@@ -9194,7 +9226,8 @@
       const mag = Math.hypot(mx, mz);
       if(mag > 0.05){
         const k = Math.min(1, mag) / mag, sp = BATTLE_MOVE * (b.phase==='live' ? 1 : 1.7);
-        b.wx += mx*k*sp*dt; b.wz += mz*k*sp*dt;
+        const [rx, rz] = battleMoveVec(mx, mz);
+        b.wx += rx*k*sp*dt; b.wz += rz*k*sp*dt;
         player.wob += dt*10;
       }
       b.wx = Math.max(-WORLD.halfW+40, Math.min(WORLD.halfW-40, b.wx));
@@ -9345,12 +9378,14 @@
     battleBanner.classList.add('active');
     if(iWon){ SoundFX.win(); if(typeof podiumConfettiBurst==='function') podiumConfettiBurst(); } else SoundFX.stageComplete();
     const myPlace = rows.findIndex(r=> r.me) + 1;
-    const table = rows.map((r, i)=> `${i+1}. ${escapeHtml(r.name)}${r.me ? ' (you)' : ''} — ${r.alive ? Math.round(r.hp) + ' HP' : 'out'}, ${r.correct}✓ ${r.wrong}✗`).join('<br>');
+    const table = '<div class="br-card" style="margin-top:0"><h3>Standings</h3>' + rows.map((r, i)=>
+      `<div class="br-stand${r.me ? ' me' : ''}${r.alive ? '' : ' out'}"><span>${i+1}</span><span>${escapeHtml(r.name)}${r.me ? ' (you)' : ''}</span>`
+      + `<span>${r.correct}✓ ${r.wrong}✗</span><span>${r.alive ? Math.round(r.hp) + ' HP' : 'out'}</span></div>`).join('') + '</div>';
     setTimeout(()=>{
       endBattle();
       overTitle.textContent = net.spectator ? '⚔️ Match over' : (iWon ? '⚔️ Victory' : `⚔️ You placed ${myPlace} of ${rows.length}`);
-      overText.innerHTML = `${winner ? escapeHtml(winner.name) + ' won the room.' : 'It ended in a draw.'}<br><br>${table}`
-        + (net.spectator ? battleRoomAnalysisHtml(room) : battleLearnHtml());
+      overText.textContent = winner ? `${winner.name} won the room.` : 'It ended in a draw.';
+      setOverBattle(table + (net.spectator ? battleRoomAnalysisHtml(room) : battleLearnHtml()));
       if(typeof mpSetOverButtons==='function') mpSetOverButtons(false);
       showScreen('over'); screenState = 'over'; syncHudVisibility();
     }, 2600);
@@ -9392,16 +9427,25 @@
      The fight is the hook; this is the point. Every result screen, including
      the one you get by leaving early, says which topics went badly and sends
      you to the full list with answers and explanations. */
+  function setOverBattle(html){
+    const el = document.getElementById('overBattle'); if(!el) return;
+    el.innerHTML = html || ''; el.classList.toggle('on', !!html);
+  }
+  function battleTilesHtml(list){
+    return '<div class="br-tiles">' + list.map(([v, l])=> `<div class="br-tile"><b>${v}</b><span>${l}</span></div>`).join('') + '</div>';
+  }
   function battleLearnHtml(){
     if(!sessionLog.length) return '';
     const by = {};
     for(const r of sessionLog){ const v = (by[r.topic] ??= { c: 0, n: 0 }); v.n++; if(r.correct) v.c++; }
     const rows = Object.entries(by).sort((a, c)=> (a[1].c/a[1].n) - (c[1].c/c[1].n))
-      .map(([k, v])=> `${escapeHtml((TOPICS[k] || {}).label || k)} ${v.c}/${v.n}`).join(' · ');
+      .map(([k, v])=>{ const pct = Math.round(100*v.c/v.n);
+        return `<div class="br-row"><span>${escapeHtml((TOPICS[k] || {}).label || k)}</span>`
+             + `<div class="br-bar${pct < 50 ? ' low' : ''}"><i style="width:${Math.max(pct, 4)}%"></i></div><span>${v.c}/${v.n}</span></div>`; }).join('');
     const missed = sessionLog.filter(r=> !r.correct).length;
-    return `<br><br><b>What to review</b><br>${rows}<br>`
-      + (missed ? `${missed} question${missed > 1 ? 's' : ''} missed. "View summary" has the answers and explanations.`
-                : 'Nothing missed. "View summary" lists every question.');
+    return `<div class="br-card"><h3>${missed ? 'What to review' : 'How you did by topic'}</h3>${rows}<div class="br-note">`
+      + (missed ? `${missed} question${missed > 1 ? 's' : ''} missed. View summary has the answers and explanations.`
+                : 'Nothing missed. View summary lists every question you answered.') + '</div></div>';
   }
   function battleRoomQuestions(room){
     return Object.values((room && room.qstats) || {}).filter(q=> q && q.n > 0)
@@ -9410,11 +9454,13 @@
   /** For the watching host, at the end: how the class did, hardest questions first. */
   function battleRoomAnalysisHtml(room){
     const qs = battleRoomQuestions(room);
-    if(!qs.length) return '<br><br>No questions were answered.';
+    if(!qs.length) return '<div class="br-card"><h3>Question analysis</h3>No questions were answered.</div>';
     const n = qs.reduce((t, q)=> t + q.n, 0), c = qs.reduce((t, q)=> t + q.c, 0);
-    return `<br><br><b>Question analysis</b> — ${c}/${n} correct across the room (${Math.round(100*c/n)}%)<br>`
-      + qs.slice(0, 10).map(q=> `<div style="text-align:left;margin-top:8px;"><b>${q.c}/${q.n} correct</b> — ${escapeHtml(q.p)}`
-        + `<br><span style="opacity:.75">Answer: ${escapeHtml(q.a || '')}</span></div>`).join('');
+    return `<div class="br-card"><h3>Question analysis · ${Math.round(100*c/n)}% correct across the room (${c}/${n})</h3>`
+      + qs.slice(0, 10).map(q=>{ const pct = Math.round(100*q.c/q.n);
+          return `<div class="br-q"><b>${q.c}/${q.n} correct</b> · ${escapeHtml(q.p)}`
+               + `<div style="opacity:.75">Answer: ${escapeHtml(q.a || '')}</div>`
+               + `<div class="br-bar${pct < 50 ? ' low' : ''}"><i style="width:${Math.max(pct, 3)}%"></i></div></div>`; }).join('') + '</div>';
   }
   /** For the watching host, live: the questions going worst so far. */
   function battleHardestHtml(room){
@@ -9440,21 +9486,22 @@
   }
   function battleLeaveToSummary(){
     if(!battle) return;
-    const you = battle.you, asked = you.correct + you.wrong;
+    const you = battle.you, asked = you.correct + you.wrong, leftScore = battle.score;
     endBattle();
     if(!asked){ quitToMenu(); return; }          // nothing answered, nothing to review
     quizMode = 'battle';
     overTitle.textContent = '⚔️ You left the match';
-    overText.innerHTML = `${you.correct}/${asked} attacks landed (${Math.round(100*you.correct/asked)}%).` + battleLearnHtml();
+    overText.textContent = 'You left before the end. Here is how it was going.';
+    setOverBattle(battleTilesHtml([[`${you.correct}/${asked}`, 'attacks landed'], [Math.round(100*you.correct/asked) + '%', 'accuracy'], [leftScore, 'points']]) + battleLearnHtml());
     if(typeof mpSetOverButtons==='function') mpSetOverButtons(false);
     showScreen('over'); screenState = 'over'; syncHudVisibility();
   }
   /** Players switch between behind-the-cell and first person; a watching host between the whole map and a free camera. */
   function battleCycleView(){
     if(!battle) return;
-    const order = (battle.net && battle.net.spectator) ? ['top', 'third', 'stats'] : ['third', 'first'];
+    const order = (battle.net && battle.net.spectator) ? ['top', 'third', 'stats'] : ['close', 'third'];
     battle.view = order[(order.indexOf(battle.view) + 1) % order.length];
-    battleLog({ top: 'View: the whole map.', third: 'View: free camera, WASD to move.', first: 'View: first person.', stats: 'View: live question analysis.' }[battle.view]);
+    battleLog({ top: 'View: the whole map.', third: 'View: free camera, WASD to move.', close: 'View: over the shoulder. Drag, or Q and E, to turn.', first: 'View: first person.', stats: 'View: live question analysis.' }[battle.view]);
   }
   document.getElementById('battleViewBtn')?.addEventListener('click', battleCycleView);
   // The host can call time: the match ends now and whoever has the most life wins.
@@ -9501,28 +9548,48 @@
   document.addEventListener('keydown', (e)=>{
     if(!battle || screenState!=='battle') return;
     const k = e.key.toLowerCase();
-    if(BATTLE_KEYS[k]){ battleHeld[BATTLE_KEYS[k]] = true; e.preventDefault(); }
+    const turn = (k==='q' || (k==='arrowleft' && battle.view==='close')) ? 'rl' : ((k==='e' || (k==='arrowright' && battle.view==='close')) ? 'rr' : null);
+    if(turn){ battleHeld[turn] = true; e.preventDefault(); }
+    else if(BATTLE_KEYS[k]){ battleHeld[BATTLE_KEYS[k]] = true; e.preventDefault(); }
     if(k===' ' || k==='enter'){ battleTryAttack(); e.preventDefault(); }
     if(k==='v') battleCycleView();
   });
   document.addEventListener('keyup', (e)=>{
     const k = e.key.toLowerCase();
     if(BATTLE_KEYS[k]) battleHeld[BATTLE_KEYS[k]] = false;
+    if(k==='q' || k==='arrowleft') battleHeld.rl = false;
+    if(k==='e' || k==='arrowright') battleHeld.rr = false;
   });
   battleAttackBtn?.addEventListener('click', battleTryAttack);
   // Touch / mouse: hold anywhere on the map and your cell walks toward it.
-  const battlePointer = (e)=>{
-    if(!battle || screenState!=='battle' || e.buttons===0 || e.target===battleAttackBtn){ battleHeld.px = battleHeld.pz = 0; return; }
+  let battleDrag = null;        // { x, y, lastX, turn }
+  const battlePointerDown = (e)=>{
+    if(!battle || screenState!=='battle' || e.target.closest('button')) return;
     const r = canvas.getBoundingClientRect();
-    const me = battleSlot(battle.you);
-    const sx = (e.clientX - r.left) * (W / r.width), sy = (e.clientY - r.top) * (H / r.height);
-    const dx = sx - me.x, dy = sy - me.y;
-    battleHeld.px = Math.max(-1, Math.min(1, dx / (W*0.12)));
-    battleHeld.pz = Math.max(-1, Math.min(1, -dy / (H*0.10)));
+    // Mouse always turns the camera (WASD moves). A finger on the left half is the move stick; on the right half it turns.
+    const turn = battle.view === 'close' && (e.pointerType !== 'touch' || e.clientX > r.left + r.width*0.5);
+    battleDrag = { x: e.clientX, y: e.clientY, lastX: e.clientX, turn };
+    if(battle.view !== 'close') battlePointerMove(e);
   };
-  stageEl.addEventListener('pointerdown', battlePointer);
-  stageEl.addEventListener('pointermove', battlePointer);
-  ['pointerup','pointercancel','pointerleave'].forEach(ev=> stageEl.addEventListener(ev, ()=>{ battleHeld.px = battleHeld.pz = 0; }));
+  const battlePointerMove = (e)=>{
+    if(!battle || screenState!=='battle' || !battleDrag || e.buttons===0){ battleHeld.px = battleHeld.pz = 0; return; }
+    if(battle.view === 'close'){
+      if(battleDrag.turn){ battle.yaw += (e.clientX - battleDrag.lastX) * 0.007; battleDrag.lastX = e.clientX; }
+      else {
+        battleHeld.px = Math.max(-1, Math.min(1, (e.clientX - battleDrag.x) / 60));
+        battleHeld.pz = Math.max(-1, Math.min(1, -(e.clientY - battleDrag.y) / 60));
+      }
+      return;
+    }
+    // Far view: hold anywhere and the cell walks toward that point.
+    const r = canvas.getBoundingClientRect(), me = battleSlot(battle.you);
+    const sx = (e.clientX - r.left) * (W / r.width), sy = (e.clientY - r.top) * (H / r.height);
+    battleHeld.px = Math.max(-1, Math.min(1, (sx - me.x) / (W*0.12)));
+    battleHeld.pz = Math.max(-1, Math.min(1, -(sy - me.y) / (H*0.10)));
+  };
+  stageEl.addEventListener('pointerdown', battlePointerDown);
+  stageEl.addEventListener('pointermove', battlePointerMove);
+  ['pointerup','pointercancel','pointerleave'].forEach(ev=> stageEl.addEventListener(ev, ()=>{ battleDrag = null; battleHeld.px = battleHeld.pz = 0; }));
 
   // Same idea as the rest of __runnerDebug: only with ?debug=1, and read-only
   // apart from setPos, which is what makes the dodge window testable.

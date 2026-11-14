@@ -393,6 +393,12 @@ export async function createBattle3D(env) {
       // Through the cell's eyes: at its height, looking the way it walks.
       camPos.set(-st.camX, 74, st.camZ - 4);
       camLook.set(-st.camX, 66, st.camZ + 420);
+    } else if (st.view === 'close') {
+      // Over the shoulder: close behind your cell, turning with st.yaw. The
+      // scene is mirrored in x, so "forward" is too.
+      const fx = -Math.sin(st.yaw), fz = Math.cos(st.yaw);
+      camPos.set(-st.px - fx * 460, 290, st.pz - fz * 460);
+      camLook.set(-st.px + fx * 300, 40, st.pz + fz * 300);
     } else if (st.view === 'top') {
       // The whole map from above, for someone watching rather than playing.
       const h = Math.max(mapDef.halfD, mapDef.halfW / camera.aspect) * 2.35;
