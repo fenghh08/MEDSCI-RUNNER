@@ -455,6 +455,20 @@
   .mcq-option.wrong::after{ content:'✗'; position:absolute; right:12px; top:50%; transform:translateY(-50%);
     color:var(--danger); font-weight:700; font-size:16px; }
   .mcq-option.disabled{ cursor:default; }
+  /* Pressed, verdict not back yet. Only the website build ever sets these --
+     offline the answer is already on the device and the verdict is instant --
+     but they live here so both builds render from one stylesheet. */
+  .mcq-option.picked{ border-color:var(--membrane); background:rgba(255,255,255,.06);
+                      transform:translateY(1px); transition:transform .08s ease, background .12s ease; }
+  .mcq-option.checking::after{ content:''; position:absolute; right:12px; top:50%;
+                      width:12px; height:12px; margin-top:-6px; border-radius:50%;
+                      border:2px solid var(--hud-dim); border-top-color:var(--membrane);
+                      animation:mcqChecking .6s linear infinite; }
+  @keyframes mcqChecking{ to{ transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce){
+    .mcq-option.picked{ transform:none; }
+    .mcq-option.checking::after{ animation:none; border-top-color:var(--hud-dim); }
+  }
   .mcq-verdict{ font-family:var(--display); font-style:italic; font-size:19px; margin:4px 0 8px; }
   .verdict-good{ color:var(--good); } .verdict-bad{ color:var(--danger); }
   .mcq-explain{ font-size:12.5px; line-height:1.55; color:var(--hud-ink); background:var(--bg-1);
