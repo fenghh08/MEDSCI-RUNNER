@@ -38,9 +38,11 @@ memory. The file on disk is never written to.
    `correctIndex` and `explanation`, followed by `lib/runner-bridge.js`.
    (Classic scripts run before module scripts, so the bridge's globals exist
    before the game boots.)
-2. `answerMCQ()` becomes `async` and awaits `window.__RUNNER_GRADE(q, chosenIndex)`
-   before the line that was already there: `const correct = chosenIndex === q.correctIndex;`
-3. The grenade mini-game's click handler awaits `window.__RUNNER_GRADE_FUNFACT(q, i)`.
+2. the body of `gradeAnswer()` → `await window.__RUNNER_GRADE(q, chosenIndex)`
+3. the body of `gradeFunFact()` → `return window.__RUNNER_GRADE_FUNFACT(q, chosenIndex)`
+
+The anchors live in `lib/game-patches.mjs`, shared with
+`scripts/check-anchors.mjs` so the check and the deploy can never disagree.
 
 Each anchor must match **exactly once**. If the game file changes so one
 doesn't, the route throws and serves an error page naming the anchor — it does
@@ -61,7 +63,7 @@ marked every runner answer wrong.
 npm install
 cp .env.example .env.local        # paste your Neon connection string
 npm run db:schema                 # create/migrate the tables (safe to re-run)
-npm run db:import                 # load everything from ../game-data.js
+npm run db:import                 # seed it from ../game-data.js (one-off)
 npm run dev                       # the game, at http://localhost:3000
 ```
 
@@ -109,24 +111,59 @@ bump, not an authorisation check. Someone with a script can rotate it. Binding
 attempts to the Firebase uid, once sign-in is required to play, is what would
 close that.
 
-## Keeping the two versions in sync
+## Where the content lives
 
-`game-data.js` stays the single source of truth. Edit it as you always have (by
-hand, or with `../developer-tool.html`), then re-run `npm run db:import`. The
-import upserts on natural keys — course code, course+class key, course+topic
-key, topic+item key, and question `id` — and deletes rows that have disappeared
-from the file, so the database ends up a faithful mirror rather than
-accumulating stale content.
+**Postgres is the source of truth.** `game-data.js` is generated from it.
 
-Two consequences worth knowing:
+```bash
+npm run db:export                 # write ../game-data.js from the database
+npm run db:export -- --dry        # report only, write nothing
+npm run db:verify                 # prove the export matches what is committed
+```
+
+The file still exists and still carries the answer key, because GitHub Pages
+and the Capacitor app load it directly and play offline. It is an artifact
+now, not a document: edit the database, export, commit. A hand edit still
+works and `npm run db:import` still reads it, but the next export overwrites
+it.
+
+`db:verify` is what makes that safe. It exports to a scratch file, loads both
+it and the committed `../game-data.js` through `scripts/load-game-data.mjs`,
+and deep-compares the **parsed** objects — key order and formatting differ and
+neither matters to the game. If a field in `game-data.js` has no home in the
+schema, this fails loudly instead of letting the next export erase it. That is
+exactly how `notes`, `relatedCourse`, both contributor fields, `THEMES.label`,
+`is_theme` and `runnable_position` were found.
+
+Two things worth knowing:
 
 - **Question ids are the join key.** Changing a question's `id` makes the
   import treat it as a new question and drop the old one, taking its
   `answer_events` history with it. Change the prompt freely; change the id only
   when you mean to.
-- **Duplicate ids collapse.** `game-data.js` currently has one duplicate,
-  `q-metabolism-3jk7` in MEDS3002, so 1,131 questions in the file become 1,130
-  rows. `scripts/dry-run.mjs` lists any duplicates it finds.
+- **`db:import` is now a one-way legacy path**, kept for re-seeding a fresh
+  database from the committed file. It is no longer part of the normal
+  workflow.
+
+## The grading seam
+
+`medsci-runner.html` carries two one-line functions whose only job is to be
+patched by this app:
+
+```js
+async function gradeAnswer(q, chosenIndex){ /* offline: q already carries correctIndex */ }
+async function gradeFunFact(q, chosenIndex){ return !!q && chosenIndex === q.correctIndex; }
+```
+
+Offline they do nothing. Here their bodies are replaced with the `/api/answer`
+round trip. Patching a function body rather than a slice of `answerMCQ()` means
+an unrelated edit to the game no longer takes this site down with an anchor
+mismatch — and any new mode gets server-side grading just by calling
+`gradeAnswer()`.
+
+`npm run check:anchors` runs the same exactly-once check from the command line,
+and is wired into `predev` and `prebuild`, so a broken anchor fails at the
+terminal rather than as a 500 in production.
 
 ## Known difference from the offline build
 
@@ -149,14 +186,25 @@ app/
   api/game-data/route.ts    the content payload as JSON, answers stripped
 lib/
   db.ts                     Neon serverless client (server-only)
-  game-data.ts              rebuilds the RUNNER_DATA shape from Postgres
+  runner-data.mjs           rebuilds the RUNNER_DATA shape from Postgres --
+                            shared by the website and the export, so they
+                            cannot drift apart
+  game-data.ts              the website's call into it: answers and contributor
+                            emails stripped
+  game-patches.mjs          what gets rewritten in medsci-runner.html
   game-page.ts              reads and patches ../medsci-runner.html
   runner-bridge.js          injected; routes grading through /api/answer
   types.ts                  the verdict shape
 db/schema.sql               tables, migrations, indexes, answer-free views
+db/game-data-template.json  the hand-written parts of game-data.js -- header,
+                            banner comments, the inline GAME_CONFIG notes --
+                            spliced back in by the export
 scripts/
-  load-game-data.mjs        runs ../../game-data.js in a vm, returns RUNNER_DATA
+  load-game-data.mjs        runs a game-data.js in a vm, returns RUNNER_DATA
   apply-schema.mjs          npm run db:schema
-  import-game-data.mjs      npm run db:import
+  import-game-data.mjs      npm run db:import   (legacy, one-way)
+  export-game-data.mjs      npm run db:export
+  verify-round-trip.mjs     npm run db:verify
+  check-anchors.mjs         npm run check:anchors
   dry-run.mjs               parse and report, no database needed
 ```

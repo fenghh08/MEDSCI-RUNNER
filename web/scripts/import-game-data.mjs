@@ -40,13 +40,20 @@ const courseCodes = [...new Set([...Object.keys(COURSES), ...Object.keys(THEMES)
 for (const [i, code] of courseCodes.entries()) {
   const course = COURSES[code] ?? {};
   const theme = THEMES[code] ?? {};
+  const runnableAt = RUNNABLE_THEMES.indexOf(code);
   await sql`
-    insert into courses (code, label, icon, blurb, runnable, position)
-    values (${code}, ${course.label ?? theme.label ?? code}, ${str(theme.icon)},
-            ${str(theme.blurb)}, ${RUNNABLE_THEMES.includes(code)}, ${i})
+    insert into courses (code, label, theme_label, icon, blurb, is_theme,
+                         runnable, runnable_position, position)
+    values (${code}, ${course.label ?? theme.label ?? code}, ${str(theme.label)},
+            ${str(theme.icon)}, ${str(theme.blurb)},
+            ${Object.prototype.hasOwnProperty.call(THEMES, code)},
+            ${runnableAt >= 0}, ${runnableAt >= 0 ? runnableAt : null}, ${i})
     on conflict (code) do update set
-      label = excluded.label, icon = excluded.icon, blurb = excluded.blurb,
-      runnable = excluded.runnable, position = excluded.position`;
+      label = excluded.label, theme_label = excluded.theme_label,
+      icon = excluded.icon, blurb = excluded.blurb,
+      is_theme = excluded.is_theme, runnable = excluded.runnable,
+      runnable_position = excluded.runnable_position,
+      position = excluded.position`;
   counts.courses++;
 
   // ------------------------------------------------------------- classes
@@ -87,18 +94,26 @@ for (const [code, theme] of Object.entries(THEMES)) {
     for (const [n, [itemKey, item]] of items.entries()) {
       const [{ id: itemId }] = await sql`
         insert into items (topic_id, key, label, description, mechanism, fun_facts,
-                           active_recall, hashtags, saq, refs, images,
-                           course_code, class_key, position)
+                           notes, active_recall, hashtags, saq, refs, images,
+                           course_code, class_key, related_course,
+                           contributor_name, contributor_email, position)
         values (${topicId}, ${itemKey}, ${item.label ?? itemKey}, ${str(item.description)},
-                ${str(item.mechanism)}, ${list(item.funFacts)}, ${list(item.activeRecall)},
+                ${str(item.mechanism)}, ${list(item.funFacts)}, ${list(item.notes)},
+                ${list(item.activeRecall)},
                 ${list(item.hashtags)}, ${json(item.saq)}, ${json(item.refs)},
-                ${json(item.images)}, ${str(item.course) ?? code}, ${str(item.class)}, ${n})
+                ${json(item.images)}, ${str(item.course) ?? code}, ${str(item.class)},
+                ${str(item.relatedCourse)}, ${str(item.contributorName)},
+                ${str(item.contributorEmail)}, ${n})
         on conflict (topic_id, key) do update set
           label = excluded.label, description = excluded.description,
           mechanism = excluded.mechanism, fun_facts = excluded.fun_facts,
+          notes = excluded.notes,
           active_recall = excluded.active_recall, hashtags = excluded.hashtags,
           saq = excluded.saq, refs = excluded.refs, images = excluded.images,
           course_code = excluded.course_code, class_key = excluded.class_key,
+          related_course = excluded.related_course,
+          contributor_name = excluded.contributor_name,
+          contributor_email = excluded.contributor_email,
           position = excluded.position
         returning id`;
       counts.items++;
@@ -111,16 +126,21 @@ for (const [code, theme] of Object.entries(THEMES)) {
         await sql`
           insert into questions (item_id, qid, prompt, options, correct_index,
                                  explanation, difficulty, hashtags,
-                                 course_code, class_key, position)
+                                 course_code, class_key, related_course,
+                                 contributor_name, contributor_email, position)
           values (${itemId}, ${q.id}, ${q.prompt}, ${q.options}, ${q.correctIndex ?? 0},
                   ${str(q.explanation)}, ${q.difficulty ?? 'medium'}, ${list(q.hashtags)},
-                  ${str(q.course)}, ${str(q.class)}, ${k})
+                  ${str(q.course)}, ${str(q.class)}, ${str(q.relatedCourse)},
+                  ${str(q.contributorName)}, ${str(q.contributorEmail)}, ${k})
           on conflict (qid) do update set
             item_id = excluded.item_id, prompt = excluded.prompt,
             options = excluded.options, correct_index = excluded.correct_index,
             explanation = excluded.explanation, difficulty = excluded.difficulty,
             hashtags = excluded.hashtags, course_code = excluded.course_code,
-            class_key = excluded.class_key, position = excluded.position`;
+            class_key = excluded.class_key, related_course = excluded.related_course,
+            contributor_name = excluded.contributor_name,
+            contributor_email = excluded.contributor_email,
+            position = excluded.position`;
         counts.questions++;
       }
 
