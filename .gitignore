@@ -29,3 +29,7 @@ android/local.properties
 android/app/release/
 SHEET_README.txt
 TECHNICAL_OVERVIEW.pdf
+
+# Capstone report/presentation instructions handed out by the university --
+# same reason as the lecture notes above, kept local rather than committed.
+Final report and presentation instructions/

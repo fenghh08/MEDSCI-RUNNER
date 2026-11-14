@@ -7760,7 +7760,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
   // Keys: N / PageDown = next, B / PageUp = back, H = hide card.
   if(new URLSearchParams(location.search).has('demo')){
     const params = new URLSearchParams(location.search);
-    const DEMO_COURSE = 'AMED3003';
+    const DEMO_COURSE = params.get('demo') || 'AMED3003'; // ?demo=MEDS3002 picks the course shown
     const css = document.createElement('style');
     css.textContent = `
       #demoCard{ position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:10000;
@@ -7841,7 +7841,7 @@ const themesDecl  = text.indexOf('const THEMES = {');
     }
     // Back from the first step returns to the end of the game's tour.
     function back(){
-      if(i===0){ location.href = 'medsci-runner.html?demo&step=last' + (params.get('name') ? '&name=' + encodeURIComponent(params.get('name')) : ''); return; }
+      if(i===0){ location.href = 'medsci-runner.html?demo=' + encodeURIComponent(DEMO_COURSE) + '&step=last' + (params.get('name') ? '&name=' + encodeURIComponent(params.get('name')) : ''); return; }
       show(i-1);
     }
     function next(){ if(i===STEPS.length-1){ card.classList.add('hidden'); ring = null; return; } show(i+1); }

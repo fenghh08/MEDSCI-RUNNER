@@ -7325,6 +7325,7 @@
       { pid:'bot-caitlin', name:'Caitlin', look:{ color:CUSTOMIZE_COLORS[2], face:CUSTOMIZE_FACES[2], accessory:CUSTOMIZE_ACCESSORIES[2] }, skill:.7 },
       { pid:'bot-sara',    name:'Sara',    look:{ color:CUSTOMIZE_COLORS[3], face:CUSTOMIZE_FACES[0], accessory:CUSTOMIZE_ACCESSORIES[3] }, skill:.6 },
       { pid:'bot-valerie', name:'Valerie', look:{ color:CUSTOMIZE_COLORS[4], face:CUSTOMIZE_FACES[3], accessory:CUSTOMIZE_ACCESSORIES[0] }, skill:.5 },
+      { pid:'bot-henry',   name:'Henry',   look:{ color:CUSTOMIZE_COLORS[5], face:CUSTOMIZE_FACES[1], accessory:CUSTOMIZE_ACCESSORIES[3] }, skill:.65 },
     ];
     const stageNeeds = ()=> (STAGES[DEMO_COURSE]||[]).map(s=> Object.values(s.requirements).reduce((a,b)=>a+b,0));
     function syncMe(){
@@ -7448,7 +7449,7 @@
       syncMe();
       // Jumped straight here (no race played yet): give the racers believable results.
       if(BOTS.every(b=> ((mp.roster[b.pid]||{}).correctCount||0) < 4)){ // a short race: make the results readable
-        [[9,1,2],[7,2,1],[5,3,1],[4,4,0]].forEach(([c,w,st], k)=> Object.assign(mp.roster[BOTS[k].pid],
+        [[9,1,2],[7,2,1],[5,3,1],[4,4,0],[6,2,1]].forEach(([c,w,st], k)=> Object.assign(mp.roster[BOTS[k].pid],
           { correctCount:c, incorrectCount:w, stageIndex:st, stageRoman:['I','II','III'][st], glucose:Math.max(5, 100 - w*25) }));
       }
       const ranked = mpRankedRoster(mp.roster);
@@ -7572,7 +7573,7 @@
     }
     // The last step carries on into the developer tool's own tour.
     function next(){
-      if(demo.i===STEPS.length-1){ location.href = `developer-tool.html?demo&from=${STEPS.length}&total=${STEPS.length + DEV_STEPS}` + (demoParams.get('name') ? '&name=' + encodeURIComponent(DEMO_NAME) : ''); return; }
+      if(demo.i===STEPS.length-1){ location.href = `developer-tool.html?demo=${DEMO_COURSE}&from=${STEPS.length}&total=${STEPS.length + DEV_STEPS}` + (demoParams.get('name') ? '&name=' + encodeURIComponent(DEMO_NAME) : ''); return; }
       show(demo.i+1);
     }
     $('demoNext').addEventListener('click', e=>{ e.currentTarget.blur(); next(); });
