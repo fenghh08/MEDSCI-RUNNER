@@ -1,0 +1,120 @@
+{
+  "header": "/* ============================================================================\n   game-data.js — all game CONTENT for Runner Game (cancer-runner-group.html)\n   and the Contributor tool (contributor.html) live in this one file.\n\n   Nothing in here is executable game logic — it's just numbers, labels and\n   study-guide content. The game and the contributor tool both load this file\n   as a plain <script> (NOT type=\"module\", so it still works when you just\n   double-click the .html file — no local server needed) and read everything\n   off `window.RUNNER_DATA`.\n\n   HOW TO ADD CONTENT\n   -------------------\n   • Easiest: open contributor.html, fill in the form, it writes the object\n     literal for you in the exact shape below — paste it in.\n   • By hand: follow the shape of an existing entry and keep the same keys.\n\n   SHAPE OVERVIEW\n   ---------------\n   COURSES        — real university courses (e.g. MEDS3002), each broken into\n                     Classes/lectures (individual lectures, e.g. \"L14\"). This\n                     is ALSO the top level of THEMES below now -- a course\n                     code like 'MEDS3002' is both a playable top-level group\n                     AND (via `course`/`class` on an item/question) a lecture\n                     citation, which is why an item's own course usually\n                     matches its top-level THEMES key but doesn't have to.\n                     A class/lecture can optionally carry `outcomes` (an\n                     array of learning-outcome strings) — shown as a bullet\n                     list at the top of that lecture in \"Browse by lecture\".\n   THEMES         — Course (e.g. \"MEDS3002\") → Topic → study-guide Item.\n                     Topics are specific to their course now -- each one\n                     carries its own `label`/`icon`/`color` inline instead of\n                     pointing at a shared taxonomy. Each item can point at a\n                     COURSES entry via `course` + `class`, and carries its own\n                     `questions` array — the MCQs players get asked about\n                     that item (each with its own `difficulty`, one of\n                     'easy'/'medium'/'hard', optional). A question only\n                     needs its own `course`/`class` (or, rarely, a literal\n                     `relatedCourse` string) if it genuinely differs from its\n                     item's — most just inherit the item's.\n   STAGES         — Course → ordered list of Runner-mode stages.\n   RUNNABLE_THEMES— which course ids have a STAGES entry (playable in Runner\n                     mode vs. Study & Practice-only).\n   GAME_CONFIG    — every tunable gameplay number.\n   LIFE_CONFIG    — per-course label/icon for the \"life\" resource.\n   COMPLETE_SCENARIO — text shown after the last stage.\n   FUN_FACT_QUESTIONS — standalone trivia questions, not tied to any\n                     course/topic/item, used only for the Group Race\n                     grenade gift's \"shield it by answering a question\"\n                     mini-game. Never counted toward stage progress.\n   ============================================================================ */\n(function(){",
+  "banners": {
+    "COURSES": "/* ======================================================================\n   COURSES — real university courses, broken into Classes (individual\n   lectures). Items and questions reference these via `course` (the course\n   code, e.g. 'MEDS3002') + `class` (the class key, e.g. 'L14') instead of\n   writing the whole label out by hand every time. The display string\n   (\"MEDS3002 · L14 · Cancer Hallmarks\") is generated automatically — see\n   courseDisplayString() in cancer-runner-group.html.\n   ====================================================================== */",
+    "GAME_CONFIG": "/* ======================================================================\n   GAME_CONFIG — every tunable number lives here in one place.\n   ====================================================================== */",
+    "LIFE_CONFIG": "/* ======================================================================\n   LIFE — the \"health\" resource. Same label (\"Life\") and icon (🩸) across\n   every course now -- LIFE_CONFIG stays keyed by course so a specific\n   course could still be given its own wording later; every place it's\n   shown (HUD, pickups, penalties, the bomb warning) reads from this\n   automatically via lifeCfg() in medsci-runner.html.\n   ====================================================================== */",
+    "THEMES": "/* ======================================================================\n   THEMES — Course -> Topic -> Item. Each item can carry \"hashtags\" (which\n   cancer type / sub-area it belongs to, e.g. ['Leukemia']), course + class\n   fields pointing into COURSES above (e.g. course:'MEDS3002', class:'L14'),\n   and its own \"questions\" array — the MCQs players get asked when they hit\n   this item's topic in Runner mode or match it in Study & Practice. A\n   question only needs its own course/class if it genuinely differs from\n   its item's (e.g. a question spanning several classes at once) — most\n   questions just inherit the item's.\n   ====================================================================== */",
+    "FUN_FACT_QUESTIONS": "/* ======================================================================\n   FUN_FACT_QUESTIONS — a separate, small pool of standalone trivia\n   questions, keyed by id. Used only for the Group Race grenade gift's\n   \"shield it by answering a question\" mini-game (see GAME_CONFIG's gift\n   comments) — never counted toward stage requirements, streaks, or score,\n   and not tied to any course/topic/item. Same shape as a normal question\n   (prompt/options/correctIndex/explanation) minus the fields that only\n   make sense in context (difficulty, hashtags, course/class).\n   ====================================================================== */",
+    "STAGES": "/* ======================================================================\n   STAGES — per course. Each stage has correct-answer requirements (reset\n   each stage), a difficulty ('easy'/'medium'/'hard' — questions tagged with\n   it are served first, and bomb frequency scales with it), and a narrative\n   shown on the transition screen before that stage begins.\n   ====================================================================== */",
+    "COMPLETE_SCENARIO": "",
+    "RUNNABLE_THEMES": ""
+  },
+  "configComments": {
+    "baseSpeed": [
+      " px/s at Stage I"
+    ],
+    "speedRampPerStage": [
+      " added per stage index (0-based) — one-time bump on stage change"
+    ],
+    "speedRampPerSecond": [
+      " added continuously for every second survived — this is what makes it feel gradual"
+    ],
+    "maxSpeed": [
+      " speed never exceeds this"
+    ],
+    "glucosePickupValue": [
+      " gained per life pickup collected"
+    ],
+    "wrongAnswerPenalty": [
+      " life lost per wrong MCQ answer"
+    ],
+    "postAnswerPauseMs": [
+      " brief freeze after clicking Continue, before the run resumes -- gives a beat to",
+      " get oriented instead of getting dropped straight back next to whatever piled up"
+    ],
+    "obstacleSpawnBaseMs": [
+      " topic-block spawn interval = base + random(0..rand) -- widened per playtester",
+      " feedback that questions/obstacles were coming at the player too frequently"
+    ],
+    "glucoseSpawnBaseMs": [
+      " life-pickup spawn interval = base + random(0..rand)"
+    ],
+    "initialObstacleDelayMs": [
+      " delay before the very first topic block spawns"
+    ],
+    "initialGlucoseDelayMs": [
+      " delay before the very first life pickup spawns"
+    ],
+    "bombDamage": [
+      " life lost when a bomb is hit (instant, no question)"
+    ],
+    "bombIcon": [
+      " swap for 'icons/bomb.png' (or any path/URL -- see the ICONS comment",
+      " in medsci-runner.html) to use your own image instead of the emoji"
+    ],
+    "bombSpawnBaseMs": [
+      " bomb spawn interval — base + random(0..rand) -- widened alongside obstacleSpawn* above"
+    ],
+    "bombHellSpawnBaseMs": [
+      " bomb interval DURING a Group Race Bomb Hell (the 10s gift attack) -- far tighter"
+    ],
+    "bombHellSpawnRandMs": [
+      " than the normal one above; lower both numbers for an even denser storm"
+    ],
+    "scoreCorrectWeight": [
+      " Group Race ranking score = correct*this - incorrect*this + life*this + stageIndex*stageWeight"
+    ],
+    "stageWeight": [
+      " added per stage reached (stageIndex is 0-based, so Stage I contributes 0)"
+    ],
+    "streakBonusEvery": [
+      " award a bonus every Nth correct answer IN A ROW (resets to 0 on any wrong answer)"
+    ],
+    "streakBonusAmount": [
+      " life gained when a streak bonus triggers"
+    ],
+    "streakBonusAppliesToLife": [
+      " set false to stop the streak bonus from also topping up life -- the life-award code below stays intact either way, this just gates it"
+    ],
+    "streakBonusScoreAmount": [
+      " flat score points awarded when a streak bonus triggers (on top of the usual correct/incorrect/life/stage weights)"
+    ],
+    "speedPresets": [
+      " Customise → Game speed: multiplies baseSpeed/maxSpeed (a Group Race uses the host's pick for everyone)"
+    ],
+    "bombIntervalByDifficulty": [
+      " bomb spawn interval multiplier per stage difficulty (easy = fewer bombs)",
+      " ---- Group Race gifts: +50 life, Bomb Hell, Grenade, Shield -- see",
+      " renderGiftShop() in medsci-runner.html. Free to pick (2 of the 4 are",
+      " offered at random each time; no life cost). ----"
+    ],
+    "giftUnlockQuestionsPerPlayer": [
+      " gift questions start once the room has answered (right or wrong, combined) at least this many questions per player -- e.g. 3 players needs 9 total answered"
+    ],
+    "giftSpawnBaseMs": [
+      " a gift-question block is ROLLED for every base + random(0..rand) ms ..."
+    ],
+    "giftChanceMin": [
+      " ... and appears with this chance for the racer in 1st place ..."
+    ],
+    "giftChanceMax": [
+      " ... rising to this for whoever is last -- falling behind gets you more gifts"
+    ],
+    "grenadeDamage": [
+      " life an unshielded grenade target loses if they fail the shield question (same as a bomb)",
+      " ---- Catch-up window ----",
+      " Two things can start this window, whichever happens first: (a) a racer",
+      " finishes all stages (reason:'finished'), or (b) a racer becomes the",
+      " LAST ONE STILL RACING because everyone else is done, for any reason",
+      " (reason:'last-standing') -- instead of instantly locking that survivor",
+      " in, they get this long for one final stretch to set the best score.",
+      " Only the very first qualifying event starts the window (a transaction",
+      " guards this) -- anything after that doesn't restart or extend it.",
+      " Whoever has the highest score once it expires (or once everyone's",
+      " actually done, if that happens first) wins -- reaching the end first,",
+      " or simply being the one left standing, is not itself a win condition."
+    ]
+  },
+  "footer": "  window.RUNNER_DATA = {\n    COURSES, GAME_CONFIG, LIFE_CONFIG, THEMES,\n    STAGES, COMPLETE_SCENARIO, RUNNABLE_THEMES, FUN_FACT_QUESTIONS,\n  };\n\n})();\n"
+}

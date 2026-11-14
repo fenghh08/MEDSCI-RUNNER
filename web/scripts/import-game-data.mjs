@@ -40,13 +40,20 @@ const courseCodes = [...new Set([...Object.keys(COURSES), ...Object.keys(THEMES)
 for (const [i, code] of courseCodes.entries()) {
   const course = COURSES[code] ?? {};
   const theme = THEMES[code] ?? {};
+  const runnableAt = RUNNABLE_THEMES.indexOf(code);
   await sql`
-    insert into courses (code, label, icon, blurb, runnable, position)
-    values (${code}, ${course.label ?? theme.label ?? code}, ${str(theme.icon)},
-            ${str(theme.blurb)}, ${RUNNABLE_THEMES.includes(code)}, ${i})
+    insert into courses (code, label, theme_label, icon, blurb, is_theme,
+                         runnable, runnable_position, position)
+    values (${code}, ${course.label ?? theme.label ?? code}, ${str(theme.label)},
+            ${str(theme.icon)}, ${str(theme.blurb)},
+            ${Object.prototype.hasOwnProperty.call(THEMES, code)},
+            ${runnableAt >= 0}, ${runnableAt >= 0 ? runnableAt : null}, ${i})
     on conflict (code) do update set
-      label = excluded.label, icon = excluded.icon, blurb = excluded.blurb,
-      runnable = excluded.runnable, position = excluded.position`;
+      label = excluded.label, theme_label = excluded.theme_label,
+      icon = excluded.icon, blurb = excluded.blurb,
+      is_theme = excluded.is_theme, runnable = excluded.runnable,
+      runnable_position = excluded.runnable_position,
+      position = excluded.position`;
   counts.courses++;
 
   // ------------------------------------------------------------- classes

@@ -10,13 +10,14 @@ import vm from 'node:vm';
 
 const GAME_DATA = fileURLToPath(new URL('../../game-data.js', import.meta.url));
 
-export async function loadGameData() {
-  const source = await readFile(GAME_DATA, 'utf8');
+/** @param {string} [path] another copy to load instead -- db:verify passes a fresh export. */
+export async function loadGameData(path = GAME_DATA) {
+  const source = await readFile(path, 'utf8');
   const sandbox = { window: {} };
   vm.createContext(sandbox);
-  new vm.Script(source, { filename: 'game-data.js' }).runInContext(sandbox);
+  new vm.Script(source, { filename: path }).runInContext(sandbox);
 
   const data = sandbox.window.RUNNER_DATA;
-  if (!data) throw new Error('game-data.js ran but did not set window.RUNNER_DATA');
+  if (!data) throw new Error(`${path} ran but did not set window.RUNNER_DATA`);
   return data;
 }
