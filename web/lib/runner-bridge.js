@@ -237,6 +237,22 @@
     return Boolean(result.correct);
   };
 
+  /* Reports and suggestions. The game calls this when it exists and falls
+     back to its Firebase queue when it does not (the offline builds). It
+     rejects on failure so the game shows its own "couldn't send" message. */
+  window.__runnerSuggest = async function (payload) {
+    var headers = { 'content-type': 'application/json' };
+    try {
+      var player = window.__runnerPlayer;
+      var token = player && player.getToken ? await player.getToken() : null;
+      if (token) headers.authorization = 'Bearer ' + token;
+    } catch (e) { /* signed out is fine: reports are open to everyone */ }
+    var body = Object.assign({ sessionId: sessionId }, payload);
+    var res = await fetch('/api/suggestions', { method: 'POST', headers: headers, body: JSON.stringify(body) });
+    if (!res.ok) throw new Error('report not saved: ' + res.status);
+    return res.json();
+  };
+
   /* The demo tour reads answers before the player picks, which this build
      deliberately cannot supply. Say so rather than letting it misbehave. */
   if (new URLSearchParams(location.search).has('demo')) {

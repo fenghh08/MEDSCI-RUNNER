@@ -257,6 +257,13 @@
   .br-q .br-bar{ margin-top:6px; }
   .br-note{ font-size:12.5px; color:var(--hud-dim); margin-top:8px; }
   #feedbackFromOverBtn{ border:none; background:none; box-shadow:none; color:var(--hud-dim); font-size:12.5px; text-decoration:underline; text-underline-offset:3px; padding:8px; }
+  /* A video or 3D model above a question. Optional: a question without one shows nothing here. */
+  #mcqMedia:empty{ display:none; }
+  #mcqMedia{ margin:0 0 12px; }
+  #mcqMedia .mm-frame{ position:relative; width:100%; aspect-ratio:16/9; max-height:44vh; background:#0b0d16; border-radius:12px; overflow:hidden; border:1px solid var(--panel-line); }
+  #mcqMedia .mm-frame > *{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+  #mcqMedia .mm-frame button{ background:none; color:#fff; font-family:var(--mono); font-size:14px; cursor:pointer; }
+  #mcqMedia .mm-cap{ font-size:11.5px; color:var(--hud-dim); margin-top:5px; text-align:left; }
   #soundVolume{ width:74px; accent-color:var(--membrane); vertical-align:middle; cursor:pointer; }
   .screen h2{ font-family:var(--display); font-style:italic; font-weight:400; font-size:30px; margin:0 0 6px; }
   .screen p.desc{ color:var(--hud-dim); max-width:480px; line-height:1.55; font-size:13px; margin:0 auto 16px; text-align:center; }
@@ -1375,6 +1382,7 @@
         <div id="mcqTimerWrap" style="height:4px;background:var(--panel-line);border-radius:2px;margin:6px 0 10px;overflow:hidden;">
           <div id="mcqTimerBar" style="height:100%;width:100%;background:var(--membrane);transition:width 1s linear, background 0.3s;"></div>
         </div>
+        <div id="mcqMedia"></div>
         <p class="mcq-prompt" id="mcqPrompt">—</p>
         <div id="mcqOptions"></div>
         <div id="mcqFeedback" style="display:none;">
@@ -2845,6 +2853,10 @@
     let source;
     if(cancerId==='custom' && customPoolByTopic) source = customPoolByTopic[topicId] || [];
     else source = QUESTIONS_BY_THEME_TOPIC[cancerId]?.[topicId] || [];
+    // nextQuestion() feeds the timed modes. A question whose author kept it
+    // out of them (usually a 3D model that loads slower than the timer) is
+    // skipped here -- unless that would leave the topic with nothing to ask.
+    { const timed = source.filter(q=> q.allowInTimed !== false); if(timed.length) source = timed; }
     const buildQueue = ()=>{
       if(preferDifficulty){
         const preferred = source.filter(q=>(q.difficulty||'medium')===preferDifficulty);
@@ -4297,6 +4309,88 @@
   let mcqAnswerHandler = null;
   function currentAnswerHandler(){ return mcqAnswerHandler || answerMCQ; }
 
+  /* ---------------------------------------------------------- question media
+     A question may carry a video or a 3D model (set in the admin app). It is
+     drawn above the stem in the same card: no new screen, no new controls.
+
+     Two rules. The viewers are loaded only when a question actually needs
+     one, so nobody pays for them otherwise. And media can only ever add to a
+     question: if it fails to load, or the device is offline, the question is
+     still a complete question in plain text. */
+  const MEDIA_LIBS = {
+    model: { src: 'https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js', module: true },
+    pdb:   { src: 'https://cdn.jsdelivr.net/npm/ngl@2.3.1/dist/ngl.js', module: false },
+  };
+  const mediaLibLoads = {};
+  function loadMediaLib(name){
+    return mediaLibLoads[name] ??= new Promise((resolve, reject)=>{
+      const lib = MEDIA_LIBS[name], el = document.createElement('script');
+      if(lib.module) el.type = 'module';
+      el.src = lib.src; el.onload = resolve;
+      el.onerror = ()=>{ delete mediaLibLoads[name]; reject(new Error('viewer unavailable')); };
+      document.head.appendChild(el);
+    });
+  }
+  let mediaStage = null;   // the molecular viewer, so it can be torn down
+  function clearQuestionMedia(){
+    const box = document.getElementById('mcqMedia');
+    if(mediaStage){ try { mediaStage.dispose(); } catch(e){} mediaStage = null; }
+    if(box) box.textContent = '';      // also stops any video that was playing
+  }
+  function renderQuestionMedia(m){
+    clearQuestionMedia();
+    const box = document.getElementById('mcqMedia');
+    if(!box || !m || !m.url) return;
+    const frame = document.createElement('div'); frame.className = 'mm-frame';
+    const cap = document.createElement('div'); cap.className = 'mm-cap';
+    const fail = ()=>{ frame.remove(); cap.textContent = 'The media for this question could not load. The question itself is complete without it.'; };
+    const size = m.bytes ? ` · ${(m.bytes/1048576).toFixed(1)} MB` : '';
+    cap.textContent = (m.title || '') + (m.attribution ? ` · ${m.attribution}` : '');
+    box.append(frame, cap);
+
+    const start = ()=>{
+      frame.textContent = '';
+      try {
+        if(m.kind === 'video' && m.source === 'external' && /^https:\/\/(www\.youtube-nocookie\.com\/embed\/|player\.vimeo\.com\/video\/)/.test(m.url)){
+          const f = document.createElement('iframe');
+          f.src = m.url; f.title = m.title || 'Video'; f.loading = 'lazy'; f.referrerPolicy = 'strict-origin-when-cross-origin';
+          f.allow = 'fullscreen; picture-in-picture; encrypted-media'; f.allowFullscreen = true;
+          frame.appendChild(f);
+        } else if(m.kind === 'video'){
+          const v = document.createElement('video');
+          v.src = m.url; v.controls = true; v.playsInline = true; v.preload = 'metadata';
+          if(m.poster) v.poster = m.poster;
+          v.addEventListener('error', fail);
+          frame.appendChild(v);
+        } else if(m.source === 'pdb'){
+          const host = document.createElement('div'); frame.appendChild(host);
+          loadMediaLib('pdb').then(()=>{
+            if(!host.isConnected) return;
+            mediaStage = new window.NGL.Stage(host, { backgroundColor: '#0b0d16' });
+            return mediaStage.loadFile('rcsb://' + m.url, { defaultRepresentation: true }).then(()=> mediaStage && mediaStage.autoView());
+          }).catch(fail);
+        } else {
+          loadMediaLib('model').then(()=>{
+            if(!frame.isConnected) return;
+            const mv = document.createElement('model-viewer');
+            mv.setAttribute('src', m.url); mv.setAttribute('alt', m.title || '3D model');
+            mv.setAttribute('camera-controls', ''); mv.setAttribute('auto-rotate', ''); mv.setAttribute('touch-action', 'pan-y');
+            mv.setAttribute('shadow-intensity', '0.6');
+            mv.addEventListener('error', fail);
+            frame.appendChild(mv);
+          }).catch(fail);
+        }
+      } catch(e){ fail(); }
+    };
+    // On a metered or data-saving connection nothing is fetched until asked for.
+    const conn = navigator.connection;
+    if(conn && conn.saveData){
+      const b = document.createElement('button'); b.type = 'button';
+      b.textContent = (m.kind === 'video' ? '▶ Load the video' : '🧊 Load the 3D model') + size;
+      b.addEventListener('click', start);
+      frame.appendChild(b);
+    } else start();
+  }
   function presentQuestion(q, topic, opts){
     mcqAnswerHandler = (opts && opts.onAnswer) || null;
     // Shuffle the option order per serve. nextQuestion() already does this
@@ -4327,6 +4421,7 @@
     mcqDifficulty.textContent = diffMeta ? `${diffMeta[0]} ${diffMeta[1]}` : '';
     mcqDifficulty.style.color = diffMeta ? diffMeta[2] : '';
     mcqPrompt.textContent = q.prompt;
+    renderQuestionMedia(q.media);
     mcqOptions.innerHTML = '';
     q.options.forEach((opt,i)=>{
       const b = document.createElement('button');
@@ -4844,10 +4939,17 @@
   async function submitQuestionReport(reason){
     const q = pendingQuestion;
     if(!q) return;
-    if(!firebaseReady){ mcqReportStatus.textContent = 'Not connected — try again once you’re online.'; return; }
+    // On the website a report goes to the content app's queue (window.__runnerSuggest,
+    // set by the web build). The offline builds have no server, so they keep
+    // using the Firebase queue below.
+    const toServer = typeof window.__runnerSuggest === 'function';
+    if(!toServer && !firebaseReady){ mcqReportStatus.textContent = 'Not connected — try again once you’re online.'; return; }
     mcqReportReasons.querySelectorAll('button').forEach(b=> b.disabled = true);
     mcqReportStatus.textContent = 'Sending…';
     try {
+      if(toServer) await window.__runnerSuggest({ kind: 'flag-question', course: activeQuestionTheme, qid: q.id, itemKey: q.itemId,
+        body: reason, name: contributorDisplayName(), detail: { topic: pendingTopic, prompt: q.prompt } });
+      else
       // Same `contributions` queue the study-guide "Contribute" section and
       // the dev tool use, as a 'flag-question' entry the maintainer sees
       // with the reason, the prompt, and enough ids to jump straight to it.
@@ -5988,7 +6090,7 @@
     if(!currentItemDetail || !contributeMode) return;
     const text = contributeFormText.value.trim();
     if(!text) return;
-    if(!firebaseReady){
+    if(!firebaseReady && typeof window.__runnerSuggest !== 'function'){
       contributeStatus.textContent = 'Needs an internet connection to submit — try again once you’re online.';
       return;
     }
@@ -6017,7 +6119,10 @@
       }
       entry.contributorName = name;
       entry.createdAt = Date.now();
-      await fbPush(ref(fbdb, 'contributions'), entry);
+      if(typeof window.__runnerSuggest === 'function'){
+        await window.__runnerSuggest({ kind: contributeMode === 'flag' ? 'flag-item' : (contributeMode === 'fact' ? 'fun-fact' : 'note'),
+          body: text, name, itemKey: itemId, course: theme, detail: { item: item.label, topic: topicId } });
+      } else await fbPush(ref(fbdb, 'contributions'), entry);
       contributeInputWrap.style.display = 'none';
       contributeSuccessWrap.style.display = 'block';
     } catch(err){
@@ -7787,7 +7892,7 @@
     Object.entries(theme.topics||{}).forEach(([topicKey,topic])=>{
       Object.entries(topic.items||{}).forEach(([itemId,item])=>{
         (item.questions||[]).forEach(q=>{
-          if(q && q.prompt && Array.isArray(q.options) && q.options.length>=2){
+          if(q && q.prompt && Array.isArray(q.options) && q.options.length>=2 && q.allowInTimed !== false){
             // __topicKey, not the topic object: presentQuestion looks the
             // topic up in the flattened TOPICS map to draw its icon and label.
             out.push(Object.assign({}, q, { itemId, __topicKey: topicKey }));
@@ -9648,6 +9753,9 @@
     battleLog({ top: 'View: the whole map.', third: 'View: free camera, WASD to move.', close: 'View: over the shoulder. Drag, or Q and E, to turn.', first: 'View: first person.', stats: 'View: live question analysis.' }[battle.view]);
   }
   document.getElementById('battleViewBtn')?.addEventListener('click', battleCycleView);
+  // The question card is closed from many places; stop any video and free the viewer whenever it is.
+  new MutationObserver(()=>{ if(!mcqModal.classList.contains('active')) clearQuestionMedia(); })
+    .observe(mcqModal, { attributes: true, attributeFilter: ['class'] });
   // The host can call time: the match ends now and whoever has the most life wins.
   document.getElementById('battleEndAllBtn')?.addEventListener('click', ()=>{
     if(!battle || !battle.net || !battleNet || !battleNet.isHost) return;
@@ -9754,6 +9862,16 @@
       battleRoom: ()=> battleNet && ({ code: battleNet.code, pid: battleNet.pid, status: battleNet.room && battleNet.room.status, players: Object.keys((battleNet.room && battleNet.room.players) || {}).length }),
       battleSetClock: (v)=>{ if(battle) battle.clock = v; },
       battleSetMap: (k)=>{ battleMap = k; },
+      // Open one question by id in the practice card: for checking how a
+      // question with media looks without playing until it comes up.
+      previewQuestion: (qid)=>{
+        for(const theme of Object.values(THEMES)) for(const [topicKey, topic] of Object.entries(theme.topics || {}))
+          for(const [itemId, item] of Object.entries(topic.items || {})){
+            const q = (item.questions || []).find(x=> x.id === qid);
+            if(q){ presentQuestion(Object.assign({}, q, { itemId }), topicKey, { onAnswer: ()=>{} }); mcqModal.classList.add('active'); return true; }
+          }
+        return false;
+      },
     });
   }, 0);
 

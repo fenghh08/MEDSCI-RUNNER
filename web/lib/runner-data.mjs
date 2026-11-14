@@ -32,7 +32,7 @@ export async function buildRunnerData(sql, opts = {}) {
   const includeAnswers = opts.includeAnswers === true;
   const includeContributors = opts.includeContributors === true;
 
-  const [courseRows, classRows, topicRows, itemRows, questionRows, stageRows, funFactRows, settingRows] =
+  const [courseRows, classRows, topicRows, itemRows, questionRows, stageRows, funFactRows, settingRows, mediaRows] =
     await Promise.all([
       sql`select code, label, theme_label, icon, blurb, is_theme, runnable,
                  runnable_position
@@ -49,11 +49,11 @@ export async function buildRunnerData(sql, opts = {}) {
       includeAnswers
         ? sql`select qid, prompt, options, difficulty, hashtags, course_code, class_key,
                      related_course, contributor_name, contributor_email,
-                     correct_index, explanation, item_id, position
+                     correct_index, explanation, item_id, position, media_id, allow_in_timed
                 from questions order by item_id, position`
         : sql`select qid, prompt, options, difficulty, hashtags, course_code, class_key,
                      related_course, contributor_name, contributor_email,
-                     item_id, position
+                     item_id, position, media_id, allow_in_timed
                 from questions order by item_id, position`,
       sql`select course_code, n, roman, difficulty, scenario, requirements
             from stages order by course_code, n`,
@@ -62,7 +62,17 @@ export async function buildRunnerData(sql, opts = {}) {
                 from fun_fact_questions order by position`
         : sql`select qid, prompt, options from public_fun_fact_questions order by position`,
       sql`select key, value from settings`,
+      // Only media a question actually uses.
+      sql`select id, kind, source, url, bytes, title, attribution, poster_url
+            from media where id in (select media_id from questions where media_id is not null)`,
     ]);
+
+  const mediaById = new Map(mediaRows.map((m) => [m.id, {
+    kind: m.kind, source: m.source, url: m.url, title: m.title,
+    ...(m.attribution ? { attribution: m.attribution } : {}),
+    ...(m.poster_url ? { poster: m.poster_url } : {}),
+    ...(m.bytes ? { bytes: Number(m.bytes) } : {}),
+  }]));
 
   // ---- COURSES -----------------------------------------------------------
   const COURSES = {};
@@ -142,6 +152,10 @@ export async function buildRunnerData(sql, opts = {}) {
             ...(q.related_course ? { relatedCourse: q.related_course } : {}),
             ...(q.course_code ? { course: q.course_code } : {}),
             ...(q.class_key ? { class: q.class_key } : {}),
+            // Both absent on an ordinary question, so the offline file is
+            // unchanged for everything that has no media.
+            ...(q.media_id && mediaById.has(q.media_id) ? { media: mediaById.get(q.media_id) } : {}),
+            ...(q.allow_in_timed === false ? { allowInTimed: false } : {}),
             ...credit(q.contributor_name, q.contributor_email),
           })),
         };
