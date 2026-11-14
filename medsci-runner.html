@@ -455,6 +455,10 @@
   .mcq-option.wrong::after{ content:'✗'; position:absolute; right:12px; top:50%; transform:translateY(-50%);
     color:var(--danger); font-weight:700; font-size:16px; }
   /* ---- cell battle ---- */
+  /* The 3D battle view sits underneath the normal canvas, which goes
+     transparent and carries only the overlays: life bars, damage numbers. */
+  #battleGl{ position:absolute; inset:0; z-index:0; display:none; background:#9fd0ee; }
+  #game.gl-on{ position:relative; z-index:1; background:transparent; }
   .pick-card.battle-picked{ border-color:var(--membrane); box-shadow:inset 0 0 0 2px var(--membrane); }
   #battleBar{ position:absolute; top:0; left:0; right:0; z-index:40; display:none;
               padding:8px 12px; background:var(--panel); border-bottom:1px solid var(--panel-line); }
@@ -772,6 +776,7 @@
   <p id="versionTag" style="display:none;">version —</p>
 
   <div id="stageEl">
+    <canvas id="battleGl"></canvas>
     <canvas id="game" width="960" height="480"></canvas>
 
     <div id="hud">
@@ -7651,12 +7656,21 @@
     else battlePauseBtn.textContent = '⏸';
     SoundFX.stageComplete();
     battleRaf = requestAnimationFrame(battleLoop);
+    const thisBattle = battle;
+    battleLoad3D().then(x=>{
+      if(!x || battle !== thisBattle) return;
+      try {
+        x.build(battleMap, mapDef, BATTLE_BUILDINGS, battle.props, battle.pickups);
+        battle.gl = true; battleGlCanvas.style.display = 'block'; canvas.classList.add('gl-on');
+      } catch(err){ console.warn('[battle] 3D scene failed, staying in 2D:', err); }
+    });
   }
 
   function endBattle(){
     battleLastWasNet = !!(battle && battle.net);
     if(battleNet) battleNetLeave();
     document.getElementById('battleBoard').classList.remove('active');
+    { const gl = document.getElementById('battleGl'); if(gl) gl.style.display = 'none'; canvas.classList.remove('gl-on'); }
     if(battleRaf) cancelAnimationFrame(battleRaf);
     battleRaf = null; battle = null;
     battleBar.classList.remove('active');
@@ -8050,6 +8064,13 @@
     return { x: W/2 + (wx - battle.camX)*sc*z, y: battleBaseY() - d*sc*z*0.55, s: sc };
   }
   function battleSlot(who){
+    const pos3 = who.isYou ? { x: battle.wx, z: battle.wz } : (who.net ? { x: who.nx, z: who.nz } : { x: battle.fx, z: battle.fz });
+    if(battle.gl && b3){
+      // In the 3D view the camera decides where things are on screen.
+      const q = b3.project(pos3.x, b3.fighterRadius + 6, pos3.z, W, H);
+      const r3 = Math.max(4, b3.fighterRadius * q.ppu);
+      return { x: q.x, y: q.y, r: r3, s: r3 / (34 * battleZoom()), behind: q.behind };
+    }
     const pos = who.isYou ? { x: battle.wx, z: battle.wz } : (who.net ? { x: who.nx, z: who.nz } : { x: battle.fx, z: battle.fz });
     const pr = battleProject(pos.x, pos.z);
     const r = 34 * battleZoom() * pr.s;
@@ -8102,50 +8123,74 @@
      running away from the camera at that x, h = running across at that z),
      where the two fighters start, and its buildings. Adding a map is adding
      an entry here; nothing else in the mode knows which map it is on. */
+  const battleCar = (x, z, wall)=> ({ kind:'car', name:'', x, z, w:112, d:56, h:52, wall, trim:'#ffffff', sign:'#333333' });
   function battleCityBlocks(){
     const names = ['BAKERY','CHEMIST','CLINIC','GYM','BOOKS','BANK','DENTAL','NOODLES','GP','OPTICS',
                    'POST','MARKET','CAFE','PHYSIO','VET','CINEMA'];
-    const walls = ['#b5654a','#8fa3b8','#7fb08a','#b59ad1','#e0b071','#9cc7c9','#d98f8f','#a8a8c8'];
+    const heights = [420,760,300,560,900,340,640,480,820,380,700,520,300,860,460,600];
+    const looks = [
+      { style:'glass', wall:'#27384d', glass:'#9fd0f0', glassDark:'#3d6c94' },
+      { style:'concrete', wall:'#b9b3ab' }, { style:'brick', wall:'#9a5540' },
+      { style:'glass', wall:'#1f3a3d', glass:'#9fe0d6', glassDark:'#2f7d78' },
+      { style:'concrete', wall:'#d2c7b4' }, { style:'glass', wall:'#33304a', glass:'#c9b8f0', glassDark:'#5a4a94' },
+    ];
     const xs = [[-1760,-1015],[-785,-115],[115,785],[1015,1760]];
     const zs = [[-1260,-715],[-485,-115],[115,485],[715,1260]];
     const out = []; let i = 0;
     for(const [z0, z1] of zs) for(const [x0, x1] of xs){
-      const w = (x1 - x0) - 130, d = Math.min((z1 - z0) - 150, 230);
-      out.push({ name: names[i % names.length], x: (x0 + x1)/2, z: z0 + 75, w, d, h: 170 + ((i*53) % 170),
-                 wall: walls[i % walls.length], trim: '#f1ece8', sign: darkenColor(walls[i % walls.length], 0.45),
-                 cross: /CHEMIST|CLINIC|GP|DENTAL/.test(names[i % names.length]) });
+      const w = (x1 - x0) - 130, d = Math.min((z1 - z0) - 150, 230), h = heights[i % heights.length];
+      out.push(Object.assign({ name: names[i % names.length], x: (x0 + x1)/2, z: z0 + 75, w, d,
+        h: h > 600 ? 300 : h, setback: h > 600 ? h - 300 : 0, trim:'#cfcac4', sign:'#1d2733',
+        cross: /CHEMIST|CLINIC|GP|DENTAL/.test(names[i % names.length]), awning: i % 3 === 0 }, looks[i % looks.length]));
       i++;
     }
+    const paint = ['#c8102e','#2f6fb5','#e9e9e9','#f2b400','#3a3f4a','#2f8f5b','#d96a2b','#7a4fb5'];
+    [-1400,-500,450,1350].forEach((x, k)=>{ out.push(battleCar(x, -600 + 48, paint[k])); out.push(battleCar(x + 60, 600 - 104, paint[k+4])); });
     return out;
   }
   const BATTLE_MAPS = {
-    hospital: { label: 'Hospital precinct', icon: '🏥', blurb: 'Compact. Two streets, six buildings.',
+    hospital: { label: 'Hospital precinct', icon: '🏥', blurb: 'Emergency, the ward tower with its helipad, a car park.',
       halfW: 1300, halfD: 1000, v: [0], h: [0], spawn: { you: [0,-250], foe: [0,250] },
+      lawns: [{ x:-650, z:-360, w:700, d:200 }, { x:680, z:150, w:560, d:170 }, { x:-700, z:680, w:340, d:260 }],
+      plazas: [{ x:380, z:-470, w:520, d:320, color:'#8f949b' }],
+      decor: [-1,1].flatMap(sx=> [-800,-400,400,800].map(z=> ({ type:'lamp', x: sx*150, z }))),
       buildings: ()=> [
-    { name:'EMERGENCY', x:-700, z: 330, w:620, d:300, h:270, wall:'#b5654a', trim:'#e9e2dc', sign:'#c8102e', cross:true },
-    { name:'WARDS',     x: 680, z: 360, w:560, d:320, h:340, wall:'#8fa3b8', trim:'#e6edf3', sign:'#1f5fa8' },
-    { name:'PHARMACY',  x:-760, z:-620, w:420, d:240, h:190, wall:'#7fb08a', trim:'#eef6ef', sign:'#1f7a3d', cross:true },
-    { name:'PATHOLOGY', x: 720, z:-640, w:480, d:250, h:210, wall:'#b59ad1', trim:'#f1ecf7', sign:'#6a3fa0' },
-    { name:'CAFE',      x:-260, z: 700, w:200, d:160, h:130, wall:'#e0b071', trim:'#fff5e4', sign:'#a0611a' },
-    { name:'LABS',      x: 290, z:-700, w:220, d:170, h:150, wall:'#9cc7c9', trim:'#eef8f8', sign:'#1d6f73' },
-    { name:'',          x:-300, z: 190, w:150, d: 70, h: 74, wall:'#f4f4f4', trim:'#ffffff', sign:'#c8102e', ambulance:true },
-  ] },
-    city: { label: 'City streets', icon: '🏙️', blurb: 'Big street grid, sixteen blocks to weave through.',
-      halfW: 1850, halfD: 1350, v: [-900, 0, 900], h: [-600, 0, 600], spawn: { you: [0,-250], foe: [0,250] },
-      buildings: battleCityBlocks },
-    campus: { label: 'USYD campus', icon: '🎓', blurb: 'Eastern Avenue, the Quad, Fisher and Charles Perkins.',
-      halfW: 1750, halfD: 1500, v: [0], h: [-560, 450], spawn: { you: [0,-200], foe: [0,180] },
-      buildings: ()=> [
-        { name:'QUADRANGLE',       x:-760,  z: 640,  w:760, d:420, h:300, wall:'#c9a36b', trim:'#e8d4a8', sign:'#7a5a2a' },
-        { name:'FISHER LIBRARY',   x: 680,  z: 640,  w:620, d:360, h:380, wall:'#8d99a6', trim:'#dfe5ea', sign:'#e64626' },
-        { name:'CARSLAW',          x: 680,  z:-360,  w:560, d:260, h:300, wall:'#a9b4bd', trim:'#e6ebef', sign:'#e64626' },
-        { name:'ANDERSON STUART',  x:-760,  z:-340,  w:520, d:240, h:260, wall:'#c9a36b', trim:'#e8d4a8', sign:'#7a5a2a' },
-        { name:'MADSEN',           x:-1380, z:-340,  w:360, d:220, h:220, wall:'#b98f5a', trim:'#e8d4a8', sign:'#7a5a2a' },
-        { name:'MANNING',          x: 1330, z:-320,  w:320, d:200, h:170, wall:'#b88a6a', trim:'#f1e3d6', sign:'#8a4a2a' },
-        { name:'CHARLES PERKINS',  x:-720,  z:-1220, w:720, d:330, h:330, wall:'#d9dde2', trim:'#ffffff', sign:'#e64626' },
-        { name:'WENTWORTH',        x: 720,  z:-1180, w:520, d:280, h:240, wall:'#b88a6a', trim:'#f1e3d6', sign:'#e64626' },
-        { name:'GREAT HALL',       x:-1420, z: 700,  w:340, d:300, h:340, wall:'#c9a36b', trim:'#e8d4a8', sign:'#7a5a2a' },
+        { name:'EMERGENCY', x:-700, z: 330, w:620, d:300, h:230, style:'brick', wall:'#a8563e', trim:'#d8d2cc', sign:'#c8102e', cross:true, awning:true },
+        { name:'WARDS',     x: 680, z: 360, w:560, d:320, h:520, style:'concrete', wall:'#c9ced3', trim:'#e6edf3', sign:'#1f5fa8', helipad:true },
+        { name:'PHARMACY',  x:-760, z:-620, w:420, d:240, h:170, style:'concrete', wall:'#e3ece4', trim:'#f4f8f4', sign:'#1f7a3d', cross:true, awning:true },
+        { name:'PATHOLOGY', x: 720, z:-640, w:480, d:250, h:260, style:'glass', wall:'#3b2f52', glass:'#cdbcf2', glassDark:'#6a4fa3', trim:'#e9e4f2', sign:'#6a3fa0' },
+        { name:'CAFE',      x:-260, z: 700, w:200, d:160, h:120, style:'brick', wall:'#c98a52', trim:'#fff5e4', sign:'#a0611a', awning:true },
+        { name:'LABS',      x: 290, z:-760, w:220, d:170, h:200, style:'glass', wall:'#1f3a3d', glass:'#a6e3df', glassDark:'#2f7d78', trim:'#eef8f8', sign:'#1d6f73' },
+        { name:'', kind:'ambulance', ambulance:true, x:-300, z: 190, w:150, d: 70, h: 74, wall:'#f4f4f4', trim:'#ffffff', sign:'#c8102e' },
+        battleCar(240, -420, '#2f6fb5'), battleCar(390, -420, '#c8102e'), battleCar(540, -420, '#e9e9e9'), battleCar(315, -290, '#f2b400'),
       ] },
+    city: { label: 'Downtown at dusk', icon: '🏙️', blurb: 'Towers, shopfronts and parked cars under a sunset.',
+      halfW: 1850, halfD: 1350, v: [-900, 0, 900], h: [-600, 0, 600], spawn: { you: [0,-250], foe: [0,250] },
+      decor: [-900,0,900].flatMap(vx=> [-1,1].flatMap(sx=> [-1000,-300,300,1000].map(z=> ({ type:'lamp', x: vx + sx*150, z })))),
+      buildings: battleCityBlocks },
+    campus: { label: 'USYD campus', icon: '🎓', blurb: 'Sandstone Quadrangle and clock tower, lawns, jacarandas.',
+      halfW: 1750, halfD: 1500, v: [0], h: [-560, 450], paved: [0], spawn: { you: [0,-200], foe: [0,180] },
+      lawns: [{ x:-760, z:755, w:530, d:190 }, { x:680, z:-70, w:900, d:380 }, { x:-760, z:-70, w:900, d:380 }, { x:680, z:-880, w:700, d:180 }],
+      decor: [
+        { type:'tower', x:-760, z:695, w:130, y:150, h:330, wall:'#c9a36b' },
+        { type:'tree', kind:'jacaranda', x:-640, z:850, r:70 },
+        { type:'tree', kind:'jacaranda', x:420, z:120, r:60 }, { type:'tree', kind:'jacaranda', x:-460, z:160, r:56 },
+      ],
+      buildings: ()=> { const sand = { style:'sandstone', wall:'#c9a36b', trim:'#b08a55', sign:'#7a5a2a', roofColor:'#5e5148' }; return [
+        Object.assign({ name:'QUADRANGLE', x:-975, z:640, w:220, d:110, h:210, roof:'gableX' }, sand),
+        Object.assign({ name:'', x:-545, z:640, w:220, d:110, h:210, roof:'gableX', door:false }, sand),
+        Object.assign({ name:'', x:-1085, z:750, w:110, d:200, h:210, roof:'gableZ', door:false }, sand),
+        Object.assign({ name:'', x:-435,  z:750, w:110, d:200, h:210, roof:'gableZ', door:false }, sand),
+        Object.assign({ name:'', x:-760, z:950, w:760, d:110, h:210, roof:'gableX', door:false }, sand),
+        Object.assign({ name:'GREAT HALL', x:-1420, z:700, w:300, d:300, h:290, roof:'gableZ' }, sand),
+        Object.assign({ name:'ANDERSON STUART', x:-760, z:-340, w:520, d:240, h:250, roof:'gableX' }, sand),
+        Object.assign({ name:'MADSEN', x:-1380, z:-340, w:360, d:220, h:220, roof:'gableX' }, sand),
+        { name:'FISHER LIBRARY',  x: 680, z: 640,  w:620, d:360, h:560, style:'glass', wall:'#2c3e50', glass:'#a9cfe6', glassDark:'#4a7694', trim:'#dfe5ea', sign:'#e64626' },
+        { name:'CARSLAW',         x: 680, z:-360,  w:560, d:260, h:360, style:'concrete', wall:'#a9b4bd', trim:'#e6ebef', sign:'#e64626' },
+        { name:'MANNING',         x: 1330, z:-320, w:320, d:200, h:170, style:'brick', wall:'#b06a4a', trim:'#f1e3d6', sign:'#8a4a2a', awning:true },
+        { name:'CHARLES PERKINS', x:-720, z:-1220, w:720, d:330, h:380, style:'glass', wall:'#e8edf1', glass:'#dff0fa', glassDark:'#8fb6cf', trim:'#ffffff', sign:'#e64626' },
+        { name:'WENTWORTH',       x: 720, z:-1180, w:520, d:280, h:260, style:'brick', wall:'#b88a6a', trim:'#f1e3d6', sign:'#e64626' },
+      ]; } },
   };
   let battleMap = 'hospital';
   let BATTLE_BUILDINGS = [];
@@ -8241,7 +8286,7 @@
     battleQuad([{x:fl.x,y:fl.y-hf},{x:fr.x,y:fr.y-hf},{x:br.x,y:br.y-hb},{x:bl.x,y:bl.y-hb}], bd.trim);
     const fw = fr.x - fl.x;
     ctx.fillStyle = bd.wall; ctx.fillRect(fl.x, fl.y - hf, fw, hf);
-    if(bd.ambulance){
+    if(bd.ambulance || bd.kind){
       ctx.fillStyle = bd.sign; ctx.fillRect(fl.x, fl.y - hf*0.55, fw, hf*0.16);
       ctx.fillStyle = '#9fd3ff'; ctx.fillRect(fl.x + fw*0.68, fl.y - hf*0.9, fw*0.26, hf*0.3);
       ctx.fillStyle = '#222'; 
@@ -8254,6 +8299,7 @@
     // windows
     const lit = currentTheme === 'dark';
     const cols = Math.max(2, Math.round(bd.w/75)), rows = Math.max(1, Math.round(bd.h/85) - 1);
+    bd = Object.assign({ trim:'#d8d4cf', sign:'#333333' }, bd);
     const signH = hf*0.2, bodyTop = fl.y - hf + signH, bodyH = hf - signH - hf*0.22;
     ctx.fillStyle = lit ? '#ffe9a6' : '#bfe3ff';
     for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
@@ -8640,7 +8686,7 @@
       ctx.translate(t.x, t.y); ctx.scale(k, k); ctx.translate(-t.x, -t.y);
     }
     if(b.shake>0) ctx.translate((Math.random()-0.5)*b.shake*SCALE, (Math.random()-0.5)*b.shake*SCALE);
-    drawArena(b);
+    if(b.gl && b3) battleRender3D(b); else drawArena(b);
     drawAttack(b);
     if(b.hitFx && b.hitFx.kind==='hit'){
       const t = (performance.now()-b.hitFx.at)/520;
@@ -8738,6 +8784,42 @@
     // Flattened, because it is expanding across a ground plane seen at an angle.
     ctx.beginPath(); ctx.ellipse(slot.x, slot.y + slot.r*0.5, r, r*0.42, 0, 0, Math.PI*2); ctx.stroke();
     ctx.restore();
+  }
+
+  /* ------------------------------------------------------------- 3D view
+     Loaded on demand from battle3d.js. Until it arrives, and whenever it
+     cannot load at all (a file:// copy, no WebGL), the 2D drawArena above is
+     what you see -- same rules, same map, flatter picture. */
+  const battleGlCanvas = document.getElementById('battleGl');
+  let b3 = null, battle3dPromise = null;
+  function battleLoad3D(){
+    if(!battle3dPromise){
+      // Bump the number whenever battle3d.js changes: it is served with a long
+      // cache lifetime, and a stale copy is how a fixed bug stays on screen.
+      battle3dPromise = import('./battle3d.js?v=4')
+        .then(m=> m.createBattle3D({ glCanvas: battleGlCanvas, drawCell: drawCellSprite, roadHalf: ROAD_HALF }))
+        .then(x=>{ b3 = x; return x; })
+        .catch(err=>{ console.warn('[battle] 3D view unavailable, using the 2D view:', err); return null; });
+    }
+    return battle3dPromise;
+  }
+  function battleRender3D(b){
+    ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.restore();
+    const now = performance.now(), list = [], bars = [];
+    const add = (f, x, z, ring, tint, visible)=>{
+      const dir = f.isYou ? 1 : -1;
+      list.push({ id: f.isYou ? 'you' : (f.pid || 'foe'), x, z, look: f.look, wob: f.isYou ? player.wob : now/260,
+                  dead: f.dead, fall: f.fall, flash: f.flash, knock: f.knock, lunge: f.lunge*dir, windup: f.windup*dir, ring, tint, visible });
+      if(visible) bars.push(f);
+    };
+    if(b.net){ for(const o of Object.values(b.net.others)) add(o, o.nx, o.nz, o === b.foe && b.phase==='live', '#ffa24d', o.placed && !(o.dead && o.fall >= 1)); }
+    else add(b.foe, b.fx, b.fz, !!b.foeTelegraph, '#ffa24d', true);
+    add(b.you, b.wx, b.wz, b.phase==='live' && now >= b.attackReadyAt, b.you.look.color || '#ff5d8f',
+        !(b.net && (b.net.spectator || (b.you.dead && b.you.fall >= 1))));
+    b3.render({ camX: b.camX, camZ: b.camZ + 60, time: now, shake: b.shake, push: b.push, fighters: list, pickups: b.pickups,
+      danger: b.foeTelegraph ? { x: b.foeTelegraph.x, z: b.foeTelegraph.z, r: DODGE_RADIUS,
+                                 t: Math.min(1, (now - b.foeTelegraph.at) / FOE_TELEGRAPH_MS) } : null });
+    for(const f of bars) if(!battleSlot(f).behind) drawHpBar(f);
   }
 
   function battleLoop(t){
@@ -9199,7 +9281,7 @@
       battleState: ()=> battle && ({
         phase: battle.phase, youHp: battle.you.hp, foeHp: battle.foe.hp,
         net: battle.net ? { code: battle.net.code, spectator: battle.net.spectator, target: battle.net.targetPid, others: Object.values(battle.net.others).map(o=>({ name:o.name, x:Math.round(o.nx), z:Math.round(o.nz), hp:o.hp, dead:o.dead, placed:o.placed })) } : null,
-        map: battleMap, clock: battle.clock, sudden: battle.sudden, buildings: BATTLE_BUILDINGS.length,
+        gl: !!battle.gl, map: battleMap, clock: battle.clock, sudden: battle.sudden, buildings: BATTLE_BUILDINGS.length,
         wx: battle.wx, wz: battle.wz, fx: battle.fx, fz: battle.fz, dist: battleDist(),
         telegraph: battle.foeTelegraph ? { x: battle.foeTelegraph.x, z: battle.foeTelegraph.z } : null,
         ready: performance.now() >= battle.attackReadyAt, inRange: battleDist() <= BATTLE_RANGE,
