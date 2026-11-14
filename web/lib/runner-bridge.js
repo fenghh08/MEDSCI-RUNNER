@@ -142,21 +142,29 @@
     }
   }
 
-  function playerUid() {
+  /* A fresh Firebase ID token when signed in, so the server can establish WHO
+     answered rather than believing a uid posted in the body. Returns null when
+     signed out -- playing signed out is normal and stays allowed. */
+  async function authHeader() {
     try {
-      return (window.__runnerPlayer && window.__runnerPlayer.uid) || null;
+      var player = window.__runnerPlayer;
+      if (!player || typeof player.getToken !== 'function') return null;
+      var token = await player.getToken();
+      return token ? { authorization: 'Bearer ' + token } : null;
     } catch (e) {
-      return null;
+      return null; // an expired or unavailable token just means anonymous
     }
   }
 
   async function grade(body) {
-    var payload = Object.assign({ sessionId: sessionId, playerUid: playerUid() }, body);
+    var payload = Object.assign({ sessionId: sessionId }, body);
+    var auth = await authHeader();
+    var headers = Object.assign({ 'content-type': 'application/json' }, auth || {});
     for (var attempt = 0; attempt < 2; attempt++) {
       try {
         var res = await fetch(ENDPOINT, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: headers,
           body: JSON.stringify(payload),
         });
         if (res.ok) return await res.json();

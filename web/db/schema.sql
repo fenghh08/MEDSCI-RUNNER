@@ -174,6 +174,70 @@ alter table questions add column if not exists related_course    text;
 alter table questions add column if not exists contributor_name  text;
 alter table questions add column if not exists contributor_email text;
 
+-- ============================================================================
+-- Identity and roles.
+--
+-- Firebase Auth stays the identity provider -- the game already signs people
+-- in with Google and that works on the web and in the phone app. What it
+-- cannot do is say who may EDIT what, so that lives here, keyed by the
+-- Firebase uid. The server verifies the ID token and then reads this table;
+-- the client is never trusted for a role.
+--
+-- This replaces two things that were never security: the dev tool's plaintext
+-- access codes, and the Firebase RTDB nodes adminAccess/ ucAccess/ that the
+-- codes gated.
+-- ============================================================================
+
+create table if not exists users (
+  uid           text primary key,                -- Firebase uid
+  email         text unique not null,
+  display_name  text,
+  role          text not null default 'student'
+                check (role in ('student', 'lecturer', 'admin')),
+  created_at    timestamptz not null default now(),
+  last_seen_at  timestamptz
+);
+
+-- Which courses a lecturer may edit. Admins are unscoped and need no rows
+-- here; students never get any.
+-- ON UPDATE CASCADE matters here. A user granted access before they have ever
+-- signed in is stored with a placeholder uid (`email:<address>`), which
+-- lib/auth.ts replaces with the real Firebase uid on first sign-in. Without
+-- the cascade that rename is rejected, because these rows still point at the
+-- placeholder -- so the grant would have to be deleted and recreated, and a
+-- lecturer would silently lose their courses the moment they logged in.
+create table if not exists user_courses (
+  uid         text not null references users(uid) on update cascade on delete cascade,
+  course_code text not null references courses(code) on delete cascade,
+  granted_by  text references users(uid) on update cascade on delete set null,
+  granted_at  timestamptz not null default now(),
+  primary key (uid, course_code)
+);
+
+-- For databases created before the cascade was added.
+do $$
+begin
+  if exists (
+    select 1 from pg_constraint
+     where conname = 'user_courses_uid_fkey' and confupdtype <> 'c'
+  ) then
+    alter table user_courses drop constraint user_courses_uid_fkey;
+    alter table user_courses add constraint user_courses_uid_fkey
+      foreign key (uid) references users(uid) on update cascade on delete cascade;
+  end if;
+  if exists (
+    select 1 from pg_constraint
+     where conname = 'user_courses_granted_by_fkey' and confupdtype <> 'c'
+  ) then
+    alter table user_courses drop constraint user_courses_granted_by_fkey;
+    alter table user_courses add constraint user_courses_granted_by_fkey
+      foreign key (granted_by) references users(uid) on update cascade on delete set null;
+  end if;
+end $$;
+
+create index if not exists users_role_idx         on users (role);
+create index if not exists user_courses_course_idx on user_courses (course_code);
+
 create index if not exists classes_course_idx        on classes (course_code);
 create index if not exists topics_course_idx         on topics (course_code);
 create index if not exists items_topic_idx           on items (topic_id);

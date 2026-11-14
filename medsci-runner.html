@@ -1855,6 +1855,23 @@
   }
   function handleAuthStateChanged(user){
     currentUser = user;
+    // Publish the signed-in identity for anything outside this module that
+    // needs it. The website build's bridge has always looked for
+    // window.__runnerPlayer and has always found nothing, so every answer it
+    // recorded was anonymous and the per-player analytics had no player: the
+    // uid lived only in this module-scoped `currentUser`.
+    //
+    // getToken() returns a fresh Firebase ID token, which the server verifies
+    // against Google's public keys (web/lib/auth.ts). Firebase refreshes it
+    // about hourly, so it is fetched per request rather than cached here.
+    try {
+      window.__runnerPlayer = user ? {
+        uid: user.uid,
+        email: user.email || null,
+        displayName: user.displayName || null,
+        getToken: ()=> user.getIdToken(),
+      } : null;
+    } catch(e){ /* never let this break sign-in */ }
     if(syncListenerRef){ off(syncListenerRef); syncListenerRef = null; }
     if(user){
       console.log('[SignInDebug] 4: handleAuthStateChanged fired with user', user.uid);
