@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { sql } from '@/lib/db';
 import { noteActivity } from '@/lib/keepalive';
+import { optionalUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,8 +58,14 @@ export async function POST(request: NextRequest) {
   }
 
   const sessionId = text(body.sessionId);
-  const playerUid = text(body.playerUid);
   const roomId = text(body.roomId);
+
+  // Who answered, established from a verified Firebase ID token -- never from
+  // the body. The client used to post its own `playerUid`, which anyone could
+  // set to anything; it is now ignored if sent. Signed out stays allowed and
+  // simply records no player.
+  const signedIn = await optionalUser(request);
+  const playerUid = signedIn?.uid ?? null;
 
   // ---- one round trip ---------------------------------------------------
   // Look up the key, count recent attempts, and record this one, in a single
@@ -98,17 +105,24 @@ export async function POST(request: NextRequest) {
             from choice
         ),
         att as (
+          -- Counted against the signed-in player when there is one, because a
+          -- uid cannot be rotated the way a client-generated session id can.
+          -- Signed out, the session id is still a speed bump and still better
+          -- than nothing.
           select count(*)::int as n from answer_events
-           where session_id = ${sessionId}
-             and question_qid = ${qid}
+           where question_qid = ${qid}
              and answered_at > now() - ${ATTEMPT_WINDOW}::interval
+             and (case when ${playerUid}::text is not null
+                       then player_uid = ${playerUid}
+                       else session_id = ${sessionId} end)
         ),
         ins as (
           insert into answer_events (player_uid, session_id, question_qid,
                                      chosen_index, was_correct, room_id)
           select ${playerUid}, ${sessionId}, ${qid}, ${chosenIndex}, g.correct, ${roomId}
             from graded g, att
-           where (${sessionId}::text is null or att.n < ${MAX_ATTEMPTS_PER_QUESTION})
+           where ((${sessionId}::text is null and ${playerUid}::text is null)
+                  or att.n < ${MAX_ATTEMPTS_PER_QUESTION})
              and (g.authored is not null or ${chosenIndex} < 0)
              and (g.authored is null or g.authored < g.option_count)
           returning 1
@@ -162,7 +176,7 @@ export async function POST(request: NextRequest) {
   if (question.authored >= question.option_count) {
     return NextResponse.json({ error: 'chosenIndex is out of range' }, { status: 400 });
   }
-  if (!question.recorded && qid && sessionId) {
+  if (!question.recorded && qid && (sessionId || playerUid)) {
     return NextResponse.json({ error: 'too many attempts at this question' }, { status: 429 });
   }
 
