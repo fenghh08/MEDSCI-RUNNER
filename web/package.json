@@ -17,10 +17,12 @@
     "db:migrate-access": "node scripts/migrate-access.mjs",
     "db:export": "node scripts/export-game-data.mjs",
     "db:verify": "node scripts/verify-round-trip.mjs",
+    "db:publish-offline": "node scripts/export-game-data.mjs && node ../scripts/copy-web-assets.js",
     "check:anchors": "node scripts/check-anchors.mjs",
     "test:validate": "node scripts/test-validate.mjs",
     "test:store": "node scripts/test-store.mjs",
-    "test:media": "node scripts/test-media.mjs"
+    "test:media": "node scripts/test-media.mjs",
+    "check:trace": "node scripts/check-trace.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",

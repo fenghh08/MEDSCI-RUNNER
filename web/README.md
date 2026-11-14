@@ -208,3 +208,82 @@ scripts/
   check-anchors.mjs         npm run check:anchors
   dry-run.mjs               parse and report, no database needed
 ```
+
+## The content app (`/admin`)
+
+Postgres is the source of truth for content. Lecturers and unit coordinators
+edit it at `/admin`; `game-data.js` is an export (`npm run db:export`) that
+keeps the GitHub Pages copy and the phone app working offline.
+
+| tab | what it is for |
+|---|---|
+| Content | the course → topic → item tree; edit an item and its questions, with a student-view preview |
+| Quality | the quiz-quality audit for a whole course, and the questions most students miss |
+| Reports | what students reported or suggested from inside the game |
+| Media | videos and 3D models that questions can show |
+| History | every change, who made it, and Undo |
+| People | (admins) who may edit which course |
+
+**Who may do what** is decided on the server, on every request, from the
+`users` and `user_courses` tables. Signing in with Google only proves who
+someone is. To set it up:
+
+1. Put the Firebase service account in `.env.local` as
+   `FIREBASE_SERVICE_ACCOUNT_JSON` (see `.env.example`). Without it every
+   admin route answers 503 and nothing can be opened by anyone.
+2. Make yourself the first admin: `npm run db:migrate-access -- --grant-admin you@example.com`
+3. Sign in at `/admin` and add everyone else under People. They do not need to
+   have signed in before.
+
+**Every write** goes through `lib/content-store.mjs`, which checks scope,
+enforces `lib/validate.mjs`, and records a `content_revisions` row in the same
+statement as the change. A question is rejected if it is under 20 characters,
+has fewer than 2 or more than 6 options, has an empty or repeated option, has
+no correct answer marked, has no explanation, or cites a slide or lecture in
+the stem. Option-length balance is a property of a whole set, so it is shown on
+the Quality tab rather than blocking any one question.
+
+**Working on it** without touching live content or needing a service account:
+make a branch of the database in the Neon console, then
+
+```bash
+node scripts/dev-scratch.mjs --endpoint <the branch's endpoint id>   # next dev on :4090, signed in as a local admin
+npm run test:store -- --endpoint <the branch's endpoint id>          # the write layer, for real
+npm run test:validate && npm run test:media                          # the rules, no database
+```
+
+### Video and 3D questions
+
+Add media on the Media tab, then attach it to a question under
+"Add media (optional)". A question with media shows it above the stem; if it
+fails to load, the question still works as plain text.
+
+| kind | accepted | limit |
+|---|---|---|
+| 3D model | `.glb` only (glTF 2.0 binary, textures inside) | 15 MB; under 8 MB recommended; aim for ≤150k triangles, ≤2048px textures |
+| molecular structure | a PDB id such as `1HSG`, fetched from RCSB | nothing to upload |
+| video file | `.mp4` (H.264) or `.webm` | 100 MB, about 3 minutes |
+| video link | YouTube or Vimeo, rewritten to the no-cookie embed | no storage used |
+
+`.gltf` with separate files, `.obj`, `.stl` and `.fbx` are refused: export as
+`.glb` (Blender: File → Export → glTF 2.0 → format "glTF Binary"). Files are
+identified from their first bytes, not their name. Uploads need
+`BLOB_READ_WRITE_TOKEN`; links and PDB ids do not. 3D models are kept out of
+the timed modes by default, per question.
+
+## Deploying to Vercel
+
+1. New Vercel project, **Root Directory `web`**.
+2. Environment variables: `DATABASE_URL`, `FIREBASE_SERVICE_ACCOUNT_JSON`,
+   the six `NEXT_PUBLIC_FIREBASE_*`, and (for uploads) a Blob store, which adds
+   `BLOB_READ_WRITE_TOKEN` itself. Do **not** set `ADMIN_DEV_USER`; production
+   builds ignore it anyway.
+3. Firebase console → Authentication → Settings → **Authorized domains**: add
+   the Vercel domain, or Google sign-in fails there.
+4. Before the first deploy, locally: `npm run build && npm run check:trace`.
+   The game file and its assets live outside `web/`; `check:trace` proves the
+   build includes them (`outputFileTracingIncludes` in `next.config.ts`).
+
+The hosted site never ships answers. The offline builds do: after content
+changes, `npm run db:publish-offline` regenerates `../game-data.js` and the
+phone app's `www/`; commit and push that to update GitHub Pages.
