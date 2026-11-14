@@ -116,11 +116,15 @@
       btns.forEach(function (b) { b.classList.add('disabled'); });
       var picked = btns[chosenIndex];
       if (picked) picked.classList.add('picked');
-      // Only show "checking" if the wait is long enough to notice. Below this
-      // the verdict arrives first and nothing flickers.
+      // A warm round trip is 12-22ms -- faster than one frame at 60fps, so the
+      // verdict is already on screen and this never fires. The spinner is only
+      // for the genuinely broken case (a cold database wake, a dropped
+      // connection), which is why the threshold is well past the point where a
+      // delay is merely noticeable: showing a spinner for a 200ms blip makes
+      // the game feel slower than saying nothing at all.
       var slow = setTimeout(function () {
         if (picked) picked.classList.add('checking');
-      }, 180);
+      }, 450);
       return function () {
         clearTimeout(slow);
         if (picked) picked.classList.remove('picked', 'checking');
