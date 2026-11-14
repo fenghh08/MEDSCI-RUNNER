@@ -466,6 +466,14 @@
   #battleLog{ position:absolute; left:10px; bottom:10px; z-index:40; display:none;
               max-width:min(62vw,380px); font-size:12px; line-height:1.5; color:var(--hud-dim); }
   #battleLog.active{ display:block; }
+  #battlePauseBtn{ position:absolute; top:10px; right:12px; z-index:46; display:none; width:38px; height:38px;
+                   border-radius:50%; border:1px solid var(--panel-line); background:var(--panel);
+                   color:var(--text); font-size:15px; cursor:pointer; }
+  #battlePause{ position:absolute; inset:0; z-index:70; display:none; align-items:center; justify-content:center;
+                background:var(--backdrop-soft, rgba(0,0,0,.45)); }
+  #battlePause.active{ display:flex; }
+  #battlePause .bp-card{ background:var(--panel); border:1px solid var(--panel-line); border-radius:18px;
+                         padding:22px 28px; text-align:center; min-width:230px; }
   #battleAttackBtn{ position:absolute; right:14px; bottom:14px; z-index:45; display:none;
                     padding:13px 22px; font-size:16px; font-weight:700; border-radius:999px;
                     border:2px solid var(--panel-line); background:var(--panel); color:var(--hud-dim);
@@ -926,14 +934,16 @@
       </div>
       <div id="battleSetupView" style="display:none;">
         <h2>⚔️ Cell Battle</h2>
-        <p class="desc">Your cell against a rival. On your turn you attack by answering —
-           get it right and you land a hit, get it wrong and they hit back.
-           Three good hits knock a cell out.</p>
+        <p class="desc">Walk the map with WASD, get close to your rival and press Space to attack.
+           Every attack is a question: right lands a hit, wrong lets them hit back.
+           Step out of the red ring to dodge, and grab green orbs to heal.</p>
         <div class="p-sub">Pick your question pool</div>
         <div class="cancer-grid" id="battleCourseGrid"></div>
+        <div class="p-sub" style="margin-top:14px;">Pick a map</div>
+        <div class="cancer-grid" id="battleMapGrid"></div>
         <div class="btn-row" style="margin-top:14px;">
           <button class="secondary" id="battleBackBtn">← Back</button>
-          <button id="battleStartBtn" disabled>⚔️ Start the duel</button>
+          <button class="primary" id="battleStartBtn" disabled>⚔️ Start the duel</button>
         </div>
       </div>
       <div id="customizeView" style="display:none;">
@@ -1408,6 +1418,16 @@
       <div id="battleTurn">Your turn</div>
       <div id="battleTurnSub"></div>
       <div id="battleClockWrap"><div id="battleClock"></div></div>
+    </div>
+    <button id="battlePauseBtn" title="Pause (Esc)">⏸</button>
+    <div id="battlePause">
+      <div class="bp-card">
+        <h2>Paused</h2>
+        <div class="btn-row" style="flex-direction:column;gap:10px;">
+          <button class="primary" id="battleResumeBtn">▶ Resume</button>
+          <button class="secondary" id="battleLeaveBtn">🚪 Leave the match</button>
+        </div>
+      </div>
     </div>
     <div id="battleLog"></div>
     <button id="battleAttackBtn">⚔️ Attack</button>
@@ -3417,6 +3437,9 @@
   });
   quitFromOverBtn.addEventListener('click', ()=>{ mpLeaveRaceQuietly(); quitToMenu(); });
   againBtn.addEventListener('click', ()=>{
+    // "Play again" after a duel used to start a Runner run, because this
+    // button only ever knew about runs.
+    if(quizMode==='battle' && typeof startBattle==='function' && battleCourse){ startBattle(); return; }
     if(mp.active && mp.finished){
       mpTeardown();
       quitToMenu();
@@ -3433,6 +3456,7 @@
     briefView.style.display = 'none';
     practiceSetupView.style.display = 'none';
     customizeView.style.display = 'none';
+    { const bs = document.getElementById('battleSetupView'); if(bs) bs.style.display = 'none'; }
     mpSetupView.style.display = 'none';
     mpHostSetupView.style.display = 'none';
     mpJoinEntryView.style.display = 'none';
@@ -6255,7 +6279,8 @@
   function openSummary(){
     summaryModal.classList.add('active');
     const correctCount = sessionLog.filter(r=>r.correct).length;
-    const hasRunnerEntries = sessionLog.some(r=>r.mode!=='practice');
+    // A duel has no stages, so only real run entries get the "Reached Stage" chip.
+    const hasRunnerEntries = sessionLog.some(r=>r.mode!=='practice' && r.mode!=='battle');
     const total = sessionLog.length;
     const pct = total ? Math.round(correctCount / total * 100) : 0;
     const flaggedCount = sessionLog.filter(r=>r.flagged).length;
@@ -6286,7 +6311,7 @@
         <span class="sr-verdict">${flagBadge}${r.correct?t('✓ Correct'):t('✗ Wrong')}</span></div>
         <div class="sr-q"><span class="sr-num">Q${num}</span>${r.prompt}</div>
         <div class="sr-answers">
-          <div class="sr-ans${r.correct?'':' picked-bad'}"><span class="sr-k">${t('Your answer')}</span><span>${r.options[r.chosenIndex]}</span></div>
+          <div class="sr-ans${r.correct?'':' picked-bad'}"><span class="sr-k">${t('Your answer')}</span><span>${r.options[r.chosenIndex] ?? t('(ran out of time)')}</span></div>
           ${r.correct?'':`<div class="sr-ans"><span class="sr-k">${t('Correct')}</span><span>${r.options[r.correctIndex]}</span></div>`}
         </div>
         <button class="sr-link" data-theme="${r.theme}" data-topic="${r.topic}" data-item="${r.itemId}">📚 ${t('Study guide')} →</button>
@@ -7456,6 +7481,8 @@
   const battleCourseGrid = document.getElementById('battleCourseGrid');
   const battleStartBtn = document.getElementById('battleStartBtn');
   const battleAttackBtn = document.getElementById('battleAttackBtn');
+  const battlePauseBtn = document.getElementById('battlePauseBtn');
+  const battlePauseEl = document.getElementById('battlePause');
 
   let battle = null;
   let battleCourse = null;
@@ -7499,7 +7526,20 @@
     battleSetupView.style.display = 'none';
     cancerPickView.style.display = 'block';
   }
+  function renderBattleMaps(){
+    const grid = document.getElementById('battleMapGrid');
+    grid.innerHTML = '';
+    Object.entries(BATTLE_MAPS).forEach(([key, mp])=>{
+      const b = document.createElement('button');
+      b.className = 'pick-card' + (battleMap===key ? ' battle-picked' : '');
+      b.innerHTML = `<span class="cc-icon">${mp.icon}</span><span class="cc-name">${escapeHtml(mp.label)}</span>`
+                  + `<span class="cc-blurb">${escapeHtml(mp.blurb)}</span>`;
+      b.addEventListener('click', ()=>{ battleMap = key; renderBattleMaps(); SoundFX.click(); });
+      grid.appendChild(b);
+    });
+  }
   function renderBattleCourses(){
+    renderBattleMaps();
     battleCourseGrid.innerHTML = '';
     Object.keys(THEMES).forEach(code=>{
       const meta = THEMES[code];
@@ -7508,7 +7548,7 @@
       b.className = 'pick-card' + (battleCourse===code ? ' battle-picked' : '');
       b.innerHTML = `<span class="cc-icon">${iconHTML(meta.icon,26)}</span>`
                   + `<span class="cc-name">${escapeHtml(code)}</span>`
-                  + `<span class="cc-blurb">${escapeHtml(meta.label||'')}</span>`;
+                  + `<span class="cc-blurb">${escapeHtml(meta.label && meta.label!==code ? meta.label : (COURSES[code]?.label || ''))} · ${battleQuestionPool(code).length} questions</span>`;
       b.addEventListener('click', ()=>{
         battleCourse = code; battleStartBtn.disabled = false;
         renderBattleCourses(); SoundFX.click();
@@ -7522,29 +7562,35 @@
     const pool = shuffle(battleQuestionPool(battleCourse));
     if(!pool.length) return;
     const n = Math.floor(Math.random()*BOT_NAMES.length);
+    const mapDef = applyBattleMap(battleMap);
     battle = {
       pool, poolAt: 0,
       you: newFighter('You', playerCustomization, true),
       foe: newFighter(BOT_NAMES[n], BOT_LOOKS[n], false),
-      phase: 'live', score: 0, log: [],
+      phase: 'live', score: 0, log: [], clock: 0, sudden: false, timeUp: false,
+      dodges: 0, healed: 0, paused: false, pausedAt: 0,
       attackReadyAt: performance.now() + 900,
       foeCooldown: 3200, foeTelegraph: null,
-      wx: 0, wz: -250, fx: 0, fz: 250, camX: 0, camZ: -310,
-      props: Array.from({length: 26}, ()=>{
+      wx: mapDef.spawn.you[0], wz: mapDef.spawn.you[1], fx: mapDef.spawn.foe[0], fz: mapDef.spawn.foe[1],
+      camX: mapDef.spawn.you[0], camZ: mapDef.spawn.you[1] - 60,
+      props: Array.from({length: Math.round(26 * (WORLD.halfW*WORLD.halfD)/(1300*1000))}, ()=>{
         let spot;
         do { spot = battleFreeSpot(90); }
-        while(Math.abs(spot.x) < ROAD_HALF + 50 || Math.abs(spot.z) < ROAD_HALF + 50);   // not in the road
+        while(battleOnRoad(spot.x, spot.z, 50));   // not in the road
         return { x: spot.x, z: spot.z, r: 38 + Math.random()*26,
                  color: ['#5fae6b','#74c17f','#4c9a63','#f29bb7'][Math.floor(Math.random()*4)] };
       }),
-      pickups: Array.from({length: 6}, ()=>({ ...battleFreeSpot(150), taken: false, backAt: 0 })),
+      pickups: Array.from({length: 4}, ()=>({ ...battleFreeSpot(150), taken: false, backAt: 0 })),
       foeLane: 1, foeZ: 0, foeLaneAt: 0,
       shake: 0, shakeUntil: 0, hitFx: null, deadline: 0, lastT: performance.now(),
       pending: null, attack: null, shock: null, push: 0, flash: 0,
     };
+    sessionLog = [];
+    showScreen('battle');           // clears the result screen when this is a rematch
     battleSetupView.style.display = 'none';
     cancerPickView.style.display = 'block';
     landingScreen.classList.remove('active');
+    battlePauseBtn.style.display = 'block';
     screenState = 'battle';
     syncHudVisibility();
     battleBar.classList.add('active');
@@ -7552,7 +7598,7 @@
     battleAttackBtn.style.display = 'block';
     player.lane = 1; player.targetLane = 1; player.x = laneX(1);
     seedArenaMotes();
-    battleLog(`A ${battle.foe.name} squares up. WASD to walk the precinct, Space to attack. Green orbs heal.`);
+    battleLog(`A ${battle.foe.name} squares up. WASD to walk, Space to attack. Green orbs heal.`);
     SoundFX.stageComplete();
     battleRaf = requestAnimationFrame(battleLoop);
   }
@@ -7563,6 +7609,8 @@
     battleBar.classList.remove('active');
     battleLogEl.classList.remove('active');
     battleAttackBtn.style.display = 'none';
+    battlePauseBtn.style.display = 'none';
+    battlePauseEl.classList.remove('active');
     battleBanner.classList.remove('active');
     battleStreakEl.classList.remove('active');
     mcqModal.classList.remove('active');
@@ -7598,7 +7646,14 @@
   const DODGE_RADIUS       = 150;    // world units: you run 430/s, so 1.5s clears it ~4x over
   const BATTLE_MOVE        = 430;    // world units per second
   const BATTLE_RANGE       = 560;    // how close you must be to attack
-  const BATTLE_PICKUP_HEAL = 20;
+  const BATTLE_PICKUP_HEAL = 15;
+  const BATTLE_PICKUP_BACK_MS = 20000;   // a taken orb stays gone this long
+  /* A match has to end. With orbs that came straight back, two careful
+     players could out-heal the damage for ever. So healing is smaller and
+     slower, and the clock closes in: at SUDDEN_AT every orb disappears and
+     every hit does double; at TIME_UP whoever has more life wins. */
+  const BATTLE_SUDDEN_AT = 150;          // seconds of play
+  const BATTLE_TIME_UP   = 240;
 
   function battleIsLive(){
     return battle && battle.phase==='live' && screenState==='battle'
@@ -7606,7 +7661,7 @@
   }
 
   function battleTryAttack(){
-    if(!battleIsLive()) return;
+    if(!battleIsLive() || battle.paused) return;
     if(performance.now() < battle.attackReadyAt) return;
     if(battleDist() > BATTLE_RANGE){
       battleFloat(battle.you, 'too far', '#9aa4b2');
@@ -7642,6 +7697,7 @@
       b.foeCooldown = 2600 + Math.random()*2200;
       if(Math.hypot(b.wx - t.x, b.wz - t.z) > DODGE_RADIUS){
         battleLog('You dodge it.');
+        b.dodges++;
         battleFloat(b.you, 'dodged', '#3ee6b8');
         SoundFX.shieldBlock();
       } else {
@@ -7723,6 +7779,9 @@
     const authored = (isTimeout || chosenIndex==null || chosenIndex<0) ? -1
       : (q.optionOrder ? q.optionOrder[chosenIndex] : chosenIndex);
     const first = !loadSrsState()[srsKeyFor(q.itemId, q.id)];
+    sessionLog.push({ mode:'battle', theme: battleCourse, stage: null, topic: q.__topicKey, itemId: q.itemId,
+      prompt: q.prompt, options: q.options, correctIndex: q.correctIndex,
+      chosenIndex: (chosenIndex==null || chosenIndex<0) ? q.options.length : chosenIndex, correct });
     recordSrsAnswer(q.itemId, q.id, correct);
     recordQuestionStat(q.itemId, q.id, correct, authored, first);
   }
@@ -7774,7 +7833,8 @@
   const ATTACK_SETTLE_MS = 620;   // after impact, before the turn moves on
 
   function battleImpact(a){
-    const { from, to, dmg, crit, text } = a;
+    const { from, to, crit, text } = a;
+    const dmg = battle.sudden ? a.dmg*2 : a.dmg;
     to.hp = Math.max(0, to.hp - dmg);
     to.ghostHoldUntil = performance.now() + BATTLE.ghostHoldMs;
     to.flash = 1;
@@ -7823,8 +7883,8 @@
     battleLogEl.innerHTML = battle.log.map(l=>`<div>${escapeHtml(l)}</div>`).join('');
   }
 
-  function showBattleStreak(n){
-    battleStreakEl.textContent = `🔥 ${n} IN A ROW`;
+  function showBattleStreak(n, text){
+    battleStreakEl.textContent = text || `🔥 ${n} IN A ROW`;
     battleStreakEl.classList.remove('active');
     void battleStreakEl.offsetWidth;
     battleStreakEl.classList.add('active');
@@ -7834,7 +7894,7 @@
   function battleFinish(){
     if(!battle || battle.phase==='over') return;
     battle.phase = 'over';
-    const won = battle.foe.hp<=0 && battle.you.hp>0;
+    const won = battle.you.hp > 0 && (battle.foe.hp <= 0 || (battle.timeUp && battle.you.hp > battle.foe.hp));
     if(won) battle.score += BATTLE.scorePerKo;
     const you = battle.you, foeName = battle.foe.name;
     mcqModal.classList.remove('active');
@@ -7846,8 +7906,14 @@
     if(won){ SoundFX.win(); if(typeof podiumConfettiBurst==='function') podiumConfettiBurst(); }
     else SoundFX.lose();
     updateBattleBar();
-    const summary = `${won ? 'You won the duel' : `${foeName} won the duel`} — `
-      + `${you.correct} right, ${you.wrong} wrong, ${battle.score} pts.`;
+    const asked = you.correct + you.wrong;
+    const mins = Math.floor(battle.clock/60), secs = String(Math.floor(battle.clock%60)).padStart(2,'0');
+    const how = battle.timeUp ? (won ? 'You won on life when time ran out' : `${foeName} won on life when time ran out`)
+                              : (won ? `You knocked out ${foeName}` : `${foeName} knocked you out`);
+    const summary = `${how}. ${you.correct}/${asked} attacks landed`
+      + `${asked ? ` (${Math.round(100*you.correct/asked)}%)` : ''}, ${battle.dodges} dodged, `
+      + `${battle.healed} HP healed, ${mins}:${secs} played, ${battle.score} pts. `
+      + `"View summary" lists every question.`;
     setTimeout(()=>{
       endBattle();
       overTitle.textContent = won ? '⚔️ Victory' : '⚔️ Defeated';
@@ -7886,7 +7952,9 @@
       battleClockWrap.style.visibility = 'hidden';
     }
     battleBar.classList.add('active');
-    battleTurnSub.textContent = `You ${Math.ceil(battle.you.hp)} HP  ·  ${battle.foe.name} ${Math.ceil(battle.foe.hp)} HP`;
+    { const tl = Math.max(0, (battle.sudden ? BATTLE_TIME_UP : BATTLE_SUDDEN_AT) - battle.clock);
+      battleTurnSub.textContent = `You ${Math.ceil(battle.you.hp)} HP  ·  ${battle.foe.name} ${Math.ceil(battle.foe.hp)} HP  ·  `
+        + `${battle.sudden ? '⚡ ends in' : 'sudden death in'} ${Math.floor(tl/60)}:${String(Math.floor(tl%60)).padStart(2,'0')}`; }
     battleAttackBtn.classList.toggle('ready', battle.phase==='live' && left<=0);
     battleAttackBtn.style.display = (battle.phase==='over') ? 'none' : 'block';
   }
@@ -7960,7 +8028,30 @@
      and the rival walk around them -- which is what turns the map from a
      backdrop into somewhere with corners to duck behind. */
   const ROAD_HALF = 115;
-  const BATTLE_BUILDINGS = [
+  /* Maps are data. Each one is a size, the streets that run across it (v =
+     running away from the camera at that x, h = running across at that z),
+     where the two fighters start, and its buildings. Adding a map is adding
+     an entry here; nothing else in the mode knows which map it is on. */
+  function battleCityBlocks(){
+    const names = ['BAKERY','CHEMIST','CLINIC','GYM','BOOKS','BANK','DENTAL','NOODLES','GP','OPTICS',
+                   'POST','MARKET','CAFE','PHYSIO','VET','CINEMA'];
+    const walls = ['#b5654a','#8fa3b8','#7fb08a','#b59ad1','#e0b071','#9cc7c9','#d98f8f','#a8a8c8'];
+    const xs = [[-1760,-1015],[-785,-115],[115,785],[1015,1760]];
+    const zs = [[-1260,-715],[-485,-115],[115,485],[715,1260]];
+    const out = []; let i = 0;
+    for(const [z0, z1] of zs) for(const [x0, x1] of xs){
+      const w = (x1 - x0) - 130, d = Math.min((z1 - z0) - 150, 230);
+      out.push({ name: names[i % names.length], x: (x0 + x1)/2, z: z0 + 75, w, d, h: 170 + ((i*53) % 170),
+                 wall: walls[i % walls.length], trim: '#f1ece8', sign: darkenColor(walls[i % walls.length], 0.45),
+                 cross: /CHEMIST|CLINIC|GP|DENTAL/.test(names[i % names.length]) });
+      i++;
+    }
+    return out;
+  }
+  const BATTLE_MAPS = {
+    hospital: { label: 'Hospital precinct', icon: '🏥', blurb: 'Compact. Two streets, six buildings.',
+      halfW: 1300, halfD: 1000, v: [0], h: [0], spawn: { you: [0,-250], foe: [0,250] },
+      buildings: ()=> [
     { name:'EMERGENCY', x:-700, z: 330, w:620, d:300, h:270, wall:'#b5654a', trim:'#e9e2dc', sign:'#c8102e', cross:true },
     { name:'WARDS',     x: 680, z: 360, w:560, d:320, h:340, wall:'#8fa3b8', trim:'#e6edf3', sign:'#1f5fa8' },
     { name:'PHARMACY',  x:-760, z:-620, w:420, d:240, h:190, wall:'#7fb08a', trim:'#eef6ef', sign:'#1f7a3d', cross:true },
@@ -7968,7 +8059,37 @@
     { name:'CAFE',      x:-260, z: 700, w:200, d:160, h:130, wall:'#e0b071', trim:'#fff5e4', sign:'#a0611a' },
     { name:'LABS',      x: 290, z:-700, w:220, d:170, h:150, wall:'#9cc7c9', trim:'#eef8f8', sign:'#1d6f73' },
     { name:'',          x:-300, z: 190, w:150, d: 70, h: 74, wall:'#f4f4f4', trim:'#ffffff', sign:'#c8102e', ambulance:true },
-  ];
+  ] },
+    city: { label: 'City streets', icon: '🏙️', blurb: 'Big street grid, sixteen blocks to weave through.',
+      halfW: 1850, halfD: 1350, v: [-900, 0, 900], h: [-600, 0, 600], spawn: { you: [0,-250], foe: [0,250] },
+      buildings: battleCityBlocks },
+    campus: { label: 'USYD campus', icon: '🎓', blurb: 'Eastern Avenue, the Quad, Fisher and Charles Perkins.',
+      halfW: 1750, halfD: 1500, v: [0], h: [-560, 450], spawn: { you: [0,-200], foe: [0,180] },
+      buildings: ()=> [
+        { name:'QUADRANGLE',       x:-760,  z: 640,  w:760, d:420, h:300, wall:'#c9a36b', trim:'#e8d4a8', sign:'#7a5a2a' },
+        { name:'FISHER LIBRARY',   x: 680,  z: 640,  w:620, d:360, h:380, wall:'#8d99a6', trim:'#dfe5ea', sign:'#e64626' },
+        { name:'CARSLAW',          x: 680,  z:-360,  w:560, d:260, h:300, wall:'#a9b4bd', trim:'#e6ebef', sign:'#e64626' },
+        { name:'ANDERSON STUART',  x:-760,  z:-340,  w:520, d:240, h:260, wall:'#c9a36b', trim:'#e8d4a8', sign:'#7a5a2a' },
+        { name:'MADSEN',           x:-1380, z:-340,  w:360, d:220, h:220, wall:'#b98f5a', trim:'#e8d4a8', sign:'#7a5a2a' },
+        { name:'MANNING',          x: 1330, z:-320,  w:320, d:200, h:170, wall:'#b88a6a', trim:'#f1e3d6', sign:'#8a4a2a' },
+        { name:'CHARLES PERKINS',  x:-720,  z:-1220, w:720, d:330, h:330, wall:'#d9dde2', trim:'#ffffff', sign:'#e64626' },
+        { name:'WENTWORTH',        x: 720,  z:-1180, w:520, d:280, h:240, wall:'#b88a6a', trim:'#f1e3d6', sign:'#e64626' },
+        { name:'GREAT HALL',       x:-1420, z: 700,  w:340, d:300, h:340, wall:'#c9a36b', trim:'#e8d4a8', sign:'#7a5a2a' },
+      ] },
+  };
+  let battleMap = 'hospital';
+  let BATTLE_BUILDINGS = [];
+  let BATTLE_ROADS = { v: [0], h: [0] };
+  function applyBattleMap(key){
+    const mp = BATTLE_MAPS[key] || BATTLE_MAPS.hospital;
+    WORLD.halfW = mp.halfW; WORLD.halfD = mp.halfD;
+    BATTLE_BUILDINGS = mp.buildings();
+    BATTLE_ROADS = { v: mp.v, h: mp.h };
+    return mp;
+  }
+  function battleOnRoad(x, z, pad){
+    return BATTLE_ROADS.v.some(v=> Math.abs(x - v) < ROAD_HALF + pad) || BATTLE_ROADS.h.some(h=> Math.abs(z - h) < ROAD_HALF + pad);
+  }
   function battleBlocked(x, z, pad){
     for(const bd of BATTLE_BUILDINGS){
       if(x > bd.x - bd.w/2 - pad && x < bd.x + bd.w/2 + pad && z > bd.z - pad && z < bd.z + bd.d + pad) return bd;
@@ -8002,26 +8123,30 @@
   }
   function drawBattleRoads(b, light){
     const zn = Math.max(-WORLD.halfD, b.camZ - 380), zf = Math.min(WORLD.halfD, b.camZ + 2600);
+    if(zf <= zn) return;
     const asphalt = light ? '#b9b2b8' : '#2b2330', paint = light ? '#fff7d6' : '#e8d98a';
     const P = battleProject;
-    // the street running away from you
-    if(zf > zn) battleQuad([P(-ROAD_HALF, zn), P(ROAD_HALF, zn), P(ROAD_HALF, zf), P(-ROAD_HALF, zf)], asphalt);
-    // the cross street
-    const a = Math.max(zn, -ROAD_HALF), c = Math.min(zf, ROAD_HALF);
-    if(c > a) battleQuad([P(-WORLD.halfW, a), P(WORLD.halfW, a), P(WORLD.halfW, c), P(-WORLD.halfW, c)], asphalt);
-    // centre-line dashes
-    for(let z = Math.ceil(zn/120)*120; z < zf; z += 120){
-      if(Math.abs(z) < ROAD_HALF + 40) continue;
-      battleQuad([P(-5, z), P(5, z), P(5, z+55), P(-5, z+55)], paint);
+    const nearJunction = (x, z)=> BATTLE_ROADS.v.some(v=> Math.abs(x - v) < ROAD_HALF + 40) && BATTLE_ROADS.h.some(h=> Math.abs(z - h) < ROAD_HALF + 40);
+    for(const v of BATTLE_ROADS.v) battleQuad([P(v-ROAD_HALF, zn), P(v+ROAD_HALF, zn), P(v+ROAD_HALF, zf), P(v-ROAD_HALF, zf)], asphalt);
+    for(const h of BATTLE_ROADS.h){
+      const a = Math.max(zn, h - ROAD_HALF), c = Math.min(zf, h + ROAD_HALF);
+      if(c > a) battleQuad([P(-WORLD.halfW, a), P(WORLD.halfW, a), P(WORLD.halfW, c), P(-WORLD.halfW, c)], asphalt);
     }
-    if(c > a) for(let x = -WORLD.halfW + 60; x < WORLD.halfW; x += 120){
-      if(Math.abs(x) < ROAD_HALF + 40) continue;
-      battleQuad([P(x, -5), P(x+55, -5), P(x+55, 5), P(x, 5)], paint);
+    for(const v of BATTLE_ROADS.v) for(let z = Math.ceil(zn/120)*120; z < zf; z += 120){
+      if(nearJunction(v, z)) continue;
+      battleQuad([P(v-5, z), P(v+5, z), P(v+5, z+55), P(v-5, z+55)], paint);
     }
-    // zebra crossings on the near and far side of the junction
-    for(const zc of [-ROAD_HALF - 60, ROAD_HALF + 20]){
+    for(const h of BATTLE_ROADS.h){
+      if(h + 5 < zn || h - 5 > zf) continue;
+      for(let x = -WORLD.halfW + 60; x < WORLD.halfW; x += 120){
+        if(nearJunction(x, h)) continue;
+        battleQuad([P(x, h-5), P(x+55, h-5), P(x+55, h+5), P(x, h+5)], paint);
+      }
+    }
+    // zebra crossings either side of every junction
+    for(const v of BATTLE_ROADS.v) for(const h of BATTLE_ROADS.h) for(const zc of [h - ROAD_HALF - 60, h + ROAD_HALF + 20]){
       if(zc < zn || zc + 40 > zf) continue;
-      for(let x = -ROAD_HALF + 14; x < ROAD_HALF - 10; x += 36){
+      for(let x = v - ROAD_HALF + 14; x < v + ROAD_HALF - 10; x += 36){
         battleQuad([P(x, zc), P(x+20, zc), P(x+20, zc+40), P(x, zc+40)], '#ffffff');
       }
     }
@@ -8255,39 +8380,68 @@
       b.wz = Math.max(-WORLD.halfD+40, Math.min(WORLD.halfD-40, b.wz));
       [b.wx, b.wz] = battleCollide(b.wx, b.wz);
 
-      // The rival keeps its distance: closes in when you run, backs off when
-      // you crowd it, and circles in between.
+      // The rival. When it is hurt and there is an orb on the map it goes and
+      // takes it -- it used to ignore them, which made it a punching bag.
+      // Otherwise it keeps its distance: closes in when you run, backs off
+      // when you crowd it, circles in between.
       const dx = b.wx - b.fx, dz = b.wz - b.fz, dist = Math.hypot(dx, dz) || 1;
       if(!b.foe.dead && !b.foeTelegraph){
-        const want = dist > 470 ? 1 : (dist < 300 ? -0.7 : 0);
-        const strafe = Math.sin(now/1300) * 0.6;
-        b.fx += ((dx/dist)*want + (-dz/dist)*strafe) * 210*dt;
-        b.fz += ((dz/dist)*want + ( dx/dist)*strafe) * 210*dt;
+        let goal = null;
+        if(b.foe.hp < b.foe.maxHp*0.7){
+          let best = Infinity;
+          for(const pk of b.pickups){
+            if(pk.taken) continue;
+            const dd = Math.hypot(pk.x - b.fx, pk.z - b.fz);
+            if(dd < best){ best = dd; goal = pk; }
+          }
+        }
+        if(goal){
+          const gx = goal.x - b.fx, gz = goal.z - b.fz, gd = Math.hypot(gx, gz) || 1;
+          b.fx += (gx/gd)*250*dt; b.fz += (gz/gd)*250*dt;
+        } else {
+          const want = dist > 470 ? 1 : (dist < 300 ? -0.7 : 0);
+          const strafe = Math.sin(now/1300) * 0.6;
+          b.fx += ((dx/dist)*want + (-dz/dist)*strafe) * 210*dt;
+          b.fz += ((dz/dist)*want + ( dx/dist)*strafe) * 210*dt;
+        }
         b.fx = Math.max(-WORLD.halfW+60, Math.min(WORLD.halfW-60, b.fx));
         b.fz = Math.max(-WORLD.halfD+60, Math.min(WORLD.halfD-60, b.fz));
         [b.fx, b.fz] = battleCollide(b.fx, b.fz);
       }
 
-      // Life pickups: walk over one to heal. They come back somewhere else.
+      // Orbs heal whoever reaches them first, you or the rival.
       for(const pk of b.pickups){
         if(pk.taken){
-          if(now > pk.backAt){ pk.taken = false; Object.assign(pk, battleFreeSpot(150)); }
+          if(!b.sudden && now > pk.backAt){ pk.taken = false; Object.assign(pk, battleFreeSpot(150)); }
           continue;
         }
-        if(Math.hypot(pk.x - b.wx, pk.z - b.wz) < 70 && b.you.hp < b.you.maxHp){
-          pk.taken = true; pk.backAt = now + 9000;
-          b.you.hp = Math.min(b.you.maxHp, b.you.hp + BATTLE_PICKUP_HEAL);
-          battleFloat(b.you, `+${BATTLE_PICKUP_HEAL}`, '#3ee6b8');
-          battleLog(`You absorb a nutrient: +${BATTLE_PICKUP_HEAL} HP.`);
-          SoundFX.pickup();
+        for(const who of [b.you, b.foe]){
+          const px = who.isYou ? b.wx : b.fx, pz = who.isYou ? b.wz : b.fz;
+          if(who.dead || who.hp >= who.maxHp || Math.hypot(pk.x - px, pk.z - pz) > 70) continue;
+          pk.taken = true; pk.backAt = now + BATTLE_PICKUP_BACK_MS;
+          who.hp = Math.min(who.maxHp, who.hp + BATTLE_PICKUP_HEAL);
+          battleFloat(who, `+${BATTLE_PICKUP_HEAL}`, '#3ee6b8');
+          battleLog(who.isYou ? `You absorb a nutrient: +${BATTLE_PICKUP_HEAL} HP.` : `${who.name} grabs a nutrient: +${BATTLE_PICKUP_HEAL} HP.`);
+          if(who.isYou){ b.healed += BATTLE_PICKUP_HEAL; SoundFX.pickup(); }
+          break;
         }
       }
+
+      // The match clock only runs while you are actually playing.
+      b.clock += dt;
+      if(!b.sudden && b.clock >= BATTLE_SUDDEN_AT){
+        b.sudden = true;
+        for(const pk of b.pickups) pk.taken = true;
+        battleLog('SUDDEN DEATH — no more healing, every hit does double.');
+        showBattleStreak(0, '⚡ SUDDEN DEATH');
+      }
+      if(b.clock >= BATTLE_TIME_UP && !b.attack && !b.pending){ b.timeUp = true; battleFinish(); return; }
     }
     // Positions must stay real numbers. A name collision once turned the
     // rival's x into an object, everything downstream went NaN, and both cells
     // vanished without an error. If it ever happens again, recover and say so.
     for(const k of ['wx','wz','fx','fz']){
-      if(!Number.isFinite(b[k])){ console.error('[battle] bad position', k, b[k]); b[k] = (k==='wz') ? -250 : (k==='fz' ? 250 : 0); }
+      if(!Number.isFinite(b[k])){ console.error('[battle] bad position', k, b[k]); b[k] = (k==='wz') ? -250 : (k==='fz' ? 250 : BATTLE_ROADS.v[0]); }
     }
     // The camera trails you, so the map scrolls instead of you sliding off it.
     b.camX += (b.wx - b.camX) * Math.min(1, dt*5);
@@ -8513,7 +8667,7 @@
     // the loop for good: the picture froze half-drawn (no cells, no ribbon)
     // and the attack in flight never finished, so the duel could not go on.
     try {
-      battleStep(dt, t);
+      if(!battle.paused) battleStep(dt, t);
       if(screenState==='battle') drawBattle();
       updateBattleBar();
     } catch(err){
@@ -8522,6 +8676,29 @@
     }
     battleRaf = requestAnimationFrame(battleLoop);
   }
+
+  function battleSetPaused(on){
+    if(!battle || battle.phase==='over' || battle.paused===on) return;
+    if(on && screenState!=='battle') return;        // not while a question is open
+    battle.paused = on;
+    const now = performance.now();
+    if(on){ battle.pausedAt = now; }
+    else {
+      // Everything timed against the wall clock moves forward by the pause.
+      const d = now - battle.pausedAt;
+      battle.attackReadyAt += d;
+      if(battle.foeTelegraph) battle.foeTelegraph.at += d;
+      if(battle.attack) battle.attack.at += d;
+      for(const pk of battle.pickups) pk.backAt += d;
+    }
+    battlePauseEl.classList.toggle('active', on);
+  }
+  battlePauseBtn?.addEventListener('click', ()=> battleSetPaused(true));
+  document.getElementById('battleResumeBtn')?.addEventListener('click', ()=> battleSetPaused(false));
+  document.getElementById('battleLeaveBtn')?.addEventListener('click', ()=>{ endBattle(); quitToMenu(); });
+  document.addEventListener('keydown', (e)=>{
+    if(e.key==='Escape' && battle && screenState==='battle'){ battleSetPaused(!battle.paused); e.stopPropagation(); }
+  }, true);
 
   // ---------------------------------------------------------------- wiring
   const battleHeld = { left:false, right:false, up:false, down:false, px:0, pz:0 };
@@ -8560,6 +8737,7 @@
     Object.assign(window.__runnerDebug, {
       battleState: ()=> battle && ({
         phase: battle.phase, youHp: battle.you.hp, foeHp: battle.foe.hp,
+        map: battleMap, clock: battle.clock, sudden: battle.sudden, buildings: BATTLE_BUILDINGS.length,
         wx: battle.wx, wz: battle.wz, fx: battle.fx, fz: battle.fz, dist: battleDist(),
         telegraph: battle.foeTelegraph ? { x: battle.foeTelegraph.x, z: battle.foeTelegraph.z } : null,
         ready: performance.now() >= battle.attackReadyAt, inRange: battleDist() <= BATTLE_RANGE,
@@ -8567,6 +8745,8 @@
       }),
       battleSetPos: (x, z)=>{ if(battle){ battle.wx = x; battle.wz = z; } },
       battleAttack: ()=> battleTryAttack(),
+      battleSetClock: (v)=>{ if(battle) battle.clock = v; },
+      battleSetMap: (k)=>{ battleMap = k; },
     });
   }, 0);
 
