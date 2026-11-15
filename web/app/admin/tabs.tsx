@@ -27,56 +27,115 @@ function CoursePicker({ value, onChange, editableOnly = true }: { value: string;
   );
 }
 
-// ------------------------------------------------------------------ quality
-type Brief = { qid: string; itemId: number; prompt: string; item: string; topic: string; n: number; c: number };
-type Analytics = {
-  audit: { total: number; correctLongestPct: number; correctShortestPct: number; giveawayCount: number; slideReferenceCount: number;
-           letterPct: number[]; giveaway: Brief[]; cited: Brief[]; longest: Brief[] };
-  answers: number; correct: number; needsReview: Brief[]; neverAnswered: number;
+// ----------------------------------------------------------------- insights
+type Brief = { qid: string; itemId: number; prompt: string; item: string; topic: string; classKey: string | null; n: number; c: number; drawnTo?: string; drawnToCount?: number };
+type Group = { key: string; label: string; questions: number; answers: number; correct: number };
+type Insights = {
+  totals: { questions: number; items: number; lectures: number; answers: number; correct: number; signed_in: number; browsers: number; rooms: number; timeouts: number; week: number; last: string | null };
+  daily: { day: string; n: number; c: number }[];
+  byLecture: Group[]; byTopic: Group[]; hardest: Brief[]; mostAnswered: Brief[];
+  gaps: { neverAnswered: number; lecturesWithoutQuestions: { key: string; label: string }[]; itemsWithoutQuestions: { id: number; label: string }[];
+          itemsWithoutDescription: { id: number; label: string }[]; questionsWithoutExplanation: Brief[]; citeASlide: Brief[] };
 };
+const pct = (c: number, n: number) => (n ? Math.round((100 * c) / n) : null);
 
-function Tile({ value, label, target, ok }: { value: ReactNode; label: string; target: string; ok: boolean }) {
-  return <div className={'tile ' + (ok ? 'ok' : 'off')}><b>{value}</b>{label}<div className="hint">target {target}</div></div>;
+function Meter({ c, n }: { c: number; n: number }) {
+  const p = pct(c, n);
+  if (p === null) return <span className="muted">no answers yet</span>;
+  return <div className="row" style={{ flexWrap: 'nowrap', justifyContent: 'flex-end' }}>
+    <div className={'meter ' + (p < 50 ? 'low' : p < 70 ? 'mid' : '')}><i style={{ width: p + '%' }} /></div>
+    <span style={{ minWidth: 86, textAlign: 'right' }}>{p}% of {n}</span>
+  </div>;
 }
-function BriefList({ title, rows, onOpenItem, stat }: { title: string; rows: Brief[]; onOpenItem: (id: number) => void; stat?: boolean }) {
+function GroupTable({ title, hint, rows, first }: { title: string; hint: string; rows: Group[]; first: string }) {
+  return (
+    <div className="card">
+      <h2>{title}</h2><p className="hint">{hint}</p>
+      <table><tbody>
+        <tr><th>{first}</th><th className="num">Questions</th><th className="num">Answered correctly</th></tr>
+        {rows.map((g) => (
+          <tr key={g.key || 'none'}>
+            <td>{g.key && g.key !== g.label && <b>{g.key} · </b>}{g.label}</td>
+            <td className="num">{g.questions}</td>
+            <td className="num"><Meter c={g.correct} n={g.answers} /></td>
+          </tr>))}
+      </tbody></table>
+    </div>
+  );
+}
+function QuestionList({ title, hint, rows, onOpenItem, open }: { title: string; hint?: string; rows: Brief[]; onOpenItem: (id: number) => void; open?: boolean }) {
   if (!rows.length) return null;
   return (
-    <details className="card" style={{ marginTop: 14 }}>
-      <summary><b>{title}</b> <span className="muted">· {rows.length}{rows.length === 40 ? '+' : ''}</span></summary>
+    <details className="card" open={open}>
+      <summary><b>{title}</b> <span className="muted">· {rows.length}</span></summary>
+      {hint && <p className="hint">{hint}</p>}
       <table><tbody>{rows.map((r) => (
         <tr key={r.qid}>
-          <td>{r.prompt}<div className="muted">{r.topic} · {r.item}</div></td>
-          {stat && <td className="num">{r.c}/{r.n} correct</td>}
+          <td>{r.prompt}<div className="muted">{r.classKey ? r.classKey + ' · ' : ''}{r.topic} · {r.item}</div>
+            {r.drawnTo && <div className="note warn" style={{ marginTop: 6 }}>Most-picked wrong answer ({r.drawnToCount}×): {r.drawnTo}</div>}</td>
+          <td className="num">{r.n ? `${r.c}/${r.n} correct` : ''}</td>
           <td className="num"><button className="link" onClick={() => onOpenItem(r.itemId)}>Open</button></td>
         </tr>))}</tbody></table>
     </details>
   );
 }
 
-export function QualityTab({ onOpenItem }: { onOpenItem: (id: number) => void }) {
+export function InsightsTab({ onOpenItem }: { onOpenItem: (id: number) => void }) {
   const [course, setCourse] = useState('');
-  const { data, error } = useLoad<Analytics>(course ? `/api/admin/analytics?course=${course}` : null);
-  const a = data?.audit;
+  const { data, error } = useLoad<Insights>(course ? `/api/admin/analytics?course=${course}` : null);
+  const t = data?.totals;
+  const peak = Math.max(1, ...(data?.daily.map((d) => d.n) ?? [1]));
+  const g = data?.gaps;
   return (
     <>
-      <div className="row"><CoursePicker value={course} onChange={setCourse} /><span className="muted">The quiz-quality audit, for the whole course.</span></div>
+      <div className="row"><CoursePicker value={course} onChange={setCourse} /><span className="muted">How the course is being used, and where students struggle.</span></div>
       {error && <div className="note bad">{error}</div>}
       {!data && !error && <p className="muted">Working it out…</p>}
-      {data && a && <>
+      {data && t && g && <>
         <div className="tiles" style={{ marginTop: 14 }}>
-          <div className="tile"><b>{a.total}</b>questions<div className="hint">{data.neverAnswered} never answered yet</div></div>
-          <Tile value={a.correctLongestPct + '%'} label="correct answer is the longest" target="25% or less" ok={a.correctLongestPct <= 25} />
-          <Tile value={a.correctShortestPct + '%'} label="correct answer is the shortest" target="20 to 45%" ok={a.correctShortestPct >= 20 && a.correctShortestPct <= 45} />
-          <Tile value={a.giveawayCount} label="giveaway options" target="0" ok={a.giveawayCount === 0} />
-          <Tile value={a.slideReferenceCount} label="cite a slide or lecture" target="0" ok={a.slideReferenceCount === 0} />
-          <Tile value={a.letterPct.map((p) => Math.round(p)).join(' / ')} label="correct letter A / B / C / D" target="about 25 each" ok={a.letterPct.every((p) => p >= 18 && p <= 32)} />
-          <div className="tile"><b>{data.answers ? Math.round((100 * data.correct) / data.answers) + '%' : '—'}</b>answered correctly<div className="hint">{data.answers} answers recorded</div></div>
+          <div className="tile"><b>{t.answers}</b>answers recorded<div className="hint">{t.week} in the last 7 days</div></div>
+          <div className="tile"><b>{pct(t.correct, t.answers) ?? '—'}{t.answers ? '%' : ''}</b>answered correctly<div className="hint">{t.timeouts} ran out of time</div></div>
+          <div className="tile"><b>{t.browsers}</b>devices that played<div className="hint">{t.signed_in} signed-in student{t.signed_in === 1 ? '' : 's'}</div></div>
+          <div className="tile"><b>{t.rooms}</b>class rooms run<div className="hint">Group Race and Cell Battle</div></div>
+          <div className="tile"><b>{t.questions}</b>questions<div className="hint">{t.items} items · {t.lectures} lectures</div></div>
+          <div className="tile"><b>{g.neverAnswered}</b>never answered yet<div className="hint">{t.last ? 'last answer ' + when(t.last) : 'no answers so far'}</div></div>
         </div>
-        <p className="hint">These are properties of the whole set, so no single question passes or fails them. A long correct option can be picked without knowing the content; put the claim in the option and the reasoning in the explanation.</p>
-        <BriefList title="Missed by most students who tried them" rows={data.needsReview} onOpenItem={onOpenItem} stat />
-        <BriefList title="Giveaway options (correct answer much longer than the rest)" rows={a.giveaway} onOpenItem={onOpenItem} />
-        <BriefList title="Cite a slide or lecture in the question" rows={a.cited} onOpenItem={onOpenItem} />
-        <BriefList title="Correct answer is the longest" rows={a.longest} onOpenItem={onOpenItem} />
+
+        <div className="card" style={{ marginTop: 14 }}>
+          <h2>Answers per day</h2><p className="hint">The last 30 days. Hover a bar for the date.</p>
+          <div className="bars" role="img" aria-label="Answers per day over the last 30 days">
+            {data.daily.map((d) => <div key={d.day} className={d.n ? '' : 'zero'} style={{ height: Math.max(2, (88 * d.n) / peak) }} title={`${d.day}: ${d.n} answers${d.n ? `, ${pct(d.c, d.n)}% correct` : ''}`} />)}
+          </div>
+          <div className="row muted" style={{ justifyContent: 'space-between', fontSize: 12 }}><span>{data.daily[0]?.day}</span><span>today</span></div>
+        </div>
+
+        <div className="two" style={{ marginTop: 14 }}>
+          <GroupTable title="By lecture" hint="Which lectures students find hard, and which have not been practised." rows={data.byLecture} first="Lecture" />
+          <GroupTable title="By topic" hint="Most-practised topics first." rows={data.byTopic} first="Topic" />
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <QuestionList open title="Questions students get wrong most" rows={data.hardest} onOpenItem={onOpenItem}
+                        hint="Answered at least 3 times, under half correct. Either a hard idea worth revisiting in class, or a question that needs rewording." />
+          <QuestionList title="Most-answered questions" rows={data.mostAnswered} onOpenItem={onOpenItem} />
+        </div>
+
+        <div className="card" style={{ marginTop: 14 }}>
+          <h2>Gaps in the content</h2>
+          <table><tbody>
+            <tr><td>Lectures with no questions</td><td className="num">{g.lecturesWithoutQuestions.length}</td>
+              <td className="muted">{g.lecturesWithoutQuestions.slice(0, 12).map((k) => k.key).join(', ')}{g.lecturesWithoutQuestions.length > 12 ? '…' : ''}</td></tr>
+            <tr><td>Items with no questions</td><td className="num">{g.itemsWithoutQuestions.length}</td>
+              <td>{g.itemsWithoutQuestions.slice(0, 6).map((i) => <button key={i.id} className="link" style={{ marginRight: 10 }} onClick={() => onOpenItem(i.id)}>{i.label}</button>)}</td></tr>
+            <tr><td>Items with no description</td><td className="num">{g.itemsWithoutDescription.length}</td>
+              <td>{g.itemsWithoutDescription.slice(0, 6).map((i) => <button key={i.id} className="link" style={{ marginRight: 10 }} onClick={() => onOpenItem(i.id)}>{i.label}</button>)}</td></tr>
+          </tbody></table>
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <QuestionList title="Questions with no explanation" rows={g.questionsWithoutExplanation} onOpenItem={onOpenItem} hint="Students see nothing after answering these." />
+          <QuestionList title="Questions that cite a slide or lecture in the stem" rows={g.citeASlide} onOpenItem={onOpenItem} hint="These tell the student where to look instead of testing them." />
+        </div>
+        <p className="hint">Counts come from answers on this website. Play on the offline copy (GitHub Pages or the phone app) is not recorded here. The most-picked wrong answer is shown for answers logged from now on.</p>
       </>}
     </>
   );

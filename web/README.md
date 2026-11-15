@@ -217,8 +217,8 @@ keeps the GitHub Pages copy and the phone app working offline.
 
 | tab | what it is for |
 |---|---|
-| Content | the course → topic → item tree; edit an item and its questions, with a student-view preview |
-| Quality | the quiz-quality audit for a whole course, and the questions most students miss |
+| Content | everything in a course, listed by lecture or by topic; edit lectures (title, intro, outcomes), items and questions, with a student-view preview |
+| Insights | answers recorded, accuracy by lecture and topic, the questions students get wrong most, and gaps in the content |
 | Reports | what students reported or suggested from inside the game |
 | Media | videos and 3D models that questions can show |
 | History | every change, who made it, and Undo |
@@ -240,8 +240,7 @@ enforces `lib/validate.mjs`, and records a `content_revisions` row in the same
 statement as the change. A question is rejected if it is under 20 characters,
 has fewer than 2 or more than 6 options, has an empty or repeated option, has
 no correct answer marked, has no explanation, or cites a slide or lecture in
-the stem. Option-length balance is a property of a whole set, so it is shown on
-the Quality tab rather than blocking any one question.
+the stem. A correct option much longer than the rest only warns.
 
 **Working on it** without touching live content or needing a service account:
 make a branch of the database in the Neon console, then

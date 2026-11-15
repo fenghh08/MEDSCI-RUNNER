@@ -315,6 +315,13 @@ create index if not exists answer_events_room_idx    on answer_events (room_id, 
 create index if not exists answer_events_attempt_idx
   on answer_events (session_id, question_qid, answered_at desc);
 
+-- chosen_index is the position the player SAW, which the game shuffles per
+-- serve, so it cannot say which option was picked. chosen_authored is that
+-- position mapped back to the order the question was written in: what a
+-- lecturer needs to see which wrong answer is drawing people. Null on rows
+-- logged before this column existed.
+alter table answer_events add column if not exists chosen_authored integer;
+
 -- A question with everything the client is allowed to see, and nothing else.
 -- Route handlers select from this rather than from questions directly, so a
 -- careless `select *` can't leak the answer key.

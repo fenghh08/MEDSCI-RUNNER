@@ -118,8 +118,8 @@ export async function POST(request: NextRequest) {
         ),
         ins as (
           insert into answer_events (player_uid, session_id, question_qid,
-                                     chosen_index, was_correct, room_id)
-          select ${playerUid}, ${sessionId}, ${qid}, ${chosenIndex}, g.correct, ${roomId}
+                                     chosen_index, chosen_authored, was_correct, room_id)
+          select ${playerUid}, ${sessionId}, ${qid}, ${chosenIndex}, g.authored, g.correct, ${roomId}
             from graded g, att
            where ((${sessionId}::text is null and ${playerUid}::text is null)
                   or att.n < ${MAX_ATTEMPTS_PER_QUESTION})

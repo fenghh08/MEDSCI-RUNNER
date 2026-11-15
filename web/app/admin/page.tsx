@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError, setTokenSource, type Me } from './api';
 import { ContentTab } from './content';
-import { HistoryTab, MediaTab, PeopleTab, QualityTab, ReportsTab } from './tabs';
+import { HistoryTab, InsightsTab, MediaTab, PeopleTab, ReportsTab } from './tabs';
 
 type Phase = 'loading' | 'signin' | 'noaccess' | 'unconfigured' | 'ready';
-const TABS = [['content', 'Content'], ['quality', 'Quality'], ['reports', 'Reports'], ['media', 'Media'], ['history', 'History'], ['people', 'People']] as const;
+const TABS = [['content', 'Content'], ['insights', 'Insights'], ['reports', 'Reports'], ['media', 'Media'], ['history', 'History'], ['people', 'People']] as const;
 type Tab = (typeof TABS)[number][0];
 
 /**
@@ -103,7 +103,7 @@ export default function AdminPage() {
       </header>
       <main className="wrap">
         {tab === 'content' && <ContentTab openItem={openItem} onOpened={() => setOpenItem(null)} />}
-        {tab === 'quality' && <QualityTab onOpenItem={goToItem} />}
+        {tab === 'insights' && <InsightsTab onOpenItem={goToItem} />}
         {tab === 'reports' && <ReportsTab onOpenItem={goToItem} />}
         {tab === 'media' && <MediaTab />}
         {tab === 'history' && <HistoryTab />}

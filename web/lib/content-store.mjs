@@ -83,16 +83,20 @@ export function makeStore(sql) {
 
   // ------------------------------------------------------------------ reads
   async function tree(actor) {
-    const [courses, topics, items] = await Promise.all([
+    const [courses, topics, items, classes] = await Promise.all([
       sql`select code, label, is_theme from courses order by position`,
       sql`select id, course_code, key, label, icon from topics order by course_code, position`,
       sql`select i.id, i.topic_id, i.key, i.label, i.class_key,
                  (select count(*)::int from questions q where q.item_id = i.id) as questions,
                  (coalesce(i.description, '') = '') as no_description
             from items i order by i.topic_id, i.position`,
+      sql`select course_code, key, label, intro, outcomes from classes order by course_code, position`,
     ]);
     return courses.filter((c) => c.is_theme).map((c) => ({
       code: c.code, label: c.label, editable: canEdit(actor, c.code),
+      // Lectures, in teaching order: the other way into the same items.
+      classes: classes.filter((k) => k.course_code === c.code)
+        .map((k) => ({ key: k.key, label: k.label, intro: k.intro ?? '', outcomes: k.outcomes ?? [] })),
       topics: topics.filter((t) => t.course_code === c.code).map((t) => ({
         id: Number(t.id), key: t.key, label: t.label, icon: t.icon ?? '',
         items: items.filter((i) => String(i.topic_id) === String(t.id)).map((i) => ({
@@ -107,13 +111,15 @@ export function makeStore(sql) {
     const ctx = await itemContext(itemId);
     const [[item], questions, classes, media] = await Promise.all([
       sql`select * from items where id = ${itemId}`,
-      sql`select * from questions where item_id = ${itemId} order by position, id`,
+      sql`select q.*, (select count(*)::int from answer_events e where e.question_qid = q.qid) as n,
+                      (select count(*)::int from answer_events e where e.question_qid = q.qid and e.was_correct) as c
+            from questions q where q.item_id = ${itemId} order by q.position, q.id`,
       sql`select key, label from classes where course_code = ${ctx.course_code} order by position`,
       sql`select id, kind, source, url, title, poster_url from media order by created_at desc limit 200`,
     ]);
     return {
       course: ctx.course_code, topicKey: ctx.topic_key, editable: canEdit(actor, ctx.course_code),
-      item: itemOut(item), questions: questions.map(questionOut), classes, media,
+      item: itemOut(item), questions: questions.map((q) => ({ ...questionOut(q), answers: q.n, correct: q.c })), classes, media,
     };
   }
 
@@ -276,9 +282,12 @@ export function makeStore(sql) {
       const [t] = await sql`select to_jsonb(t) as row, t.course_code from topics t where id = ${input.id}`;
       if (!t) throw new NotFoundError('That topic no longer exists.');
       assertCourse(actor, t.course_code);
-      const after = { ...t.row, label, icon: orNull(input.icon), color: orNull(input.color) };
+      // Only what was sent is changed: renaming a topic must not wipe its colour.
+      const icon = input.icon === undefined ? t.row.icon : orNull(input.icon);
+      const color = input.color === undefined ? t.row.color : orNull(input.color);
+      const after = { ...t.row, label, icon, color };
       await sql.transaction([
-        sql`update topics set label = ${label}, icon = ${orNull(input.icon)}, color = ${orNull(input.color)} where id = ${input.id}`,
+        sql`update topics set label = ${label}, icon = ${icon}, color = ${color} where id = ${input.id}`,
         log('topic', input.id, t.course_code, 'update', t.row, after, actor),
         bump(),
       ]);
@@ -396,36 +405,92 @@ export function makeStore(sql) {
     throw new ValidationError(['Only questions and items can be undone from here.']);
   }
 
-  // -------------------------------------------------------------- analytics
-  async function analytics(actor, course) {
+  // --------------------------------------------------------------- insights
+  /**
+   * What a lecturer wants to know about a course: is it being used, where are
+   * students struggling, and what is missing. Everything here comes from
+   * answers logged by the website (/api/answer); play on the offline builds
+   * is not in this database.
+   */
+  async function insights(actor, course) {
     assertCourse(actor, course);
-    const rows = await sql`
-      select q.qid, q.prompt, q.options, q.correct_index, q.difficulty, q.item_id,
-             i.label as item_label, t.label as topic_label, coalesce(q.class_key, i.class_key) as class_key,
-             count(e.id)::int as n, (count(e.id) filter (where e.was_correct))::int as c
-        from questions q
-        join items i on i.id = q.item_id join topics t on t.id = i.topic_id
-        left join answer_events e on e.question_qid = q.qid
-       where t.course_code = ${course}
-       group by q.id, i.label, t.label, i.class_key`;
-    const audit = auditSet(rows.map((r) => ({ qid: r.qid, prompt: r.prompt, options: r.options, correctIndex: r.correct_index })));
+    const [rows, [totals], daily, picks, classes, gaps] = await Promise.all([
+      sql`select q.qid, q.prompt, q.options, q.correct_index, q.item_id, coalesce(q.explanation, '') = '' as no_explanation,
+                 i.label as item_label, t.label as topic_label, coalesce(q.class_key, i.class_key) as class_key,
+                 count(e.id)::int as n, (count(e.id) filter (where e.was_correct))::int as c
+            from questions q
+            join items i on i.id = q.item_id join topics t on t.id = i.topic_id
+            left join answer_events e on e.question_qid = q.qid
+           where t.course_code = ${course}
+           group by q.id, i.label, t.label, i.class_key`,
+      sql`select count(e.id)::int as answers, (count(e.id) filter (where e.was_correct))::int as correct,
+                 count(distinct e.player_uid)::int as signed_in, count(distinct e.session_id)::int as browsers,
+                 count(distinct e.room_id)::int as rooms, (count(e.id) filter (where e.chosen_index < 0))::int as timeouts,
+                 (count(e.id) filter (where e.answered_at > now() - interval '7 days'))::int as week,
+                 max(e.answered_at) as last
+            from answer_events e
+            join questions q on q.qid = e.question_qid join items i on i.id = q.item_id join topics t on t.id = i.topic_id
+           where t.course_code = ${course}`,
+      sql`select to_char(d.day, 'YYYY-MM-DD') as day, count(e.id)::int as n, (count(e.id) filter (where e.was_correct))::int as c
+            from generate_series(current_date - 29, current_date, interval '1 day') as d(day)
+            left join (answer_events e
+                       join questions q on q.qid = e.question_qid join items i on i.id = q.item_id
+                       join topics t on t.id = i.topic_id and t.course_code = ${course})
+                   on e.answered_at::date = d.day::date
+           group by d.day order by d.day`,
+      sql`select e.question_qid as qid, e.chosen_authored as pick, count(*)::int as n
+            from answer_events e
+            join questions q on q.qid = e.question_qid join items i on i.id = q.item_id join topics t on t.id = i.topic_id
+           where t.course_code = ${course} and e.chosen_authored is not null and e.chosen_authored >= 0 and not e.was_correct
+           group by 1, 2`,
+      sql`select key, label from classes where course_code = ${course} order by position`,
+      sql`select i.id, i.label, coalesce(i.description, '') = '' as no_description,
+                 (select count(*)::int from questions q where q.item_id = i.id) as questions
+            from items i join topics t on t.id = i.topic_id where t.course_code = ${course}`,
+    ]);
+
     const brief = (r) => ({ qid: r.qid, itemId: Number(r.item_id), prompt: r.prompt, item: r.item_label, topic: r.topic_label,
                             classKey: r.class_key, n: r.n, c: r.c });
+    // The wrong option most people chose, where the log is new enough to say.
+    const topPick = new Map();
+    for (const p of picks) { const cur = topPick.get(p.qid); if (!cur || p.n > cur.n) topPick.set(p.qid, p); }
+    const withPick = (r) => {
+      const p = topPick.get(r.qid);
+      return { ...brief(r), ...(p && r.options[p.pick] ? { drawnTo: r.options[p.pick], drawnToCount: p.n } : {}) };
+    };
+    const group = (keyOf, labelOf) => {
+      const m = new Map();
+      for (const r of rows) {
+        const k = keyOf(r) ?? '';
+        const g = m.get(k) ?? { key: k, label: labelOf(r, k), questions: 0, answers: 0, correct: 0 };
+        g.questions++; g.answers += r.n; g.correct += r.c; m.set(k, g);
+      }
+      return [...m.values()];
+    };
+    const classLabel = new Map(classes.map((k) => [k.key, k.label]));
+    const byLecture = group((r) => r.class_key, (_r, k) => (k ? classLabel.get(k) ?? k : 'Not tied to a lecture'));
+    const order = new Map(classes.map((k, i) => [k.key, i]));
+    byLecture.sort((x, y) => (order.get(x.key) ?? 1e9) - (order.get(y.key) ?? 1e9));
+    const audit = auditSet(rows.map((r) => ({ qid: r.qid, prompt: r.prompt, options: r.options, correctIndex: r.correct_index })));
     const byQid = new Map(rows.map((r) => [r.qid, r]));
-    const pick = (ids) => ids.slice(0, 40).map((id) => brief(byQid.get(id)));
-    const answered = rows.filter((r) => r.n > 0);
+
     return {
       course,
-      audit: {
-        total: audit.total, correctLongestPct: audit.correctLongestPct, correctShortestPct: audit.correctShortestPct,
-        giveawayCount: audit.giveawayCount, slideReferenceCount: audit.slideReferenceCount, letterPct: audit.letterPct,
-        giveaway: pick(audit.giveaway), cited: pick(audit.cited), longest: pick(audit.longest),
+      totals: { questions: rows.length, items: gaps.length, lectures: classes.length, ...totals },
+      daily,
+      byLecture,
+      byTopic: group((r) => r.topic_label, (_r, k) => k).sort((x, y) => y.answers - x.answers),
+      // Missed by most of the people who tried it: a hard concept, or a broken question.
+      hardest: rows.filter((r) => r.n >= 3 && r.c / r.n < 0.5).sort((x, y) => x.c / x.n - y.c / y.n).slice(0, 25).map(withPick),
+      mostAnswered: rows.filter((r) => r.n > 0).sort((x, y) => y.n - x.n).slice(0, 10).map(brief),
+      gaps: {
+        neverAnswered: rows.filter((r) => r.n === 0).length,
+        lecturesWithoutQuestions: classes.filter((k) => !rows.some((r) => r.class_key === k.key)).map((k) => ({ key: k.key, label: k.label })),
+        itemsWithoutQuestions: gaps.filter((g) => g.questions === 0).map((g) => ({ id: Number(g.id), label: g.label })),
+        itemsWithoutDescription: gaps.filter((g) => g.no_description).map((g) => ({ id: Number(g.id), label: g.label })),
+        questionsWithoutExplanation: rows.filter((r) => r.no_explanation).slice(0, 40).map(brief),
+        citeASlide: audit.cited.slice(0, 40).map((id) => brief(byQid.get(id))),
       },
-      answers: answered.reduce((t, r) => t + r.n, 0),
-      correct: answered.reduce((t, r) => t + r.c, 0),
-      // Missed by most of the people who tried it: either a hard concept or a broken question.
-      needsReview: rows.filter((r) => r.n >= 5 && r.c / r.n < 0.4).sort((a, b) => a.c / a.n - b.c / b.n).slice(0, 30).map(brief),
-      neverAnswered: rows.filter((r) => r.n === 0).length,
     };
   }
 
@@ -531,7 +596,7 @@ export function makeStore(sql) {
 
   return {
     canEdit, tree, getItem, checkQuestion, saveQuestion, removeQuestion, saveItem, removeItem,
-    saveTopic, listClasses, saveClass, revisions, revert, analytics, listUsers, setUser,
+    saveTopic, listClasses, saveClass, revisions, revert, insights, listUsers, setUser,
     addSuggestion, listSuggestions, resolveSuggestion, listMedia, addMedia, removeMedia,
   };
 }

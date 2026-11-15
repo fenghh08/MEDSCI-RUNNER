@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { validateQuestion } from '@/lib/validate.mjs';
 import { api, ApiError, when, type Item, type ItemPayload, type Question, type TreeCourse } from './api';
+import type React from 'react';
 
 const LETTERS = 'ABCDEF';
 const lines = (s: string) => s.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -11,12 +12,42 @@ const blankQuestion = (itemId: number, classKey: string | null): Question => ({
   hashtags: [], classKey, mediaId: null, allowInTimed: true,
 });
 
+type Selection = { kind: 'item'; id: number } | { kind: 'lecture'; key: string } | null;
+
+/** A one-line form that opens in place: friendlier than a browser prompt, and it can carry a second field. */
+function InlineAdd({ label, placeholder, onAdd, children }: { label: string; placeholder: string; onAdd: (value: string) => Promise<void> | void; children?: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState('');
+  const [busy, setBusy] = useState(false);
+  if (!open) return <button className="leaf muted" onClick={() => setOpen(true)}><span>{label}</span><span /></button>;
+  const submit = async () => {
+    if (!value.trim()) return;
+    setBusy(true);
+    try { await onAdd(value.trim()); setValue(''); setOpen(false); }
+    catch { /* stays open: whoever refused has already said why */ }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="inline-add">
+      <input type="text" autoFocus value={value} placeholder={placeholder} onChange={(e) => setValue(e.target.value)}
+             onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') setOpen(false); }} />
+      {children}
+      <div className="row">
+        <button className="primary" disabled={busy || !value.trim()} onClick={submit}>Add</button>
+        <button onClick={() => setOpen(false)}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 export function ContentTab({ openItem, onOpened }: { openItem: number | null; onOpened: () => void }) {
   const [tree, setTree] = useState<TreeCourse[] | null>(null);
   const [course, setCourse] = useState('');
+  const [view, setView] = useState<'lecture' | 'topic'>('lecture');
   const [search, setSearch] = useState('');
-  const [itemId, setItemId] = useState<number | null>(null);
+  const [selected, setSelected] = useState<Selection>(null);
   const [error, setError] = useState('');
+  const [newItemTopic, setNewItemTopic] = useState<number | ''>('');
 
   const loadTree = useCallback(async () => {
     try {
@@ -27,68 +58,177 @@ export function ContentTab({ openItem, onOpened }: { openItem: number | null; on
   }, []);
   useEffect(() => { loadTree(); }, [loadTree]);
 
-  // Arriving from Quality or Reports: open that item, in whichever course it lives.
+  // Arriving from Insights or Reports: open that item, in whichever course it lives.
   useEffect(() => {
     if (openItem == null || !tree) return;
     const home = tree.find((c) => c.topics.some((t) => t.items.some((i) => i.id === openItem)));
     if (home) setCourse(home.code);
-    setItemId(openItem);
+    setSelected({ kind: 'item', id: openItem });
     onOpened();
   }, [openItem, tree, onOpened]);
 
   const current = tree?.find((c) => c.code === course);
   const needle = search.trim().toLowerCase();
+  const allItems = useMemo(() => (current?.topics ?? []).flatMap((t) => t.items.map((i) => ({ ...i, topicId: t.id, topic: t.label }))), [current]);
+  const itemId = selected?.kind === 'item' ? selected.id : null;
+  const guard = async (fn: () => Promise<void>) => { try { setError(''); await fn(); } catch (e) { setError((e as Error).message); } };
 
-  async function addItem(topicId: number) {
-    const label = window.prompt('Name of the new item (a concept with questions attached):');
-    if (!label?.trim()) return;
-    try {
-      const { item } = await api('/api/admin/item', { action: 'save', topicId, label });
-      await loadTree(); setItemId(item.id);
-    } catch (e) { setError((e as Error).message); }
-  }
-  async function addTopic() {
-    const label = window.prompt(`Name of the new topic in ${course}:`);
-    if (!label?.trim()) return;
-    try { await api('/api/admin/topic', { course, label }); await loadTree(); }
-    catch (e) { setError((e as Error).message); }
-  }
+  const addItem = (topicId: number, label: string, classKey: string | null) => guard(async () => {
+    const { item } = await api('/api/admin/item', { action: 'save', topicId, label, classKey });
+    await loadTree(); setSelected({ kind: 'item', id: item.id });
+  });
+  const addTopic = (label: string) => guard(async () => { await api('/api/admin/topic', { course, label }); await loadTree(); });
+  const addLecture = (label: string, key: string) => guard(async () => {
+    await api('/api/admin/classes', { course, key, label });
+    await loadTree(); setSelected({ kind: 'lecture', key });
+  });
+  const nextLectureKey = () => {
+    const nums = (current?.classes ?? []).map((k) => /^L(\d+)$/.exec(k.key)?.[1]).filter(Boolean).map(Number);
+    return 'L' + ((nums.length ? Math.max(...nums) : 0) + 1);
+  };
 
   if (error && !tree) return <div className="note bad">{error}</div>;
   if (!tree) return <div className="muted">Loading the content…</div>;
+
+  const leaf = (i: { id: number; label: string; questions: number; incomplete: boolean }, extra?: string) => (
+    <button key={i.id} className={'leaf' + (i.id === itemId ? ' on' : '')} onClick={() => setSelected({ kind: 'item', id: i.id })}>
+      <span>{i.label}{extra && <small className="muted"> · {extra}</small>}</span>
+      <span>{i.incomplete ? '⚠ ' : ''}{i.questions}</span>
+    </button>
+  );
+  const match = (i: { label: string }) => !needle || i.label.toLowerCase().includes(needle);
+  const topicPicker = (
+    <select value={newItemTopic} onChange={(e) => setNewItemTopic(e.target.value ? Number(e.target.value) : '')} aria-label="Topic for the new item">
+      <option value="">Which topic is it about?</option>
+      {current?.topics.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+    </select>
+  );
+
   return (
     <div className="split">
       <aside className="card tree">
-        <select value={course} onChange={(e) => { setCourse(e.target.value); setItemId(null); }} aria-label="Course">
+        <select value={course} onChange={(e) => { setCourse(e.target.value); setSelected(null); }} aria-label="Course">
           {tree.map((c) => <option key={c.code} value={c.code}>{c.code} · {c.label}{c.editable ? '' : ' (view only)'}</option>)}
         </select>
-        <input type="search" placeholder="Find an item…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ marginTop: 8 }} />
-        {current?.topics.map((t) => {
-          const items = needle ? t.items.filter((i) => i.label.toLowerCase().includes(needle)) : t.items;
+        <div className="seg" role="tablist" aria-label="How to list the content">
+          <button role="tab" aria-selected={view === 'lecture'} className={view === 'lecture' ? 'on' : ''} onClick={() => setView('lecture')}>By lecture</button>
+          <button role="tab" aria-selected={view === 'topic'} className={view === 'topic' ? 'on' : ''} onClick={() => setView('topic')}>By topic</button>
+        </div>
+        <input type="search" placeholder="Find an item…" value={search} onChange={(e) => setSearch(e.target.value)} />
+
+        {view === 'lecture' && current && <>
+          {[...current.classes, { key: '', label: 'Not tied to a lecture', intro: '', outcomes: [] }].map((k) => {
+            const items = allItems.filter((i) => (i.classKey ?? '') === k.key && match(i));
+            if ((needle || !k.key) && !items.length) return null;
+            const questions = items.reduce((t, i) => t + i.questions, 0);
+            const isOpen = !!needle || (selected?.kind === 'lecture' && selected.key === k.key) || items.some((i) => i.id === itemId);
+            return (
+              <details key={k.key || 'none'} open={isOpen}>
+                <summary>{k.key && <b>{k.key} · </b>}{k.label} <span className="muted">· {questions} q</span></summary>
+                {k.key && <button className={'leaf' + (selected?.kind === 'lecture' && selected.key === k.key ? ' on' : '')} onClick={() => setSelected({ kind: 'lecture', key: k.key })}>
+                  <span>✎ Lecture title, intro and outcomes</span><span />
+                </button>}
+                {items.map((i) => leaf(i, i.topic))}
+                {!items.length && <div className="leaf muted"><span>No items yet</span><span /></div>}
+                {current.editable && !needle && k.key &&
+                  <InlineAdd label="+ New item in this lecture" placeholder="Name of the concept"
+                             onAdd={async (label) => { if (newItemTopic === '') { setError('Pick which topic the new item is about.'); throw new Error('no topic'); } await addItem(newItemTopic, label, k.key); }}>
+                    {topicPicker}
+                  </InlineAdd>}
+              </details>
+            );
+          })}
+          {current.editable && !needle &&
+            <LectureAdder suggest={nextLectureKey()} onAdd={addLecture} />}
+        </>}
+
+        {view === 'topic' && current?.topics.map((t) => {
+          const items = t.items.filter(match);
           if (needle && !items.length) return null;
           return (
             <details key={t.id} open={!!needle || t.items.some((i) => i.id === itemId)}>
               <summary>{t.icon} {t.label} <span className="muted">· {t.items.length}</span></summary>
-              {items.map((i) => (
-                <button key={i.id} className={'leaf' + (i.id === itemId ? ' on' : '')} onClick={() => setItemId(i.id)}>
-                  <span>{i.label}</span>
-                  <span>{i.incomplete ? '⚠ ' : ''}{i.questions}</span>
-                </button>
-              ))}
-              {current.editable && !needle && <button className="leaf muted" onClick={() => addItem(t.id)}><span>+ New item</span><span /></button>}
+              {items.map((i) => leaf(i, i.classKey ?? undefined))}
+              {current.editable && !needle && <>
+                <InlineAdd label="+ New item" placeholder="Name of the concept" onAdd={(label) => addItem(t.id, label, null)} />
+                <InlineAdd label="✎ Rename this topic" placeholder={t.label}
+                           onAdd={(label) => guard(async () => { await api('/api/admin/topic', { id: t.id, label }); await loadTree(); })} />
+              </>}
             </details>
           );
         })}
-        {current?.editable && <button style={{ marginTop: 10, width: '100%' }} onClick={addTopic}>+ New topic</button>}
-        <p className="hint">The number is how many questions an item has. ⚠ marks an item with no description or no questions.</p>
+        {view === 'topic' && current?.editable && !needle && <InlineAdd label="+ New topic" placeholder="Name of the topic" onAdd={addTopic} />}
+
+        <p className="hint">The number is how many questions there are. ⚠ marks an item with no description or no questions.</p>
       </aside>
       <section>
         {error && <div className="note bad">{error}</div>}
-        {itemId == null
-          ? <div className="card muted">Pick an item on the left to edit it and its questions.</div>
-          : <ItemPanel key={itemId} itemId={itemId} onChanged={loadTree} onGone={() => { setItemId(null); loadTree(); }} />}
+        {selected === null && <div className="card muted">
+          <h2 style={{ color: 'var(--ink)' }}>{current?.code} · {current?.label}</h2>
+          <p>{current?.classes.length} lectures · {current?.topics.length} topics · {allItems.length} items · {allItems.reduce((t, i) => t + i.questions, 0)} questions.</p>
+          <p>Open a lecture on the left to see what it covers. Pick an item to edit it and its questions, or use
+             “Lecture title, intro and outcomes” to edit the lecture itself. Everything you save is live in the game straight away, and every change can be undone from History.</p>
+        </div>}
+        {selected?.kind === 'item' && <ItemPanel key={selected.id} itemId={selected.id} onChanged={loadTree} onGone={() => { setSelected(null); loadTree(); }} />}
+        {selected?.kind === 'lecture' && current && current.classes.some((k) => k.key === selected.key) &&
+          <LecturePanel key={course + selected.key} course={course} editable={current.editable}
+                        lecture={current.classes.find((k) => k.key === selected.key)!}
+                        items={allItems.filter((i) => i.classKey === selected.key)}
+                        onOpenItem={(id) => setSelected({ kind: 'item', id })} onSaved={loadTree} />}
       </section>
     </div>
+  );
+}
+
+function LectureAdder({ suggest, onAdd }: { suggest: string; onAdd: (label: string, key: string) => Promise<void> }) {
+  const [key, setKey] = useState('');
+  return (
+    <InlineAdd label="+ New lecture" placeholder="Lecture title" onAdd={(label) => onAdd(label, (key || suggest).trim())}>
+      <input type="text" value={key} placeholder={`Short code, e.g. ${suggest}`} onChange={(e) => setKey(e.target.value)} aria-label="Lecture code" />
+    </InlineAdd>
+  );
+}
+
+function LecturePanel({ course, lecture, items, editable, onOpenItem, onSaved }: {
+  course: string; lecture: { key: string; label: string; intro: string; outcomes: string[] }; editable: boolean;
+  items: { id: number; label: string; questions: number; topic: string; incomplete: boolean }[];
+  onOpenItem: (id: number) => void; onSaved: () => void;
+}) {
+  const [label, setLabel] = useState(lecture.label);
+  const [intro, setIntro] = useState(lecture.intro);
+  const [outcomes, setOutcomes] = useState(lecture.outcomes.join('\n'));
+  const [status, setStatus] = useState<{ kind: 'good' | 'bad'; text: string } | null>(null);
+  async function save() {
+    try {
+      await api('/api/admin/classes', { course, key: lecture.key, label, intro, outcomes: lines(outcomes) });
+      setStatus({ kind: 'good', text: 'Lecture saved. It is live in the game now.' }); onSaved();
+    } catch (e) { setStatus({ kind: 'bad', text: (e as Error).message }); }
+  }
+  return (
+    <>
+      <div className="card">
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <h2>{lecture.key} · {label || 'Untitled lecture'}</h2><span className="pill">{course}</span>
+        </div>
+        <label>Title</label>
+        <input type="text" value={label} disabled={!editable} onChange={(e) => setLabel(e.target.value)} />
+        <label>Introduction <small>a sentence or two shown when students browse by lecture</small></label>
+        <textarea rows={3} value={intro} disabled={!editable} onChange={(e) => setIntro(e.target.value)} />
+        <label>Learning outcomes <small>one per line</small></label>
+        <textarea rows={5} value={outcomes} disabled={!editable} onChange={(e) => setOutcomes(e.target.value)} />
+        {editable && <div className="row" style={{ marginTop: 14 }}><button className="primary" onClick={save}>Save lecture</button></div>}
+        {status && <div className={'note ' + status.kind}>{status.text}</div>}
+      </div>
+      <div className="card">
+        <h3>In this lecture · {items.length} item{items.length === 1 ? '' : 's'} · {items.reduce((t, i) => t + i.questions, 0)} questions</h3>
+        {items.length === 0 && <p className="muted">Nothing yet. Use “+ New item in this lecture” on the left.</p>}
+        <table><tbody>{items.map((i) => (
+          <tr key={i.id}>
+            <td><button className="link" onClick={() => onOpenItem(i.id)}>{i.label}</button><div className="muted">{i.topic}</div></td>
+            <td className="num">{i.incomplete ? '⚠ ' : ''}{i.questions} question{i.questions === 1 ? '' : 's'}</td>
+          </tr>))}</tbody></table>
+      </div>
+    </>
   );
 }
 
@@ -170,10 +310,12 @@ function ItemPanel({ itemId, onChanged, onGone }: { itemId: number; onChanged: (
               <div className="qrow" key={q.qid}>
                 <div>
                   <div>{q.prompt}</div>
-                  <div className="muted">✓ {q.options[q.correctIndex]} · {q.difficulty}{q.mediaId ? ' · has media' : ''}</div>
+                  <div className="muted">✓ {q.options[q.correctIndex]} · {q.difficulty}{q.mediaId ? ' · has media' : ''}
+                    {' · '}{q.answers ? `${q.answers} answer${q.answers === 1 ? '' : 's'}, ${Math.round((100 * q.correct) / q.answers)}% correct` : 'not answered yet'}</div>
                 </div>
                 {!ro && <div className="row" style={{ flexWrap: 'nowrap' }}>
                   <button onClick={() => setEditing(q)}>Edit</button>
+                  <button title="Start a new question from a copy of this one" onClick={() => setEditing({ ...q, qid: undefined, prompt: q.prompt })}>Duplicate</button>
                   <button className="danger" onClick={() => removeQuestion(q.qid)}>Remove</button>
                 </div>}
               </div>

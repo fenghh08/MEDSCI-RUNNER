@@ -28,7 +28,8 @@ export async function api<T = any>(path: string, body?: unknown): Promise<T> {
 export type Me = { uid: string; email: string; displayName: string | null; role: 'student' | 'lecturer' | 'admin'; courses: string[] };
 export type TreeItem = { id: number; key: string; label: string; classKey: string | null; questions: number; incomplete: boolean };
 export type TreeTopic = { id: number; key: string; label: string; icon: string; items: TreeItem[] };
-export type TreeCourse = { code: string; label: string; editable: boolean; topics: TreeTopic[] };
+export type TreeClass = { key: string; label: string; intro: string; outcomes: string[] };
+export type TreeCourse = { code: string; label: string; editable: boolean; classes: TreeClass[]; topics: TreeTopic[] };
 export type Question = {
   qid?: string; itemId: number; prompt: string; options: string[]; correctIndex: number; explanation: string;
   difficulty: string; hashtags: string[]; classKey: string | null; mediaId: string | null; allowInTimed: boolean;
@@ -39,7 +40,7 @@ export type Item = {
 };
 export type MediaRow = { id: string; kind: string; source: string; url: string; title: string; bytes?: number | null; used?: number; attribution?: string | null };
 export type ItemPayload = {
-  course: string; topicKey: string; editable: boolean; item: Item & { id: number }; questions: (Question & { qid: string })[];
+  course: string; topicKey: string; editable: boolean; item: Item & { id: number }; questions: (Question & { qid: string; answers: number; correct: number })[];
   classes: { key: string; label: string }[]; media: MediaRow[];
 };
 

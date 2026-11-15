@@ -3,5 +3,5 @@ import { store } from '@/lib/content';
 
 export const dynamic = 'force-dynamic';
 
-/** The quiz-quality audit and answer statistics for one course. */
-export const GET = adminRoute('lecturer', (user, request) => store.analytics(user, String(param(request, 'course'))));
+/** Usage, where students struggle, and what is missing, for one course. */
+export const GET = adminRoute('lecturer', (user, request) => store.insights(user, String(param(request, 'course'))));

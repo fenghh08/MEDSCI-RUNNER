@@ -45,11 +45,12 @@ await rejects(() => store.saveItem(lect, { topicId: other.id, label: 'Not mine' 
 // ---- item
 const v0 = await version();
 const { item } = await store.saveItem(lect, { topicId: topic.id, label: 'Store test item', description: 'A description.' });
-assert.ok(item.id && item.key === 'storeTestItem');
+assert.ok(item.id && item.key.startsWith('storeTestItem'));   // suffixed when the branch has been used before
 assert.notEqual(await version(), v0, 'a write bumps content_version');
 
 // ---- question: validation, create, duplicate, update, history, undo
-const q = { itemId: item.id, prompt: 'Which enzyme catalyses the committed step of glycolysis in muscle?',
+const run = Math.random().toString(36).slice(2, 10);   // keeps reruns on a used branch from colliding
+const q = { itemId: item.id, prompt: `Which enzyme catalyses the committed step of glycolysis in muscle sample ${run}?`,
             options: ['Hexokinase', 'Phosphofructokinase-1', 'Pyruvate kinase', 'Aldolase'], correctIndex: 1,
             explanation: 'PFK-1 is the main control point.', difficulty: 'medium' };
 const bad = await rejects(() => store.saveQuestion(lect, { ...q, explanation: '' }), 'ValidationError');
@@ -62,7 +63,7 @@ assert.match(qid, /^q-/);
 const dup = await store.saveQuestion(lect, { ...q, prompt: q.prompt + ' ' }, { dryRun: true });
 assert.equal(dup.duplicates[0].qid, qid, 'a near-identical prompt is flagged');
 
-await store.saveQuestion(lect, { ...q, qid, prompt: 'Which enzyme is the main control point of glycolysis in muscle?' });
+await store.saveQuestion(lect, { ...q, qid, prompt: `Which enzyme is the main control point of glycolysis in sample ${run}?` });
 let hist = await store.revisions(lect, { entity: 'question', key: qid });
 assert.deepEqual(hist.map((h) => h.action), ['update', 'create']);
 assert.equal(hist[0].actor_email, 'lect@test.invalid');
@@ -87,13 +88,19 @@ await store.revert(lect, itemRev.id);
 assert.equal((await store.getItem(lect, item.id)).questions.length, 1);
 
 // ---- analytics, lectures, topics
-const a = await store.analytics(lect, topic.course_code);
-assert.ok(a.audit.total > 0 && a.audit.letterPct.length === 4);
-await rejects(() => store.analytics(lect, other.course_code), 'ForbiddenError');
+const a = await store.insights(lect, topic.course_code);
+assert.ok(a.totals.questions > 0 && a.daily.length === 30 && a.byLecture.length > 0);
+assert.equal(a.byLecture.reduce((t, g) => t + g.questions, 0), a.totals.questions, 'every question is in exactly one lecture group');
+assert.equal(a.byLecture.reduce((t, g) => t + g.answers, 0), a.totals.answers, 'lecture answer counts add up to the total');
+await rejects(() => store.insights(lect, other.course_code), 'ForbiddenError');
+assert.ok((await store.tree(lect))[0].classes.length > 0, 'the tree carries lectures');
+assert.ok('answers' in (await store.getItem(lect, item.id)).questions[0], 'questions carry their answer counts');
 await store.saveClass(lect, { course: topic.course_code, key: 'T99', label: 'Test lecture', outcomes: ['One', 'Two'] });
 assert.ok((await store.listClasses(lect, topic.course_code)).some((c) => c.key === 'T99'));
-const t = await store.saveTopic(lect, { course: topic.course_code, label: 'Store Test Topic' });
-assert.equal(t.topic.key, 'storeTestTopic');
+const t = await store.saveTopic(lect, { course: topic.course_code, label: 'Store Test Topic ' + Math.random().toString(36).slice(2, 7) });
+assert.ok(t.topic.key.startsWith('storeTestTopic'));
+const renamed = await store.saveTopic(lect, { id: t.topic.id, label: 'Renamed test topic' });
+assert.equal(renamed.topic.label, 'Renamed test topic');
 
 // ---- users
 await rejects(() => store.listUsers(lect), 'ForbiddenError');
