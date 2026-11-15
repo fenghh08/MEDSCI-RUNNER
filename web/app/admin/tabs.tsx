@@ -31,7 +31,7 @@ function CoursePicker({ value, onChange, editableOnly = true }: { value: string;
 type Brief = { qid: string; itemId: number; prompt: string; item: string; topic: string; classKey: string | null; n: number; c: number; drawnTo?: string; drawnToCount?: number };
 type Group = { key: string; label: string; questions: number; answers: number; correct: number };
 type Insights = {
-  totals: { questions: number; items: number; lectures: number; answers: number; correct: number; signed_in: number; browsers: number; rooms: number; timeouts: number; week: number; last: string | null };
+  totals: { questions: number; items: number; lectures: number; answers: number; correct: number; signed_in: number; browsers: number; website_answers: number; includes_game_totals: boolean; rooms: number; timeouts: number; week: number; last: string | null };
   daily: { day: string; n: number; c: number }[];
   byLecture: Group[]; byTopic: Group[]; hardest: Brief[]; mostAnswered: Brief[];
   gaps: { neverAnswered: number; lecturesWithoutQuestions: { key: string; label: string }[]; itemsWithoutQuestions: { id: number; label: string }[];
@@ -93,16 +93,17 @@ export function InsightsTab({ onOpenItem }: { onOpenItem: (id: number) => void }
       {!data && !error && <p className="muted">Working it out…</p>}
       {data && t && g && <>
         <div className="tiles" style={{ marginTop: 14 }}>
-          <div className="tile"><b>{t.answers}</b>answers recorded<div className="hint">{t.week} in the last 7 days</div></div>
+          <div className="tile"><b>{t.answers.toLocaleString()}</b>answers, all time<div className="hint">{t.includes_game_totals ? 'every copy of the game' : 'website only: the game totals could not be read'}</div></div>
+          <div className="tile"><b>{t.website_answers.toLocaleString()}</b>answers on this website<div className="hint">{t.week} in the last 7 days</div></div>
           <div className="tile"><b>{pct(t.correct, t.answers) ?? '—'}{t.answers ? '%' : ''}</b>answered correctly<div className="hint">{t.timeouts} ran out of time</div></div>
-          <div className="tile"><b>{t.browsers}</b>devices that played<div className="hint">{t.signed_in} signed-in student{t.signed_in === 1 ? '' : 's'}</div></div>
+          <div className="tile"><b>{t.browsers}</b>devices on this website<div className="hint">{t.signed_in} signed-in student{t.signed_in === 1 ? '' : 's'}</div></div>
           <div className="tile"><b>{t.rooms}</b>class rooms run<div className="hint">Group Race and Cell Battle</div></div>
           <div className="tile"><b>{t.questions}</b>questions<div className="hint">{t.items} items · {t.lectures} lectures</div></div>
           <div className="tile"><b>{g.neverAnswered}</b>never answered yet<div className="hint">{t.last ? 'last answer ' + when(t.last) : 'no answers so far'}</div></div>
         </div>
 
         <div className="card" style={{ marginTop: 14 }}>
-          <h2>Answers per day</h2><p className="hint">The last 30 days. Hover a bar for the date.</p>
+          <h2>Answers per day on this website</h2><p className="hint">The last 30 days. Hover a bar for the date.</p>
           <div className="bars" role="img" aria-label="Answers per day over the last 30 days">
             {data.daily.map((d) => <div key={d.day} className={d.n ? '' : 'zero'} style={{ height: Math.max(2, (88 * d.n) / peak) }} title={`${d.day}: ${d.n} answers${d.n ? `, ${pct(d.c, d.n)}% correct` : ''}`} />)}
           </div>
@@ -135,7 +136,7 @@ export function InsightsTab({ onOpenItem }: { onOpenItem: (id: number) => void }
           <QuestionList title="Questions with no explanation" rows={g.questionsWithoutExplanation} onOpenItem={onOpenItem} hint="Students see nothing after answering these." />
           <QuestionList title="Questions that cite a slide or lecture in the stem" rows={g.citeASlide} onOpenItem={onOpenItem} hint="These tell the student where to look instead of testing them." />
         </div>
-        <p className="hint">Counts come from answers on this website. Play on the offline copy (GitHub Pages or the phone app) is not recorded here. The most-picked wrong answer is shown for answers logged from now on.</p>
+        <p className="hint">Accuracy and the most-picked wrong answers use the game&apos;s all-time totals, which every copy of the game adds to (website, GitHub Pages, phone app). Those totals are anonymous and undated, so the daily chart, devices and class rooms count this website only.</p>
       </>}
     </>
   );

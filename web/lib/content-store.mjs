@@ -81,6 +81,15 @@ export function makeStore(sql) {
   const questionRow = async (qid) => (await sql`select to_jsonb(q) as row from questions q where qid = ${qid}`)[0]?.row ?? null;
   const itemRow = async (id) => (await sql`select to_jsonb(i) as row from items i where id = ${id}`)[0]?.row ?? null;
 
+  // Answer counts for one question. The game's all-time Firebase totals cover
+  // every build; the Postgres log covers the website only. Website answers
+  // are in both, so the two are never added: the larger one is the fuller
+  // picture of the same history.
+  const merged = (qid, n, c, gameStats) => {
+    const g = gameStats && gameStats.get(qid);
+    return g && g.n >= n ? { n: g.n, c: g.c } : { n, c };
+  };
+
   // ------------------------------------------------------------------ reads
   async function tree(actor) {
     const [courses, topics, items, classes] = await Promise.all([
@@ -107,7 +116,8 @@ export function makeStore(sql) {
     }));
   }
 
-  async function getItem(actor, itemId) {
+  /** @param {any} actor @param {number} itemId @param {{ gameStats?: Map<string, any> }} [opts] */
+  async function getItem(actor, itemId, { gameStats } = {}) {
     const ctx = await itemContext(itemId);
     const [[item], questions, classes, media] = await Promise.all([
       sql`select * from items where id = ${itemId}`,
@@ -119,7 +129,7 @@ export function makeStore(sql) {
     ]);
     return {
       course: ctx.course_code, topicKey: ctx.topic_key, editable: canEdit(actor, ctx.course_code),
-      item: itemOut(item), questions: questions.map((q) => ({ ...questionOut(q), answers: q.n, correct: q.c })), classes, media,
+      item: itemOut(item), questions: questions.map((q) => { const m = merged(q.qid, q.n, q.c, gameStats); return { ...questionOut(q), answers: m.n, correct: m.c }; }), classes, media,
     };
   }
 
@@ -412,9 +422,10 @@ export function makeStore(sql) {
    * answers logged by the website (/api/answer); play on the offline builds
    * is not in this database.
    */
-  async function insights(actor, course) {
+  /** @param {any} actor @param {string} course @param {{ gameStats?: Map<string, any> }} [opts] */
+  async function insights(actor, course, { gameStats } = {}) {
     assertCourse(actor, course);
-    const [rows, [totals], daily, picks, classes, gaps] = await Promise.all([
+    const [logged, [totals], daily, picks, classes, gaps] = await Promise.all([
       sql`select q.qid, q.prompt, q.options, q.correct_index, q.item_id, coalesce(q.explanation, '') = '' as no_explanation,
                  i.label as item_label, t.label as topic_label, coalesce(q.class_key, i.class_key) as class_key,
                  count(e.id)::int as n, (count(e.id) filter (where e.was_correct))::int as c
@@ -449,14 +460,27 @@ export function makeStore(sql) {
             from items i join topics t on t.id = i.topic_id where t.course_code = ${course}`,
     ]);
 
+    const website = { answers: totals.answers, correct: totals.correct };
+    const rows = logged.map((r) => ({ ...r, ...merged(r.qid, r.n, r.c, gameStats) }));
     const brief = (r) => ({ qid: r.qid, itemId: Number(r.item_id), prompt: r.prompt, item: r.item_label, topic: r.topic_label,
                             classKey: r.class_key, n: r.n, c: r.c });
-    // The wrong option most people chose, where the log is new enough to say.
-    const topPick = new Map();
-    for (const p of picks) { const cur = topPick.get(p.qid); if (!cur || p.n > cur.n) topPick.set(p.qid, p); }
+    // The wrong option most people chose: first-attempt picks from the game's
+    // own totals, plus whatever the website log has recorded since.
+    const wrongPicks = new Map();
+    const addPick = (qid, index, n) => {
+      const m = wrongPicks.get(qid) ?? new Map();
+      m.set(index, (m.get(index) ?? 0) + n); wrongPicks.set(qid, m);
+    };
+    for (const r of logged) {
+      const g = gameStats && gameStats.get(r.qid);
+      if (g) g.picks.forEach((n, i) => { if (n && i !== r.correct_index) addPick(r.qid, i, n); });
+    }
+    if (!gameStats || !gameStats.size) for (const p of picks) addPick(p.qid, p.pick, p.n);
     const withPick = (r) => {
-      const p = topPick.get(r.qid);
-      return { ...brief(r), ...(p && r.options[p.pick] ? { drawnTo: r.options[p.pick], drawnToCount: p.n } : {}) };
+      const m = wrongPicks.get(r.qid);
+      if (!m) return brief(r);
+      const [index, n] = [...m.entries()].sort((x, y) => y[1] - x[1])[0];
+      return { ...brief(r), ...(r.options[index] ? { drawnTo: r.options[index], drawnToCount: n } : {}) };
     };
     const group = (keyOf, labelOf) => {
       const m = new Map();
@@ -476,7 +500,12 @@ export function makeStore(sql) {
 
     return {
       course,
-      totals: { questions: rows.length, items: gaps.length, lectures: classes.length, ...totals },
+      totals: {
+        questions: rows.length, items: gaps.length, lectures: classes.length, ...totals,
+        // All builds, all time -- against the website-only log the rest of the tiles describe.
+        answers: rows.reduce((t, r) => t + r.n, 0), correct: rows.reduce((t, r) => t + r.c, 0),
+        website_answers: website.answers, includes_game_totals: !!(gameStats && gameStats.size),
+      },
       daily,
       byLecture,
       byTopic: group((r) => r.topic_label, (_r, k) => k).sort((x, y) => y.answers - x.answers),
