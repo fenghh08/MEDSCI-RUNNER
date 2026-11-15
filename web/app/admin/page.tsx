@@ -34,6 +34,8 @@ export default function AdminPage() {
     } catch (err) {
       const e = err as ApiError;
       if (e.status === 503) { setProblem(e.message); setPhase('unconfigured'); return true; }
+      // Not signed in is expected; anything else is worth showing as it is.
+      if (e.status !== 401) setProblem(e.message);
       return false;
     }
   }, []);
@@ -56,7 +58,7 @@ export default function AdminPage() {
       stop = auth.onIdTokenChanged(a, async (user) => {
         if (!user) { setTokenSource(async () => null); setMe(null); setPhase('signin'); return; }
         setTokenSource(() => user.getIdToken());
-        if (!(await identify())) { setProblem('Your sign-in could not be verified. Try signing in again.'); setPhase('signin'); }
+        if (!(await identify())) { setProblem((p) => p || 'Your sign-in could not be verified. Try signing in again.'); setPhase('signin'); }
       });
     })().catch((e) => { setProblem(String(e?.message ?? e)); setPhase('signin'); });
     return () => stop();

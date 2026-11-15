@@ -59,14 +59,29 @@ function getVerifier() {
       throw new AuthError(503, 'FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON (or base64 of it)');
     }
 
-    const { initializeApp, getApps, cert } = await import('firebase-admin/app');
-    const { getAuth } = await import('firebase-admin/auth');
-    const app = getApps().length
-      ? getApps()[0]
-      : initializeApp({ credential: cert(credentials as never) });
-    const auth = getAuth(app);
-    return (token: string) => auth.verifyIdToken(token, true);
+    // Some dashboards store the key with its line breaks escaped twice, which
+    // leaves a literal backslash-n in the PEM and makes it unreadable.
+    if (typeof credentials.private_key === 'string') {
+      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+    }
+    try {
+      const { initializeApp, getApps, cert } = await import('firebase-admin/app');
+      const { getAuth } = await import('firebase-admin/auth');
+      const app = getApps().length
+        ? getApps()[0]
+        : initializeApp({ credential: cert(credentials as never) });
+      const auth = getAuth(app);
+      return (token: string) => auth.verifyIdToken(token, true);
+    } catch (err) {
+      // Say why, rather than a bare 500: the usual cause is a key that was
+      // pasted incompletely. The message names the problem, never the key.
+      console.error('[auth] could not start the Firebase Admin SDK:', err);
+      throw new AuthError(503, 'The Firebase service account could not be loaded: ' +
+        (err instanceof Error ? err.message : String(err)).slice(0, 200));
+    }
   })();
+  // A failed start is not remembered: fixing the setting should not need a redeploy to retry.
+  verifier.catch(() => { verifier = null; });
   return verifier;
 }
 
@@ -108,6 +123,13 @@ export async function requireUser(request: NextRequest): Promise<AuthedUser> {
     decoded = await verify(bearer(request));
   } catch (err) {
     if (err instanceof AuthError) throw err;
+    // Firebase's own code says which it is: an expired token is the user's to
+    // fix by signing in again; anything else is usually the server's setup.
+    const code = (err as { code?: string }).code ?? '';
+    console.error('[auth] token rejected:', code || err);
+    if (code && !/id-token-expired|id-token-revoked|argument-error|user-disabled/.test(code)) {
+      throw new AuthError(503, `The server could not check that sign-in (${code}). The service account may be for a different Firebase project, or its key may have been deleted.`);
+    }
     throw new AuthError(401, 'that sign-in has expired or is not valid');
   }
 

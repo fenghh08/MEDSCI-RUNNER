@@ -24,6 +24,11 @@ export async function GET(request: NextRequest) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
-    throw err;
+    // Anything else is the server's problem (most often the database). Say so
+    // in words the admin page can show, and keep the detail in the logs.
+    console.error('[me]', err);
+    return NextResponse.json(
+      { error: 'The server hit an error looking up your account: ' + (err instanceof Error ? err.message : String(err)).slice(0, 200) },
+      { status: 500 });
   }
 }
