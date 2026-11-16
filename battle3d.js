@@ -17,6 +17,9 @@
 import * as THREE from './vendor/three.module.min.js';
 
 const FIGHTER_R = 46;                 // world radius of a cell
+// Height of anything painted on the ground: the strike warning, a cell's shadow
+// and its range ring. Above the highest street layer, or a road hides them.
+const GROUND_MARK = 10;
 const CELL_TEX = 192, CELL_TEX_R = 56;
 
 /* Each map has its own light, sky and planting, so they do not read as the
@@ -648,7 +651,7 @@ export async function createBattle3D(env) {
     const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshBasicMaterial({ color: 0xff3b5c, transparent: true, opacity: 0.3, depthWrite: false }));
     const rim = new THREE.Mesh(new THREE.RingGeometry(0.94, 1, 48), new THREE.MeshBasicMaterial({ color: 0xff3b5c, transparent: true, opacity: 0.95, depthWrite: false }));
     const closing = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 48), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }));
-    danger.add(disc, rim, closing); danger.rotation.x = -Math.PI / 2; danger.position.y = 3; danger.visible = false;
+    danger.add(disc, rim, closing); danger.rotation.x = -Math.PI / 2; danger.position.y = GROUND_MARK + 2; danger.visible = false;
     danger.userData.closing = closing;
     root.add(danger);
   }
@@ -662,9 +665,9 @@ export async function createBattle3D(env) {
     const size = 2 * FIGHTER_R * (CELL_TEX / (2 * CELL_TEX_R));
     sprite.scale.set(size, size, 1);
     const shadow = new THREE.Mesh(new THREE.CircleGeometry(FIGHTER_R * 0.95, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28, depthWrite: false }));
-    shadow.rotation.x = -Math.PI / 2; shadow.position.y = 2.6;
+    shadow.rotation.x = -Math.PI / 2; shadow.position.y = GROUND_MARK;
     const ring = new THREE.Mesh(new THREE.RingGeometry(FIGHTER_R * 1.25, FIGHTER_R * 1.5, 40), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false }));
-    ring.rotation.x = -Math.PI / 2; ring.position.y = 3.2;
+    ring.rotation.x = -Math.PI / 2; ring.position.y = GROUND_MARK + 1;
     const group = new THREE.Group(); group.add(shadow, ring, sprite);
     root.add(group);
     e = { group, sprite, shadow, ring, cv, g: cv.getContext('2d'), tex };
@@ -785,7 +788,7 @@ export async function createBattle3D(env) {
       o.rotation.y = st.time / 600;
     });
     if (st.danger) {
-      danger.visible = true; danger.position.set(st.danger.x, 3, st.danger.z);
+      danger.visible = true; danger.position.set(st.danger.x, GROUND_MARK + 2, st.danger.z);
       danger.scale.setScalar(st.danger.r);
       danger.userData.closing.scale.setScalar(Math.max(0.02, 1 - st.danger.t));
     } else danger.visible = false;

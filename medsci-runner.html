@@ -9505,7 +9505,7 @@
     if(!battle3dPromise){
       // Bump the number whenever battle3d.js changes: it is served with a long
       // cache lifetime, and a stale copy is how a fixed bug stays on screen.
-      battle3dPromise = import('./battle3d.js?v=12')
+      battle3dPromise = import('./battle3d.js?v=13')
         .then(m=> m.createBattle3D({ glCanvas: battleGlCanvas, drawCell: drawCellSprite, roadHalf: ROAD_HALF, blocked: (x, z)=> !!battleBlocked(x, z, 12) }))
         .then(x=>{ b3 = x; return x; })
         .catch(err=>{ console.warn('[battle] 3D view unavailable, using the 2D view:', err); return null; });
@@ -9529,6 +9529,30 @@
       danger: b.foeTelegraph ? { x: b.foeTelegraph.x, z: b.foeTelegraph.z, r: DODGE_RADIUS,
                                  t: Math.min(1, b.foeTelegraph.t / b.foeTelegraph.ms) } : null });
     for(const f of bars) if(!battleSlot(f).behind) drawHpBar(f);
+    if(b.view === 'first' && !(b.net && b.net.spectator)) drawBattleSelfHud(b);
+  }
+  /** First person: you cannot see your own cell, so your life is a bar across the bottom of the screen. */
+  function drawBattleSelfHud(b){
+    const you = b.you, frac = Math.max(0, you.hp / you.maxHp), low = frac < BATTLE.lowHpFraction;
+    const w = Math.min(W*0.5, 520*SCALE), h = 18*SCALE, x = (W - w)/2, y = H - 64*SCALE;
+    // A red edge when you are hit, since there is no cell on screen to flash.
+    if(you.flash > 0){
+      const g = ctx.createRadialGradient(W/2, H/2, Math.min(W, H)*0.35, W/2, H/2, Math.max(W, H)*0.75);
+      g.addColorStop(0, 'rgba(255,40,70,0)'); g.addColorStop(1, `rgba(255,40,70,${Math.min(0.55, you.flash*0.6)})`);
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    }
+    ctx.save();
+    ctx.fillStyle = 'rgba(10,12,18,.62)'; roundRect(ctx, x - 8*SCALE, y - 8*SCALE, w + 16*SCALE, h + 38*SCALE, 12*SCALE); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.16)'; roundRect(ctx, x, y, w, h, h/2); ctx.fill();
+    const gw = w * Math.max(0, you.ghostHp / you.maxHp);
+    if(gw > 0){ ctx.fillStyle = 'rgba(255,99,120,.6)'; roundRect(ctx, x, y, gw, h, h/2); ctx.fill(); }
+    if(frac > 0){ ctx.fillStyle = low ? '#ff3b5c' : '#3ee6b8'; roundRect(ctx, x, y, w*frac, h, h/2); ctx.fill(); }
+    ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1.5;
+    for(let v = battleRules.hit; v < you.maxHp; v += battleRules.hit){ const tx0 = x + w*(v/you.maxHp); ctx.beginPath(); ctx.moveTo(tx0, y); ctx.lineTo(tx0, y + h); ctx.stroke(); }
+    ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.font = `bold ${15*SCALE}px monospace`;
+    ctx.fillText(`${tx('Your life')}  ${Math.ceil(you.hp)} / ${you.maxHp}`, W/2, y + h + 21*SCALE);
+    ctx.restore();
   }
 
   function battleLoop(t){
