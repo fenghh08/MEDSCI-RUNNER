@@ -10,9 +10,10 @@
 //
 // Map data © OpenStreetMap contributors, ODbL. The game credits it on screen.
 //
-// Units: 1 metre = 10 game units, x east, z north, origin at the area centre.
-// A cell is about 9 m across at that scale, which is what makes a street feel
-// like a street instead of a corridor.
+// Units: 1 metre = 22 game units, x east, z north, origin at the area centre.
+// A cell is 92 units across, so about 4 m at that scale: the size of a car on
+// a 25 m street. At the earlier 10 units a metre it was 9 m wide and the city
+// read as a model railway.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -33,7 +34,8 @@ const AREAS = {
               towers: [{ name: 'Clock Tower', at: [40.5, 110], size: 9, h: 42, roofH: 9 }],
               sandstone: /quadrangle|great hall|anderson stuart|madsen|holme|macleay|edgeworth|heydon|botany|badham|physics|r\. ?d\. ?watt|cottage|baxter|guardhouse|old teachers|pharmacy|bank building|woolley|john woolley|institute|refectory|maclaurin|nicholson|college|chaplaincy|old darlington/i },
 };
-const UNIT = 10;
+const UNIT = 22;                       // game units per metre
+const M = UNIT;                        // one metre, for distances below that are about the real world
 
 const args = process.argv.slice(2);
 if (args[0] === '--query') {
@@ -89,7 +91,7 @@ function ring(geometry) {
   // vertex farthest from the first one and each half is simplified.
   let far = 0, best = -1;
   pts.forEach((q, i) => { const d = Math.hypot(q[0] - pts[0][0], q[1] - pts[0][1]); if (d > best) { best = d; far = i; } });
-  if (far > 0) pts = [...simplify(pts.slice(0, far + 1), 6).slice(0, -1), ...simplify([...pts.slice(far), pts[0]], 6).slice(0, -1)];
+  if (far > 0) pts = [...simplify(pts.slice(0, far + 1), 0.6 * M).slice(0, -1), ...simplify([...pts.slice(far), pts[0]], 0.6 * M).slice(0, -1)];
   if (pts.length < 3) return null;
   if (areaOf(pts) < 0) pts.reverse();          // always counter-clockwise
   return round(pts);
@@ -131,12 +133,12 @@ function styleOf(t, h, id) {
 
 for (const el of data.elements) {
   const t = el.tags || {};
-  if (el.type === 'node') { if (t.natural === 'tree') { const p = project(el); if (inside(p, -20)) trees.push(p.map(Math.round)); } continue; }
+  if (el.type === 'node') { if (t.natural === 'tree') { const p = project(el); if (inside(p, -2 * M)) trees.push(p.map(Math.round)); } continue; }
 
   if (t.building || t['building:part']) {
     if (t.location === 'underground' || (num(t.layer) ?? 0) < 0) continue;
     for (const { pts, holes } of rings(el)) {
-      if (!inside(centroid(pts), 150) || areaOf(pts) < 30 * UNIT * UNIT / 4) continue;
+      if (!inside(centroid(pts), 15 * M) || areaOf(pts) < 30 * UNIT * UNIT / 4) continue;
       const isPart = !t.building;
       let h = area.heights[t.name] ?? heightOf(t, isPart ? 10 : (key === 'townhall' ? 24 : 11));
       if (!isPart && !area.heights[t.name] && styleOf(t, h, el.id) === 'sandstone') h = Math.max(h, 15);   // two tall storeys and a roof, not 2 x 3.6 m
@@ -153,7 +155,7 @@ for (const el of data.elements) {
   }
   if (el.type !== 'way' || !el.geometry) continue;
 
-  if (t.railway) { if (t.tunnel !== 'yes') rails.push(round(simplify(el.geometry.map(project), 4))); continue; }
+  if (t.railway) { if (t.tunnel !== 'yes') rails.push(round(simplify(el.geometry.map(project), 0.4 * M))); continue; }
 
   if (t.highway) {
     if (t.tunnel === 'yes' || t.indoor === 'yes' || (num(t.layer) ?? 0) < 0 || t.covered === 'yes') continue;
@@ -162,13 +164,13 @@ for (const el of data.elements) {
     const closed = pts.length > 3 && el.geometry[0].lat === el.geometry[pts.length - 1].lat && el.geometry[0].lon === el.geometry[pts.length - 1].lon;
     if (closed && (t.area === 'yes' || t.highway === 'pedestrian')) { const r = ring(el.geometry); if (r) plazas.push(r); continue; }
     const widths = { trunk: 24, primary: 22, secondary: 18, tertiary: 14, tertiary_link: 8, unclassified: 11, residential: 10, living_street: 8, service: 5, pedestrian: 14 };
-    const line = round(simplify(pts, 4));
-    if (!line.some((p) => inside(p, 60))) continue;
+    const line = round(simplify(pts, 0.4 * M));
+    if (!line.some((p) => inside(p, 6 * M))) continue;
     if (widths[t.highway]) roads.push({ w: Math.round((num(t.width) ?? widths[t.highway]) * UNIT), pts: line, walk: t.highway === 'pedestrian' || t.highway === 'living_street', ...(t.name ? { name: t.name } : {}) });
     else if (/^(footway|path|cycleway|steps)$/.test(t.highway) && !/sidewalk|crossing/.test(t.footway || '')) paths.push({ w: (t.highway === 'steps' ? 3 : 3.5) * UNIT, pts: line });
     continue;
   }
-  if (t.leisure || t.landuse || t.natural) { const r = ring(el.geometry); if (r && inside(centroid(r), 100)) green.push({ pts: r, kind: t.leisure === 'pitch' ? 'pitch' : (t.natural ? 'wood' : 'grass') }); }
+  if (t.leisure || t.landuse || t.natural) { const r = ring(el.geometry); if (r && inside(centroid(r), 10 * M)) green.push({ pts: r, kind: t.leisure === 'pitch' ? 'pitch' : (t.natural ? 'wood' : 'grass') }); }
 }
 
 // A building outline that has detailed parts inside it is a shell: the parts
@@ -207,9 +209,9 @@ const blocked = (pt) => buildings.some((b) => pointIn(pt, b.pts)) || parts.some(
 for (const way of [...roads, ...paths.filter((_, i) => i % 2 === 0)]) {
   for (let i = 1; i < way.pts.length; i++) {
     const [ax, az] = way.pts[i - 1], [bx, bz] = way.pts[i], len = Math.hypot(bx - ax, bz - az);
-    for (let d = 0; d < len; d += 140) {
+    for (let d = 0; d < len; d += 200) {
       const pt = [Math.round(ax + (bx - ax) * d / len), Math.round(az + (bz - az) * d / len)];
-      if (inside(pt, -120) && !blocked(pt) && !open.some((o) => Math.hypot(o[0] - pt[0], o[1] - pt[1]) < 110)) open.push(pt);
+      if (inside(pt, -200) && !blocked(pt) && !open.some((o) => Math.hypot(o[0] - pt[0], o[1] - pt[1]) < 170)) open.push(pt);
     }
   }
 }
@@ -218,7 +220,7 @@ const you = nearest(0, -120), foe = open.filter((o) => Math.hypot(o[0] - you[0],
   .sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]))[0] ?? nearest(0, 300);
 
 const out = {
-  key, label: area.label, attribution: 'Map data © OpenStreetMap contributors',
+  key, label: area.label, attribution: 'Map data © OpenStreetMap contributors', unit: UNIT,
   halfW: HW, halfD: HD, spawn: { you, foe },
   buildings, parts: parts.map(({ inside: _i, ...p }) => p), roads, paths, rails, plazas, green, trees, open,
 };

@@ -8777,7 +8777,8 @@
   const battleGeo = {};
   const battleGeoLoads = {};
   function loadBattleGeo(name){
-    return battleGeoLoads[name] ??= fetch(`maps/${name}.json`).then(r=>{ if(!r.ok) throw new Error('map ' + r.status); return r.json(); })
+    return battleGeoLoads[name] ??= fetch(`maps/${name}.json?v=2`)      // bump when the maps are rebuilt: browsers keep the old file otherwise
+      .then(r=>{ if(!r.ok) throw new Error('map ' + r.status); return r.json(); })
       .then(data=>{
         // Everything you can walk into, with a bounding box so most are skipped in one comparison.
         data.walls = [...data.buildings, ...data.parts.filter(p=> !p.min && !data.buildings.some(bd=> battlePointIn(p.pts[0][0], p.pts[0][1], bd.pts)))]
@@ -8811,7 +8812,9 @@
     WORLD.halfW = mp.halfW; WORLD.halfD = mp.halfD;
     BATTLE_BUILDINGS = mp.buildings();
     BATTLE_WALLS = geo ? geo.walls : [];
-    BATTLE_OPEN = geo ? geo.open : null;
+    // A real map is far bigger than a match needs. Spawns and healing orbs stay
+    // within a short run of the start, so players can find each other.
+    BATTLE_OPEN = geo ? geo.open.filter(o=> Math.hypot(o[0] - geo.spawn.you[0], o[1] - geo.spawn.you[1]) < 2600) : null;
     BATTLE_ROADS = { v: mp.v, h: mp.h };
     return mp;
   }
@@ -9137,14 +9140,23 @@
   }
 
   /** In the over-the-shoulder view, W means "the way the camera is facing", not "up the map". */
+  /** The views you steer by turning: behind the cell, and through its eye. */
+  function battleTurnView(){ return !!battle && (battle.view === 'close' || battle.view === 'first'); }
   function battleMoveVec(mx, mz){
-    if(!battle || battle.view !== 'close') return [mx, mz];
+    if(!battle || !battleTurnView()) return [mx, mz];
     const s = Math.sin(battle.yaw), c = Math.cos(battle.yaw);
     return [mx*c + mz*s, mz*c - mx*s];
   }
   function battleStep(dt, now){
     const b = battle;
-    if(b.view === 'close') b.yaw += ((battleHeld.rr ? 1 : 0) - (battleHeld.rl ? 1 : 0)) * dt * 2.2;
+    // Steering: moving sideways swings the view gently the way you are going,
+    // the way a follow camera does, so you are not left walking out of frame
+    // or having to work two sets of keys just to go round a corner.
+    if(b.view === 'close' && b.phase === 'live' && !battleHeld.rl && !battleHeld.rr){
+      const side = (battleHeld.right?1:0) - (battleHeld.left?1:0);
+      if(side) b.yaw += side * dt * 0.75;
+    }
+    if(battleTurnView()) b.yaw += ((battleHeld.rr ? 1 : 0) - (battleHeld.rl ? 1 : 0)) * dt * 2.2;
 
     // The road keeps rolling and you keep steering, even while it is the
     // rival's turn -- standing still would make the whole thing feel like a
@@ -9493,7 +9505,7 @@
     if(!battle3dPromise){
       // Bump the number whenever battle3d.js changes: it is served with a long
       // cache lifetime, and a stale copy is how a fixed bug stays on screen.
-      battle3dPromise = import('./battle3d.js?v=11')
+      battle3dPromise = import('./battle3d.js?v=12')
         .then(m=> m.createBattle3D({ glCanvas: battleGlCanvas, drawCell: drawCellSprite, roadHalf: ROAD_HALF, blocked: (x, z)=> !!battleBlocked(x, z, 12) }))
         .then(x=>{ b3 = x; return x; })
         .catch(err=>{ console.warn('[battle] 3D view unavailable, using the 2D view:', err); return null; });
@@ -9513,7 +9525,7 @@
     else add(b.foe, b.fx, b.fz, !!b.foeTelegraph, '#ffa24d', true);
     add(b.you, b.wx, b.wz, b.phase==='live' && now >= b.attackReadyAt, b.you.look.color || '#ff5d8f',
         b.view !== 'first' && !(b.net && (b.net.spectator || (b.you.dead && b.you.fall >= 1))));
-    b3.render({ view: b.view === 'stats' ? 'top' : b.view, px: b.wx, pz: b.wz, yaw: b.yaw || 0, camX: b.camX, camZ: b.camZ + 60, time: now, shake: b.shake, push: b.push, fighters: list, pickups: b.pickups,
+    b3.render({ view: b.view === 'stats' ? 'top' : b.view, px: b.wx, pz: b.wz, yaw: b.yaw || 0, moving: Math.hypot(b.pvx || 0, b.pvz || 0) > 60, camX: b.camX, camZ: b.camZ + 60, time: now, shake: b.shake, push: b.push, fighters: list, pickups: b.pickups,
       danger: b.foeTelegraph ? { x: b.foeTelegraph.x, z: b.foeTelegraph.z, r: DODGE_RADIUS,
                                  t: Math.min(1, b.foeTelegraph.t / b.foeTelegraph.ms) } : null });
     for(const f of bars) if(!battleSlot(f).behind) drawHpBar(f);
@@ -10036,9 +10048,9 @@
   /** Players switch between behind-the-cell and first person; a watching host between the whole map and a free camera. */
   function battleCycleView(){
     if(!battle) return;
-    const order = (battle.net && battle.net.spectator) ? ['top', 'third', 'stats'] : ['close', 'third'];
+    const order = (battle.net && battle.net.spectator) ? ['top', 'third', 'stats'] : ['close', 'first', 'third'];
     battle.view = order[(order.indexOf(battle.view) + 1) % order.length];
-    battleLog({ top: 'View: the whole map.', third: 'View: free camera, WASD to move.', close: 'View: over the shoulder. Drag, or Q and E, to turn.', first: 'View: first person.', stats: 'View: live question analysis.' }[battle.view]);
+    battleLog({ top: 'View: the whole map.', third: 'View: free camera, WASD to move.', close: 'View: over the shoulder. Drag, or Q and E, to turn.', first: 'View: through your cell’s eye. Drag, or Q and E, to look around.', stats: 'View: live question analysis.' }[battle.view]);
   }
   document.getElementById('battleViewBtn')?.addEventListener('click', battleCycleView);
   // The question card is closed from many places; stop any video and free the viewer whenever it is.
@@ -10087,7 +10099,7 @@
   document.addEventListener('keydown', (e)=>{
     if(!battle || screenState!=='battle') return;
     const k = e.key.toLowerCase();
-    const turn = (k==='q' || (k==='arrowleft' && battle.view==='close')) ? 'rl' : ((k==='e' || (k==='arrowright' && battle.view==='close')) ? 'rr' : null);
+    const turn = (k==='q' || (k==='arrowleft' && battleTurnView())) ? 'rl' : ((k==='e' || (k==='arrowright' && battleTurnView())) ? 'rr' : null);
     if(turn){ battleHeld[turn] = true; e.preventDefault(); }
     else if(BATTLE_KEYS[k]){ battleHeld[BATTLE_KEYS[k]] = true; e.preventDefault(); }
     if(k===' ' || k==='enter'){ battleTryAttack(); e.preventDefault(); }
@@ -10106,13 +10118,13 @@
     if(!battle || screenState!=='battle' || e.target.closest('button')) return;
     const r = canvas.getBoundingClientRect();
     // Mouse always turns the camera (WASD moves). A finger on the left half is the move stick; on the right half it turns.
-    const turn = battle.view === 'close' && (e.pointerType !== 'touch' || e.clientX > r.left + r.width*0.5);
+    const turn = battleTurnView() && (e.pointerType !== 'touch' || e.clientX > r.left + r.width*0.5);
     battleDrag = { x: e.clientX, y: e.clientY, lastX: e.clientX, turn };
-    if(battle.view !== 'close') battlePointerMove(e);
+    if(!battleTurnView()) battlePointerMove(e);
   };
   const battlePointerMove = (e)=>{
     if(!battle || screenState!=='battle' || !battleDrag || e.buttons===0){ battleHeld.px = battleHeld.pz = 0; return; }
-    if(battle.view === 'close'){
+    if(battleTurnView()){
       if(battleDrag.turn){ battle.yaw += (e.clientX - battleDrag.lastX) * 0.007; battleDrag.lastX = e.clientX; }
       else {
         battleHeld.px = Math.max(-1, Math.min(1, (e.clientX - battleDrag.x) / 60));
