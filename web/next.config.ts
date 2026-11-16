@@ -25,6 +25,7 @@ const nextConfig: NextConfig = {
     '/images/**': ['../images/**/*'],
     '/atlas/**': ['../atlas/**/*'],
     '/vendor/**': ['../vendor/**/*'],
+    '/maps/**': ['../maps/**/*'],
   },
 };
 

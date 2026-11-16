@@ -26,5 +26,7 @@ fs.cpSync(path.join(root, 'atlas'), path.join(wwwDir, 'atlas'), { recursive: tru
 // The 3D battle view and the library it needs. Without these the app still works; battles just stay 2D.
 fs.copyFileSync(path.join(root, 'battle3d.js'), path.join(wwwDir, 'battle3d.js'));
 fs.cpSync(path.join(root, 'vendor'), path.join(wwwDir, 'vendor'), { recursive: true });
+// The real-street battle maps. Without these, picking one falls back to a built-in map.
+fs.cpSync(path.join(root, 'maps'), path.join(wwwDir, 'maps'), { recursive: true });
 
 console.log('www/ rebuilt from medsci-runner.html, game-data.js, feedback.html, icons/, images/, atlas/ (developer-tool.html excluded)');

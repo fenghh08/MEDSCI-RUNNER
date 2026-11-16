@@ -264,6 +264,9 @@
   #mcqMedia .mm-frame > *{ position:absolute; inset:0; width:100%; height:100%; border:0; }
   #mcqMedia .mm-frame button{ background:none; color:#fff; font-family:var(--mono); font-size:14px; cursor:pointer; }
   #mcqMedia .mm-cap{ font-size:11.5px; color:var(--hud-dim); margin-top:5px; text-align:left; }
+  .battle-rules{ display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; }
+  .battle-rules label{ display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--hud-dim); text-align:left; }
+  .battle-rules select{ font-family:var(--mono); font-size:13px; padding:6px 8px; border-radius:8px; border:1px solid var(--panel-line); background:var(--panel); color:var(--hud-ink); }
   #soundVolume{ width:74px; accent-color:var(--membrane); vertical-align:middle; cursor:pointer; }
   .screen h2{ font-family:var(--display); font-style:italic; font-weight:400; font-size:30px; margin:0 0 6px; }
   .screen p.desc{ color:var(--hud-dim); max-width:480px; line-height:1.55; font-size:13px; margin:0 auto 16px; text-align:center; }
@@ -840,6 +843,7 @@
         <div id="hudRight">
           <button class="icon-btn" id="soundToggleBtn" title="Mute sound effects">🔊</button>
           <input type="range" id="soundVolume" min="0" max="100" step="5" value="80" title="Sound volume" aria-label="Sound volume">
+          <button class="icon-btn" id="musicToggleBtn" title="Turn the background music off">🎵</button>
           <button class="icon-btn" id="pauseBtn" title="Pause (P)">⏸</button>
           <button class="icon-btn" id="guideBtn" title="Study guide">📚</button>
         </div>
@@ -1021,6 +1025,14 @@
         <div id="bsMap"><div class="p-sub" style="margin-top:14px;">Map</div><div class="cancer-grid" id="battleMapGrid"></div></div>
         <div id="bsHost" class="battle-net" style="margin-top:10px;">
           <label class="battle-chk"><input type="checkbox" id="battleWatchChk"> I'm the lecturer: I'll watch and see the results, not play</label>
+          <div class="battle-rules">
+            <label>Starting life
+              <select id="battleHpSel"><option value="60">60 · quick</option><option value="100" selected>100 · standard</option><option value="150">150</option><option value="200">200 · long</option><option value="300">300 · marathon</option></select>
+            </label>
+            <label>Damage per hit
+              <select id="battleHitSel"><option value="15">15 · gentle</option><option value="25">25</option><option value="33" selected>33 · standard</option><option value="50">50 · heavy</option><option value="100">100 · brutal</option></select>
+            </label>
+          </div>
         </div>
         <div id="battleNetMsg"></div>
         <div class="btn-row" style="margin-top:14px;">
@@ -1978,6 +1990,107 @@
     try { localStorage.setItem('soundVolume', String(soundVolume)); } catch(e){ /* not persisted, still applied */ }
     if(masterGain && audioCtx){ masterGain.gain.cancelScheduledValues(audioCtx.currentTime); masterGain.gain.setValueAtTime(soundVolume, audioCtx.currentTime); }
   }
+  /* ----------------------------------------------------------------- music
+     Background music, synthesised like everything else here: no audio files,
+     so it works offline and costs nothing to load. A small step sequencer
+     plays a four-bar chord loop -- bass, an arpeggio, a soft pad and, on the
+     faster tracks, drums -- scheduled a fraction of a second ahead on the
+     audio clock so it stays in time whatever the frame rate is doing.
+
+     Three tracks, picked from what is on screen: calm in the menus, brighter
+     while running, minor and driving in a battle. It sits well under the
+     sound effects, has its own on/off button, and the mute button silences
+     it along with everything else. */
+  const MUSIC_TRACKS = {
+    menu:   { bpm: 84,  chords: [[60,64,67,71],[57,60,64,67],[53,57,60,64],[55,59,62,67]], arp: [0,2,1,3,2,1,3,2], arpEvery: 2, arpType: 'triangle', arpGain: 0.05,
+              bass: [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], bassType: 'sine', pad: 0.035, drums: null },
+    run:    { bpm: 124, chords: [[57,60,64],[53,57,60],[60,64,67],[55,59,62]], arp: [0,1,2,1,0,2,1,2,0,1,2,1,2,1,0,1], arpEvery: 1, arpType: 'triangle', arpGain: 0.045,
+              bass: [1,0,0,1,0,0,1,0,1,0,0,1,0,0,1,0], bassType: 'triangle', pad: 0.02, drums: { kick: [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0], hat: [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,1], snare: null } },
+    battle: { bpm: 138, chords: [[62,65,69],[58,62,65],[60,64,67],[57,61,64]], arp: [0,2,1,2,0,2,1,2,0,2,1,2,0,1,2,1], arpEvery: 1, arpType: 'square', arpGain: 0.022,
+              bass: [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1,1], bassType: 'sawtooth', pad: 0.018, drums: { kick: [1,0,0,0,1,0,0,0,1,0,0,0,1,0,1,0], hat: [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0], snare: [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0] } },
+  };
+  const midiHz = (m)=> 440 * Math.pow(2, (m - 69) / 12);
+  let musicOn = (function(){ try { return localStorage.getItem('musicOn') !== 'no'; } catch(e){ return true; } })();
+  let musicGain = null, musicTrack = null, musicStep = 0, musicNextAt = 0, musicTimer = null;
+  function musicOut(ctx){
+    if(!musicGain){ musicGain = ctx.createGain(); musicGain.gain.value = 0; musicGain.connect(audioOut(ctx)); }
+    return musicGain;
+  }
+  function musicNote(ctx, hz, at, dur, type, gain, cutoff){
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type = type; osc.frequency.setValueAtTime(hz, at);
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(gain, at + Math.min(0.02, dur*0.3));
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    let node = osc;
+    if(cutoff){ const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff; osc.connect(f); node = f; }
+    node.connect(g); g.connect(musicOut(ctx));
+    osc.start(at); osc.stop(at + dur + 0.03);
+  }
+  function musicNoise(ctx, at, dur, freq, gain, type){
+    if(!noiseBuffer){ noiseBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = noiseBuffer.getChannelData(0); for(let i=0;i<d.length;i++) d[i] = Math.random()*2 - 1; }
+    const src = ctx.createBufferSource(); src.buffer = noiseBuffer;
+    const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+    const g = ctx.createGain(); g.gain.setValueAtTime(gain, at); g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    src.connect(f); f.connect(g); g.connect(musicOut(ctx));
+    src.start(at, Math.random()*0.5); src.stop(at + dur + 0.02);
+  }
+  function musicSchedule(){
+    const ctx = audioCtx, tr = MUSIC_TRACKS[musicTrack];
+    if(!ctx || !tr || ctx.state !== 'running') return;
+    const stepDur = 60 / tr.bpm / 4;                       // a sixteenth note
+    if(musicNextAt < ctx.currentTime) musicNextAt = ctx.currentTime + 0.05;   // after a pause: pick up from now, not from the past
+    while(musicNextAt < ctx.currentTime + 0.25){
+      const step = musicStep % 16, chord = tr.chords[Math.floor(musicStep / 16) % tr.chords.length], at = musicNextAt;
+      if(step === 0) for(const m of chord) musicNote(ctx, midiHz(m), at, stepDur*16, 'sine', tr.pad, 0);
+      if(tr.bass[step]) musicNote(ctx, midiHz(chord[0] - 24), at, stepDur*1.8, tr.bassType, 0.11, tr.bassType === 'sawtooth' ? 420 : 0);
+      if(step % tr.arpEvery === 0){
+        const i = tr.arp[(step / tr.arpEvery) % tr.arp.length];
+        musicNote(ctx, midiHz(chord[i % chord.length] + 12), at, stepDur*tr.arpEvery*0.9, tr.arpType, tr.arpGain, tr.arpType === 'square' ? 2200 : 0);
+      }
+      if(tr.drums){
+        if(tr.drums.kick[step]){ const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(130, at); o.frequency.exponentialRampToValueAtTime(42, at + 0.11);
+          g.gain.setValueAtTime(0.2, at); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.14); o.connect(g); g.connect(musicOut(ctx)); o.start(at); o.stop(at + 0.16); }
+        if(tr.drums.hat[step]) musicNoise(ctx, at, 0.04, 7000, 0.035, 'highpass');
+        if(tr.drums.snare && tr.drums.snare[step]) musicNoise(ctx, at, 0.13, 1800, 0.09, 'bandpass');
+      }
+      musicStep++; musicNextAt += stepDur;
+    }
+  }
+  /** Which track fits what is on screen right now, or null for silence. */
+  function musicWanted(){
+    if(!musicOn || soundMuted || document.hidden) return null;
+    if(typeof battle !== 'undefined' && battle && (screenState === 'battle' || screenState === 'mcq')) return 'battle';
+    if(screenState === 'running' || screenState === 'resuming' || (screenState === 'mcq' && quizMode !== 'practice')) return 'run';
+    return 'menu';
+  }
+  function musicTick(){
+    let want = null;
+    try { want = musicWanted(); } catch(e){ /* state not set up yet */ }
+    const ctx = audioCtx;                                  // never create it here: audio may only start from a click
+    if(!ctx) return;
+    if(want !== musicTrack){
+      // Fade the old track out and start the new one from the top of its loop.
+      const g = musicOut(ctx).gain, t = ctx.currentTime;
+      g.cancelScheduledValues(t); g.setValueAtTime(g.value, t);
+      g.linearRampToValueAtTime(0.0001, t + 0.25);
+      if(want) g.linearRampToValueAtTime(0.55, t + 0.9);
+      musicTrack = want; musicStep = 0; musicNextAt = t + 0.3;
+    }
+    if(musicTrack) musicSchedule();
+  }
+  function setMusicOn(on){
+    musicOn = on;
+    try { localStorage.setItem('musicOn', on ? 'yes' : 'no'); } catch(e){ /* not persisted, still applied */ }
+    const btn = document.getElementById('musicToggleBtn');
+    if(btn){ btn.style.opacity = on ? '1' : '0.45'; btn.title = on ? 'Turn the background music off' : 'Turn the background music on'; }
+  }
+  document.getElementById('musicToggleBtn')?.addEventListener('click', ()=>{ getAudioCtx(); setMusicOn(!musicOn); });
+  setMusicOn(musicOn);
+  musicTimer = setInterval(musicTick, 80);
+  // Browsers only allow audio after a real click or key press; the first one anywhere starts the music.
+  for(const ev of ['pointerdown', 'keydown']) window.addEventListener(ev, ()=>{ if(musicOn && !soundMuted) getAudioCtx(); }, { once: true });
+
   function setSoundMuted(muted){
     soundMuted = muted;
     try { localStorage.setItem('soundMuted', muted ? 'yes' : 'no'); } catch(e){ /* fine — just won't persist across a reload in browsers that block file:// storage */ }
@@ -5586,13 +5699,23 @@
     context.lineWidth = r*0.09;
     context.beginPath(); context.arc(cx, cy+r*0.14, r*0.22, Math.PI*0.15, Math.PI*0.85); context.stroke();
   }
-  function drawCellAccessory(context, cx, cy, r, accessory){
+  function drawCellAccessory(context, cx, cy, r, accessory, oneEye){
     if(accessory==='headband'){
       context.save();
       context.beginPath(); context.arc(cx,cy,r,0,Math.PI*2); context.clip();
-      context.fillStyle = '#7c3aed';
-      context.fillRect(cx-r, cy-r*0.62, r*2, r*0.26);
+      // The character already wears a purple band; picking "headband" swaps it for a gold one.
+      context.fillStyle = oneEye ? '#f2b705' : '#7c3aed';
+      context.fillRect(cx-r, cy-r*(oneEye ? 0.86 : 0.62), r*2, r*(oneEye ? 0.3 : 0.26));
       context.restore();
+      return;
+    }
+    if(accessory==='glasses' && oneEye){
+      // One eye, one lens: a round frame around it, with arms out to the sides.
+      const gr = oneEye*1.95;
+      context.strokeStyle = '#1a0508'; context.lineWidth = r*0.07; context.fillStyle = 'rgba(255,255,255,.14)';
+      context.beginPath(); context.arc(cx, cy, gr, 0, Math.PI*2); context.fill(); context.stroke();
+      context.beginPath(); context.moveTo(cx - gr, cy); context.lineTo(cx - r*0.98, cy - r*0.12);
+      context.moveTo(cx + gr, cy); context.lineTo(cx + r*0.98, cy - r*0.12); context.stroke();
       return;
     }
     if(accessory==='glasses'){
@@ -5685,36 +5808,88 @@
         g.putImageData(d, 0, 0);
         const out = document.createElement('canvas'); out.width = x1 - x0 + 1; out.height = y1 - y0 + 1;
         out.getContext('2d').drawImage(c, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+        // Where the eye is, so expressions and accessories land on the right spot
+        // whatever the art's proportions: the eye-white is the only near-white area.
+        let ex = 0, ey = 0, en = 0;
+        for(let q=0;q<S*S;q++){
+          if(label[q] !== best) continue;
+          const i = q*4;
+          if(a[i] > 215 && a[i+1] > 190 && a[i+2] > 195){ ex += q % S; ey += (q / S) | 0; en++; }
+        }
+        if(en > 60) morrisEye = { x: ex/en - x0, y: ey/en - y0, r: Math.sqrt(en / Math.PI) * 1.12 };
         morrisArt = out;
+        if(typeof renderCustomizeScreen === 'function' && document.getElementById('customizeView')?.offsetParent) renderCustomizeScreen();
       } catch(e){ /* pixels not readable here: the drawn cell stays */ }
     };
     img.src = 'icons/app-icon-512.png';
   })();
-  /** The character in a player's colour. The default colour is the art as drawn. */
-  function morrisFor(color){
-    if(!color || color === CUSTOMIZE_DEFAULT.color) return morrisArt;
-    let c = morrisTints.get(color);
+  let morrisEye = null;                 // { x, y, r } of the eye-white, in the cut-out's own pixels
+  /* The four "faces" on a one-eyed character: an eyelid and a mouth, drawn in
+     the art's own reds so they tint along with it. Nothing is added for the
+     default face, which is the character exactly as the team drew it. */
+  function drawMorrisFace(g, face){
+    const e = morrisEye; if(!e || !face || face === 'happy') return;
+    const R = e.r, lid = '#98103a', ink = '#4a0a1e';
+    g.save(); g.lineCap = 'round'; g.lineJoin = 'round';
+    const eyelid = (leftY, rightY)=>{           // covers the eye above a slanted line
+      g.save(); g.beginPath(); g.arc(e.x, e.y, R*1.04, 0, Math.PI*2); g.clip();
+      g.fillStyle = lid; g.beginPath();
+      g.moveTo(e.x - R*1.2, e.y - R*1.2); g.lineTo(e.x + R*1.2, e.y - R*1.2);
+      g.lineTo(e.x + R*1.2, e.y + R*rightY); g.lineTo(e.x - R*1.2, e.y + R*leftY); g.closePath(); g.fill();
+      g.strokeStyle = ink; g.lineWidth = R*0.1; g.beginPath();
+      g.moveTo(e.x - R*1.2, e.y + R*leftY); g.lineTo(e.x + R*1.2, e.y + R*rightY); g.stroke();
+      g.restore();
+    };
+    g.strokeStyle = ink; g.fillStyle = ink; g.lineWidth = R*0.17;
+    if(face === 'determined'){
+      eyelid(-0.62, -0.08);
+      g.beginPath(); g.moveTo(e.x - R*0.55, e.y + R*2.3); g.lineTo(e.x + R*0.55, e.y + R*2.3); g.stroke();
+    } else if(face === 'mischievous'){
+      eyelid(-0.05, -0.5);
+      g.beginPath(); g.moveTo(e.x - R*0.55, e.y + R*2.2); g.quadraticCurveTo(e.x + R*0.25, e.y + R*2.7, e.x + R*0.75, e.y + R*2.02); g.stroke();
+    } else if(face === 'surprised'){
+      g.beginPath(); g.arc(e.x, e.y, R*2.0, Math.PI*1.3, Math.PI*1.7); g.stroke();
+      g.beginPath(); g.ellipse(e.x, e.y + R*2.38, R*0.26, R*0.34, 0, 0, Math.PI*2); g.fill();
+    }
+    g.restore();
+  }
+  /** The character in a player's colour and face. The default of both is the art as drawn. */
+  function morrisFor(color, face){
+    const plainColor = !color || color === CUSTOMIZE_DEFAULT.color, plainFace = !face || face === 'happy' || !morrisEye;
+    if(plainColor && plainFace) return morrisArt;
+    const key = (plainColor ? '' : color) + '|' + (plainFace ? '' : face);
+    let c = morrisTints.get(key);
     if(!c){
       c = document.createElement('canvas'); c.width = morrisArt.width; c.height = morrisArt.height;
       const g = c.getContext('2d');
       g.drawImage(morrisArt, 0, 0);
-      g.globalCompositeOperation = 'hue'; g.fillStyle = color; g.fillRect(0, 0, c.width, c.height);
-      g.globalCompositeOperation = 'destination-in'; g.drawImage(morrisArt, 0, 0);
-      morrisTints.set(color, c);
+      if(!plainFace) drawMorrisFace(g, face);
+      if(!plainColor){
+        // Tint, then cut back to the character's own shape (with its face) so nothing spills.
+        const mask = document.createElement('canvas'); mask.width = c.width; mask.height = c.height;
+        mask.getContext('2d').drawImage(c, 0, 0);
+        g.globalCompositeOperation = 'hue'; g.fillStyle = color; g.fillRect(0, 0, c.width, c.height);
+        g.globalCompositeOperation = 'destination-in'; g.drawImage(mask, 0, 0);
+        g.globalCompositeOperation = 'source-over';
+      }
+      morrisTints.set(key, c);
     }
     return c;
   }
   function drawCellSprite(context, cx, cy, r, custom, wob){
     wob = wob || 0;
     if(morrisArt){
-      const art = morrisFor(custom.color), h = r*2.75, w = h * art.width / art.height;
+      const art = morrisFor(custom.color, custom.face), h = r*2.75, w = h * art.width / art.height;
       context.save();
       // A small squash-and-stretch on the same wobble the old cell used, so it still feels alive.
       const sq = 1 + Math.sin(wob)*0.03;
       context.translate(cx, cy + r*0.12); context.scale(1/sq, sq);
       context.drawImage(art, -w/2, -h/2, w, h);
       context.restore();
-      drawCellAccessory(context, cx, cy - r*0.2, r*0.8, custom.accessory);
+      // Accessories sit on the body, which is centred on the eye and about three eye-widths across.
+      const k = w / art.width, e = morrisEye;
+      if(e) drawCellAccessory(context, cx + (e.x - art.width/2)*k, cy + r*0.12 + (e.y - art.height/2)*k, e.r*3.0*k, custom.accessory, e.r*k);
+      else drawCellAccessory(context, cx, cy - r*0.2, r*0.8, custom.accessory);
       return;
     }
     const color = custom.color || CUSTOMIZE_DEFAULT.color;
@@ -6615,8 +6790,15 @@
         // Preview against the currently-picked color, but a plain circle
         // (no receptor dots) so a face/accessory choice reads clearly at
         // this size instead of getting lost among the spikes.
-        cctx.fillStyle = customizeDraft.color; cctx.beginPath(); cctx.arc(28,28,22,0,Math.PI*2); cctx.fill();
-        drawExtra(cctx, 28, 28, 22, value);
+        if(morrisArt){
+          // The character itself with this option applied: what you pick is what you see.
+          // Faces are shown close up, so the eyelid and mouth can be told apart at this size.
+          if(key === 'face') drawCellSprite(cctx, 28, 33, 36, { ...customizeDraft, [key]: value }, 0);
+          else drawCellSprite(cctx, 28, 31, 27, { ...customizeDraft, [key]: value }, 0);
+        } else {
+          cctx.fillStyle = customizeDraft.color; cctx.beginPath(); cctx.arc(28,28,22,0,Math.PI*2); cctx.fill();
+          drawExtra(cctx, 28, 28, 22, value);
+        }
         b.appendChild(c);
         const label = document.createElement('span'); label.textContent = value; b.appendChild(label);
         b.addEventListener('click', ()=>{ customizeDraft = { ...customizeDraft, [key]: value }; renderCustomizeScreen(); });
@@ -7848,6 +8030,13 @@
     botSkill: 0.6, botThinkMs: 1400, scorePerHit: 50, scorePerKo: 300,
   }, GAME_CONFIG.battle || {});
   const BATTLE_HIT = Math.max(1, Math.round(BATTLE.startHp / BATTLE.hitsToKo));
+  // What a match is played with. The defaults above for solo; in a room, what
+  // the host chose, carried on the room so every player uses the same numbers.
+  const battleRules = { hp: BATTLE.startHp, hit: BATTLE_HIT };
+  function battleSetRules(hp, hit){
+    battleRules.hp = Math.max(40, Math.min(500, Math.round(Number(hp)) || BATTLE.startHp));
+    battleRules.hit = Math.max(5, Math.min(200, Math.round(Number(hit)) || BATTLE_HIT));
+  }
 
   const BOT_NAMES = ['Rival Cell', 'Mutant Clone', 'Rogue Phagocyte'];
   const BOT_LOOKS = [
@@ -7878,8 +8067,8 @@
 
   function newFighter(name, look, isYou){
     return { name, look, isYou,
-      hp: BATTLE.startHp, maxHp: BATTLE.startHp,
-      ghostHp: BATTLE.startHp, ghostHoldUntil: 0,
+      hp: battleRules.hp, maxHp: battleRules.hp,
+      ghostHp: battleRules.hp, ghostHoldUntil: 0,
       streak: 0, correct: 0, wrong: 0,
       flash: 0, knock: 0, lunge: 0, windup: 0, dead: false, fall: 0, koAt: 0 };
   }
@@ -7923,7 +8112,7 @@
       b.className = 'pick-card' + (battleMap===key ? ' battle-picked' : '');
       b.innerHTML = `<span class="cc-icon">${mp.icon}</span><span class="cc-name">${escapeHtml(mp.label)}</span>`
                   + `<span class="cc-blurb">${escapeHtml(mp.blurb)}</span>`;
-      b.addEventListener('click', ()=>{ battleMap = key; renderBattleMaps(); SoundFX.click(); });
+      b.addEventListener('click', ()=>{ battleMap = key; if(mp.geo) loadBattleGeo(mp.geo).catch(()=>{}); renderBattleMaps(); SoundFX.click(); });
       grid.appendChild(b);
     });
   }
@@ -7950,6 +8139,16 @@
   function startBattle(netOpts){
     const pool = shuffle(battleQuestionPool(battleCourse));
     if(!pool.length) return;
+    const wantGeo = (BATTLE_MAPS[battleMap] || {}).geo;
+    if(wantGeo && !battleGeo[wantGeo] && !startBattle.waited){
+      // The street data is a separate file. Start as soon as it is here; if it
+      // cannot be fetched (an offline copy opened from disk) the match still
+      // starts, on a built-in map.
+      battleNetSay && battleNetSay('Loading the map…');
+      const again = ()=>{ startBattle.waited = true; try { startBattle(netOpts); } finally { startBattle.waited = false; } };
+      loadBattleGeo(wantGeo).then(again, again);
+      return;
+    }
     battleRand = netOpts ? mulberry32(netOpts.seed) : Math.random;
     const n = Math.floor(Math.random()*BOT_NAMES.length);
     const mapDef = applyBattleMap(battleMap);
@@ -7963,7 +8162,7 @@
       foeCooldown: 3200, foeTelegraph: null,
       wx: mapDef.spawn.you[0], wz: mapDef.spawn.you[1], fx: mapDef.spawn.foe[0], fz: mapDef.spawn.foe[1],
       camX: mapDef.spawn.you[0], camZ: mapDef.spawn.you[1] - 60,
-      props: Array.from({length: Math.round(26 * (WORLD.halfW*WORLD.halfD)/(1300*1000))}, ()=>{
+      props: Array.from({length: mapDef.geo ? 0 : Math.round(26 * (WORLD.halfW*WORLD.halfD)/(1300*1000))}, ()=>{
         let spot;
         do { spot = battleFreeSpot(90); }
         while(battleOnRoad(spot.x, spot.z, 50));   // not in the road
@@ -7992,6 +8191,7 @@
     seedArenaMotes();
     battleLog(battle.net ? (battle.net.spectator ? 'You are watching. WASD moves the camera.' : 'Everyone for themselves. WASD to walk, Space to attack whoever is nearest.')
                          : `A ${battle.foe.name} squares up. WASD to walk, Space to attack. Green orbs heal.`);
+    if(mapDef.geo) battleLog(mapDef.geo.attribution || 'Map data © OpenStreetMap contributors');   // the licence asks for this credit on screen
     SoundFX.battleStart();
     battle.view = (battle.net && battle.net.spectator) ? 'top' : 'close';
     battle.yaw = 0;
@@ -8001,8 +8201,15 @@
     SoundFX.stageComplete();
     battleRaf = requestAnimationFrame(battleLoop);
     const thisBattle = battle;
+    // Until the 3D scene is built the flat fallback would be on screen -- a
+    // different-looking map for half a second. Hold a plain "loading" frame
+    // instead, and keep the rival from striking someone who cannot see yet.
+    battle.glPending = true;
+    battle.foeCooldown += 800;
     battleLoad3D().then(x=>{
-      if(!x || battle !== thisBattle) return;
+      if(battle !== thisBattle) return;
+      battle.glPending = false;
+      if(!x) return;
       try {
         x.build(battleMap, mapDef, BATTLE_BUILDINGS, battle.props, battle.pickups);
         battle.gl = true; battleGlCanvas.style.display = 'block'; canvas.classList.add('gl-on');
@@ -8141,7 +8348,7 @@
           b.foeTelegraph.follow = true;
         }
       } else {
-        battleQueueAttack(b.foe, b.you, BATTLE_HIT, false, `${b.foe.name} strikes`);
+        battleQueueAttack(b.foe, b.you, battleRules.hit, false, `${b.foe.name} strikes`);
         battlePlayPending();
       }
     }
@@ -8196,7 +8403,7 @@
     if(correct){
       you.correct++; you.streak++;
       SoundFX.streak(you.streak);
-      let dmg = BATTLE_HIT;
+      let dmg = battleRules.hit;
       const crit = (performance.now()-started) < BATTLE.turnSeconds*1000*BATTLE.critUnderFraction;
       if(crit) dmg = Math.round(dmg*BATTLE.critMultiplier);
       if(you.streak % BATTLE.streakEvery === 0) dmg += BATTLE.streakBonusDamage;
@@ -8557,39 +8764,70 @@
       halfW: 1850, halfD: 1350, v: [-900, 0, 900], h: [-600, 0, 600], spawn: { you: [0,-250], foe: [0,250] },
       decor: [-900,0,900].flatMap(vx=> [-1,1].flatMap(sx=> [-1000,-300,300,1000].map(z=> ({ type:'lamp', x: vx + sx*150, z })))),
       buildings: battleCityBlocks },
-    campus: { label: 'USYD campus', icon: '🎓', blurb: 'Sandstone Quadrangle and clock tower, lawns, jacarandas.',
-      halfW: 1750, halfD: 1500, v: [0], h: [-560, 450], paved: [0], spawn: { you: [0,-200], foe: [0,180] },
-      lawns: [{ x:-760, z:755, w:530, d:190 }, { x:680, z:-70, w:900, d:380 }, { x:-760, z:-70, w:900, d:380 }, { x:680, z:-880, w:700, d:180 }],
-      decor: [
-        { type:'tower', x:-760, z:695, w:130, y:150, h:330, wall:'#c9a36b' },
-        { type:'tree', kind:'jacaranda', x:-640, z:850, r:70 },
-        { type:'tree', kind:'jacaranda', x:420, z:120, r:60 }, { type:'tree', kind:'jacaranda', x:-460, z:160, r:56 },
-      ],
-      buildings: ()=> { const sand = { style:'sandstone', wall:'#c9a36b', trim:'#b08a55', sign:'#7a5a2a', roofColor:'#5e5148' }; return [
-        Object.assign({ name:'QUADRANGLE', x:-975, z:640, w:220, d:110, h:210, roof:'gableX' }, sand),
-        Object.assign({ name:'', x:-545, z:640, w:220, d:110, h:210, roof:'gableX', door:false }, sand),
-        Object.assign({ name:'', x:-1085, z:750, w:110, d:200, h:210, roof:'gableZ', door:false }, sand),
-        Object.assign({ name:'', x:-435,  z:750, w:110, d:200, h:210, roof:'gableZ', door:false }, sand),
-        Object.assign({ name:'', x:-760, z:950, w:760, d:110, h:210, roof:'gableX', door:false }, sand),
-        Object.assign({ name:'GREAT HALL', x:-1420, z:700, w:300, d:300, h:290, roof:'gableZ' }, sand),
-        Object.assign({ name:'ANDERSON STUART', x:-760, z:-340, w:520, d:240, h:250, roof:'gableX' }, sand),
-        Object.assign({ name:'MADSEN', x:-1380, z:-340, w:360, d:220, h:220, roof:'gableX' }, sand),
-        { name:'FISHER LIBRARY',  x: 680, z: 640,  w:620, d:360, h:560, style:'glass', wall:'#2c3e50', glass:'#a9cfe6', glassDark:'#4a7694', trim:'#dfe5ea', sign:'#e64626' },
-        { name:'CARSLAW',         x: 680, z:-360,  w:560, d:260, h:360, style:'concrete', wall:'#a9b4bd', trim:'#e6ebef', sign:'#e64626' },
-        { name:'MANNING',         x: 1330, z:-320, w:320, d:200, h:170, style:'brick', wall:'#b06a4a', trim:'#f1e3d6', sign:'#8a4a2a', awning:true },
-        { name:'CHARLES PERKINS', x:-720, z:-1220, w:720, d:330, h:380, style:'glass', wall:'#e8edf1', glass:'#dff0fa', glassDark:'#8fb6cf', trim:'#ffffff', sign:'#e64626' },
-        { name:'WENTWORTH',       x: 720, z:-1180, w:520, d:280, h:260, style:'brick', wall:'#b88a6a', trim:'#f1e3d6', sign:'#e64626' },
-      ]; } },
+    // Built from real street data (maps/<geo>.json, see scripts/build-battle-maps.mjs):
+    // actual building outlines and heights, actual streets. The size, spawn
+    // points and walls all come from the file, so there is nothing to lay out here.
+    townhall: { label: 'George Street · Town Hall', icon: '🏛️', blurb: 'The real block: Town Hall, QVB, St Andrew’s, the light rail. Map © OpenStreetMap.',
+      geo: 'townhall', halfW: 2350, halfD: 2700, v: [], h: [], spawn: { you: [0,-250], foe: [0,250] }, buildings: ()=> [] },
+    campus: { label: 'University of Sydney', icon: '🎓', blurb: 'The real campus: Quadrangle, Fisher, Eastern Avenue, Science Road. Map © OpenStreetMap.',
+      geo: 'usyd', halfW: 3300, halfD: 3000, v: [], h: [], spawn: { you: [0,-250], foe: [0,250] }, buildings: ()=> [] },
   };
+  /* Real-street map data, fetched once and kept. A map that has not arrived
+     yet cannot be started on, so startBattle() waits for it. */
+  const battleGeo = {};
+  const battleGeoLoads = {};
+  function loadBattleGeo(name){
+    return battleGeoLoads[name] ??= fetch(`maps/${name}.json`).then(r=>{ if(!r.ok) throw new Error('map ' + r.status); return r.json(); })
+      .then(data=>{
+        // Everything you can walk into, with a bounding box so most are skipped in one comparison.
+        data.walls = [...data.buildings, ...data.parts.filter(p=> !p.min && !data.buildings.some(bd=> battlePointIn(p.pts[0][0], p.pts[0][1], bd.pts)))]
+          .map(bd=>{
+            const xs = bd.pts.map(q=> q[0]), zs = bd.pts.map(q=> q[1]);
+            return { rings: [bd.pts, ...(bd.holes || [])], pts: bd.pts, holes: bd.holes || [], name: bd.name || '',
+                     x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
+          });
+        battleGeo[name] = data; return data;
+      })
+      .catch(err=>{ delete battleGeoLoads[name]; throw err; });
+  }
+  function battlePointIn(x, z, pts){
+    let hit = false;
+    for(let i=0, j=pts.length-1; i<pts.length; j=i++){
+      const xi = pts[i][0], zi = pts[i][1], xj = pts[j][0], zj = pts[j][1];
+      if((zi > z) !== (zj > z) && x < (xj - xi)*(z - zi)/(zj - zi) + xi) hit = !hit;
+    }
+    return hit;
+  }
   let battleMap = 'hospital';
   let BATTLE_BUILDINGS = [];
   let BATTLE_ROADS = { v: [0], h: [0] };
+  let BATTLE_WALLS = [];      // real-street maps: building outlines, instead of the boxes above
+  let BATTLE_OPEN = null;     // ...and the street points it is safe to appear on
   function applyBattleMap(key){
-    const mp = BATTLE_MAPS[key] || BATTLE_MAPS.hospital;
+    let mp = BATTLE_MAPS[key] || BATTLE_MAPS.hospital;
+    const geo = mp.geo && battleGeo[mp.geo];
+    if(mp.geo && !geo) mp = BATTLE_MAPS.hospital;          // the data never arrived: play somewhere that works
+    if(geo) mp = Object.assign({}, mp, { geo, halfW: geo.halfW, halfD: geo.halfD, spawn: geo.spawn });
     WORLD.halfW = mp.halfW; WORLD.halfD = mp.halfD;
     BATTLE_BUILDINGS = mp.buildings();
+    BATTLE_WALLS = geo ? geo.walls : [];
+    BATTLE_OPEN = geo ? geo.open : null;
     BATTLE_ROADS = { v: mp.v, h: mp.h };
     return mp;
+  }
+  /** The nearest point on a wall outline to (x, z), and whether (x, z) is inside the building. */
+  function battleWallNearest(w, x, z){
+    let best = Infinity, bx = x, bz = z;
+    for(const ring of w.rings){
+      for(let i=0, j=ring.length-1; i<ring.length; j=i++){
+        const ax = ring[j][0], az = ring[j][1], dx = ring[i][0] - ax, dz = ring[i][1] - az;
+        const t = Math.max(0, Math.min(1, ((x - ax)*dx + (z - az)*dz) / (dx*dx + dz*dz || 1)));
+        const px = ax + dx*t, pz = az + dz*t, d = (x - px)*(x - px) + (z - pz)*(z - pz);
+        if(d < best){ best = d; bx = px; bz = pz; }
+      }
+    }
+    const inside = battlePointIn(x, z, w.pts) && !w.holes.some(h=> battlePointIn(x, z, h));
+    return { d: Math.sqrt(best), x: bx, z: bz, inside };
   }
   function battleOnRoad(x, z, pad){
     return BATTLE_ROADS.v.some(v=> Math.abs(x - v) < ROAD_HALF + pad) || BATTLE_ROADS.h.some(h=> Math.abs(z - h) < ROAD_HALF + pad);
@@ -8598,12 +8836,29 @@
     for(const bd of BATTLE_BUILDINGS){
       if(x > bd.x - bd.w/2 - pad && x < bd.x + bd.w/2 + pad && z > bd.z - pad && z < bd.z + bd.d + pad) return bd;
     }
+    for(const w of BATTLE_WALLS){
+      if(x < w.x0 - pad || x > w.x1 + pad || z < w.z0 - pad || z > w.z1 + pad) continue;
+      const n = battleWallNearest(w, x, z);
+      if(n.inside || n.d < pad){ w.near = n; return w; }
+    }
     return null;
   }
   /** Push a position out of whatever building it has walked into. */
   function battleCollide(x, z){
-    const pad = 34, bd = battleBlocked(x, z, pad);
-    if(!bd) return [x, z];
+    const pad = 34;
+    // Against an outline: step back to the wall and stand `pad` clear of it.
+    // Twice, because leaving one wall at a corner can put you in the next.
+    for(let pass = 0; pass < 2; pass++){
+      const w = BATTLE_WALLS.length ? battleBlocked(x, z, pad) : null;
+      if(!w || !w.rings) break;
+      const n = w.near;
+      let ox = x - n.x, oz = z - n.z, len = Math.hypot(ox, oz);
+      if(len < 0.01){ ox = 1; oz = 0; len = 1; }
+      const out = n.inside ? -1 : 1;          // inside: go through the wall point and out the other side
+      x = n.x + (ox/len)*pad*out; z = n.z + (oz/len)*pad*out;
+    }
+    const bd = BATTLE_BUILDINGS.length ? battleBlocked(x, z, pad) : null;
+    if(!bd || bd.rings) return [x, z];
     const l = x - (bd.x - bd.w/2 - pad), r = (bd.x + bd.w/2 + pad) - x;
     const n = z - (bd.z - pad), f = (bd.z + bd.d + pad) - z;
     const m = Math.min(l, r, n, f);
@@ -8614,6 +8869,15 @@
   }
   let battleRand = Math.random;   // swapped for a seeded generator in a room, so every player gets the same map
   function battleFreeSpot(margin){
+    if(BATTLE_OPEN && BATTLE_OPEN.length){
+      // A real map: somewhere on a street, not a random point that may be a sealed courtyard.
+      for(let i=0;i<40;i++){
+        const o = BATTLE_OPEN[Math.floor(battleRand()*BATTLE_OPEN.length)];
+        const x = o[0] + (battleRand()*2-1)*40, z = o[1] + (battleRand()*2-1)*40;
+        if(Math.abs(x) < WORLD.halfW - margin && Math.abs(z) < WORLD.halfD - margin && !battleBlocked(x, z, 60)) return { x, z };
+      }
+      return { x: BATTLE_OPEN[0][0], z: BATTLE_OPEN[0][1] };
+    }
     for(let i=0;i<60;i++){
       const x = (battleRand()*2-1)*(WORLD.halfW-margin), z = (battleRand()*2-1)*(WORLD.halfD-margin);
       if(!battleBlocked(x, z, 70)) return { x, z };
@@ -8942,6 +9206,17 @@
           b.fx += ((dx/dist)*want + (-dz/dist)*b.foeStrafe) * speed*dt;
           b.fz += ((dz/dist)*want + ( dx/dist)*b.foeStrafe) * speed*dt;
         }
+        // Real streets have corners to get caught on. If it has barely moved
+        // for most of a second while trying to, it slides along the wall for a
+        // moment instead of pushing into it.
+        if(BATTLE_WALLS.length){
+          b.foeStuckT = (b.foeStuckT || 0) + dt;
+          if(b.foeStuckT > 0.7){
+            if(Math.hypot(b.fx - (b.foeStuckX ?? b.fx), b.fz - (b.foeStuckZ ?? b.fz)) < 40 && dist > 480) b.foeSlideUntil = now + 900, b.foeSlide = Math.random() < 0.5 ? 1 : -1;
+            b.foeStuckT = 0; b.foeStuckX = b.fx; b.foeStuckZ = b.fz;
+          }
+          if(b.foeSlideUntil > now){ b.fx += (-dz/dist) * b.foeSlide * 300*dt; b.fz += (dx/dist) * b.foeSlide * 300*dt; }
+        }
         b.fx = Math.max(-WORLD.halfW+60, Math.min(WORLD.halfW-60, b.fx));
         b.fz = Math.max(-WORLD.halfD+60, Math.min(WORLD.halfD-60, b.fz));
         [b.fx, b.fz] = battleCollide(b.fx, b.fz);
@@ -9034,7 +9309,7 @@
       roundRect(ctx, x, y, hw, h, h/2); ctx.fill();
     }
     ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = 1;
-    for(let v=BATTLE_HIT; v<f.maxHp; v+=BATTLE_HIT){
+    for(let v=battleRules.hit; v<f.maxHp; v+=battleRules.hit){
       const tickX = x + w*(v/f.maxHp);
       ctx.beginPath(); ctx.moveTo(tickX, y); ctx.lineTo(tickX, y+h); ctx.stroke();
     }
@@ -9089,6 +9364,15 @@
   function drawBattle(){
     const b = battle;
     const pal = canvasPalette();
+    if(b.glPending){
+      ctx.save(); ctx.setTransform(1,0,0,1,0,0);
+      ctx.fillStyle = '#10131c'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#c9d2e3'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = `600 ${Math.round(canvas.height*0.03)}px ${getComputedStyle(document.body).fontFamily}`;
+      ctx.fillText(tx('Building the map…'), canvas.width/2, canvas.height/2);
+      ctx.restore();
+      return;
+    }
     ctx.save();
     // The camera leans in on a hit: a small push toward the struck fighter,
     // on top of the shake. Subtle, but it is what makes a hit feel like it
@@ -9209,8 +9493,8 @@
     if(!battle3dPromise){
       // Bump the number whenever battle3d.js changes: it is served with a long
       // cache lifetime, and a stale copy is how a fixed bug stays on screen.
-      battle3dPromise = import('./battle3d.js?v=8')
-        .then(m=> m.createBattle3D({ glCanvas: battleGlCanvas, drawCell: drawCellSprite, roadHalf: ROAD_HALF }))
+      battle3dPromise = import('./battle3d.js?v=11')
+        .then(m=> m.createBattle3D({ glCanvas: battleGlCanvas, drawCell: drawCellSprite, roadHalf: ROAD_HALF, blocked: (x, z)=> !!battleBlocked(x, z, 12) }))
         .then(x=>{ b3 = x; return x; })
         .catch(err=>{ console.warn('[battle] 3D view unavailable, using the 2D view:', err); return null; });
     }
@@ -9306,7 +9590,9 @@
     const watching = document.getElementById('battleWatchChk').checked;
     const code = randCode(), pid = randId(), name = battleNetName();
     const room = { kind:'battle', status:'lobby', hostId: pid, hostName: name, hostWatching: watching,
-                   course: battleCourse, map: battleMap, createdAt: serverNow() };
+                   course: battleCourse, map: battleMap, createdAt: serverNow(),
+                   startHp: Number(document.getElementById('battleHpSel').value) || BATTLE.startHp,
+                   hit: Number(document.getElementById('battleHitSel').value) || BATTLE_HIT };
     if(!watching) room.players = { [pid]: { name, look: playerCustomization, joinedAt: serverNow(), alive: true } };
     try { await set(ref(fbdb, `rooms/${code}`), room); }
     catch(e){ battleNetSay("Couldn't create the room."); return; }
@@ -9353,6 +9639,7 @@
     if(room.status==='active' && !battleNet.started){
       battleNet.started = true;
       battleCourse = room.course; battleMap = room.map;
+      battleSetRules(room.startHp, room.hit);
       battleLobbyView.style.display = 'none';
       quizMode = 'battle';
       startBattle({ seed: room.seed, startAt: room.startAt });
@@ -9570,7 +9857,7 @@
   function netStandings(b, room){
     const net = b.net, win = room && room.result ? room.result.winner : null;
     const rows = Object.entries((room && room.players) || {}).map(([pid, p])=>({
-      pid, name: p.name || 'Player', alive: p.alive !== false, hp: p.alive === false ? 0 : (Number.isFinite(p.hp) ? p.hp : BATTLE.startHp),
+      pid, name: p.name || 'Player', alive: p.alive !== false, hp: p.alive === false ? 0 : (Number.isFinite(p.hp) ? p.hp : battleRules.hp),
       score: p.score || 0, correct: p.correct || 0, wrong: p.wrong || 0, me: pid === net.pid }));
     // Your own row is live, not a few hundred milliseconds stale.
     for(const r of rows) if(r.me){ r.hp = Math.max(0, Math.round(b.you.hp)); r.alive = b.you.hp > 0; r.score = b.score; r.correct = b.you.correct; r.wrong = b.you.wrong; }
@@ -9669,6 +9956,7 @@
     if(battleMode === 'host') return battleHostRoom();
     if(battleMode === 'join') return battleJoinRoom();
     if(!battleCourse){ battleNetSay('Pick a question pool first.'); return; }
+    battleSetRules();          // solo plays the standard rules
     startBattle();
   });
 
@@ -9877,7 +10165,7 @@
 
   document.getElementById('battleModeCard')?.addEventListener('click', ()=>{ SoundFX.click(); openBattleSetup(); });
   document.getElementById('battleBackBtn')?.addEventListener('click', closeBattleSetup);
-  battleStartBtn?.addEventListener('click', ()=>{ if(battleCourse) startBattle(); });
+  battleStartBtn?.addEventListener('click', ()=>{ if(battleCourse){ battleSetRules(); startBattle(); } });
 
   // ---------- init ----------
   const GAME_VERSION = '2026-09-24-vertical-track'; // bump this string whenever you send friends a new copy of the file

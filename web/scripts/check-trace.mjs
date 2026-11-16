@@ -16,6 +16,7 @@ const NEEDS = [
   ['icons/[...path]/route.js.nft.json', ['icons/app-icon-512.png']],
   ['atlas/[...path]/route.js.nft.json', ['atlas/index.html']],
   ['vendor/[...path]/route.js.nft.json', ['vendor/three.module.min.js']],
+  ['maps/[...path]/route.js.nft.json', ['maps/townhall.json', 'maps/usyd.json']],
 ];
 let failed = 0;
 for (const [manifest, wanted] of NEEDS) {
