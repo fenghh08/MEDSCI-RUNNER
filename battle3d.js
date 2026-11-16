@@ -33,11 +33,11 @@ const THEMES = {
               trees: ['round', 'round', 'jacaranda', 'round', 'pine', 'jacaranda'], backdrop: 'hills', clouds: 12 },
   // The two maps built from real street data. Flatter, cooler light and
   // muted ground colours: these are meant to read as a place, not a toy set.
-  townhall: { sky: 0x6f9fd6, fog: [0xc3d3e6, 2600, 9000], sun: [0xfff1dc, 2.9, [-900, 1700, -700]],
-              hemi: [0xd4e4f7, 0x77736c, 1.05], ground: 0xa39f97, lawn: 0x67865a, road: 0x34363b, kerb: 0x8d8982,
+  townhall: { sky: 0x4f7fbd, fog: [0xb4c2d2, 3500, 17000], sun: [0xffe9cf, 3.1, [-2600, 5200, -2100]],
+              hemi: [0xc3d4ea, 0x5f5c57, 0.95], ground: 0x8e8b85, lawn: 0x586f4c, road: 0x2c2e33, kerb: 0x8d8982,
               trees: ['round'], backdrop: 'none', clouds: 6 },
-  usyd:     { sky: 0x6aa2de, fog: [0xc6dbef, 2800, 9500], sun: [0xfff6e6, 2.9, [-800, 1800, -600]],
-              hemi: [0xd6e8fb, 0x7f8a6a, 1.1], ground: 0x8fa173, lawn: 0x6b8f52, road: 0x3b3d42, kerb: 0x9a9488,
+  usyd:     { sky: 0x4d84c4, fog: [0xb9cbdc, 3800, 18000], sun: [0xfff0d8, 3.1, [-2400, 5400, -1900]],
+              hemi: [0xc7d9ee, 0x66704f, 1.0], ground: 0x77895c, lawn: 0x5d7a45, road: 0x33353a, kerb: 0x9a9488,
               trees: ['round'], backdrop: 'none', clouds: 8 },
 };
 
@@ -179,7 +179,9 @@ function signTexture(text, bg, cross) {
 }
 
 export async function createBattle3D(env) {
-  const renderer = new THREE.WebGLRenderer({ canvas: env.glCanvas, antialias: true, powerPreference: 'high-performance' });
+  // The logarithmic depth buffer is what lets a road sit a hand's width above
+  // the ground, kilometres from the camera, without the two flickering.
+  const renderer = new THREE.WebGLRenderer({ canvas: env.glCanvas, antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true });
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const camera = new THREE.PerspectiveCamera(48, 2, 10, 9000);
@@ -188,6 +190,7 @@ export async function createBattle3D(env) {
   const fighters = new Map();
   const v = new THREE.Vector3(), camPos = new THREE.Vector3(0, 560, -700), camLook = new THREE.Vector3();
   let lastW = 0, lastH = 0, mapDef = null, fogFar = 5000, sky = null, cutaway = null, isGeo = false, camBack = 460, treeCrowns = null;
+  const topView = { x: 0, z: 0, h: 3000 };
 
   const lambert = (color, extra) => new THREE.MeshLambertMaterial(Object.assign({ color: hex(color) }, extra || {}));
   function box(w, h, d, mat, x, y, z, shadow = true) {
@@ -349,11 +352,12 @@ export async function createBattle3D(env) {
 
   /** A gradient sky that travels with the camera: deeper overhead, pale at the horizon. */
   function addSky(theme) {
-    const g = new THREE.SphereGeometry(8200, 24, 12);
+    const R = camera.far * 0.9;
+    const g = new THREE.SphereGeometry(R, 24, 12);
     const top = new THREE.Color(theme.sky).multiplyScalar(0.82), low = new THREE.Color(theme.fog[0]);
     const col = [], p = g.attributes.position, c = new THREE.Color();
     for (let i = 0; i < p.count; i++) {
-      const t = Math.max(0, Math.min(1, p.getY(i) / 8200));
+      const t = Math.max(0, Math.min(1, p.getY(i) / R));
       c.copy(low).lerp(top, Math.pow(t, 0.55)); col.push(c.r, c.g, c.b);
     }
     g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
@@ -373,12 +377,13 @@ export async function createBattle3D(env) {
     // this plane out of the way for the close view.
     cutaway = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1e6);
     const walls = new Map(), roofs = new Map(), grounds = new Map();
+    const k = (geo.unit || 10) / 10;          // sizes below were written at 10 units a metre
     const batch = (map, key) => { let b = map.get(key); if (!b) map.set(key, b = new Batch()); return b; };
     const hash = (pts) => Math.abs(Math.round(pts[0][0] * 7 + pts[0][1] * 13 + pts.length * 31));
     const mid = (pts) => { let x = 0, z = 0; for (const q of pts) { x += q[0]; z += q[1]; } return [x / pts.length, z / pts.length]; };
 
     function wallRing(pts, y0, y1, style, tint) {
-      const [tw, th] = TILE[style];
+      const tw = TILE[style][0] * k, th = TILE[style][1] * k;
       const b = batch(walls, style + '|' + tint);
       let run = 0;
       for (let i = 0; i < pts.length; i++) {
@@ -389,12 +394,28 @@ export async function createBattle3D(env) {
         b.quad([p[0], y0, p[1]], [q[0], y0, q[1]], [p[0], y1, p[1]], [q[0], y1, q[1]], u0, u1, y0 / th, y0 / th + Math.max(1, Math.round((y1 - y0) / th)));
       }
     }
+    const PLAIN = { sandstone: '#b89766', glass: '#4a5560', concrete: '#8d8c88', brick: '#7c5341', render: '#b3ab9d', plant: '#6f7478' };
+    function plainRing(pts, y0, y1, style) {
+      const b = batch(roofs, PLAIN[style] || PLAIN.concrete);
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i], q = pts[(i + 1) % pts.length];
+        b.quad([p[0], y0, p[1]], [q[0], y0, q[1]], [p[0], y1, p[1]], [q[0], y1, q[1]], 0, 1, 0, 1);
+      }
+    }
+    function insideRing(pt, ring) {
+      let hit = false;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const [xi, zi] = ring[i], [xj, zj] = ring[j];
+        if ((zi > pt[1]) !== (zj > pt[1]) && pt[0] < ((xj - xi) * (pt[1] - zi)) / (zj - zi) + xi) hit = !hit;
+      }
+      return hit;
+    }
     function cap(pts, holes, y, key) {
       const b = batch(roofs, key);
       const contour = pts.map((q) => new THREE.Vector2(q[0], q[1])), hs = (holes || []).map((h) => h.map((q) => new THREE.Vector2(q[0], q[1])));
       const tris = THREE.ShapeUtils.triangulateShape(contour, hs);
       const all = [...pts, ...(holes || []).flat()], n = b.pos.length / 3;
-      for (const q of all) { b.pos.push(q[0], y, q[1]); b.uv.push(q[0] / 100, q[1] / 100); }
+      for (const q of all) { b.pos.push(q[0], y, q[1]); b.uv.push(q[0] / 260, q[1] / 260); }
       for (const t of tris) b.idx.push(n + t[0], n + t[1], n + t[2]);
     }
     function solid(rec, isPart) {
@@ -402,10 +423,20 @@ export async function createBattle3D(env) {
       const tint = hash(rec.pts) % WALL_TINTS[style].length;
       const y0 = rec.min || 0, y1 = Math.max(y0 + 20, rec.h);
       // Street level of a commercial building is shopfront, not more office windows.
-      const shop = !isPart && !y0 && theme === THEMES.townhall && style !== 'sandstone' && y1 > 140 ? TILE.shop[1] : 0;
+      const shop = !isPart && !y0 && theme === THEMES.townhall && style !== 'sandstone' && y1 > 140 * k ? TILE.shop[1] * k : 0;
+      // A plain band at the very top: the parapet every real roof has, and what
+      // stops a facade looking like wallpaper wrapped round a box.
+      const band = !isPart && y1 - y0 > 100 * k ? 9 * k : 0;
       for (const ring of [rec.pts, ...(rec.holes || [])]) {
         if (shop) wallRing(ring, 0, shop, 'shop', 0);
-        wallRing(ring, y0 + shop, y1, style, tint);
+        wallRing(ring, y0 + shop, y1 - band, style, tint);
+        if (band) plainRing(ring, y1 - band, y1 + 3 * k, style);
+      }
+      // Tall buildings carry plant on the roof.
+      if (!isPart && !rec.roof && y1 > 380 * k) {
+        const [mx, mz] = mid(rec.pts), half = 28 * k + (hash(rec.pts) % 5) * 5 * k, hh = 30 * k + (hash(rec.pts) % 3) * 12 * k;
+        const sq = [[mx - half, mz - half * 0.7], [mx + half, mz - half * 0.7], [mx + half, mz + half * 0.7], [mx - half, mz + half * 0.7]];
+        if (sq.every((q) => rec.pts.length > 3 && insideRing(q, rec.pts))) { plainRing(sq, y1, y1 + hh, 'plant'); cap(sq, null, y1 + hh, '#5b5f63'); }
       }
       const roofKey = rec.colour || ROOF_COLOR[style];
       if (!rec.roof || !rec.roofH) return cap(rec.pts, rec.holes, y1, roofKey);
@@ -443,30 +474,38 @@ export async function createBattle3D(env) {
         if (len < 1) continue;
         // Each piece runs half a width past its ends, which closes the gaps at bends.
         const ux = dx / len, uz = dz / len, nx = -uz * h, nz = ux * h, ex = ux * h * 0.5, ez = uz * h * 0.5;
-        b.quad([p[0] - ex + nx, 0, p[1] - ez + nz], [q[0] + ex + nx, 0, q[1] + ez + nz], [p[0] - ex - nx, 0, p[1] - ez - nz], [q[0] + ex - nx, 0, q[1] + ez - nz], 0, len / 60, 0, 1);
+        b.quad([p[0] - ex + nx, 0, p[1] - ez + nz], [q[0] + ex + nx, 0, q[1] + ez + nz], [p[0] - ex - nx, 0, p[1] - ez - nz], [q[0] + ex - nx, 0, q[1] + ez - nz], 0, len / 260, 0, width / 260);
       }
     }
     const GROUND = [               // [key, colour, height above the base ground]
-      ['grass', theme.lawn, 0.5], ['wood', '#587a48', 0.5], ['pitch', '#6fa35a', 0.5], ['plaza', '#b9b1a0', 0.7],
-      ['path', '#c2baa8', 0.9], ['walk', '#9a958b', 1.1], ['road', theme.road, 1.1], ['line', '#d9d5c8', 1.5], ['rail', '#22252a', 1.7],
+      // Each layer sits clearly above the one before, and is also drawn with a
+      // depth offset, so overlapping surfaces never fight over the same pixels.
+      ['grass', theme.lawn, 1], ['wood', '#4f6b41', 1.2], ['pitch', '#5f8a4e', 1.4], ['plaza', '#a39c8d', 2],
+      ['path', '#aaa392', 3], ['walk', '#8b877e', 4], ['road', theme.road, 5], ['line', '#c9c5b8', 6], ['rail', '#1f2226', 7],
     ];
     for (const g of geo.green) fill(g.pts, 'g:' + g.kind);
     for (const pl of geo.plazas) fill(pl, 'g:plaza');
     for (const pa of geo.paths) ribbon(pa.pts, pa.w, 'path');
     for (const r of geo.roads) {
       ribbon(r.pts, r.w, r.walk ? 'walk' : 'road');
-      if (!r.walk && r.w >= 140) ribbon(r.pts, 2.5, 'line');             // a centre line on the wider streets
+      if (!r.walk && r.w >= 170 * k) ribbon(r.pts, 2.2 * k, 'line');     // a centre line on the main streets only
     }
-    for (const rl of geo.rails) for (const side of [-7.2, 7.2]) {          // two rails, standard gauge apart
+    for (const rl of geo.rails) for (const side of [-7.2 * k, 7.2 * k]) {  // two rails, standard gauge apart
       const off = rl.map((q, i) => {
         const a = rl[Math.max(0, i - 1)], c = rl[Math.min(rl.length - 1, i + 1)], dx = c[0] - a[0], dz = c[1] - a[1], l = Math.hypot(dx, dz) || 1;
         return [q[0] - (dz / l) * side, q[1] + (dx / l) * side];
       });
-      ribbon(off, 1.6, 'rail');
+      ribbon(off, 1.3 * k, 'rail');
     }
 
     // ---- hand the batches to the scene
     const tex = {};
+    const grain = canvasTex(128, 128, (g) => {
+      g.fillStyle = '#ffffff'; g.fillRect(0, 0, 128, 128);
+      for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * 0.1})`; g.fillRect(Math.random() * 128, Math.random() * 128, 1 + Math.random() * 2, 1 + Math.random() * 2); }
+      g.strokeStyle = 'rgba(0,0,0,.07)'; g.lineWidth = 1; g.strokeRect(0.5, 0.5, 127, 127);        // a faint paving joint
+    });
+    grain.wrapS = grain.wrapT = THREE.RepeatWrapping; grain.anisotropy = 8;
     for (const [key, b] of walls) {
       const [style, tint] = key.split('|');
       tex[style] ||= tileTexture(style);
@@ -476,34 +515,41 @@ export async function createBattle3D(env) {
     for (const [key, b] of roofs) {
       const ground = key.startsWith('g:');
       const g = ground && GROUND.find((x) => x[0] === key.slice(2));
-      const mat = lambert(ground ? g[1] : key, { side: THREE.DoubleSide, ...(ground ? {} : { clippingPlanes: [cutaway] }) });
+      const layer = ground ? GROUND.indexOf(g) + 1 : 0;
+      const mat = lambert(ground ? g[1] : key, { side: THREE.DoubleSide, ...(ground ? { map: grain, polygonOffset: true, polygonOffsetFactor: -layer, polygonOffsetUnits: -layer * 4 } : { clippingPlanes: [cutaway] }) });
       const m = b.mesh(mat, !ground); if (!m) continue;
       if (ground) m.position.y = g[2];
       world.add(m);
     }
     for (const [key, b] of grounds) {
       const g = GROUND.find((x) => x[0] === key);
-      const m = b.mesh(lambert(g[1], { side: THREE.DoubleSide }), false); if (!m) continue;
+      const layer = GROUND.indexOf(g) + 1;
+      const m = b.mesh(lambert(g[1], { side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -layer, polygonOffsetUnits: -layer * 4, ...(key === 'line' || key === 'rail' ? {} : { map: grain }) }), false); if (!m) continue;
       m.position.y = g[2]; world.add(m);
     }
 
-    // ---- every mapped street tree, as two instanced meshes
-    const trees = geo.trees.slice(0, 600);
+    // ---- every mapped street tree: a trunk and three overlapping masses of
+    // foliage, in muted greens. One round ball on a stick is what made them toys.
+    const trees = geo.trees.slice(0, 700);
     if (trees.length) {
-      const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(4, 6, 60, 6), lambert('#5b4a3c'), trees.length);
-      const crown = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), lambert('#ffffff'), trees.length);
-      const o = new THREE.Object3D(), c = new THREE.Color();
+      const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(2.2 * k, 3.6 * k, 62 * k, 6), lambert('#4a3d33'), trees.length);
+      const crown = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), lambert('#ffffff', { flatShading: true }), trees.length * 3);
+      const o = new THREE.Object3D(), c = new THREE.Color(), full = [];
       trees.forEach(([x, z], i) => {
-        const k = ((x * 73 + z * 19) % 100 + 100) % 100 / 100, r = 34 + k * 26, jac = theme === THEMES.usyd && k > 0.9;
-        o.position.set(x, 30, z); o.scale.set(1, 1, 1); o.rotation.set(0, 0, 0); o.updateMatrix(); trunk.setMatrixAt(i, o.matrix);
-        o.position.set(x, 62 + r * 0.7, z); o.scale.set(r, r * 0.85, r); o.rotation.y = k * 6; o.updateMatrix(); crown.setMatrixAt(i, o.matrix);
-        crown.setColorAt(i, jac ? c.set('#8f7fc4') : c.setHSL(0.27 + k * 0.05, 0.32, 0.27 + k * 0.1));
+        const r1 = ((x * 73 + z * 19) % 100 + 100) % 100 / 100, r2 = ((x * 31 + z * 57) % 100 + 100) % 100 / 100;
+        const r = (24 + r1 * 16) * k, top = 62 * k, jac = theme === THEMES.usyd && r1 > 0.92;
+        o.position.set(x, 31 * k, z); o.scale.set(1, 1, 1); o.rotation.set(0, 0, 0); o.updateMatrix(); trunk.setMatrixAt(i, o.matrix);
+        [[0, 0.55, 0, 1], [0.55, 0.3, 0.2, 0.74], [-0.45, 0.38, -0.35, 0.68]].forEach(([ox, oy, oz, sc], n) => {
+          const a = r2 * 6.28, cx = ox * Math.cos(a) - oz * Math.sin(a), cz = ox * Math.sin(a) + oz * Math.cos(a);
+          o.position.set(x + cx * r, top + oy * r, z + cz * r); o.scale.set(r * sc, r * sc * 0.82, r * sc); o.rotation.set(r1 * 3, r2 * 6, n); o.updateMatrix();
+          crown.setMatrixAt(i * 3 + n, o.matrix); full.push(o.matrix.clone());
+          crown.setColorAt(i * 3 + n, jac ? c.setHSL(0.72, 0.3, 0.52 + n * 0.03) : c.setHSL(0.26 + r1 * 0.05, 0.3 + r2 * 0.1, 0.17 + n * 0.035 + r2 * 0.04));
+        });
       });
       trunk.castShadow = crown.castShadow = true; crown.receiveShadow = true;
       world.add(trunk, crown);
       // Kept so render() can drop the few that stand between the camera and the cell.
-      const full = trees.map((_, i) => { const m = new THREE.Matrix4(); crown.getMatrixAt(i, m); return m; });
-      treeCrowns = { mesh: crown, pts: trees, full, hidden: new Uint8Array(trees.length), zero: new THREE.Matrix4().makeScale(0, 0, 0) };
+      treeCrowns = { mesh: crown, pts: trees, full, hidden: new Uint8Array(trees.length), zero: new THREE.Matrix4().makeScale(0, 0, 0), reach: 70 * k };
     }
   }
 
@@ -522,6 +568,8 @@ export async function createBattle3D(env) {
   function build(mapKey, def, buildings, props, pickups) {
     disposeWorld();
     isGeo = !!def.geo;
+    // Real maps are far bigger than the drawn ones: see further, and keep the sky outside the far plane's reach.
+    camera.far = isGeo ? 30000 : 9000; camera.updateProjectionMatrix();
     const theme = (isGeo && THEMES[def.geo.key]) || THEMES[mapKey] || THEMES.hospital;
     mapDef = def; fogFar = theme.fog[2];
     // Filmic tone mapping is what stops bright walls blowing out to flat
@@ -544,7 +592,7 @@ export async function createBattle3D(env) {
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     const sc = sun.shadow.camera; sc.left = -1300; sc.right = 1300; sc.top = 1300; sc.bottom = -1300; sc.near = 100; sc.far = isGeo ? 9000 : 5000;
-    if (isGeo) { sun.shadow.mapSize.set(4096, 4096); sc.left = sc.bottom = -1700; sc.right = sc.top = 1700; }
+    if (isGeo) { sun.shadow.mapSize.set(4096, 4096); sc.left = sc.bottom = -2400; sc.right = sc.top = 2400; sc.far = 16000; sun.shadow.bias = -0.0012; }
     sun.shadow.bias = -0.0006;
     sun.userData.offset = new THREE.Vector3(...theme.sun[2]);
     scene.add(sun); scene.add(sun.target);
@@ -637,30 +685,47 @@ export async function createBattle3D(env) {
     const tall = camera.aspect < 1 ? 1.35 : 1;      // pull back on a portrait phone
     camera.up.set(0, 1, 0);
     scene.fog.far = fogFar;
+    const fov = st.view === 'first' ? 66 : 48;
+    if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
+    // The scene is mirrored in x, so a heading of st.yaw points along (-sin, cos) here.
+    const fx = -Math.sin(st.yaw), fz = Math.cos(st.yaw);
     if (st.view === 'first') {
-      // Through the cell's eyes: at its height, looking the way it walks.
-      camPos.set(-st.camX, 74, st.camZ - 4);
-      camLook.set(-st.camX, 66, st.camZ + 420);
+      // Through the cell's eye: at its height, looking where it is turned,
+      // with a slight bob so walking feels like walking.
+      const bob = Math.sin(st.time / 130) * (st.moving ? 2.2 : 0.4);
+      camPos.set(-st.px + fx * 18, 66 + bob, st.pz + fz * 18);
+      camLook.set(-st.px + fx * 600, 58 + bob, st.pz + fz * 600);
     } else if (st.view === 'close') {
-      // Over the shoulder: close behind your cell, turning with st.yaw. The
-      // scene is mirrored in x, so "forward" is too.
-      const fx = -Math.sin(st.yaw), fz = Math.cos(st.yaw);
-      // Between real buildings the camera would end up inside a wall. Walk it
-      // back from the cell and stop short of the first thing it would enter.
-      let back = 460;
+      // Over the shoulder. On the real maps the boom is shorter and lower --
+      // a camera at street level rather than a drone -- and it shortens when
+      // a building is behind you, so the view never ends up inside a wall or
+      // looking straight down at the roof.
+      const boom = isGeo ? 330 : 460, high = isGeo ? 175 : 290;
+      let back = boom;
       if (isGeo && env.blocked) {
-        for (let d = 70; d <= 460; d += 30) {
-          if (env.blocked(st.px - Math.sin(st.yaw) * d, st.pz - Math.cos(st.yaw) * d)) { back = Math.max(90, d - 40); break; }
+        for (let d = 60; d <= boom; d += 18) {
+          if (env.blocked(st.px - Math.sin(st.yaw) * d, st.pz - Math.cos(st.yaw) * d)) { back = Math.max(110, d - 46); break; }
         }
       }
-      camBack += (back - camBack) * (back < camBack ? 0.5 : 0.08);        // in quickly, out slowly
-      const lift = 290 + (460 - camBack) * 0.55;                             // closer means higher, to keep the cell in view
-      camPos.set(-st.px - fx * camBack, lift, st.pz - fz * camBack);
-      camLook.set(-st.px + fx * 300, 40, st.pz + fz * 300);
+      camBack += (back - camBack) * (back < camBack ? 0.35 : 0.06);         // in quickly, out slowly
+      const pulled = (boom - camBack) / boom;                                 // 0 in the open, towards 1 against a wall
+      camPos.set(-st.px - fx * camBack, high + pulled * 70, st.pz - fz * camBack);
+      camLook.set(-st.px + fx * (isGeo ? 240 : 300), isGeo ? 62 - pulled * 20 : 40, st.pz + fz * (isGeo ? 240 : 300));
     } else if (st.view === 'top') {
       // The whole map from above, for someone watching rather than playing.
-      const h = Math.max(mapDef.halfD, mapDef.halfW / camera.aspect) * 2.35;
-      camPos.set(0, h, -1); camLook.set(0, 0, 0);
+      if (isGeo) {
+        // A real map is too big to show whole and still see anyone, so the
+        // overhead view frames wherever the players are.
+        let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+        for (const f of st.fighters) if (!f.dead) { x0 = Math.min(x0, f.x); x1 = Math.max(x1, f.x); z0 = Math.min(z0, f.z); z1 = Math.max(z1, f.z); }
+        if (x0 > x1) { x0 = x1 = st.px; z0 = z1 = st.pz; }
+        const want = Math.max(1400, (z1 - z0) / 2 + 700, ((x1 - x0) / 2 + 700) / camera.aspect) * 2.35;
+        topView.x += ((x0 + x1) / 2 - topView.x) * 0.06; topView.z += ((z0 + z1) / 2 - topView.z) * 0.06; topView.h += (want - topView.h) * 0.06;
+        camPos.set(-topView.x, topView.h, topView.z - 1); camLook.set(-topView.x, 0, topView.z);
+      } else {
+        const h = Math.max(mapDef.halfD, mapDef.halfW / camera.aspect) * 2.35;
+        camPos.set(0, h, -1); camLook.set(0, 0, 0);
+      }
       camera.up.set(0, 0, 1);
       scene.fog.far = 99999;
     } else {
@@ -673,7 +738,7 @@ export async function createBattle3D(env) {
     camera.lookAt(camLook);
     camera.updateMatrixWorld();
     if (sky) sky.position.copy(camera.position);
-    if (cutaway) cutaway.constant = (st.view === 'close' || st.view === 'first') ? 1e6 : 300;
+    if (cutaway) cutaway.constant = (st.view === 'close' || st.view === 'first') ? 1e6 : 320;
     if (treeCrowns && st.view !== 'top') {
       // A tree canopy between the camera and your cell hides the one thing
       // you need to see. Those few are dropped while they are in the way.
@@ -681,8 +746,11 @@ export async function createBattle3D(env) {
       let changed = false;
       treeCrowns.pts.forEach(([x, z], i) => {
         const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / len2));
-        const hide = Math.hypot(x - (ax + dx * t), z - (az + dz * t)) < 95 ? 1 : 0;
-        if (hide !== treeCrowns.hidden[i]) { treeCrowns.hidden[i] = hide; treeCrowns.mesh.setMatrixAt(i, hide ? treeCrowns.zero : treeCrowns.full[i]); changed = true; }
+        const hide = Math.hypot(x - (ax + dx * t), z - (az + dz * t)) < treeCrowns.reach ? 1 : 0;
+        if (hide !== treeCrowns.hidden[i]) {
+          treeCrowns.hidden[i] = hide; changed = true;
+          for (let n = 0; n < 3; n++) treeCrowns.mesh.setMatrixAt(i * 3 + n, hide ? treeCrowns.zero : treeCrowns.full[i * 3 + n]);
+        }
       });
       if (changed) treeCrowns.mesh.instanceMatrix.needsUpdate = true;
     }
