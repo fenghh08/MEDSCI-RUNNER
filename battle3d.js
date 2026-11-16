@@ -31,7 +31,86 @@ const THEMES = {
   campus:   { sky: 0x6fb7ee, fog: [0xa9d6f5, 2000, 6200], sun: [0xffffff, 2.6, [-500, 1500, -600]],
               hemi: [0xcfeaff, 0x6f9a58, 1.2], ground: 0x79b35a, lawn: 0x66a84c, road: 0x4a4d52, kerb: 0xd6c9a5,
               trees: ['round', 'round', 'jacaranda', 'round', 'pine', 'jacaranda'], backdrop: 'hills', clouds: 12 },
+  // The two maps built from real street data. Flatter, cooler light and
+  // muted ground colours: these are meant to read as a place, not a toy set.
+  townhall: { sky: 0x6f9fd6, fog: [0xc3d3e6, 2600, 9000], sun: [0xfff1dc, 2.9, [-900, 1700, -700]],
+              hemi: [0xd4e4f7, 0x77736c, 1.05], ground: 0xa39f97, lawn: 0x67865a, road: 0x34363b, kerb: 0x8d8982,
+              trees: ['round'], backdrop: 'none', clouds: 6 },
+  usyd:     { sky: 0x6aa2de, fog: [0xc6dbef, 2800, 9500], sun: [0xfff6e6, 2.9, [-800, 1800, -600]],
+              hemi: [0xd6e8fb, 0x7f8a6a, 1.1], ground: 0x8fa173, lawn: 0x6b8f52, road: 0x3b3d42, kerb: 0x9a9488,
+              trees: ['round'], backdrop: 'none', clouds: 8 },
 };
+
+/* ---------------------------------------------------------------- facades
+   One small tile per building style -- a single window bay, one storey tall --
+   repeated across every wall by the UVs. A handful of shared textures cover
+   hundreds of buildings, which is what keeps a real city block cheap to draw. */
+const TILE = {           // bay width and storey height, in world units (10 = 1 m)
+  sandstone: [46, 58], glass: [30, 38], concrete: [40, 36], brick: [38, 36], render: [44, 36], shop: [70, 46],
+};
+function tileTexture(style) {
+  const t = canvasTex(64, 64, (g) => {
+    const noise = (n, a) => { for (let i = 0; i < n; i++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? '0,0,0' : '255,255,255'},${Math.random() * a})`; g.fillRect(Math.random() * 64, Math.random() * 64, 2 + Math.random() * 5, 1 + Math.random() * 2); } };
+    if (style === 'glass') {
+      const k = g.createLinearGradient(0, 0, 0, 64); k.addColorStop(0, '#9fb9cf'); k.addColorStop(0.55, '#6f8fa9'); k.addColorStop(1, '#52718c');
+      g.fillStyle = k; g.fillRect(0, 0, 64, 64);
+      g.fillStyle = 'rgba(255,255,255,.14)'; g.fillRect(6, 4, 20, 40);
+      g.fillStyle = '#3c4852'; g.fillRect(0, 0, 64, 3); g.fillRect(0, 0, 3, 64); g.fillRect(0, 50, 64, 5);
+    } else if (style === 'sandstone') {
+      g.fillStyle = '#c8a878'; g.fillRect(0, 0, 64, 64); noise(90, 0.08);
+      g.fillStyle = '#b3925f'; g.fillRect(0, 0, 64, 4); g.fillRect(0, 0, 5, 64); g.fillRect(59, 0, 5, 64);
+      g.fillStyle = '#d8bc8e'; g.fillRect(5, 4, 54, 3);
+      g.fillStyle = '#3d3a36'; g.beginPath(); g.moveTo(22, 54); g.lineTo(22, 26); g.arc(32, 26, 10, Math.PI, 0); g.lineTo(42, 54); g.closePath(); g.fill();
+      g.strokeStyle = '#a5844f'; g.lineWidth = 2; g.stroke();
+      g.fillStyle = '#b3925f'; g.fillRect(18, 54, 28, 3);
+    } else if (style === 'shop') {
+      g.fillStyle = '#2b2f35'; g.fillRect(0, 0, 64, 64);
+      const k = g.createLinearGradient(0, 14, 0, 60); k.addColorStop(0, '#5a6b78'); k.addColorStop(1, '#2f3b45');
+      g.fillStyle = k; g.fillRect(4, 16, 56, 44);
+      g.fillStyle = 'rgba(255,236,190,.22)'; g.fillRect(8, 22, 22, 34);
+      g.fillStyle = '#1d2024'; g.fillRect(0, 0, 64, 12); g.fillRect(30, 16, 3, 44);
+    } else {
+      const wall = { concrete: '#a9a8a3', brick: '#9a6a52', render: '#cfc7b8' }[style] || '#a9a8a3';
+      g.fillStyle = wall; g.fillRect(0, 0, 64, 64); noise(70, 0.06);
+      if (style === 'brick') { g.fillStyle = 'rgba(0,0,0,.12)'; for (let y = 0; y < 64; y += 6) g.fillRect(0, y, 64, 1); }
+      g.fillStyle = 'rgba(0,0,0,.14)'; g.fillRect(0, 0, 64, 3);
+      const k = g.createLinearGradient(0, 16, 0, 52); k.addColorStop(0, '#6f8494'); k.addColorStop(1, '#3f4f5c');
+      g.fillStyle = k; g.fillRect(12, 16, 40, 34);
+      g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(14, 18, 14, 30);
+      g.fillStyle = wall; g.fillRect(31, 16, 2, 34);
+      g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(10, 50, 44, 3);
+    }
+  });
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
+  return t;
+}
+const WALL_TINTS = {
+  sandstone: ['#ffffff', '#f3ead9', '#fff6e3'], glass: ['#ffffff', '#dfeaf2', '#c9d6e6', '#eef0e6'],
+  concrete: ['#ffffff', '#e6e2da', '#d6d9dc', '#f2ecdf'], brick: ['#ffffff', '#e9d2c6', '#d9b9a6'], render: ['#ffffff', '#efe6d6', '#e3ddd3', '#f4e9e0'],
+  shop: ['#ffffff'],
+};
+const ROOF_COLOR = { sandstone: '#6f6258', glass: '#59626b', concrete: '#7b7c7c', brick: '#6b5a52', render: '#8a8780' };
+
+/** Triangles for a batch of flat or vertical faces that all share one material. */
+class Batch {
+  constructor() { this.pos = []; this.uv = []; this.idx = []; }
+  quad(a, b, c, d, u0, u1, v0, v1) {            // a,b bottom; c,d top (a-b-d-c)
+    const n = this.pos.length / 3;
+    this.pos.push(...a, ...b, ...c, ...d);
+    this.uv.push(u0, v0, u1, v0, u0, v1, u1, v1);
+    this.idx.push(n, n + 1, n + 2, n + 1, n + 3, n + 2);
+  }
+  mesh(material, shadow) {
+    if (!this.idx.length) return null;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2));
+    g.setIndex(this.idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, material);
+    m.castShadow = shadow; m.receiveShadow = true;
+    return m;
+  }
+}
 
 const hex = (c) => new THREE.Color(c);
 
@@ -108,7 +187,7 @@ export async function createBattle3D(env) {
   let sun = null, world = null, root = null, clouds = [], orbs = [], danger = null;
   const fighters = new Map();
   const v = new THREE.Vector3(), camPos = new THREE.Vector3(0, 560, -700), camLook = new THREE.Vector3();
-  let lastW = 0, lastH = 0, mapDef = null, fogFar = 5000;
+  let lastW = 0, lastH = 0, mapDef = null, fogFar = 5000, sky = null, cutaway = null, isGeo = false, camBack = 460, treeCrowns = null;
 
   const lambert = (color, extra) => new THREE.MeshLambertMaterial(Object.assign({ color: hex(color) }, extra || {}));
   function box(w, h, d, mat, x, y, z, shadow = true) {
@@ -268,6 +347,166 @@ export async function createBattle3D(env) {
     }
   }
 
+  /** A gradient sky that travels with the camera: deeper overhead, pale at the horizon. */
+  function addSky(theme) {
+    const g = new THREE.SphereGeometry(8200, 24, 12);
+    const top = new THREE.Color(theme.sky).multiplyScalar(0.82), low = new THREE.Color(theme.fog[0]);
+    const col = [], p = g.attributes.position, c = new THREE.Color();
+    for (let i = 0; i < p.count; i++) {
+      const t = Math.max(0, Math.min(1, p.getY(i) / 8200));
+      c.copy(low).lerp(top, Math.pow(t, 0.55)); col.push(c.r, c.g, c.b);
+    }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    sky = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
+    sky.renderOrder = -1; scene.add(sky);
+  }
+
+  /* --------------------------------------------------------- real streets
+     A map built from OpenStreetMap data (scripts/build-battle-maps.mjs):
+     building outlines with heights, street centre-lines with widths, tram
+     tracks, parks and individual trees. Everything is merged into a few
+     meshes by material, so a whole city block is a couple of dozen draw
+     calls rather than several hundred. */
+  function addGeo(geo, theme) {
+    // In the far and overhead views a 150 m tower hides the street behind it,
+    // so buildings are sliced off at about eight storeys there. render() moves
+    // this plane out of the way for the close view.
+    cutaway = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1e6);
+    const walls = new Map(), roofs = new Map(), grounds = new Map();
+    const batch = (map, key) => { let b = map.get(key); if (!b) map.set(key, b = new Batch()); return b; };
+    const hash = (pts) => Math.abs(Math.round(pts[0][0] * 7 + pts[0][1] * 13 + pts.length * 31));
+    const mid = (pts) => { let x = 0, z = 0; for (const q of pts) { x += q[0]; z += q[1]; } return [x / pts.length, z / pts.length]; };
+
+    function wallRing(pts, y0, y1, style, tint) {
+      const [tw, th] = TILE[style];
+      const b = batch(walls, style + '|' + tint);
+      let run = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i], q = pts[(i + 1) % pts.length], len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+        if (len < 2) continue;
+        // Whole bays per wall, so a window is never cut in half at a corner.
+        const bays = Math.max(1, Math.round(len / tw)), u0 = run, u1 = run + bays; run = u1;
+        b.quad([p[0], y0, p[1]], [q[0], y0, q[1]], [p[0], y1, p[1]], [q[0], y1, q[1]], u0, u1, y0 / th, y0 / th + Math.max(1, Math.round((y1 - y0) / th)));
+      }
+    }
+    function cap(pts, holes, y, key) {
+      const b = batch(roofs, key);
+      const contour = pts.map((q) => new THREE.Vector2(q[0], q[1])), hs = (holes || []).map((h) => h.map((q) => new THREE.Vector2(q[0], q[1])));
+      const tris = THREE.ShapeUtils.triangulateShape(contour, hs);
+      const all = [...pts, ...(holes || []).flat()], n = b.pos.length / 3;
+      for (const q of all) { b.pos.push(q[0], y, q[1]); b.uv.push(q[0] / 100, q[1] / 100); }
+      for (const t of tris) b.idx.push(n + t[0], n + t[1], n + t[2]);
+    }
+    function solid(rec, isPart) {
+      const style = TILE[rec.style] ? rec.style : 'concrete';
+      const tint = hash(rec.pts) % WALL_TINTS[style].length;
+      const y0 = rec.min || 0, y1 = Math.max(y0 + 20, rec.h);
+      // Street level of a commercial building is shopfront, not more office windows.
+      const shop = !isPart && !y0 && theme === THEMES.townhall && style !== 'sandstone' && y1 > 140 ? TILE.shop[1] : 0;
+      for (const ring of [rec.pts, ...(rec.holes || [])]) {
+        if (shop) wallRing(ring, 0, shop, 'shop', 0);
+        wallRing(ring, y0 + shop, y1, style, tint);
+      }
+      const roofKey = rec.colour || ROOF_COLOR[style];
+      if (!rec.roof || !rec.roofH) return cap(rec.pts, rec.holes, y1, roofKey);
+      const [cx, cz] = mid(rec.pts), r = rec.pts.reduce((t, q) => t + Math.hypot(q[0] - cx, q[1] - cz), 0) / rec.pts.length;
+      let m;
+      if (rec.roof === 'dome' || rec.roof === 'onion') {
+        m = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), lambert(style === 'sandstone' ? '#5f7f73' : '#8a9096'));
+        m.scale.y = Math.max(0.5, rec.roofH / r);
+      } else {
+        cap(rec.pts, rec.holes, y1, roofKey);
+        m = new THREE.Mesh(new THREE.ConeGeometry(r * 1.05, rec.roofH, 4), lambert('#5a4f48'));
+        m.rotation.y = Math.PI / 4 + Math.atan2(rec.pts[1][1] - rec.pts[0][1], rec.pts[1][0] - rec.pts[0][0]);
+        m.position.y = rec.roofH / 2;
+      }
+      m.position.x = cx; m.position.z = cz; m.position.y += y1; m.castShadow = true; world.add(m);
+      if (rec.clock) {          // a clock face on each side of a tower
+        const face = new THREE.MeshBasicMaterial({ color: 0xf4eedd, side: THREE.DoubleSide }), y = y0 + (y1 - y0) * 0.8;
+        for (let i = 0; i < rec.pts.length; i++) {
+          const p = rec.pts[i], q = rec.pts[(i + 1) % rec.pts.length], mx = (p[0] + q[0]) / 2, mz = (p[1] + q[1]) / 2;
+          const nx = mx - cx, nz = mz - cz, nl = Math.hypot(nx, nz) || 1;
+          const c = new THREE.Mesh(new THREE.CircleGeometry(r * 0.42, 24), face);
+          c.position.set(mx + (nx / nl) * 1.5, y, mz + (nz / nl) * 1.5); c.lookAt(mx + nx * 4, y, mz + nz * 4); world.add(c);
+        }
+      }
+    }
+    for (const b of geo.buildings) if (!b.shell) solid(b, false);
+    for (const p of geo.parts) solid(p, true);
+
+    // ---- the ground: lawns and squares as filled outlines, streets as ribbons
+    const fill = (pts, key) => { try { cap(pts, null, 0, key); } catch (e) { /* a self-crossing outline: leave it as bare ground */ } };
+    function ribbon(pts, width, key) {
+      const b = batch(grounds, key), h = width / 2;
+      for (let i = 1; i < pts.length; i++) {
+        const p = pts[i - 1], q = pts[i], dx = q[0] - p[0], dz = q[1] - p[1], len = Math.hypot(dx, dz);
+        if (len < 1) continue;
+        // Each piece runs half a width past its ends, which closes the gaps at bends.
+        const ux = dx / len, uz = dz / len, nx = -uz * h, nz = ux * h, ex = ux * h * 0.5, ez = uz * h * 0.5;
+        b.quad([p[0] - ex + nx, 0, p[1] - ez + nz], [q[0] + ex + nx, 0, q[1] + ez + nz], [p[0] - ex - nx, 0, p[1] - ez - nz], [q[0] + ex - nx, 0, q[1] + ez - nz], 0, len / 60, 0, 1);
+      }
+    }
+    const GROUND = [               // [key, colour, height above the base ground]
+      ['grass', theme.lawn, 0.5], ['wood', '#587a48', 0.5], ['pitch', '#6fa35a', 0.5], ['plaza', '#b9b1a0', 0.7],
+      ['path', '#c2baa8', 0.9], ['walk', '#9a958b', 1.1], ['road', theme.road, 1.1], ['line', '#d9d5c8', 1.5], ['rail', '#22252a', 1.7],
+    ];
+    for (const g of geo.green) fill(g.pts, 'g:' + g.kind);
+    for (const pl of geo.plazas) fill(pl, 'g:plaza');
+    for (const pa of geo.paths) ribbon(pa.pts, pa.w, 'path');
+    for (const r of geo.roads) {
+      ribbon(r.pts, r.w, r.walk ? 'walk' : 'road');
+      if (!r.walk && r.w >= 140) ribbon(r.pts, 2.5, 'line');             // a centre line on the wider streets
+    }
+    for (const rl of geo.rails) for (const side of [-7.2, 7.2]) {          // two rails, standard gauge apart
+      const off = rl.map((q, i) => {
+        const a = rl[Math.max(0, i - 1)], c = rl[Math.min(rl.length - 1, i + 1)], dx = c[0] - a[0], dz = c[1] - a[1], l = Math.hypot(dx, dz) || 1;
+        return [q[0] - (dz / l) * side, q[1] + (dx / l) * side];
+      });
+      ribbon(off, 1.6, 'rail');
+    }
+
+    // ---- hand the batches to the scene
+    const tex = {};
+    for (const [key, b] of walls) {
+      const [style, tint] = key.split('|');
+      tex[style] ||= tileTexture(style);
+      const mat = lambert(WALL_TINTS[style][+tint], { map: tex[style], side: THREE.DoubleSide, clippingPlanes: [cutaway] });
+      const m = b.mesh(mat, true); if (m) world.add(m);
+    }
+    for (const [key, b] of roofs) {
+      const ground = key.startsWith('g:');
+      const g = ground && GROUND.find((x) => x[0] === key.slice(2));
+      const mat = lambert(ground ? g[1] : key, { side: THREE.DoubleSide, ...(ground ? {} : { clippingPlanes: [cutaway] }) });
+      const m = b.mesh(mat, !ground); if (!m) continue;
+      if (ground) m.position.y = g[2];
+      world.add(m);
+    }
+    for (const [key, b] of grounds) {
+      const g = GROUND.find((x) => x[0] === key);
+      const m = b.mesh(lambert(g[1], { side: THREE.DoubleSide }), false); if (!m) continue;
+      m.position.y = g[2]; world.add(m);
+    }
+
+    // ---- every mapped street tree, as two instanced meshes
+    const trees = geo.trees.slice(0, 600);
+    if (trees.length) {
+      const trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(4, 6, 60, 6), lambert('#5b4a3c'), trees.length);
+      const crown = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 1), lambert('#ffffff'), trees.length);
+      const o = new THREE.Object3D(), c = new THREE.Color();
+      trees.forEach(([x, z], i) => {
+        const k = ((x * 73 + z * 19) % 100 + 100) % 100 / 100, r = 34 + k * 26, jac = theme === THEMES.usyd && k > 0.9;
+        o.position.set(x, 30, z); o.scale.set(1, 1, 1); o.rotation.set(0, 0, 0); o.updateMatrix(); trunk.setMatrixAt(i, o.matrix);
+        o.position.set(x, 62 + r * 0.7, z); o.scale.set(r, r * 0.85, r); o.rotation.y = k * 6; o.updateMatrix(); crown.setMatrixAt(i, o.matrix);
+        crown.setColorAt(i, jac ? c.set('#8f7fc4') : c.setHSL(0.27 + k * 0.05, 0.32, 0.27 + k * 0.1));
+      });
+      trunk.castShadow = crown.castShadow = true; crown.receiveShadow = true;
+      world.add(trunk, crown);
+      // Kept so render() can drop the few that stand between the camera and the cell.
+      const full = trees.map((_, i) => { const m = new THREE.Matrix4(); crown.getMatrixAt(i, m); return m; });
+      treeCrowns = { mesh: crown, pts: trees, full, hidden: new Uint8Array(trees.length), zero: new THREE.Matrix4().makeScale(0, 0, 0) };
+    }
+  }
+
   function disposeWorld() {
     if (!world) return;
     world.traverse((o) => {
@@ -276,14 +515,20 @@ export async function createBattle3D(env) {
       for (const m of mats) { if (m.map) m.map.dispose(); m.dispose(); }
     });
     for (const f of fighters.values()) { f.tex.dispose(); f.sprite.material.dispose(); }
-    fighters.clear(); clouds = []; orbs = []; danger = null; world = null;
+    fighters.clear(); clouds = []; orbs = []; danger = null; world = null; sky = null; cutaway = null; treeCrowns = null;
   }
 
   /** Builds the scene for one match. */
   function build(mapKey, def, buildings, props, pickups) {
     disposeWorld();
-    const theme = THEMES[mapKey] || THEMES.hospital;
+    isGeo = !!def.geo;
+    const theme = (isGeo && THEMES[def.geo.key]) || THEMES[mapKey] || THEMES.hospital;
     mapDef = def; fogFar = theme.fog[2];
+    // Filmic tone mapping is what stops bright walls blowing out to flat
+    // colour. Only on the real-street maps: the others were lit without it.
+    renderer.toneMapping = isGeo ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.localClippingEnabled = isGeo;
     scene = new THREE.Scene();
     scene.background = new THREE.Color(theme.sky);
     scene.fog = new THREE.Fog(theme.fog[0], theme.fog[1], theme.fog[2]);
@@ -298,16 +543,19 @@ export async function createBattle3D(env) {
     sun = new THREE.DirectionalLight(theme.sun[0], theme.sun[1]);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    const sc = sun.shadow.camera; sc.left = -1300; sc.right = 1300; sc.top = 1300; sc.bottom = -1300; sc.near = 100; sc.far = 5000;
+    const sc = sun.shadow.camera; sc.left = -1300; sc.right = 1300; sc.top = 1300; sc.bottom = -1300; sc.near = 100; sc.far = isGeo ? 9000 : 5000;
+    if (isGeo) { sun.shadow.mapSize.set(4096, 4096); sc.left = sc.bottom = -1700; sc.right = sc.top = 1700; }
     sun.shadow.bias = -0.0006;
     sun.userData.offset = new THREE.Vector3(...theme.sun[2]);
     scene.add(sun); scene.add(sun.target);
 
     const far = Math.max(def.halfW, def.halfD) * 6;
     flat(far, far, lambert(theme.ground), 0, 0, 0);
+    addSky(theme);
+    if (isGeo) addGeo(def.geo, theme);
     for (const l of def.lawns || []) flat(l.w, l.d, lambert(l.color || theme.lawn), l.x, 0.4, l.z + l.d / 2);
     for (const p of def.plazas || []) flat(p.w, p.d, lambert(p.color || '#d9c7a0'), p.x, 0.5, p.z + p.d / 2);
-    addRoads(def, theme);
+    if (!isGeo) addRoads(def, theme);
     for (const bd of buildings) addBuilding(bd);
     for (const d of def.decor || []) {
       if (d.type === 'tower') {      // a clock tower, standing over an archway
@@ -326,7 +574,7 @@ export async function createBattle3D(env) {
       }
     }
     props.forEach((pr, i) => addTree(pr, theme.trees[i % theme.trees.length]));
-    addBackdrop(def, theme);
+    if (!isGeo) addBackdrop(def, theme);
 
     for (let i = 0; i < theme.clouds; i++) {
       const c = new THREE.Group();
@@ -397,7 +645,17 @@ export async function createBattle3D(env) {
       // Over the shoulder: close behind your cell, turning with st.yaw. The
       // scene is mirrored in x, so "forward" is too.
       const fx = -Math.sin(st.yaw), fz = Math.cos(st.yaw);
-      camPos.set(-st.px - fx * 460, 290, st.pz - fz * 460);
+      // Between real buildings the camera would end up inside a wall. Walk it
+      // back from the cell and stop short of the first thing it would enter.
+      let back = 460;
+      if (isGeo && env.blocked) {
+        for (let d = 70; d <= 460; d += 30) {
+          if (env.blocked(st.px - Math.sin(st.yaw) * d, st.pz - Math.cos(st.yaw) * d)) { back = Math.max(90, d - 40); break; }
+        }
+      }
+      camBack += (back - camBack) * (back < camBack ? 0.5 : 0.08);        // in quickly, out slowly
+      const lift = 290 + (460 - camBack) * 0.55;                             // closer means higher, to keep the cell in view
+      camPos.set(-st.px - fx * camBack, lift, st.pz - fz * camBack);
       camLook.set(-st.px + fx * 300, 40, st.pz + fz * 300);
     } else if (st.view === 'top') {
       // The whole map from above, for someone watching rather than playing.
@@ -414,6 +672,20 @@ export async function createBattle3D(env) {
     if (st.push) camera.position.lerp(camLook, st.push * 0.035);
     camera.lookAt(camLook);
     camera.updateMatrixWorld();
+    if (sky) sky.position.copy(camera.position);
+    if (cutaway) cutaway.constant = (st.view === 'close' || st.view === 'first') ? 1e6 : 300;
+    if (treeCrowns && st.view !== 'top') {
+      // A tree canopy between the camera and your cell hides the one thing
+      // you need to see. Those few are dropped while they are in the way.
+      const ax = -camera.position.x, az = camera.position.z, bx = st.px, bz = st.pz, dx = bx - ax, dz = bz - az, len2 = dx * dx + dz * dz || 1;
+      let changed = false;
+      treeCrowns.pts.forEach(([x, z], i) => {
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / len2));
+        const hide = Math.hypot(x - (ax + dx * t), z - (az + dz * t)) < 95 ? 1 : 0;
+        if (hide !== treeCrowns.hidden[i]) { treeCrowns.hidden[i] = hide; treeCrowns.mesh.setMatrixAt(i, hide ? treeCrowns.zero : treeCrowns.full[i]); changed = true; }
+      });
+      if (changed) treeCrowns.mesh.instanceMatrix.needsUpdate = true;
+    }
     sun.position.copy(camLook).add(sun.userData.offset); sun.target.position.copy(camLook);
 
     const seen = new Set();
